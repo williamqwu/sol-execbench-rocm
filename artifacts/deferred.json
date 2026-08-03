@@ -1,0 +1,205 @@
+{
+  "_provenance": {
+    "task": "deferred-ledger",
+    "utc": "2026-08-03T23:29:28.082860+00:00",
+    "git_sha": "91a4e813565dadcea9a192f18b788ac60f469a30-dirty",
+    "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+    "python": "3.12.3",
+    "torch": {
+      "available": true,
+      "version": "2.9.1+rocm7.2.0.git7e1940d4",
+      "hip": "7.2.26015-fc0010cf6a",
+      "cuda": null,
+      "device_count": 8,
+      "devices": [
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X"
+      ]
+    },
+    "rocm": {
+      "version": "7.2.0",
+      "driver": "7.1.1.31500000",
+      "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+    },
+    "f_lock_mhz": 1300,
+    "visible_devices": null
+  },
+  "_note": "The single machine-readable statement of what this port does NOT ship. Every document that states a total quotes this file. A gap recorded here is a decision; a gap not recorded here is a bug.",
+  "manifest_version": "v1",
+  "dataset_total": 235,
+  "deferred_total": 15,
+  "shipped_total": 220,
+  "problems": {
+    "Quant__008_nvfp4_multimodal_embedding_projection": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    },
+    "Quant__009_nvfp4_vision_temporal_patch_merge_with_projection": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    },
+    "Quant__018_nvfp4_attention_output_projection_with_residual": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    },
+    "Quant__019_nvfp4_grouped_query_attention": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    },
+    "Quant__020_nvfp4_linear_layer": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    },
+    "Quant__024_nvfp4_attention_output_projection": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    },
+    "Quant__025_nvfp4_attention_qkv_projection": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    },
+    "Quant__026_nvfp4_mamba2_out_projection": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    },
+    "Quant__027_nvfp4_moe_router_projection": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    },
+    "Quant__028_nvfp4_attention_qkv_projection_with_rope": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    },
+    "Quant__029_nvfp4_fused_mlp_silu_gating": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    },
+    "Quant__030_nvfp4_fused_decoder_layer_pre_norm_attention": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    },
+    "Quant__031_nvfp4_grouped_query_attention_with_kv_repeat": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    },
+    "Quant__032_nvfp4_moe_expert_linear_with_gating": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    },
+    "Quant__033_nvfp4_moe_routing_with_topk_selection": {
+      "reason": "nvfp4-no-rocm-path",
+      "mechanism": "The reference itself fails on ROCm, before any submission is involved. This is not a port gap that more work closes.",
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "why_not_substituted": "MXFP4 (block 32, E8M0 scales) is the OCP format CDNA4 implements and it does work here -- a Triton dot_scaled kernel was compiled, launched and numerically verified (artifacts/07/spike.json). But NVFP4 is block 16 with FP8-E4M3 scales. Different block granularity and a different scale format give different quantization error, so an MXFP4 version of one of these problems is a re-specification, not a translation, and must never be presented as the NVFP4 problem.",
+      "revisit_when": "ROCm gains a block-16 FP8-E4M3-scaled scaled_gemm path, or the benchmark adds MXFP4 problems under their own IDs with provenance back to these.",
+      "evidence": [
+        "artifacts/07/spike.json",
+        "artifacts/05/Quant__*nvfp4*.json"
+      ]
+    }
+  }
+}

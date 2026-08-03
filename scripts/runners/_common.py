@@ -63,6 +63,35 @@ def run_guarded(out: Path, kind: str, body: Callable[[], dict[str, Any]]) -> int
     return 0 if payload.get("ok") else 1
 
 
+def workloads_path(problem: Path) -> Path:
+    """Which workload.jsonl to run against.
+
+    `SOLEXBENCH_WORKLOADS_ROOT` points at a tree of the same
+    `<Category>/<problem>/workload.jsonl` shape -- in practice
+    `artifacts/05/workloads/`, the dataset's workloads with AMD-DERIVED
+    tolerances substituted in. Everything downstream of task 05 must run
+    against those: the shipped file carries B200 tolerances, and scoring a
+    kernel correct-or-not by a tolerance measured on other silicon is prime
+    directive 2 in its most consequential form.
+
+    Opt-in by environment rather than defaulted, so that a run against the
+    shipped tolerances is a thing someone chose, and so the chosen root can be
+    recorded in the artifact.
+    """
+    root = os.environ.get("SOLEXBENCH_WORKLOADS_ROOT")
+    if root:
+        cand = Path(root) / problem.parent.name / problem.name / "workload.jsonl"
+        if cand.exists():
+            return cand
+        # Loud: a missing override file would otherwise silently fall back to
+        # B200 tolerances for exactly the problems whose calibration is most
+        # interesting.
+        raise FileNotFoundError(
+            f"SOLEXBENCH_WORKLOADS_ROOT={root} has no entry for "
+            f"{problem.parent.name}/{problem.name} ({cand})")
+    return problem / "workload.jsonl"
+
+
 def load_problem(problem: Path):
     """(Definition, [Workload]) for a problem directory."""
     from sol_execbench.core import Definition, Workload
@@ -70,7 +99,7 @@ def load_problem(problem: Path):
     definition = Definition(**json.loads((problem / "definition.json").read_text()))
     workloads = [
         Workload(**json.loads(line))
-        for line in (problem / "workload.jsonl").read_text().splitlines()
+        for line in workloads_path(problem).read_text().splitlines()
         if line.strip()
     ]
     return definition, workloads

@@ -46,17 +46,39 @@ from _common import (  # noqa: E402
 GOLDEN_DIR = ROOT / "artifacts" / "golden"
 
 
+#: Elements per float64 comparison chunk. The comparison promotes to float64
+#: and materializes a difference, so a whole-tensor comparison peaks at roughly
+#: 4x the output's own size -- which is how a problem with an 18 GiB output
+#: OOM'd a 252 GiB GPU while holding only two copies of it. Chunking caps that
+#: overhead at a fixed ~2 GiB regardless of output size, and changes no result:
+#: a maximum over chunks is the maximum.
+_CHUNK = 1 << 26
+
+
+def _chunks(a, b):
+    """(flat a, flat b) chunk pairs, in float64, bounded in size."""
+    a = a.detach().reshape(-1)
+    b = b.detach().reshape(-1)
+    import torch
+
+    n = min(a.numel(), b.numel())
+    for i in range(0, n, _CHUNK):
+        yield (a[i:i + _CHUNK].to(torch.float64),
+               b[i:i + _CHUNK].to(torch.float64))
+
+
 def _max_abs(a, b) -> float:
     """Max absolute difference between two tensors, ignoring non-finite pairs."""
     import torch
 
-    a = a.detach().to(torch.float64)
-    b = b.detach().to(torch.float64)
-    finite = torch.isfinite(a) & torch.isfinite(b)
-    if not bool(finite.any()):
-        return 0.0
-    diff = torch.where(finite, (a - b).abs(), torch.zeros_like(a))
-    return float(diff.max())
+    out = 0.0
+    for x, y in _chunks(a, b):
+        finite = torch.isfinite(x) & torch.isfinite(y)
+        if not bool(finite.any()):
+            continue
+        diff = torch.where(finite, (x - y).abs(), torch.zeros_like(x))
+        out = max(out, float(diff.max()))
+    return out
 
 
 def _max_rel(a, b, atol: float) -> float:
@@ -75,14 +97,15 @@ def _max_rel(a, b, atol: float) -> float:
     """
     import torch
 
-    a = a.detach().to(torch.float64)
-    b = b.detach().to(torch.float64)
-    finite = torch.isfinite(a) & torch.isfinite(b)
-    if not bool(finite.any()):
-        return 0.0
-    diff = torch.where(finite, (a - b).abs(), torch.zeros_like(a))
-    rel = diff / torch.clamp(b.abs(), min=max(atol, 1e-12))
-    return float(torch.where(finite, rel, torch.zeros_like(rel)).max())
+    out = 0.0
+    for x, y in _chunks(a, b):
+        finite = torch.isfinite(x) & torch.isfinite(y)
+        if not bool(finite.any()):
+            continue
+        diff = torch.where(finite, (x - y).abs(), torch.zeros_like(x))
+        rel = diff / torch.clamp(y.abs(), min=max(atol, 1e-12))
+        out = max(out, float(torch.where(finite, rel, torch.zeros_like(rel)).max()))
+    return out
 
 
 def main() -> int:
@@ -94,6 +117,10 @@ def main() -> int:
     ap.add_argument("--atol-floor", type=float, default=1e-8,
                     help="denominator floor for relative error, mirroring "
                          "compute_error_stats")
+    ap.add_argument("--low-memory", action="store_true",
+                    help="never retain more than one seed's outputs; re-run "
+                         "the seed loop to measure relative error once atol "
+                         "is known. Same derivation, 2x the executions.")
     a = ap.parse_args()
 
     def body() -> dict:
@@ -143,7 +170,17 @@ def main() -> int:
                         max_abs = max(max_abs, _max_abs(x, y))
                     if first_outputs is None:
                         first_outputs = out_a
-                    pairs.append((out_a, out_b))
+                    # Retaining every seed's outputs costs seeds x 2 x
+                    # output_size of device memory, which OOM'd five problems
+                    # whose outputs run to tens of GiB (234 GiB of 252 held at
+                    # the point of failure). --low-memory keeps only seed 0's
+                    # and pays for it with a second pass below.
+                    if not a.low_memory:
+                        pairs.append((out_a, out_b))
+                    else:
+                        del out_b
+                        if seed:
+                            del out_a
                     del inputs
                     torch.cuda.empty_cache()
 
@@ -153,9 +190,27 @@ def main() -> int:
                 eps = _dtype_floor(base)
                 atol = max(max_abs * a.margin, eps["atol"])
                 max_rel = 0.0
-                for out_a, out_b in pairs:
-                    for x, y in zip(out_a, out_b):
-                        max_rel = max(max_rel, _max_rel(x, y, atol))
+                if a.low_memory:
+                    # Second pass: identical seeds, so identical inputs, and
+                    # the same two-executions-per-seed comparison. The
+                    # derivation is unchanged; only the memory profile is.
+                    for seed in range(a.seeds):
+                        torch.manual_seed(seed)
+                        inputs = prepare_inputs(definition, wl, ns)
+                        with torch.no_grad():
+                            out_a = [t.detach().clone()
+                                     for t in _as_list(run(*inputs))]
+                        torch.cuda.empty_cache()
+                        with torch.no_grad():
+                            out_b = _as_list(run(*inputs))
+                        for x, y in zip(out_a, out_b):
+                            max_rel = max(max_rel, _max_rel(x, y, atol))
+                        del inputs, out_a, out_b
+                        torch.cuda.empty_cache()
+                else:
+                    for out_a, out_b in pairs:
+                        for x, y in zip(out_a, out_b):
+                            max_rel = max(max_rel, _max_rel(x, y, atol))
                 del pairs
 
                 entry.update({
@@ -210,6 +265,7 @@ def main() -> int:
             "definition": definition.name,
             "margin": a.margin,
             "seeds": a.seeds,
+            "low_memory": a.low_memory,
             "golden_available": golden is not None,
             "per_workload": per_workload,
             "n_ok": sum(1 for w in per_workload if w.get("ok")),

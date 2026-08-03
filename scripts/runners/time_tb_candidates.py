@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import os
 import sys
 from pathlib import Path
 
@@ -34,6 +35,7 @@ from _common import (  # noqa: E402
     reference_solution,
     run_guarded,
     summarize,
+    workloads_path,
 )
 
 CANDIDATE_DIR = ROOT / "reference" / "tb-candidates"
@@ -152,6 +154,10 @@ def main() -> int:
         return {
             "problem": key,
             "definition": definition.name,
+            # Which tolerances decided `all_passed`, and therefore which
+            # variant was eligible to become the anchor.
+            "workloads_from": str(workloads_path(a.problem)),
+            "gpu": os.environ.get("HIP_VISIBLE_DEVICES"),
             "variants": results,
             "winner_by_workload": winners,
             "n_workloads": len(workloads),

@@ -106,7 +106,14 @@ def main():
     t_sol = collect_t_sol(Path(a.t_sol))
     t_b = collect_t_b(Path(a.t_b))
     tolerances = collect_tolerances(Path(a.tolerances))
-    deferred = _load(Path(a.deferred)) or {}
+    # The ledger is `{_note, dataset_total, ..., problems: {key: reason}}`.
+    # Read the mapping out of it rather than iterating the whole document --
+    # `sorted(doc)` over the outer dict would list "_note" as a deferred
+    # problem and inflate every count that quotes this file.
+    deferred_doc = _load(Path(a.deferred)) or {}
+    deferred = deferred_doc.get("problems", {})
+    if not isinstance(deferred, dict):
+        sys.exit(f"{a.deferred}: 'problems' must map problem key -> reason")
 
     data = Path(a.data)
     census = {
