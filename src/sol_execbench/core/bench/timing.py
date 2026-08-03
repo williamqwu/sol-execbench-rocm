@@ -300,6 +300,104 @@ def bench_time_with_cuda_events(
     return measured_times
 
 
+def bench_gpu_time_with_rocprof(
+    fn: Callable,
+    warmup: int = 10,
+    rep: int = 100,
+    setup: Callable[[], Any] | None = None,
+    cold_l2_cache: bool = True,
+    device="cuda",
+):
+    """AMD: the CUPTI methodology, sourced from rocprofiler-sdk.
+
+    Structurally the same as ``bench_gpu_time_with_cupti`` and deliberately so:
+    warm up, discover the user-call activity sequence once the setup and
+    cache-flush work has drained, then bracket each timed iteration on the host
+    and select only that sequence inside each bracket.
+
+    What differs is only where the records come from. Every decision about
+    *which* activities belong to an iteration lives in
+    ``solexbench_rocm.activity``, is vendor-neutral, and is covered by
+    mutation-tested CPU tests -- so this function deliberately contains no
+    selection logic of its own to get subtly wrong.
+
+    The host bracket uses the SHIM's timestamp, not ``time.perf_counter`` and
+    not CUPTI's: rocprofiler-sdk stamps records with the HSA clock, and mixing
+    domains does not raise, it just silently bisects the wrong activities into
+    each window.
+    """
+    import sys
+    from pathlib import Path
+
+    # .../src/sol_execbench/core/bench/timing.py -> parents[3] is .../src
+    _rocm_pkg = Path(__file__).resolve().parents[3] / "solexbench_rocm"
+    for extra in (_rocm_pkg / "activity", _rocm_pkg / "shim"):
+        if str(extra) not in sys.path:
+            sys.path.insert(0, str(extra))
+
+    from activity_sources import RocprofActivitySource
+    from gpu_activity import (
+        ActivitySequenceNotFound,
+        activity_counts,
+        activity_sequence,
+        measure_iterations,
+    )
+
+    if setup is None:
+        _fn = fn
+
+        def fn(_):
+            return _fn()
+
+        def setup():
+            return None
+
+    buffer = None
+    if cold_l2_cache:
+        buffer = _get_empty_cache_for_benchmark(device)
+
+    def prepare_iteration(*, synchronize: bool = True):
+        args = setup()
+        if cold_l2_cache:
+            _reset_persisting_l2_cache(device)
+            _clear_cache(buffer)
+        if synchronize:
+            torch.cuda.synchronize()
+        return args
+
+    torch.cuda.synchronize()
+    for _ in range(warmup):
+        fn(prepare_iteration())
+    torch.cuda.synchronize()
+
+    # Discovery: what does one user call actually look like on the device?
+    args = prepare_iteration()
+    with RocprofActivitySource() as source:
+        fn(args)
+        torch.cuda.synchronize()
+    expected = activity_sequence(source.drain())
+    if not expected:
+        raise ValueError("No GPU activities recorded during discovery iteration")
+
+    windows: list[tuple[int, int]] = []
+    with RocprofActivitySource() as source:
+        torch.cuda.synchronize()
+        for _ in range(rep):
+            args = prepare_iteration(synchronize=False)
+            start = source.timestamp()
+            fn(args)
+            # Synchronize BEFORE stamping the end: work that lands late, or on
+            # another stream, must stay inside the attribution window.
+            torch.cuda.synchronize()
+            windows.append((start, source.timestamp()))
+        torch.cuda.synchronize()
+
+    activities = source.drain()
+    if activity_counts(activities) and not windows:
+        raise ActivitySequenceNotFound("no iteration windows recorded")
+    return measure_iterations(activities, expected, windows)
+
+
 def time_runnable(
     fn: Any,
     inputs: list,
@@ -308,7 +406,7 @@ def time_runnable(
     warmup: int = 10,
     rep: int = 100,
     return_mode: Literal["mean", "median", "all"] = "median",
-    methodology: Literal["cuda_events", "hip_events", "cupti"] | None = None,
+    methodology: Literal["cuda_events", "hip_events", "cupti", "rocprof"] | None = None,
     seed: int = 0,
 ) -> Union[float, list[float]]:
     """Time the execution of a callable using CUDA events.
@@ -365,6 +463,23 @@ def time_runnable(
             )
             try:
                 times = bench_time_with_cuda_events(
+                    fn=lambda args: fn(*args),
+                    warmup=warmup,
+                    rep=rep,
+                    setup=allocator.get_unique_args,
+                    device=device,
+                )
+            finally:
+                del allocator
+        elif methodology == "rocprof":
+            # AMD: dispatch-level attribution via rocprofiler-sdk. The
+            # allocator gets one extra iteration for the discovery pass, the
+            # same allowance the CUPTI path makes for its own.
+            allocator = ShiftingMemoryPoolAllocator(
+                inputs, outputs, total_iterations + 1, seed=seed
+            )
+            try:
+                times = bench_gpu_time_with_rocprof(
                     fn=lambda args: fn(*args),
                     warmup=warmup,
                     rep=rep,

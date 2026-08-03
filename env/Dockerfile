@@ -16,7 +16,8 @@ RUN pip install --no-cache-dir /opt/rocm/share/amd_smi
 RUN pip install --no-cache-dir huggingface_hub==1.26.0 pyarrow
 
 # uv: upstream's end-to-end tests invoke the CLI through `uv run`.
-RUN pip install --no-cache-dir uv
+# pybind11: builds the rocprofiler-sdk activity shim (task 04).
+RUN pip install --no-cache-dir uv pybind11
 
 # Upstream sol-execbench runtime deps, MINUS the NVIDIA wheel set
 # (cuda-bindings, cuda-python, cupti-python, cuda-tile, cupy-cuda13x,

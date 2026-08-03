@@ -68,16 +68,44 @@ def p_e8m0_scales():
 
 
 def p_scaled_mm():
+    """MXFP4 through torch._scaled_mm: float4 data, E8M0 scales, block 32.
+
+    Scales are float8_e8m0fnu, not uint8. Passing uint8 makes this fail with a
+    dtype complaint that looks like "MXFP4 unsupported" but is really "you
+    passed the wrong scale type" -- a false negative on the decision that
+    governs 15 problems.
+    """
     import torch
     m = k = n = 256
     a = torch.zeros(m, k // 2, dtype=torch.uint8, device="cuda").view(torch.float4_e2m1fn_x2)
     b = torch.zeros(n, k // 2, dtype=torch.uint8, device="cuda").view(torch.float4_e2m1fn_x2)
-    sa = torch.ones(m, k // MX_BLOCK, dtype=torch.uint8, device="cuda")
-    sb = torch.ones(n, k // MX_BLOCK, dtype=torch.uint8, device="cuda")
+    sa = torch.full((m, k // MX_BLOCK), 127, dtype=torch.uint8,
+                    device="cuda").view(torch.float8_e8m0fnu)
+    sb = torch.full((n, k // MX_BLOCK), 127, dtype=torch.uint8,
+                    device="cuda").view(torch.float8_e8m0fnu)
     out = torch._scaled_mm(a, b.t(), scale_a=sa, scale_b=sb,
                            out_dtype=torch.bfloat16)
     return {"out_shape": list(out.shape), "out_dtype": str(out.dtype),
-            "block": MX_BLOCK}
+            "block": MX_BLOCK, "scale_dtype": "float8_e8m0fnu"}
+
+
+def p_scaled_mm_nvfp4():
+    """The NVFP4 shape (block 16, E4M3 scales) for contrast.
+
+    Worth probing precisely because the 15 Quant problems are written for it:
+    if this works, they need no respec at all; if it does not, the respec is
+    forced rather than chosen.
+    """
+    import torch
+    m = k = n = 256
+    a = torch.zeros(m, k // 2, dtype=torch.uint8, device="cuda").view(torch.float4_e2m1fn_x2)
+    b = torch.zeros(n, k // 2, dtype=torch.uint8, device="cuda").view(torch.float4_e2m1fn_x2)
+    sa = torch.ones(m, k // 16, dtype=torch.float8_e4m3fn, device="cuda")
+    sb = torch.ones(n, k // 16, dtype=torch.float8_e4m3fn, device="cuda")
+    out = torch._scaled_mm(a, b.t(), scale_a=sa, scale_b=sb,
+                           out_dtype=torch.bfloat16)
+    return {"out_shape": list(out.shape), "block": 16,
+            "scale_dtype": "float8_e4m3fn"}
 
 
 def p_hipblaslt():
@@ -88,10 +116,61 @@ def p_hipblaslt():
 
 
 def p_triton_scaled_dot():
+    """COMPILE AND RUN a Triton MXFP4 dot, and check the numbers.
+
+    `hasattr(tl, "dot_scaled")` proves only that the Python binding exists. The
+    question this spike exists to answer is whether gfx950 has a working MXFP4
+    kernel path, which is decided by the compiler backend, not the frontend --
+    so the kernel is compiled, launched, and its result compared against a
+    dequantized bf16 reference.
+    """
+    import torch
     import triton
     import triton.language as tl
-    has = hasattr(tl, "dot_scaled")
-    return {"triton": triton.__version__, "dot_scaled": has}
+
+    if not hasattr(tl, "dot_scaled"):
+        raise RuntimeError("triton.language has no dot_scaled")
+
+    BLOCK_M = BLOCK_N = 32
+    BLOCK_K = 64                      # 2 MX blocks of 32 along K
+
+    @triton.jit
+    def mxfp4_dot(a_ptr, b_ptr, sa_ptr, sb_ptr, out_ptr,
+                  BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr,
+                  BLOCK_K: tl.constexpr):
+        offs_m = tl.arange(0, BLOCK_M)
+        offs_n = tl.arange(0, BLOCK_N)
+        offs_k2 = tl.arange(0, BLOCK_K // 2)     # packed: 2 values per byte
+        offs_s = tl.arange(0, BLOCK_K // 32)     # one E8M0 scale per 32
+
+        a = tl.load(a_ptr + offs_m[:, None] * (BLOCK_K // 2) + offs_k2[None, :])
+        b = tl.load(b_ptr + offs_n[:, None] * (BLOCK_K // 2) + offs_k2[None, :])
+        sa = tl.load(sa_ptr + offs_m[:, None] * (BLOCK_K // 32) + offs_s[None, :])
+        sb = tl.load(sb_ptr + offs_n[:, None] * (BLOCK_K // 32) + offs_s[None, :])
+
+        acc = tl.dot_scaled(a, sa, "e2m1", tl.trans(b), tl.trans(sb), "e2m1")
+        tl.store(out_ptr + offs_m[:, None] * BLOCK_N + offs_n[None, :], acc)
+
+    # 0x22 packs two E2M1 values of +1.0; E8M0 127 is a scale of 2^0 = 1.
+    a = torch.full((BLOCK_M, BLOCK_K // 2), 0x22, dtype=torch.uint8, device="cuda")
+    b = torch.full((BLOCK_N, BLOCK_K // 2), 0x22, dtype=torch.uint8, device="cuda")
+    sa = torch.full((BLOCK_M, BLOCK_K // 32), 127, dtype=torch.uint8, device="cuda")
+    sb = torch.full((BLOCK_N, BLOCK_K // 32), 127, dtype=torch.uint8, device="cuda")
+    out = torch.zeros((BLOCK_M, BLOCK_N), dtype=torch.float32, device="cuda")
+
+    mxfp4_dot[(1,)](a, b, sa, sb, out, BLOCK_M, BLOCK_N, BLOCK_K)
+    torch.cuda.synchronize()
+
+    # Every element is 1.0, so each output is a sum of BLOCK_K ones.
+    expected = float(BLOCK_K)
+    got = float(out[0, 0])
+    if abs(got - expected) > 1e-3:
+        raise RuntimeError(
+            f"MXFP4 dot ran but produced {got}, expected {expected}: the path "
+            f"exists but is numerically wrong, which is worse than absent"
+        )
+    return {"triton": triton.__version__, "executed": True,
+            "out_00": got, "expected": expected, "block": 32}
 
 
 def main():
@@ -103,6 +182,7 @@ def main():
         probe("torch_dtype_float4_e2m1fn_x2", p_dtype),
         probe("e8m0_scales", p_e8m0_scales),
         probe("torch_scaled_mm_mxfp4", p_scaled_mm),
+        probe("torch_scaled_mm_nvfp4", p_scaled_mm_nvfp4),
         probe("hipblaslt_present", p_hipblaslt),
         probe("triton_dot_scaled", p_triton_scaled_dot),
     ]

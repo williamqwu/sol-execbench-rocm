@@ -1,0 +1,100 @@
+{
+  "_provenance": {
+    "task": "roofline-probe",
+    "utc": "2026-08-03T21:17:09.500290+00:00",
+    "git_sha": "2cdb7b0b619e7cf7cbcf27f7666d823437987165-dirty",
+    "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+    "python": "3.12.3",
+    "torch": {
+      "available": true,
+      "version": "2.9.1+rocm7.2.0.git7e1940d4",
+      "hip": "7.2.26015-fc0010cf6a",
+      "cuda": null,
+      "device_count": 1,
+      "devices": [
+        "AMD Instinct MI350X"
+      ]
+    },
+    "rocm": {
+      "version": "7.2.0",
+      "driver": "7.1.1.31500000",
+      "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+    },
+    "f_lock_mhz": 1300,
+    "visible_devices": "0"
+  },
+  "gpu": 0,
+  "part": "MI350X",
+  "part_peak": {
+    "freq_ghz": 2.2,
+    "power_cap_w": 1000,
+    "hbm_tbs": 8.0,
+    "bf16_tflops": 2306.8672
+  },
+  "hbm": {
+    "buffer_gib": 16,
+    "median_s": 0.007557175874710083,
+    "tbs": 4.546637386458621,
+    "note": "read+write counted; buffer >> LLC so this is HBM"
+  },
+  "gemm": {
+    "size": 8192,
+    "median_s": 0.0010330439805984496,
+    "tflops": 1064.3415463677018
+  },
+  "hbm_tbs": 4.546637386458621,
+  "gemm_bf16_tflops": 1064.3415463677018,
+  "llc_sweep": {
+    "points": [
+      {
+        "mib": 8,
+        "tbs": 2.178859232585596
+      },
+      {
+        "mib": 16,
+        "tbs": 3.728270382716057
+      },
+      {
+        "mib": 32,
+        "tbs": 4.426706082699229
+      },
+      {
+        "mib": 64,
+        "tbs": 5.210315412334595
+      },
+      {
+        "mib": 128,
+        "tbs": 4.510004397365305
+      },
+      {
+        "mib": 192,
+        "tbs": 4.49587926602921
+      },
+      {
+        "mib": 256,
+        "tbs": 4.585465665445316
+      },
+      {
+        "mib": 384,
+        "tbs": 4.617555904747433
+      },
+      {
+        "mib": 512,
+        "tbs": 4.611490786353457
+      },
+      {
+        "mib": 1024,
+        "tbs": 4.546651730523961
+      },
+      {
+        "mib": 2048,
+        "tbs": 4.440417482070303
+      }
+    ],
+    "cliff": null,
+    "expected_llc_mib": 256,
+    "interpretation": "cliff near 256 MiB confirms Infinity Cache capacity and validates the 512 MB flush buffer; elsewhere means the LLC number or the flush mechanism is wrong"
+  },
+  "hbm_tbs_frac_of_peak": 0.5683296733073276,
+  "gemm_bf16_tflops_frac_of_peak": 0.4613796348431768
+}

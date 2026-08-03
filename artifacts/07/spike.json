@@ -1,0 +1,84 @@
+{
+  "_provenance": {
+    "task": "07-mxfp4-spike",
+    "utc": "2026-08-03T21:19:20.375168+00:00",
+    "git_sha": "2cdb7b0b619e7cf7cbcf27f7666d823437987165-dirty",
+    "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+    "python": "3.12.3",
+    "torch": {
+      "available": true,
+      "version": "2.9.1+rocm7.2.0.git7e1940d4",
+      "hip": "7.2.26015-fc0010cf6a",
+      "cuda": null,
+      "device_count": 1,
+      "devices": [
+        "AMD Instinct MI350X"
+      ]
+    },
+    "rocm": {
+      "version": "7.2.0",
+      "driver": "7.1.1.31500000",
+      "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+    },
+    "f_lock_mhz": 1300,
+    "visible_devices": "1"
+  },
+  "probes": [
+    {
+      "probe": "torch_dtype_float4_e2m1fn_x2",
+      "ok": true,
+      "detail": {
+        "dtype": "torch.float4_e2m1fn_x2",
+        "shape": [
+          64
+        ],
+        "note": "packed two-per-byte"
+      }
+    },
+    {
+      "probe": "e8m0_scales",
+      "ok": true,
+      "detail": {
+        "native_dtype": "float8_e8m0fnu",
+        "n_blocks": 128,
+        "shape": [
+          128
+        ]
+      }
+    },
+    {
+      "probe": "torch_scaled_mm_mxfp4",
+      "ok": false,
+      "error": "RuntimeError: Invalid scaling configuration.\n- For TensorWise scaling, a and b should be float8, scales should be float and singletons.\n- For RowWise scaling, a and b should be float8, scales should be float, scale_a should be (256, 1) and scale_b should be (1, 256), and both should be contiguous.\n- For BlockWise 1x128 scaling, a and b should be float8, scales should be float, scale_a should be (256, 1) and scale_b should be (1, 256), and both should be outer-dim-major.\n- For BlockWise 128x128 scaling, a and b should be float8, scales should be float, scale_a should be (2, 1) and scale_b should be (1, 2), and both should be near-inner-dim-major (with 16-byte aligned strides).\n- For Blockwise 1x32 scaling, a and b should be float8, scales should be float8_e8m0fnu, scale_a should have 1024 elements and scale_b should have 1024 elements, and both should be contiguous.\n- For Blockwise 1x16 scaling, a and b should be float4 (packed 2x), scales should be float8_e4m3fn, scale_a should have 4096 elements and scale_b should have 4096 elements, and both should be contiguous.\nGot a.dtype()=Float4_e2m1fn_x2, scale_a.dtype()=Float8_e8m0fnu, scale_a.size()=[256, 8], scale_a.stride()=[8, 1], b.dtype()=Float4_e2m1fn_x2, scale_b.dtype()=Float8_e8m0fnu, scale_b.size()=[256, 8] and scale_b.stride()=[8, 1]",
+      "traceback": "  ^^^^\n  File \"/work/scripts/mxfp4_spike.py\", line 86, in p_scaled_mm\n    out = torch._scaled_mm(a, b.t(), scale_a=sa, scale_b=sb,\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nRuntimeError: Invalid scaling configuration.\n- For TensorWise scaling, a and b should be float8, scales should be float and singletons.\n- For RowWise scaling, a and b should be float8, scales should be float, scale_a should be (256, 1) and scale_b should be (1, 256), and both should be contiguous.\n- For BlockWise 1x128 scaling, a and b should be float8, scales should be float, scale_a should be (256, 1) and scale_b should be (1, 256), and both should be outer-dim-major.\n- For BlockWise 128x128 scaling, a and b should be float8, scales should be float, scale_a should be (2, 1) and scale_b should be (1, 2), and both should be near-inner-dim-major (with 16-byte aligned strides).\n- For Blockwise 1x32 scaling, a and b should be float8, scales should be float8_e8m0fnu, scale_a should have 1024 elements and scale_b should have 1024 elements, and both should be contiguous.\n- For Blockwise 1x16 scaling, a and b should be float4 (packed 2x), scales should be float8_e4m3fn, scale_a should have 4096 elements and scale_b should have 4096 elements, and both should be contiguous.\nGot a.dtype()=Float4_e2m1fn_x2, scale_a.dtype()=Float8_e8m0fnu, scale_a.size()=[256, 8], scale_a.stride()=[8, 1], b.dtype()=Float4_e2m1fn_x2, scale_b.dtype()=Float8_e8m0fnu, scale_b.size()=[256, 8] and scale_b.stride()=[8, 1]\n"
+    },
+    {
+      "probe": "torch_scaled_mm_nvfp4",
+      "ok": false,
+      "error": "RuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above",
+      "traceback": "Traceback (most recent call last):\n  File \"/work/scripts/mxfp4_spike.py\", line 42, in probe\n    detail = fn()\n             ^^^^\n  File \"/work/scripts/mxfp4_spike.py\", line 105, in p_scaled_mm_nvfp4\n    out = torch._scaled_mm(a, b.t(), scale_a=sa, scale_b=sb,\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\n"
+    },
+    {
+      "probe": "hipblaslt_present",
+      "ok": true,
+      "detail": {
+        "loaded": "libhipblaslt.so",
+        "note": "library present; MXFP4 GEMM path still needs a real call"
+      }
+    },
+    {
+      "probe": "triton_dot_scaled",
+      "ok": true,
+      "detail": {
+        "triton": "3.5.1+rocm7.2.0.gita272dfa8",
+        "executed": true,
+        "out_00": 64.0,
+        "expected": 64.0,
+        "block": 32
+      }
+    }
+  ],
+  "verdict": "go",
+  "rationale": "MXFP4 data and scales are representable and at least one kernel path consumes them. Author the 15 twins.",
+  "mx_block_size": 32
+}

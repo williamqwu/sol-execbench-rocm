@@ -21,6 +21,36 @@ if ! docker image inspect "${IMAGE}" >/dev/null 2>&1; then
   docker build -q -t "${IMAGE}" "${ROOT}/env" >&2
 fi
 
+# A long-lived container keeps running against the image it was CREATED from,
+# so rebuilding the image has no effect on it. That failure is silent and
+# expensive: adding SOLAR to the Dockerfile, rebuilding, and re-running a sweep
+# produced 3,297 "ModuleNotFoundError: No module named 'solar'" results that
+# looked like 235 genuinely failing problems. Compare image IDs and recreate
+# when they differ.
+#
+# SOLB_KEEP_CONTAINER=1 suppresses the recreation, for the case where a long
+# sweep is already running inside the current container and must not be killed.
+# That case is not hypothetical: adding this check and then running any solb
+# command killed a 155-problem-deep sweep on the spot. The sweeps are resumable
+# by construction so nothing was lost, but the surprise is worth one guard --
+# so a container with running work is reported rather than removed.
+WANT_IMAGE_ID="$(docker image inspect -f '{{.Id}}' "${IMAGE}" 2>/dev/null || true)"
+HAVE_IMAGE_ID="$(docker inspect -f '{{.Image}}' "${NAME}" 2>/dev/null || true)"
+if [ -n "${HAVE_IMAGE_ID}" ] && [ "${HAVE_IMAGE_ID}" != "${WANT_IMAGE_ID}" ]; then
+  BUSY="$(docker exec "${NAME}" bash -lc \
+      'pgrep -fc "shard_sweep|runners/|sol_bounds" 2>/dev/null || true' 2>/dev/null || echo 0)"
+  if [ "${SOLB_KEEP_CONTAINER:-0}" = "1" ] || [ "${BUSY:-0}" -gt 0 ]; then
+    echo "WARNING: container '${NAME}' predates the current ${IMAGE}, but" >&2
+    echo "         ${BUSY} sweep process(es) are running inside it, so it was" >&2
+    echo "         NOT recreated. Anything needing the new image must wait, or" >&2
+    echo "         run in a throwaway container. Set SOLB_KEEP_CONTAINER=0 and" >&2
+    echo "         stop the sweep to force it." >&2
+  else
+    echo "container '${NAME}' was built from an older ${IMAGE}; recreating." >&2
+    docker rm -f "${NAME}" >/dev/null 2>&1 || true
+  fi
+fi
+
 if ! docker ps --format '{{.Names}}' | grep -qx "${NAME}"; then
   docker rm -f "${NAME}" >/dev/null 2>&1 || true
   mkdir -p "${SCRATCH}"

@@ -46,21 +46,43 @@ from _common import (  # noqa: E402
 GOLDEN_DIR = ROOT / "artifacts" / "golden"
 
 
-def _stats(a, b, atol_floor: float):
-    """(max_abs, max_rel) between two tensors, on the device they live on."""
+def _max_abs(a, b) -> float:
+    """Max absolute difference between two tensors, ignoring non-finite pairs."""
     import torch
 
     a = a.detach().to(torch.float64)
     b = b.detach().to(torch.float64)
-    diff = (a - b).abs()
     finite = torch.isfinite(a) & torch.isfinite(b)
     if not bool(finite.any()):
-        return 0.0, 0.0
-    diff = torch.where(finite, diff, torch.zeros_like(diff))
-    max_abs = float(diff.max())
-    rel = diff / torch.clamp(b.abs(), min=atol_floor)
-    max_rel = float(torch.where(finite, rel, torch.zeros_like(rel)).max())
-    return max_abs, max_rel
+        return 0.0
+    diff = torch.where(finite, (a - b).abs(), torch.zeros_like(a))
+    return float(diff.max())
+
+
+def _max_rel(a, b, atol: float) -> float:
+    """Max relative difference, with the SAME denominator floor the harness uses.
+
+    `compute_error_stats` divides by ``clamp(|reference|, min=tolerance.max_atol)``
+    -- the tolerance's own atol, not some small epsilon. Using a 1e-8 floor here
+    instead produced max_rtol values around 3e8, because any element whose
+    reference value is ~0 divides a real difference by ~0. A tolerance derived
+    that way is not merely ugly: an rtol of 3e8 accepts literally any output,
+    which is the exact failure mode task 05 exists to prevent -- tolerances
+    loose enough to reward kernels that are wrong but fast.
+
+    So atol is derived first, and rel is then measured against it, mirroring
+    the formula the benchmark actually applies.
+    """
+    import torch
+
+    a = a.detach().to(torch.float64)
+    b = b.detach().to(torch.float64)
+    finite = torch.isfinite(a) & torch.isfinite(b)
+    if not bool(finite.any()):
+        return 0.0
+    diff = torch.where(finite, (a - b).abs(), torch.zeros_like(a))
+    rel = diff / torch.clamp(b.abs(), min=max(atol, 1e-12))
+    return float(torch.where(finite, rel, torch.zeros_like(rel)).max())
 
 
 def main() -> int:
@@ -94,28 +116,52 @@ def main() -> int:
         for wl in workloads:
             entry: dict = {"workload_uuid": wl.uuid, "axes": dict(wl.axes)}
             try:
-                # Run-to-run: same inputs, fresh allocations each seed, so any
-                # difference is nondeterminism in the kernels themselves.
-                outs = []
+                # Run-to-run variance, measured the only way that means
+                # anything: TWO EXECUTIONS ON THE SAME INPUTS.
+                #
+                # The seed loop varies the input DATA, so that the error
+                # distribution is sampled across the input space rather than
+                # at one arbitrary draw. Within a seed the inputs are
+                # identical and only the execution differs (fresh allocations,
+                # a different point in the allocator's history, whatever
+                # algorithm the library picks this time). Comparing outputs
+                # ACROSS seeds would compare answers to different questions --
+                # it reported max_abs ~9.8 and max_rel ~2.6e8 on a problem
+                # whose actual run-to-run variance is at the last bit.
+                first_outputs = None
+                max_abs = 0.0
+                pairs = []
                 for seed in range(a.seeds):
                     torch.manual_seed(seed)
                     inputs = prepare_inputs(definition, wl, ns)
                     with torch.no_grad():
-                        out = run(*inputs)
-                    outs.append([t.detach().clone() for t in _as_list(out)])
-                    del inputs, out
+                        out_a = [t.detach().clone() for t in _as_list(run(*inputs))]
+                    torch.cuda.empty_cache()
+                    with torch.no_grad():
+                        out_b = [t.detach().clone() for t in _as_list(run(*inputs))]
+                    for x, y in zip(out_a, out_b):
+                        max_abs = max(max_abs, _max_abs(x, y))
+                    if first_outputs is None:
+                        first_outputs = out_a
+                    pairs.append((out_a, out_b))
+                    del inputs
                     torch.cuda.empty_cache()
 
-                base = outs[0]
-                max_abs = max_rel = 0.0
-                for other in outs[1:]:
-                    for x, y in zip(other, base):
-                        da, dr = _stats(x, y, a.atol_floor)
-                        max_abs, max_rel = max(max_abs, da), max(max_rel, dr)
+                base = first_outputs or []
+                # atol first, then rel measured against it -- the order the
+                # harness's own error formula implies.
+                eps = _dtype_floor(base)
+                atol = max(max_abs * a.margin, eps["atol"])
+                max_rel = 0.0
+                for out_a, out_b in pairs:
+                    for x, y in zip(out_a, out_b):
+                        max_rel = max(max_rel, _max_rel(x, y, atol))
+                del pairs
 
                 entry.update({
                     "run_to_run": {"max_abs": max_abs, "max_rel": max_rel},
                     "seeds": a.seeds,
+                    "executions_per_seed": 2,
                     "deterministic": max_abs == 0.0,
                 })
 
@@ -126,8 +172,9 @@ def main() -> int:
                     g = golden[wl.uuid]
                     ga = gr = 0.0
                     for x, y in zip(base, g["outputs"]):
-                        da, dr = _stats(x.cpu(), y.to(torch.float64), a.atol_floor)
-                        ga, gr = max(ga, da), max(gr, dr)
+                        yd = y.to(torch.float64)
+                        ga = max(ga, _max_abs(x.cpu(), yd))
+                        gr = max(gr, _max_rel(x.cpu(), yd, atol))
                     # `mode` decides how a disagreement reads: against a
                     # float64 golden it is a bug; against a native-dtype CPU
                     # golden it may be ordinary low-precision noise. Carried
@@ -143,9 +190,8 @@ def main() -> int:
                 # tolerance would fail every correct submission that reorders
                 # a single accumulation. The floor is the dtype's own epsilon,
                 # not a number chosen to make things pass.
-                eps = _dtype_floor(base)
                 entry["tolerance"] = {
-                    "max_atol": max(max_abs * a.margin, eps["atol"]),
+                    "max_atol": atol,
                     "max_rtol": max(max_rel * a.margin, eps["rtol"]),
                     "required_matched_ratio": 0.99,
                     "_derivation": (

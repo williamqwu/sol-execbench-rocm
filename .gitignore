@@ -8,6 +8,11 @@ __pycache__/
 # See STATE.md deviation D6.
 /data/
 artifacts/**/logs/
+# Golden reference tensors: 143 GB of regenerable float64 CPU output.
+# `scripts/gen_golden.py` rebuilds them from the dataset on any machine, with
+# no GPU. The per-workload report beside them IS tracked, because which tier
+# produced each golden (float64 vs native_cpu) is a finding, not data.
+artifacts/golden/*.pt
 *.so
 .venv/
 uv.lock

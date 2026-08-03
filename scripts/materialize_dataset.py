@@ -33,13 +33,24 @@ DEFINITION_JSON = ("axes", "inputs", "outputs")
 
 
 def _scalar(v):
-    """Parquet renders an absent optional string as NaN; JSON wants null.
+    """Parquet renders an absent optional string as NaN or ""; JSON wants null.
 
-    Writing the NaN through would emit a bare `nan` token, which is invalid
-    JSON that only Python's lenient parser accepts. 72 of the 94 L1 problems
-    have no custom entrypoint, so this is the common case, not an edge one.
+    Two ways parquet spells "no value", and both must become null:
+
+    * NaN — writing it through emits a bare `nan` token, which is invalid JSON
+      that only Python's lenient parser accepts. 72 of the 94 L1 problems have
+      no custom entrypoint, so this is the common case, not an edge one.
+    * "" — the empty string is a *value*, and the schema types these fields as
+      NonEmptyString. All 26 FlashInfer-Bench problems carry `hf_id: ""`, so
+      writing it through made every one of them fail to load with
+      `String should have at least 1 character` — 26 problems, 11% of the
+      benchmark, lost to a distinction between "empty" and "absent".
     """
-    return None if v is None or (isinstance(v, float) and v != v) else v
+    if v is None or (isinstance(v, float) and v != v):
+        return None
+    if isinstance(v, str) and not v.strip():
+        return None
+    return v
 
 
 def materialize(parquet_dir: Path, out: Path) -> dict:
