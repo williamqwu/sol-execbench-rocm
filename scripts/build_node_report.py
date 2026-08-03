@@ -45,21 +45,60 @@ def gpu_inventory() -> list[dict]:
     return gpus
 
 
+def _num(v):
+    """amdsmi returns the string 'N/A' for unsupported fields."""
+    return v if isinstance(v, (int, float)) else None
+
+
 def smi_fields(idx: int) -> dict:
-    """Power cap, idle power, temperature. None + reason if unavailable."""
+    """Power cap, idle power, temperature, clock range. None + reason if absent.
+
+    Measured against MI355X / amdsmi 26.2.1, which differs from the initial
+    assumptions in two ways that matter:
+      * power_limit is reported in MICROwatts (1400000000), not watts.
+      * the EDGE sensor is NOT SUPPORTED; HOTSPOT (== junction, what rocm-smi
+        prints) is the one that reads.
+    """
     try:
         import amdsmi
+        from gpu_map import amdsmi_handle
         amdsmi.amdsmi_init()
-        h = amdsmi.amdsmi_get_processor_handles()[idx]
+        # By PCI identity, not by position: the amdsmi and torch orderings are
+        # scrambled relative to each other (see scripts/gpu_map.py), so
+        # handles[idx] would attribute one GPU's telemetry to another.
+        h = amdsmi_handle(idx)
         power = amdsmi.amdsmi_get_power_info(h)
-        return {
-            "power_cap_w": power.get("power_limit"),
-            "power_now_w": power.get("current_socket_power"),
-            "temp_c": amdsmi.amdsmi_get_temp_metric(
-                h, amdsmi.AmdSmiTemperatureType.EDGE,
-                amdsmi.AmdSmiTemperatureMetric.CURRENT),
+
+        cap_uw = _num(power.get("power_limit"))
+        temp = None
+        temp_sensor = None
+        for sensor in ("HOTSPOT", "JUNCTION", "EDGE"):
+            st = getattr(amdsmi.AmdSmiTemperatureType, sensor, None)
+            if st is None:
+                continue
+            try:
+                temp = amdsmi.amdsmi_get_temp_metric(
+                    h, st, amdsmi.AmdSmiTemperatureMetric.CURRENT)
+                temp_sensor = sensor
+                break
+            except Exception:
+                continue
+
+        out = {
+            "power_cap_w": cap_uw / 1e6 if cap_uw else None,
+            "power_now_w": _num(power.get("current_socket_power")),
+            "temp_c": _num(temp),
+            "temp_sensor": temp_sensor,
             "smi_source": "amdsmi",
         }
+        try:
+            gfx = amdsmi.amdsmi_get_clock_info(h, amdsmi.AmdSmiClkType.GFX)
+            out["sclk_max_mhz"] = _num(gfx.get("max_clk"))
+            out["sclk_min_mhz"] = _num(gfx.get("min_clk"))
+            out["sclk_now_mhz"] = _num(gfx.get("clk"))
+        except Exception as e:
+            out["clock_error"] = str(e)
+        return out
     except Exception as e:
         return {"power_cap_w": None, "power_now_w": None, "temp_c": None,
                 "smi_source": None, "smi_error": str(e)}
@@ -125,9 +164,19 @@ def main():
     if len(gpus) != 8:
         print(f"WARNING: expected 8 GPUs, found {len(gpus)}. Record why in "
               f"STATE.md before proceeding.", file=sys.stderr)
+    # torch reports the arch with its feature flags appended
+    # ("gfx950:sramecc+:xnack-"), so match on the base target, not equality.
     archs = {g.get("arch") for g in gpus if g.get("arch")}
-    if archs and archs != {"gfx950"}:
+    if archs and not all("gfx950" in a for a in archs):
         print(f"WARNING: unexpected arch(s): {archs}", file=sys.stderr)
+
+    for field, label in (("power_cap_w", "power cap"),
+                         ("sclk_max_mhz", "max GFX clock")):
+        vals = [g.get(field) for g in gpus if g.get(field)]
+        if vals and len(set(vals)) > 1:
+            print(f"WARNING: {label} differs across GPUs: {sorted(set(vals))} "
+                  f"— a non-uniform node produces non-comparable timings",
+                  file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -88,13 +88,25 @@ def check_00(c: Checks):
     c.require(all("gfx950" in str(g.get("arch", "")) for g in gpus),
               "all GPUs are gfx950")
 
-    caps = [g.get("power_cap_w") for g in gpus if g.get("power_cap_w")]
-    if caps:
-        med = sorted(caps)[len(caps) // 2]
-        outliers = [x for x in caps if abs(x - med) / med > 0.05]
-        c.require(not outliers, "power caps uniform (±5%)",
-                  detail_bad=f"outliers: {outliers} — a GPU with a different "
-                             f"cap will produce different timings")
+    # Step 2 of the task is "confirm all eight GPUs are equivalent", which means
+    # cap, clock ceiling AND idle temperature -- not just cap. An unprobed field
+    # must fail rather than silently skip the check it was supposed to satisfy.
+    for field, label, tol in (("power_cap_w", "power caps", 0.05),
+                              ("sclk_max_mhz", "max GFX clocks", 0.05),
+                              ("temp_c", "idle temperatures", 0.25)):
+        vals = [g.get(field) for g in gpus if g.get(field)]
+        if not c.require(len(vals) == len(gpus) and len(gpus) > 0,
+                         f"{label} probed on every GPU",
+                         f"{len(vals)}/{len(gpus)}",
+                         f"only {len(vals)}/{len(gpus)} — equivalence unproven; "
+                         f"see smi_error in node-report.json"):
+            continue
+        med = sorted(vals)[len(vals) // 2]
+        outliers = [x for x in vals if med and abs(x - med) / med > tol]
+        c.require(not outliers, f"{label} uniform (±{tol:.0%})",
+                  f"all {med}",
+                  f"outliers: {outliers} vs median {med} — a GPU that differs "
+                  f"here will quietly produce different timings")
 
     roof = load_json(ART / "00" / "roofline-gpu0.json")
     c.require(roof is not None and roof.get("hbm_tbs"), "HBM roofline measured")

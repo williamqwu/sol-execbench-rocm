@@ -37,31 +37,67 @@ STABILITY_CV_GATE = 0.02
 # SMI access. amdsmi python lib preferred; rocm-smi subprocess as fallback.
 # --------------------------------------------------------------------------
 
+_SMI = None
+_SMI_TRIED = False
+
+
 def _amdsmi():
-    try:
-        import amdsmi
-        amdsmi.amdsmi_init()
-        return amdsmi
-    except Exception:
-        return None
+    """Initialise amdsmi once. Repeated amdsmi_init() per sample is wasteful
+    and, at 1 Hz over 15 minutes, needless churn in a library we are trusting
+    for the most consequential measurement in the project."""
+    global _SMI, _SMI_TRIED
+    if not _SMI_TRIED:
+        _SMI_TRIED = True
+        try:
+            import amdsmi
+            amdsmi.amdsmi_init()
+            _SMI = amdsmi
+        except Exception:
+            _SMI = None
+    return _SMI
+
+
+def _temp_c(smi, handle):
+    """MI355X does NOT support the EDGE sensor -- it raises NOT_SUPPORTED.
+    HOTSPOT (junction) is the one that reads, and is what rocm-smi prints.
+
+    This matters more than it looks: the original code read EDGE inside the
+    same try block as the clock read, so an unsupported sensor discarded the
+    SCLK sample too, and the floor measurement would have silently produced
+    zero usable samples."""
+    for sensor in ("HOTSPOT", "JUNCTION", "EDGE"):
+        st = getattr(smi.AmdSmiTemperatureType, sensor, None)
+        if st is None:
+            continue
+        try:
+            return smi.amdsmi_get_temp_metric(
+                handle, st, smi.AmdSmiTemperatureMetric.CURRENT), sensor
+        except Exception:
+            continue
+    return None, None
 
 
 def read_clocks(gpu: int) -> dict:
-    """Return {sclk_mhz, mclk_mhz, power_w, temp_c, throttle} for *gpu*."""
+    """Return {sclk_mhz, mclk_mhz, power_w, temp_c} for torch device *gpu*.
+
+    *gpu* is a torch device index. It is resolved to the amdsmi handle by PCI
+    identity, NOT by position -- see scripts/gpu_map.py; the two orderings are
+    scrambled relative to each other on this node.
+    """
     smi = _amdsmi()
     if smi is not None:
         try:
-            handle = smi.amdsmi_get_processor_handles()[gpu]
+            from gpu_map import amdsmi_handle
+            handle = amdsmi_handle(gpu)
             sclk = smi.amdsmi_get_clock_info(handle, smi.AmdSmiClkType.GFX)
             mclk = smi.amdsmi_get_clock_info(handle, smi.AmdSmiClkType.MEM)
             power = smi.amdsmi_get_power_info(handle)
-            temp = smi.amdsmi_get_temp_metric(
-                handle, smi.AmdSmiTemperatureType.EDGE,
-                smi.AmdSmiTemperatureMetric.CURRENT)
+            temp, sensor = _temp_c(smi, handle)
             return {
                 "sclk_mhz": sclk.get("clk"), "mclk_mhz": mclk.get("clk"),
+                "sclk_locked": sclk.get("clk_locked"),
                 "power_w": power.get("current_socket_power"),
-                "temp_c": temp, "source": "amdsmi",
+                "temp_c": temp, "temp_sensor": sensor, "source": "amdsmi",
             }
         except Exception as e:
             return {"error": f"amdsmi: {e}", "source": "amdsmi"}
@@ -78,8 +114,32 @@ def read_clocks(gpu: int) -> dict:
         return {"error": "unparseable rocm-smi output", "source": "rocm-smi"}
 
 
+PERF_LEVEL_GLOB = "/sys/class/drm/card*/device/power_dpm_force_performance_level"
+
+
+def perf_levels() -> dict[str, str]:
+    """Current power_dpm_force_performance_level for every card."""
+    import glob
+    out = {}
+    for f in sorted(glob.glob(PERF_LEVEL_GLOB)):
+        try:
+            out[f] = Path(f).read_text().strip()
+        except Exception as e:
+            out[f] = f"<unreadable: {e}>"
+    return out
+
+
 def set_perf_determinism(freq_mhz: int, gpu: int | None = None) -> bool:
-    """AMD's documented determinism mechanism: cap the soft max clock."""
+    """AMD's documented determinism mechanism: cap the soft max clock.
+
+    Verifies the effect rather than trusting the exit status. Observed on this
+    node: inside a stock Docker container /sys is mounted read-only, and
+    `rocm-smi --setperfdeterminism` then exits 0 having done NOTHING and
+    printed no error. A silent no-op here is the worst possible outcome --
+    every subsequent measurement would be taken at an unlocked boost clock
+    while the artifacts claim F_LOCK.
+    """
+    before = perf_levels()
     cmd = ["rocm-smi", "--setperfdeterminism", str(freq_mhz)]
     if gpu is not None:
         cmd += ["-d", str(gpu)]
@@ -87,6 +147,28 @@ def set_perf_determinism(freq_mhz: int, gpu: int | None = None) -> bool:
     if out.returncode != 0:
         print(f"  FAILED: {out.stderr.strip()}", file=sys.stderr)
         return False
+
+    after = perf_levels()
+    locked = {f for f in after if after[f] == "perf_determinism"}
+    if not locked:
+        print("  FAILED: exit status 0 but no card reports "
+              "'perf_determinism'. Levels are still: "
+              f"{sorted(set(after.values()))}.\n"
+              "  Most likely /sys is read-only (stock container) or this user "
+              "lacks privileges. Do NOT proceed: an unverified lock means "
+              "every timing is taken at an unknown clock.", file=sys.stderr)
+        return False
+
+    # A partial lock is the dangerous case: some GPUs held at F_LOCK, others
+    # boosting freely, with nothing in the artifacts to distinguish them.
+    if gpu is None and len(locked) != len(after):
+        unlocked = sorted(f for f in after if f not in locked)
+        print(f"  FAILED: asked to lock every GPU but only {len(locked)}/"
+              f"{len(after)} report 'perf_determinism'. Still unlocked: "
+              f"{unlocked}", file=sys.stderr)
+        return False
+
+    print(f"  {len(locked)}/{len(after)} card(s) at perf_determinism")
     return True
 
 
@@ -98,14 +180,25 @@ def reset_clocks() -> None:
 # Load generation
 # --------------------------------------------------------------------------
 
-def _sustained_load(gpu: int, seconds: float, size: int = 8192):
-    """Saturate the matrix cores with back-to-back BF16 GEMMs."""
+def _sustained_load(gpu: int, seconds: float, size: int = 8192,
+                    stop: "object | None" = None):
+    """Saturate the matrix cores with back-to-back BF16 GEMMs.
+
+    *stop* is an optional threading.Event allowing the caller to end the loop
+    early and then join. Without that, the interpreter can shut down while this
+    thread is still inside a HIP call, which aborts the process
+    ("terminate called without an active exception") *after* the artifact is
+    written -- leaving a good result behind a non-zero exit status, which any
+    sweep runner would score as a failure.
+    """
     import torch
     dev = torch.device(f"cuda:{gpu}")
     a = torch.randn(size, size, device=dev, dtype=torch.bfloat16)
     b = torch.randn(size, size, device=dev, dtype=torch.bfloat16)
     deadline = time.time() + seconds
     while time.time() < deadline:
+        if stop is not None and stop.is_set():
+            break
         for _ in range(20):
             a @ b
         torch.cuda.synchronize(dev)
@@ -140,33 +233,80 @@ def cmd_floor(args):
     """Sustained-load clock floor. p5 of the FINAL 5 MINUTES, not the ramp."""
     import threading
     total = args.minutes * 60
-    stop = threading.Event()
+    done = threading.Event()    # load thread has exited
+    halt = threading.Event()    # ask the load thread to exit
 
     def load():
         try:
-            _sustained_load(args.gpu, total)
+            _sustained_load(args.gpu, total, stop=halt)
         except Exception as e:
             print(f"load thread died: {e}", file=sys.stderr)
         finally:
-            stop.set()
+            done.set()
 
     t = threading.Thread(target=load, daemon=True)
     t.start()
 
+    siblings = [g for g in range(args.n_gpus) if g != args.gpu]
+
+    # Optional worst-case condition. Floors measured with siblings idle are the
+    # best case; tasks 05/06 shard across GPUs 1-7, so for much of the project
+    # the node is fully loaded. If the two floors differ, F_LOCK must suit the
+    # busy one -- raising F_LOCK later invalidates everything measured before.
+    sib_procs = []
+    if args.load_siblings:
+        print(f"loading siblings {siblings} for the whole run")
+        sib_procs = [_spawn_load(g, total + 60) for g in siblings]
+        time.sleep(30)   # let the node reach power/thermal steady state
     samples = []
     start = time.time()
-    while time.time() - start < total and not stop.is_set():
+    while time.time() - start < total and not done.is_set():
         s = read_clocks(args.gpu)
         s["t"] = time.time() - start
+        # This node is shared. If somebody else's job lands on a sibling GPU
+        # mid-run, it may couple into our floor through the power budget --
+        # and we would never know from the target GPU's samples alone.
+        s["sibling_power_w"] = [read_clocks(g).get("power_w") for g in siblings]
         samples.append(s)
         time.sleep(1.0 / SAMPLE_HZ)
+
+    # Wind the load down and join before touching the artifact: letting the
+    # interpreter tear down under an in-flight HIP call aborts the process
+    # after a successful write.
+    halt.set()
+    t.join(timeout=120)
+    if t.is_alive():
+        print("WARNING: load thread did not exit within 120 s", file=sys.stderr)
+    for p in sib_procs:
+        p.terminate()
+    for p in sib_procs:
+        try:
+            p.wait(timeout=30)
+        except Exception:
+            p.kill()
 
     tail_start = max(0, total - 300)
     tail = [s["sclk_mhz"] for s in samples
             if s.get("t", 0) >= tail_start and s.get("sclk_mhz")]
 
+    # Idle MI355X draws ~240 W; a busy one draws far more. Flag any sibling
+    # that was clearly working during the tail window we derive the floor from.
+    tail_sib = [s.get("sibling_power_w") or [] for s in samples
+                if s.get("t", 0) >= max(0, total - 300)]
+    busy_sibs = sorted({siblings[i] for row in tail_sib
+                        for i, p in enumerate(row)
+                        if p and p > 400 and i < len(siblings)})
+
     result = {"gpu": args.gpu, "minutes": args.minutes,
-              "n_samples": len(samples), "n_tail": len(tail), "samples": samples}
+              "n_samples": len(samples), "n_tail": len(tail),
+              "siblings_loaded_deliberately": bool(args.load_siblings),
+              "siblings_busy_during_tail": busy_sibs,
+              "samples": samples}
+    if busy_sibs and not args.load_siblings:
+        print(f"WARNING: sibling GPU(s) {busy_sibs} were under load during the "
+              f"window this floor is derived from. Another user shares this "
+              f"node; treat this floor as contaminated unless that load was "
+              f"yours.", file=sys.stderr)
     if tail:
         tail.sort()
         result["steady_state"] = {
@@ -206,13 +346,24 @@ def cmd_verify(args):
               "Re-run with --under-load.", file=sys.stderr)
 
     import threading
+    halt = threading.Event()
+    loader = None
     if args.under_load:
-        threading.Thread(target=_sustained_load, args=(args.gpu, 30),
-                         daemon=True).start()
+        loader = threading.Thread(
+            target=_sustained_load, args=(args.gpu, 60),
+            kwargs={"stop": halt}, daemon=True)
+        loader.start()
         time.sleep(5)
 
     samples = [read_clocks(args.gpu) for _ in range(10)
                if not time.sleep(1)]
+
+    # Join before exiting: tearing the interpreter down under an in-flight HIP
+    # call aborts the process (exit 134), which would make a PASS read as a
+    # failure to anything checking the exit status.
+    halt.set()
+    if loader is not None:
+        loader.join(timeout=120)
     observed = [s["sclk_mhz"] for s in samples if s.get("sclk_mhz")]
     if not observed:
         print("FAIL: no clock readings", file=sys.stderr)
@@ -259,10 +410,23 @@ def cmd_stability(args):
     sys.exit(0 if result["passed"] else 1)
 
 
+def _spawn_load(gpu: int, seconds: float) -> subprocess.Popen:
+    """Sibling load in a SEPARATE PROCESS.
+
+    Threads cannot do this job: the GIL serialises the Python-level launch
+    loop, so seven 'loaded' siblings would in practice be intermittently idle
+    and the interference measured would understate reality. This experiment
+    decides whether authoritative timing can share the node, so an
+    understated answer is the dangerous direction to err in.
+    """
+    return subprocess.Popen(
+        [sys.executable, __file__, "_load", "--gpu", str(gpu),
+         "--seconds", str(seconds)],
+        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+
+
 def cmd_interference(args):
     """Does load on sibling GPUs perturb timing? Shapes the whole schedule."""
-    import threading
-
     lo, hi = (int(x) for x in args.load_gpus.split("-"))
     load_gpus = list(range(lo, hi + 1))
 
@@ -270,12 +434,27 @@ def cmd_interference(args):
     quiet = [_timed_reference(args.timing_gpu) for _ in range(args.trials)]
 
     print(f"loaded: siblings {load_gpus} under sustained load")
-    threads = [threading.Thread(target=_sustained_load, args=(g, 120),
-                               daemon=True) for g in load_gpus]
-    for t in threads:
-        t.start()
-    time.sleep(15)  # let siblings reach steady state
+    load_seconds = 120 + 30 * args.trials
+    procs = [_spawn_load(g, load_seconds) for g in load_gpus]
+    time.sleep(30)  # let siblings reach thermal/power steady state
+
+    sib = [read_clocks(g) for g in load_gpus]
+    sib_power = [s.get("power_w") for s in sib if s.get("power_w")]
+    print(f"  sibling power now: {sib_power} W")
+    dead = [g for g, p in zip(load_gpus, procs) if p.poll() is not None]
+    if dead:
+        print(f"  WARNING: load process died on GPU(s) {dead} — the 'busy' "
+              f"condition is not what it claims", file=sys.stderr)
+
     busy = [_timed_reference(args.timing_gpu) for _ in range(args.trials)]
+
+    for p in procs:
+        p.terminate()
+    for p in procs:
+        try:
+            p.wait(timeout=30)
+        except Exception:
+            p.kill()
 
     q, b = statistics.median(quiet), statistics.median(busy)
     delta = (b - q) / q
@@ -295,6 +474,8 @@ def cmd_interference(args):
               "quiet_median_ms": q, "busy_median_ms": b,
               "delta_fraction": delta, "verdict": verdict,
               "scheduling_consequence": consequence,
+              "sibling_power_w_under_load": sib_power,
+              "load_processes_died": dead,
               "quiet_ms": quiet, "busy_ms": busy}
     write_artifact(args.out, "01-interference", result)
     print(f"\nquiet {q:.4f} ms -> busy {b:.4f} ms  ({delta:+.2%})")
@@ -305,6 +486,11 @@ def cmd_probe(args):
     print(_timed_reference(args.gpu))
 
 
+def cmd_load(args):
+    """Sustained load worker, used as a subprocess by `interference`."""
+    _sustained_load(args.gpu, args.seconds)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -313,6 +499,11 @@ def main():
     f = sub.add_parser("floor"); f.set_defaults(fn=cmd_floor)
     f.add_argument("--gpu", type=int, default=0)
     f.add_argument("--minutes", type=int, default=15)
+    f.add_argument("--n-gpus", type=int, default=8,
+                   help="node GPU count, for sibling-contention sampling")
+    f.add_argument("--load-siblings", action="store_true",
+                   help="also load every other GPU: the worst-case floor, "
+                        "which is the condition tasks 05/06 actually run in")
     f.add_argument("--out", default="artifacts/01/floor.json")
 
     l = sub.add_parser("lock"); l.set_defaults(fn=cmd_lock)
@@ -339,6 +530,10 @@ def main():
 
     pr = sub.add_parser("_probe"); pr.set_defaults(fn=cmd_probe)
     pr.add_argument("--gpu", type=int, default=0)
+
+    ld = sub.add_parser("_load"); ld.set_defaults(fn=cmd_load)
+    ld.add_argument("--gpu", type=int, default=0)
+    ld.add_argument("--seconds", type=float, default=60)
 
     args = p.parse_args()
     args.fn(args)

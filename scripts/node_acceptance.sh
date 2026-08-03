@@ -66,10 +66,12 @@ say "repo self-test (no GPU required)"
 
 say "dataset"
 if [ -d "${ROOT}/data" ]; then
-  find "${ROOT}/data" -maxdepth 3 -name definition.json | wc -l | \
+  # Real layout is data/SOL-ExecBench/benchmark/<Category>/<problem>/, one
+  # level deeper than first assumed; -L because data/ may be a symlink.
+  find -L "${ROOT}/data" -name definition.json | wc -l | \
     xargs printf 'problems found: %s\n'
   for c in L1 L2 Quant FlashInfer-Bench; do
-    n=$(find "${ROOT}/data" -maxdepth 4 -path "*/${c}/*" -name definition.json 2>/dev/null | wc -l)
+    n=$(find -L "${ROOT}/data" -path "*/${c}/*" -name definition.json 2>/dev/null | wc -l)
     printf '  %-18s %s\n' "${c}" "${n}"
   done
   echo "expected: L1=94 L2=82 Quant=33 FlashInfer-Bench=26"

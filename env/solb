@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# Run a command inside the pinned measurement container.
+#
+#   env/solb python scripts/roofline_probe.py --gpu 0 --out ...
+#   env/solb bash
+#
+# Keeps one long-lived container ("solbench") alive so repeated calls are cheap.
+# Scratch lives at the SAME absolute path inside and outside the container, so
+# paths in artifacts and logs mean the same thing in both places.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+IMAGE="solbench:rocm7.2-torch2.9.1"
+NAME="solbench"
+SCRATCH="/var/tmp/solbench"
+
+if ! docker image inspect "${IMAGE}" >/dev/null 2>&1; then
+  echo "building ${IMAGE} ..." >&2
+  docker build -q -t "${IMAGE}" "${ROOT}/env" >&2
+fi
+
+if ! docker ps --format '{{.Names}}' | grep -qx "${NAME}"; then
+  docker rm -f "${NAME}" >/dev/null 2>&1 || true
+  mkdir -p "${SCRATCH}"
+  # Run as the invoking user, not root: the repo is bind-mounted from an NFS
+  # home, and root-owned artifacts/ would lock the host user out of the very
+  # directories the sweeps write to. HOME must point somewhere writable or
+  # torch/MIOpen cache writes fail.
+  #
+  # The groups must be the HOST's numeric GIDs (video=44, render=110 here).
+  # /dev/kfd keeps its host GID inside the container, while `--group-add render`
+  # resolves against the *container's* /etc/group (render=991) and grants
+  # nothing. The failure is confusing: torch.cuda.device_count() still returns
+  # 8 because enumeration works, but any real HIP context raises
+  # "No HIP GPUs are available".
+  mkdir -p "${SCRATCH}/home"
+
+  # Running with --user leaves the UID absent from the container's
+  # /etc/passwd, and torch.compile calls getpass.getuser() during import of
+  # torch._inductor -- which raises `KeyError: getpwuid(): uid not found`.
+  # That would break every submission using torch.compile, not just tests.
+  # Both a passwd entry and the env vars, because getpass consults the env
+  # first but other tools go straight to pwd.
+  PASSWD="${SCRATCH}/passwd"
+  { getent passwd; printf '%s:x:%s:%s::%s:/bin/bash\n' \
+      "$(id -un)" "$(id -u)" "$(id -g)" "${SCRATCH}/home"; } \
+    | awk '!seen[$0]++' > "${PASSWD}"
+  docker run -d --name "${NAME}" \
+    --hostname "$(hostname)" \
+    --user "$(id -u):$(id -g)" \
+    --group-add "$(getent group video  | cut -d: -f3)" \
+    --group-add "$(getent group render | cut -d: -f3)" \
+    --device=/dev/kfd --device=/dev/dri \
+    --ipc=host --shm-size 32G \
+    --security-opt seccomp=unconfined --cap-add=SYS_PTRACE \
+    -v "${ROOT}:/work" \
+    -v "${SCRATCH}:${SCRATCH}" \
+    -v "${PASSWD}:/etc/passwd:ro" \
+    -e "HOME=${SCRATCH}/home" \
+    -e "USER=$(id -un)" \
+    -e "LOGNAME=$(id -un)" \
+    -e "HF_HOME=${SCRATCH}/hf-cache" \
+    -e "FLASHINFER_TRACE_DIR=/work" \
+    -e "VIRTUAL_ENV=/opt/venv" \
+    -e "UV_PROJECT_ENVIRONMENT=/opt/venv" \
+    -e "UV_NO_SYNC=1" \
+    -e "SOLEXBENCH_SCRATCH=${SCRATCH}" \
+    -w /work \
+    "${IMAGE}" sleep infinity >/dev/null
+fi
+
+# -i so stdin pipes through; no -t unless attached to a real terminal.
+TTY=""
+[ -t 0 ] && TTY="-t"
+exec docker exec -i ${TTY} \
+  ${HIP_VISIBLE_DEVICES:+-e HIP_VISIBLE_DEVICES="${HIP_VISIBLE_DEVICES}"} \
+  ${SOLEXBENCH_F_LOCK_MHZ:+-e SOLEXBENCH_F_LOCK_MHZ="${SOLEXBENCH_F_LOCK_MHZ}"} \
+  "${NAME}" "$@"
