@@ -86,14 +86,37 @@ def rocm_info() -> dict:
 
 
 def f_lock_mhz() -> int | None:
-    """F_LOCK as recorded by task 01, via env or the state file."""
+    """F_LOCK for this artifact: the clock its measurements were taken at.
+
+    Resolution order:
+      1. ``SOLEXBENCH_F_LOCK_MHZ`` — an explicit override.
+      2. The measured preset for the GPU this process can see.
+
+    Step 2 exists because an env var is exactly the kind of thing a sweep
+    forgets to export, and an artifact whose F_LOCK is null cannot be used for
+    scoring. Reading it from the same table the lock is applied from means the
+    recorded clock and the applied clock cannot disagree.
+
+    Note this returns the ACHIEVED clock, not the requested one: on AMD they
+    differ (see ``ClockPreset``), and the achieved value is the one every
+    T_SOL and T_b is expressed at.
+    """
     env = os.environ.get("SOLEXBENCH_F_LOCK_MHZ")
     if env:
         try:
             return int(env)
         except ValueError:
             return None
-    return None
+    try:
+        import torch
+
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+        from sol_execbench.core.bench.config import get_clock_preset
+
+        preset = get_clock_preset(torch.cuda.get_device_name(0))
+        return preset.f_lock_mhz if preset else None
+    except Exception:
+        return None
 
 
 def stamp(task: str, extra: dict | None = None) -> dict:

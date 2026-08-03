@@ -491,6 +491,64 @@ def cmd_load(args):
     _sustained_load(args.gpu, args.seconds)
 
 
+def cmd_determinism_sweep(args):
+    """Map REQUESTED determinism clock -> ACHIEVED clock under sustained load.
+
+    Exists because on MI350X the two are not the same number. Requesting
+    1250 MHz produced 1049 MHz under load, even though the same GPU sustained
+    1335-1390 MHz *unlocked* at the same 1000 W cap. So the lock is not simply
+    a ceiling here: entering performance-determinism mode changes the
+    voltage/frequency operating point, and under a power cap that can leave
+    less frequency available, not more.
+
+    This matters far beyond a failed check. F_LOCK is defined as a clock the
+    hardware actually holds. If the requested number and the held number
+    differ, then picking F_LOCK from the unlocked floor -- which is what
+    tasks/01 step 2 says to do, and what worked on the 1400 W MI355X -- yields
+    a setting the part cannot honour, and every subsequent measurement would
+    be taken at an unknown clock while the artifacts claim otherwise.
+
+    So the relationship is measured rather than assumed, and F_LOCK is chosen
+    from the ACHIEVED column.
+    """
+    import threading
+
+    rows = []
+    for req in args.freqs:
+        set_perf_determinism(req, None)
+        halt = threading.Event()
+        loader = threading.Thread(
+            target=_sustained_load, args=(args.gpu, args.seconds + 60),
+            kwargs={"stop": halt}, daemon=True)
+        loader.start()
+        time.sleep(args.settle)          # thermal and power steady state
+        samples = [read_clocks(args.gpu) for _ in range(args.samples)
+                   if not time.sleep(1)]
+        halt.set()
+        loader.join(timeout=120)
+
+        clk = [s["sclk_mhz"] for s in samples if s.get("sclk_mhz")]
+        pw = [s.get("power_w") for s in samples if s.get("power_w")]
+        row = {
+            "requested_mhz": req,
+            "achieved_median_mhz": statistics.median(clk) if clk else None,
+            "achieved_min_mhz": min(clk) if clk else None,
+            "achieved_p5_mhz": sorted(clk)[max(0, len(clk) // 20)] if clk else None,
+            "median_power_w": statistics.median(pw) if pw else None,
+            "n_samples": len(clk),
+        }
+        rows.append(row)
+        print(f"  requested {req:>5} -> median "
+              f"{row['achieved_median_mhz']} MHz, min {row['achieved_min_mhz']}, "
+              f"{row['median_power_w']} W", flush=True)
+
+    write_artifact(args.out, "01-determinism-sweep",
+                   {"gpu": args.gpu, "rows": rows,
+                    "note": "requested vs achieved under sustained BF16 GEMM; "
+                            "F_LOCK must be chosen from the achieved column"})
+    print(f"wrote {args.out}")
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -527,6 +585,14 @@ def main():
     i.add_argument("--load-gpus", default="1-7")
     i.add_argument("--trials", type=int, default=15)
     i.add_argument("--out", default="artifacts/01/interference.json")
+
+    ds = sub.add_parser("determinism-sweep"); ds.set_defaults(fn=cmd_determinism_sweep)
+    ds.add_argument("--gpu", type=int, default=0)
+    ds.add_argument("--freqs", type=int, nargs="+", required=True)
+    ds.add_argument("--settle", type=int, default=30)
+    ds.add_argument("--samples", type=int, default=20)
+    ds.add_argument("--seconds", type=int, default=60)
+    ds.add_argument("--out", default="artifacts/01/determinism-sweep.json")
 
     pr = sub.add_parser("_probe"); pr.set_defaults(fn=cmd_probe)
     pr.add_argument("--gpu", type=int, default=0)

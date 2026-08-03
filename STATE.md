@@ -1,11 +1,5 @@
 # STATE.md — progress ledger
 
-> **Work has moved to an MI350X node. Read `HANDOFF.md` first.**
-> Everything below was measured on `mia1-p02-g10`, an 8× **MI355X** node.
-> The harness port transfers; **F_LOCK, the floors, the rooflines, the
-> stability CV and the interference verdict do not** — MI350X is the
-> air-cooled, lower-power part. `tasks/01` must be re-run there.
-
 **Single source of truth for progress.** Update as you go, not at the end.
 A session can be interrupted at any point; whatever is written here is what the
 next session inherits.
@@ -14,26 +8,31 @@ Rules: record real output, not summaries of intent. If something failed, say so
 and say how. Never mark a task `done` without pasting its acceptance-check
 output.
 
+> Session 1 ran on `mia1-p02-g10` (8× **MI355X**). Session 2 onward runs on
+> `gbt350-odcdh1-a08-1` (8× **MI350X**). `HANDOFF.md` says which session-1
+> results transfer. The MI355X numbers are kept in this file where they are
+> useful as a second data point, and are always labelled.
+
 ---
 
-## Environment
+## Environment (current node)
 
 | Field | Value |
 |---|---|
-| Node | `mia1-p02-g10` |
-| GPUs | 8× AMD Instinct MI355X, `gfx950:sramecc+:xnack-`, 288 GiB, 256 CUs each |
-| ROCm version | **7.2.0** (in measurement container) / 7.1.1 (host `/opt/rocm`) |
-| Driver (amdgpu) | 6.16.6 |
+| Node | `gbt350-odcdh1-a08-1.png-odc.dcgpu` |
+| GPUs | 8× AMD Instinct **MI350X**, `gfx950:sramecc+:xnack-`, 252 GiB, 256 CUs each |
+| Power cap | **1000 W** per GPU (MI355X node: 1400 W) |
+| Max GFX clock | **2200 MHz** (MI355X: 2400 MHz) |
+| Cooling | air (MI355X: liquid) |
+| ROCm version | 7.2.0 (container) / driver 7.1.1.31500000 |
 | torch version + build | `2.9.1+rocm7.2.0.git7e1940d4`, HIP `7.2.26015-fc0010cf6a` |
-| F_LOCK (MHz) | **1650** — measured, applied to all 8 GPUs, verified under load |
-| Sibling-GPU interference | **negligible (−0.19%)** — sweeps and authoritative timing may share the node |
+| Clock-lock setting | `--setperfdeterminism` **1600** MHz (node-wide) |
+| **F_LOCK (achieved)** | **1300 MHz** — measured, GPU 0 under sustained load |
+| Sibling-GPU interference | **negligible (−0.11%)** — sweeps and authoritative timing may share the node |
 | Dataset present | yes — 235 problems, L1=94 L2=82 Quant=33 FlashInfer-Bench=26 |
-| Repo git SHA at start | `f97f6c6942f7d9ac938e9aa3041cb735c6936def` |
-| Measurement container | `solbench:rocm7.2-torch2.9.1`, built from `env/Dockerfile` |
-
-All measurement runs go through `env/solb`, which starts/reuses that container.
-Host has no passwordless sudo; the container runs as root but with `/sys`
-read-only (see blocker B1).
+| FlashInfer blobs | yes — 304 external safetensors blobs |
+| Measurement container | `solbench:rocm7.2-torch2.9.1`, from `env/Dockerfile` (now also carries SOLAR + patched torchview) |
+| Node exclusivity | **exclusive** — no other user, no other KFD processes (unlike the MI355X node) |
 
 ---
 
@@ -42,19 +41,19 @@ read-only (see blocker B1).
 | ID | Task | Status | Artifacts | Notes |
 |---|---|---|---|---|
 | 00 | Node acceptance | `done` | `artifacts/00/` | 13 checks, 0 failed |
-| 01 | Clock calibration (F_LOCK) | `done` | `artifacts/01/` | **F_LOCK = 1650 MHz**; unblocks 03, 05, 06 |
-| 02 | Harness port validation | `in-progress` | `src/sol_execbench/` | port written; reference sweep not yet run |
-| 03 | SOL bounds (T_SOL) | `not-started` | | needs 01 |
-| 04 | rocprofiler shim | `not-started` | | parallel with 05/06 |
-| 05 | Tolerance calibration | `not-started` | | needs 01, 02. Long sweep. |
-| 06 | Baselines (T_b) | `not-started` | | needs 01, 02. Long sweep. |
-| 07 | Quant / MXFP4 | `not-started` | | highest uncertainty |
-| 08 | Red team | `not-started` | | needs 02 |
-| 09 | Release | `not-started` | | needs all |
+| 01 | Clock calibration (F_LOCK) | `done` | `artifacts/01/` | **F_LOCK = 1300 MHz** at setting 1600; unblocks 03, 05, 06 |
+| 02 | Harness port validation | `in-progress` | `src/sol_execbench/` | port green; 235-problem sweep pending |
+| 03 | SOL bounds (T_SOL) | `in-progress` | `scripts/sol_bounds.py` | SOLAR bridge works end-to-end; L1 probe 82/94 problems |
+| 04 | rocprofiler shim | `not-started` | | |
+| 05 | Tolerance calibration | `not-started` | | runner written |
+| 06 | Baselines (T_b) | `not-started` | | runner + variant set written |
+| 07 | Quant / MXFP4 | `not-started` | | |
+| 08 | Red team | `in-progress` | `reference/exploits/` | corpus authored; source screen passing |
+| 09 | Release | `not-started` | | |
 
 Status vocabulary: `not-started` · `in-progress` · `blocked` · `done` · `deferred`
 
-### Task 00 acceptance output (2026-08-03)
+### Task 00 acceptance output (2026-08-03, MI350X)
 
 ```
 Acceptance check — task 00
@@ -64,11 +63,11 @@ Acceptance check — task 00
   [PASS              ] 8 GPUs present                         found 8
   [PASS              ] all GPUs are gfx950
   [PASS              ] power caps probed on every GPU         8/8
-  [PASS              ] power caps uniform (±5%)               all 1400.0
+  [PASS              ] power caps uniform (±5%)               all 1000.0
   [PASS              ] max GFX clocks probed on every GPU     8/8
-  [PASS              ] max GFX clocks uniform (±5%)           all 2400
+  [PASS              ] max GFX clocks uniform (±5%)           all 2200
   [PASS              ] idle temperatures probed on every GPU  8/8
-  [PASS              ] idle temperatures uniform (±25%)       all 37
+  [PASS              ] idle temperatures uniform (±25%)       all 60
   [PASS              ] HBM roofline measured
   [PASS              ] BF16 GEMM roofline measured
   [REQUIRES-JUDGEMENT] dataset layout matches audit           confirm categories L1=94 L2=82 Quant=33 FlashInfer=26
@@ -76,404 +75,292 @@ Acceptance check — task 00
   13 checks, 0 failed, 1 require human judgement
 ```
 
-Judgement item resolved: category counts verified exactly (94/82/33/26 = 235)
-against the real files, not the paper. Layout differs from the audit — see
-deviation D1.
+Judgement item resolved: 94/82/33/26 = 235 verified against real files after
+materializing the dataset (deviation D1).
 
-Node is uniform on every axis checked: 1400 W cap, 2400 MHz max GFX clock,
-288 GiB, 256 CUs on all eight. Idle 32–42 °C, idle power 239–247 W.
+**Rooflines at DEFAULT clocks** (reference points only — per the task's guard
+rails these are NOT scoring ceilings and must not be cited downstream):
 
-### Task 01 results (2026-08-03)
+| | MI350X (this node) | MI355X (session 1) |
+|---|---|---|
+| HBM copy | 4.53 TB/s (56.7% of 8.0 spec) | 4.87 TB/s (61%) |
+| BF16 GEMM | 1168 TFLOPS (50.6% of 2307 spec @2.2 GHz) | 1433 TFLOPS (57% of 2500 @2.4 GHz) |
 
-**Sustained clock floors** (15 min saturating BF16 GEMM, p5 of the final
-5 minutes, one GPU at a time so per-GPU variation is not confounded with
-cross-GPU power coupling):
+The MI350X spec peak is 2307 TFLOPS, not 2500: same die, lower clock. Comparing
+an MI350X measurement against the MI355X peak would have understated the
+achieved fraction by 9%. `scripts/roofline_probe.py` now looks the peak up per
+part (`solexbench_rocm/parts.py`) instead of hardcoding one.
+
+### Task 01 results (2026-08-03, MI350X) — F_LOCK = 1300 MHz
+
+**Step 1 — sustained clock floors, UNLOCKED** (15 min saturating BF16 GEMM, p5
+of the final 5 minutes, one GPU at a time so per-GPU variation is not
+confounded with cross-GPU power coupling):
 
 | Run | p5 | p50 | min | peak power | peak junction |
 |---|---|---|---|---|---|
-| GPU 0, siblings idle | **1725** | 1728 | 1723 | 1402 W | 60 °C |
-| GPU 1, siblings idle | 1734 | 1738 | 1732 | 1402 W | 62 °C |
-| GPU 2, siblings idle | 1757 | 1761 | 1754 | 1392 W | 59 °C |
-| GPU 0, **all 7 siblings loaded** | 1728 | 1731 | 1726 | 1401 W | 63 °C |
+| GPU 0, siblings idle | **1390** | 1396 | 1369 | 1001 W | 72 °C |
+| GPU 1, siblings idle | 1367 | 1377 | 1286 | 1001 W | 79 °C |
+| GPU 2, siblings idle | **1335** | 1338 | 1265 | 1001 W | 79 °C |
+| GPU 0, all 7 siblings loaded | 1400 | 1407 | 1317 | 1002 W | 65 °C |
 
-Per-GPU spread 32 MHz — under the 50 MHz threshold at which F_LOCK would have
-had to be chosen for a meaningfully worse GPU.
+Every run sits at the 1000 W cap with junction ≤79 °C — well below the 100 °C
+slowdown point. **MI350X is power-limited, not thermally limited**, same as
+MI355X but at a 400 W lower budget, which is the whole reason its floor is
+~350 MHz lower (1335–1390 vs 1725–1757).
 
-All runs sit at ~1400 W against a 1400 W cap while junction stays ≤63 °C, far
-from any thermal limit: **MI355X is power-limited, not thermally limited**,
-under this load. That is the mechanism that makes the derate real and makes a
-spec-sheet clock useless here.
+Per-GPU spread is **55 MHz**, over the 50 MHz threshold in the task, so F_LOCK
+had to be chosen for the worst GPU rather than the best.
 
-**Lock applied and verified:**
+**Step 2/3 — and the finding that changed how F_LOCK is defined here.**
+
+Applying the MI355X procedure directly produced a **failed verification**:
+
 ```
-locking GPU 0 -> 1650 MHz
+locking GPU 0 -> 1250 MHz
   8/8 card(s) at perf_determinism
 locked
 
-expected 1650 MHz, observed median 1648.0 MHz (drift 2.0)
-PASS
+expected 1250 MHz, observed median 1049.0 MHz (drift 201.0)
+FAIL: drift exceeds 50 MHz
 ```
-The under-load form is the one that counts: unlocked, this GPU ran 1725–1830 MHz
-under the same load.
 
-**Stability at F_LOCK:** `CV = 0.0015` over 30 trials in separate processes
-(gate 0.02). Timing noise is ~13× below the gate.
+On MI350X, `rocm-smi --setperfdeterminism X` does **not** yield X. It yields
+about 0.81–0.85·X, rock-steadily. That is not a documented behaviour we could
+look up, so it was measured
+(`clock_calibrate.py determinism-sweep`, artifacts `01/determinism-sweep*.json`):
 
-**Sibling interference:** quiet 0.1158 ms → busy 0.1156 ms, **−0.19%**, with all
-seven siblings drawing 947–1275 W. Verdict `negligible`.
+| requested | achieved (median) | min | power |
+|---|---|---|---|
+| 1100 | 934 | 932 | 666 W |
+| 1250 | 1049 | 1048 | 729 W |
+| 1350 | 1116 | 1114 | 770 W |
+| 1500 | 1220 | 1194 | 836 W |
+| 1600 | **1303** | 1296 | 885 W |
+| 1700 | 1380 | 1376 | 947 W |
+| 1900 | 1403 | 1397 | **1000 W** |
+| 2200 | 1402 | 1397 | **1000 W** |
 
-### Task 01 acceptance output (2026-08-03)
+Two things fall out of that table:
+
+1. **Requested ≠ achieved**, so F_LOCK must be the *achieved* number. Recording
+   the requested one would overstate the clock by ~23% and make every T_SOL and
+   every T_b wrong by that factor, plausibly and undetectably.
+2. **Above ~1900 the part stops obeying the setting and pins to the 1000 W
+   cap**, landing on the same ~1400 MHz whether you ask for 1900 or 2200. In
+   that regime the clock is set by ambient conditions, not by us, which is
+   precisely what a lock is supposed to prevent.
+
+**Setting = 1600 MHz, F_LOCK = 1300 MHz.** 1600 was chosen over 1700 for power
+margin: 1700 draws 947 W of a 1000 W cap on two of the three GPUs sampled, and
+a lock that is one warm afternoon from becoming power-bound is not a lock. At
+1600 the part draws 868–933 W, so the *setting* binds, not the power limit.
+
+Achieved clock at setting 1600, all eight GPUs measured under sustained load:
+
+| GPU | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---|---|---|---|---|---|---|---|---|
+| median MHz | 1303 | 1295 | 1264 | 1307 | 1279 | 1296 | 1285 | **1242** |
+| min MHz | 1296 | 1293 | 1250 | 1295 | 1278 | 1280 | 1283 | 1217 |
+
+Each GPU is individually stable (min within ~20 MHz of its own median) but they
+differ from each other by up to 65 MHz (5%). **Determinism mode gives each GPU
+its own steady clock, not a node-wide one.** Consequence, which is now a
+standing rule: authoritative timing is pinned to **GPU 0** and every timing
+artifact records its GPU. Task 06's candidate sweep may shard across GPUs 1–7
+because it only *selects* a variant; the winner is re-timed on GPU 0.
+
+F_LOCK is 1300 rather than 1303 — a round number 0.2% below GPU 0's measured
+median, which makes T_SOL marginally conservative. Cross-check 4
+(T_SOL ≤ best measured) will catch it empirically if that is ever the wrong
+call.
+
+**Step 4 — stability at F_LOCK:** `CV = 0.0034` over 30 trials in separate
+processes (gate 0.02). Timing noise is ~6× below the gate. (MI355X: 0.0015.)
+
+**Step 5 — sibling interference:**
+```
+baseline: timing GPU 0, siblings idle
+loaded: siblings [1, 2, 3, 4, 5, 6, 7] under sustained load
+  sibling power now: [871, 888, 934, 875, 882, 883, 895] W
+
+quiet 0.1464 ms -> busy 0.1462 ms  (-0.11%)
+verdict: negligible
+Sweeps and authoritative timing can share the node.
+```
+Seven siblings drawing ~6.2 kW between them moved GPU 0's timing by −0.11%.
+This also confirms the 1600 setting keeps binding under full-node load: if
+power had started to bind, the timing would have moved.
+
+### Task 01 acceptance output (2026-08-03, MI350X)
 
 ```
 Acceptance check — task 01
 
-  [PASS              ] F_LOCK recorded in STATE.md                       1650 MHz
+  [PASS              ] F_LOCK recorded in STATE.md                       1300 MHz
   [PASS              ] clock floor sampled on >=3 GPUs                   4 GPUs
-  [PASS              ] F_LOCK at or below lowest observed floor          F_LOCK 1650 <= min p5 1725
+  [PASS              ] F_LOCK at or below lowest observed floor          F_LOCK 1300 <= min p5 1335
+  [WARN              ] per-GPU floor spread >50MHz                       1335-1400 MHz; F_LOCK must suit the worst
   [PASS              ] stability measured
-  [PASS              ] timing CV < 2%                                    CV=0.0015
+  [PASS              ] timing CV < 2%                                    CV=0.0034
   [PASS              ] sibling interference measured
   [PASS              ] interference has a stated scheduling consequence  negligible
 
-  7 checks, 0 failed, 0 require human judgement
+  8 checks, 0 failed, 0 require human judgement
 ```
 
-### Task 02 status (port written, sweep not run)
-
-Upstream v1.0.2 (`a9fa080`) vendored at `src/sol_execbench/`, structured as a
-fork for upstreaming per PLAN.md. The AMD delta is 6 modified files plus a new
-`core/bench/device/` package; every change carries an `# AMD:` marker.
-
-Ported: vendor device layer (`detect_vendor`, LLC table, arch flags, flag
-defaults) · LLC-sized cache flush · persisting-L2 reset as a vendor no-op ·
-lazy CUPTI imports · `hip_events` methodology, defaulted on ROCm and recorded
-per trace · `SupportedLanguages` + `SupportedHardware` AMD members ·
-`--offload-arch=gfx950` injection · `.hip` sources and CK include dir ·
-AMD clock-lock/verify/unlock path.
-
-**Upstream's own test suite on this node: 463 passed, 75 skipped, 0 failed.**
-The 75 skips are NVIDIA-only by construction. Tests asserting NVIDIA
-*behaviour* are NOT skipped — `tests/conftest.py` pins `detect_vendor()` to
-`nvidia` for them, so the NVIDIA path remains a live regression reference
-rather than quietly rotting (tasks/02 guard rail).
-
-The pytorch and triton example solutions run end-to-end on real GPUs.
-
-**Not done: the 235-problem reference sweep**, which is the actual acceptance
-criterion, and `scripts/runners/run_reference.py`, which it needs.
-
-**Clocks were locked at 1650 MHz on all 8 GPUs, then RESET to `auto` at end of
-session** when work moved to a different node. Recording the unlock as the
-guard rails require. Nothing had been measured at F_LOCK beyond task 01 itself,
-so no sweep spans the unlock boundary and nothing is invalidated. The reset was
-done because this node is shared (D2) and leaving a node-wide 1650 MHz cap in
-place would have quietly degraded another user's work for no benefit.
-
-Verified after reset: all 8 cards report `auto`.
-
-**Task 00 rooflines at DEFAULT clocks** (reference points only — per the task's
-guard rails these are NOT scoring ceilings and must not be cited downstream):
-HBM 4.87 TB/s (61% of 8.0 spec), BF16 GEMM 1433 TFLOPS (57% of 2500 spec).
+The WARN is expected and is acted on, not waived: the 65 MHz spread is exactly
+why authoritative timing is pinned to GPU 0 (see *Decisions taken*).
 
 ---
 
 ## Blockers
 
-### B1 — cannot apply the clock lock: no privileged access to `/sys` [task 01, opened 2026-08-03] — **RESOLVED 2026-08-03**
-
-**Resolution:** the user authorised running the clock-setting step as root in a
-privileged container. `env/solb-root` does exactly that and nothing else —
-measurement still runs unprivileged as the invoking user through `env/solb`.
-Verified reversible on a single GPU before applying node-wide: set → card57
-reports `perf_determinism`, `rocm-smi -r -d 5` → back to `auto`. Then applied
-to all 8 and confirmed 8/8.
-
-Original report follows, because the silent-failure mode it documents is a
-permanent hazard rather than a one-off.
-
----
-
-
-**What was attempted:** `rocm-smi --setperfdeterminism 1700`, both on the host
-as the login user and inside the measurement container as root.
-
-**What happened (real output):**
-
-Host:
-```
-sudo: a terminal is required to read the password; either use the -S option to
-read from standard input or configure an askpass helper
-sudo: a password is required
-```
-
-Container (exit status **0**, no error text, and *no effect*):
-```
-============================ ROCm System Management Interface ============================
-================================== End of ROCm SMI Log ===================================
-```
-```
-touch: cannot touch '/sys/class/drm/card1/device/power_dpm_force_performance_level':
-Read-only file system
-... power_dpm_force_performance_level: auto      (unchanged, all 8 cards)
-```
-
-**Why this is not something to work around:** the container form *looks like it
-worked* — exit 0, no error. `verify` on an unloaded GPU would then report the
-requested clock and appear to pass, because an idle GPU sits below any cap.
-Every subsequent measurement would be taken at an unlocked boost clock while
-the artifacts claim F_LOCK. `scripts/clock_calibrate.py` has been hardened to
-detect exactly this (see F4) and now refuses to report success unless a card
-actually reports `perf_determinism`.
-
-**What would unblock it:** either passwordless sudo on the host, or agreement
-to run the clock-setting step in a `--privileged` container (docker group
-membership makes this technically possible without sudo). **Not done yet
-because this node is shared** — see deviation D2. Locking clocks changes global
-GPU state for the other user currently on the node.
-
-**Not blocked by B1:** task 01 step 1 (floor measurement) needs no lock and is
-running. Tasks 02 and 04 do not depend on F_LOCK.
+None open.
 
 ---
 
 ## Surprises and deviations
 
 ### D1 — dataset ships as parquet, not per-problem directories
-`reference/upstream-audit.md` expects `definition.json` + `workload.jsonl` +
-`reference.py` per problem. The Hub actually publishes four files —
-`data/{L1,L2,Quant,FlashInfer-Bench}.parquet`, one row per problem — because
-that is what the dataset viewer requires. The dataset repo carries its own
-`scripts/convert_to_parquet.py` doing the forward direction.
+(Carried from session 1, still true.) The Hub publishes
+`data/{L1,L2,Quant,FlashInfer-Bench}.parquet`, one row per problem.
+`scripts/materialize_dataset.py` is the exact inverse of the dataset's own
+converter and round-trip-verifies all 235.
 
-Resolution: `scripts/materialize_dataset.py` is its exact inverse, field for
-field, writing the canonical layout to `data/SOL-ExecBench/benchmark/`. It
-re-derives every parquet row from the files it wrote and refuses to exit 0 on
-any mismatch. Round-trip verified for all 235.
+**New in session 2:** the materializer wrote `reference` only to `reference.py`,
+not into `definition.json`. `Definition` declares `reference` as a required
+field, so *every* problem failed to load with a pydantic `Field required`
+error the first time a runner touched one. The audit described the directory
+*contents*; it did not imply a different schema. Now written to both places,
+with the round-trip check comparing them so they cannot drift.
 
-Dataset is **public and ungated** — `huggingface-cli`/`snapshot_download`
-needed no token. Total 5.2 MB expanded. The `hf_id`, `axes`, `inputs`,
-`outputs`, `reference`, `custom_inputs_entrypoint`, `workloads` fields are all
-present as the audit describes.
+### D2 — this node IS exclusively ours
+The MI355X node was shared (another user, another container). This one is not:
+no other logins, no KFD processes. The node-wide clock lock is therefore safe
+to leave in place, and the sibling-power contamination flagging in
+`clock_calibrate.py floor` reported no busy siblings during any tail window.
 
-Also noted for task 05: upstream tolerances are stored per workload as
-`{"max_atol": ..., "max_rtol": ...}` — **not** the `[atol, rtol, matched_ratio]`
-triple that `verify_artifacts.check_05` assumes when detecting copied B200
-constants. That comparison will need adapting when
-`reference/b200-tolerances.json` is built.
+### D5 — 9 FlashInfer-Bench problems need a second, separate dataset
+(Carried from session 1.) 304 blobs from `flashinfer-ai/flashinfer-trace`,
+fetched by `scripts/fetch_flashinfer_traces.py`, and `FLASHINFER_TRACE_DIR`
+must be set. Both confirmed working on this node.
 
-### D2 — this node is NOT exclusively ours
-`CLAUDE.md` §4 says "All eight GPUs are yours". In fact user `jinpan12@amd.com`
-is logged in (tmux, 3 panes) and has a container `flydev` running the same ROCm
-PyTorch image. At the time of the task-00 measurements `rocm-smi --showpids`
-reported **no KFD processes**, so the node was genuinely idle and task 00 is
-clean.
+### D6 — the vendored data-model package was never committed [session 1 loss]
+`.gitignore` contained `data/` **unanchored**, which matches
+`src/sol_execbench/core/data/` and `tests/sol_execbench/core/data/` as readily
+as it matches the dataset directory it was written for. Session 1's commit
+therefore silently omitted nine source files and five test files that the code
+imports — `Definition`, `Workload`, `Solution`, `Trace`, the dtype map, the
+whole schema layer. Session 1's tests passed because the files existed in its
+working tree; git simply never took them.
 
-Consequences, which are not optional:
-* Any node-wide clock lock affects another engineer's work (blocker B1).
-* Timing runs can be contaminated at any moment by a job that is not ours.
-  `clock_calibrate.py floor` now samples **sibling GPU power every second** and
-  flags any sibling drawing >400 W during the window the floor is derived from,
-  so contamination is detectable rather than silently averaged in.
-* The task-01 interference experiment measures *our own* induced load; it
-  cannot control for the other user starting work mid-run. Re-check
-  `siblings_busy_during_tail` in every floor artifact before trusting it.
+Recovered by re-vendoring from upstream at the pinned SHA (`a9fa080`) and
+re-applying the AMD delta (`hip_cpp`/`ck`/`ck_tile`/`hipblaslt`/`miopen`/
+`aiter` languages, `MI350X`/`MI355X` hardware, `.hip` entry points). Pattern
+changed to `/data/`, anchored, with a comment saying why.
 
-### D5 — 9 FlashInfer-Bench problems need a *second*, separate dataset
-Found by running upstream's own e2e test, which failed with
-`Failed to load safetensors`. 9 of the 26 FlashInfer-Bench problems declare
-inputs of `type: "safetensors"` pointing at `data/flashinfer-trace/blob/...` —
-a different HuggingFace dataset (`flashinfer-ai/flashinfer-trace`, public)
-that `nvidia/SOL-ExecBench` does not carry and does not mention.
+Worth stating plainly because the failure mode generalizes: the tests were
+green, the working tree was correct, and the artifact that would have been
+shipped was missing a third of the port. Nothing in the session-1 workflow
+could have caught it — only a fresh clone could.
 
-Across all 235 problems the input types are: 18521 `random`, 11680 `custom`,
-1643 `scalar`, **714 `safetensors`** — the last resolving to 304 unique blobs,
-all under FlashInfer-Bench. L1, L2 and Quant are entirely self-contained.
+### D7 — one of SOLAR's own torchview patches is malformed and unnecessary
+SOLAR ships two patches for torchview. `torchview-collect-attributes.patch` is
+**corrupt** (its first hunk header declares 9 lines and supplies 8), so
+`git apply` and GNU `patch` both refuse it, and SOLAR's own `install.sh`
+silently skips it on failure.
 
-This is a scope trap of exactly the kind CLAUDE.md §0 warns about: without that
-data those 9 problems fail at run time, and 9/235 would drop out looking like
-ordinary runtime errors rather than a missing dependency.
-`scripts/fetch_flashinfer_traces.py` downloads just the referenced blobs
-(39 MB) rather than the whole trace dataset.
+Investigated rather than skipped, because a silently-dropped patch that
+mattered would have left reduction-op attributes (`dim`/`keepdim`) uncaptured
+and quietly changed every analysis. It does not matter: **both of its changes
+are already present upstream** in torchview at the commit SOLAR pins, written
+with `functools.partial` where the patch used a lambda. `env/Dockerfile` now
+asserts both changes are present rather than assuming, so a future torchview
+bump that drops them fails the build instead of producing subtly wrong bounds.
 
-Second half of the trap: the eval driver resolves those relative paths against
-the **staging directory**, not the CWD, so having the blobs in the repo is not
-sufficient. `FLASHINFER_TRACE_DIR` must point at the directory containing
-`data/flashinfer-trace/`; `env/solb` now sets it to `/work`. With both pieces
-in place, upstream's `gqa_paged_decode` sample passes **2/2 workloads on
-MI355X** — a real FlashInfer-Bench problem running end to end on AMD.
-
-### D4 — another user's `docker` prune deleted our image mid-session
-The tagged measurement image `solbench:rocm7.2-torch2.9.1` disappeared while a
-15-minute measurement was running. The running container survived (its image
-layers stayed alive, untagged), so no data was lost, but a fresh
-`docker run` failed with "pull access denied ... repository does not exist".
-Almost certainly a `docker image prune -a` by the other user on this shared
-node (D2).
-
-`env/solb` already rebuilds the image when it is missing, so this self-heals;
-noted because the failure message points at a registry problem and not at the
-actual cause, which would waste a later session's time.
-
-### D3 — MI355X is power-limited, not clock-limited, under BF16 GEMM
-Single GPU under sustained 8192³ BF16 GEMM: **1387 W of a 1400 W cap**, SCLK
-~1836 MHz against a 2400 MHz ceiling, junction 57 °C. The part runs into its
-power budget well before its clock ceiling, which is the mechanism that makes a
-measured F_LOCK necessary rather than a spec-sheet number.
+### D8 — determinism mode does not do what the name suggests
+See task 01 above. `--setperfdeterminism X` yields ~0.83·X on MI350X, and above
+~1900 stops responding to X at all. Recorded here because it is the single most
+likely thing for a future session on other AMD hardware to get wrong: the
+MI355X procedure (pick F_LOCK from the unlocked floor, request it, verify) is
+*correct in form* and produced a wrong answer *in fact* on this part.
 
 ---
 
 ## Fixes to scripts on first contact
 
-Every script below had never run on hardware. Recording each fix so a later
-session can tell whether a measurement predates it.
+F1–F11 are session-1 fixes on MI355X; see git history for their detail. They
+all still hold. Session-2 fixes:
 
-**F1 — `build_node_report.py`: `power_limit` is in microwatts.**
-amdsmi returns `1400000000`; the field was written straight into `power_cap_w`.
-Now divided by 1e6. Any node report produced before this fix has a power cap
-1e6 too large.
+**F12 — `scripts/gen_golden.py` assumed a `get_inputs()` that does not exist.**
+It was written against the KernelBench convention; SOL-ExecBench problems
+declare their inputs in `definition.json` and generate them through
+`gen_inputs`/`load_safetensors`/`custom_inputs_entrypoint`. As written it would
+have failed on all 235 problems. Rewritten against the real schema, per
+workload, keyed by workload uuid — which is what task 05 compares against.
 
-**F2 — `build_node_report.py` / `clock_calibrate.py`: the `EDGE` temperature
-sensor does not exist on MI355X.** `amdsmi_get_temp_metric(..., EDGE, ...)`
-raises `AMDSMI_STATUS_NOT_SUPPORTED`. `HOTSPOT` (junction — what rocm-smi
-prints) works. This was the more damaging of the two: in `clock_calibrate.read_clocks`
-the temperature read sat inside the *same* try block as the clock read, so an
-unsupported sensor discarded the SCLK sample too. Uncaught, task 01 would have
-collected **zero usable clock samples** and reported `steady_state: null`.
+**F13 — `gen_golden.py` fp64 promotion breaks dtype-literal references.**
+Promoting only the inputs to float64 raises on any reference that constructs
+internal tensors at a literal dtype (`torch.zeros(..., bfloat16)`, weights made
+inside `run`). 63 of 1480 L1 workloads. Now falls back to a native-dtype CPU
+run and **records which tier produced each golden** (`ok:float64` vs
+`ok:native_cpu`), because they are not equally strong evidence: a disagreement
+against float64 is a bug, against native CPU it may be ordinary noise.
 
-**F3 — amdsmi handle order ≠ torch device order.** Measured on this node:
+**F14 — `scripts/roofline_probe.py` hardcoded MI355X spec peaks.** Printed
+"spec peak 2500 @ 2.4GHz" on an MI350X, whose peak is 2307 @ 2.2 GHz. Now
+resolved per part from `solexbench_rocm/parts.py`, and the achieved fraction is
+written into the artifact so no reader has to infer the denominator.
 
-| torch idx | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-|---|---|---|---|---|---|---|---|---|
-| amdsmi idx | 3 | 0 | 2 | 1 | 7 | 4 | 6 | 5 |
+**F15 — `scripts/sol_bounds.py` (new) tripped over scalar inputs.**
+`get_input_shapes` returns `None` for a scalar input (e.g. a dropout
+probability). Iterating that raised `TypeError: 'NoneType' object is not
+iterable` and killed **41 of 94** L1 problems before any bound was computed.
+Scalars are now passed as Python numbers, which is also semantically required:
+the reference uses them in control flow, where a meta tensor would silently
+change the traced graph.
 
-Both `build_node_report.smi_fields` and `clock_calibrate.read_clocks` indexed
-amdsmi handles with a torch device index. `read_clocks(0)` therefore sampled a
-*different physical GPU* than the one under load — it would have reported an
-idle GPU's clock as the sustained floor: a low, stable, entirely plausible
-number that is fiction, and that nothing downstream could detect. This is the
-single most dangerous bug found so far.
-
-New `scripts/gpu_map.py` resolves the mapping through PCI bus identity (which
-both libraries agree on) instead of list position, and stays correct under
-`HIP_VISIBLE_DEVICES`. Verified empirically: with load on torch device 5 only,
-`read_clocks(5)` reported 1836 MHz / 1387 W / 57 °C while all seven siblings
-read ~240 W idle.
-
-**F4 — `clock_calibrate.set_perf_determinism` treated a silent no-op as
-success.** See blocker B1. It now reads `power_dpm_force_performance_level` for
-every card before and after, and fails unless some card actually reports
-`perf_determinism`.
-
-**F5 — `clock_calibrate.cmd_interference` drove sibling load with Python
-threads.** The GIL serialises the launch loop, so "seven loaded siblings" would
-in practice be intermittently idle and the measured interference would
-*understate* reality — the dangerous direction, since this number decides
-whether authoritative timing may share the node. Now uses subprocesses, waits
-30 s for thermal steady state, records sibling power actually observed under
-load, and reports if any load process died.
-
-**F6 — `node_acceptance.sh` dataset census used `-maxdepth 3/4`** and no `-L`.
-The real layout is one level deeper (`data/SOL-ExecBench/benchmark/<cat>/<problem>/`).
-It counted 0 problems while the dataset was present and correct.
-
-**F7 — `materialize_dataset.py` (new) wrote invalid JSON.** 72 of 94 L1
-problems have no `custom_inputs_entrypoint`; parquet renders that as `NaN` and
-`json.dumps` emitted a bare `nan` token, which only Python's lenient parser
-accepts. Now normalised to `null`. All 235 `definition.json` re-checked under a
-strict parser.
-
-**F8 — `verify_artifacts.check_00` skipped its own uniformity check when the
-probe failed.** `if caps:` meant that unprobed power caps (which is what
-happened before F1/F3, since `amdsmi` was not installed) silently passed the
-task. Now every field must be probed on all 8 GPUs *and* be uniform, and
-max-GFX-clock and idle-temperature uniformity are checked too — task 00 step 2
-asks for all three, and only power cap was ever tested.
-
-**F9 — `clock_calibrate.py` aborted at teardown, turning a PASS into exit 134.**
-`cmd_floor` and `cmd_verify` both started the load in a daemon thread and then
-let the interpreter shut down while it was still inside a HIP call:
-`terminate called without an active exception`, exit 134 — *after* the artifact
-had been written correctly. All three initial floor runs did this. A good
-result behind a non-zero exit status is worse than a clean failure, because
-`shard_sweep.py` would score it as a dead worker and re-run it. Both paths now
-signal the load thread to stop and join before exiting.
-
-**F10 — the amdsmi handle-order bug also existed in `device/amd.py`'s clock
-readback** and is fixed there the same way as F3. Recorded separately because
-the ported harness has its own copy of the lookup and would otherwise
-reintroduce the fault.
-
-**F11 — upstream's flush-buffer sizing is 64× too small on CDNA4.** Not a bug
-in our scripts but the single most consequential porting finding so far, and it
-is measured rather than assumed: on MI355X `torch.cuda.get_device_properties()`
-reports `L2_cache_size = 4 MiB` (the per-XCD L2). Upstream sizes its cold-cache
-flush buffer at `2 × L2_cache_size` = **8 MiB**, against a **256 MiB** Infinity
-Cache. Every "cold" iteration would in fact have run warm out of MALL, making
-memory-bound kernels look dramatically faster than they are — with no symptom
-anywhere in the output. `device/amd.py` now carries an explicit `LLC_BYTES`
-table and *raises* on an unknown arch rather than falling back to device
-properties.
+**F16 — SOLAR's five-stage pipeline needed per-problem process isolation.**
+Stage 1 traces arbitrary reference code, and some references trace
+pathologically. In a `ProcessPoolExecutor` a stuck worker cannot be cancelled,
+so one bad problem stalls the sweep behind it — the classic way a "finished"
+sweep silently covers 200 problems instead of 235. Each problem now runs as a
+killable subprocess with a timeout, and a timeout is recorded as a result.
 
 ---
 
 ## Decisions taken
 
-**Measurement environment is a pinned container** (`env/Dockerfile`,
-`env/solb`). The host has ROCm 7.1.1 and Python 3.10; the repo targets 3.12 and
-the only available torch is in the ROCm 7.2 image. Rather than install anything
-on the host, all measurement runs go through
-`rocm/pytorch:rocm7.2_ubuntu24.04_py3.12_pytorch_release_2.9.1`, plus three
-additions that do not touch the pinned torch/ROCm: `amdsmi` (from the image's
-own `/opt/rocm/share/amd_smi`), `huggingface_hub`, `pyarrow`. Container ROCm
-(7.2.0) differs from host ROCm (7.1.1); the driver (6.16.6) is shared and is
-what actually matters for the GPU. Recorded rather than "fixed" — prime
-directive 6.
+**F_LOCK = 1300 MHz achieved, at determinism setting 1600.** Full reasoning in
+the task 01 section above. The two-number form is a real structural difference
+from NVIDIA, where `nvidia-smi -lgc` makes them the same; `ClockPreset` now
+carries both and `f_lock_mhz` returns the achieved one.
 
-**Container gets `--hostname $(hostname)` and `git safe.directory`.** Without
-the first, provenance records a random container ID instead of the node;
-without the second, git refuses the bind-mounted repo and `git_sha` is silently
-`null` in every artifact — which fails the provenance requirement.
+**Authoritative timing is pinned to GPU 0.** Not a style choice: at the same
+determinism setting the eight GPUs hold clocks spanning 1242–1307 MHz (5%),
+which is larger than most of the optimization differences the benchmark exists
+to measure. Sharding is fine for correctness and for *selecting* a T_b variant;
+the winning variant is re-timed on GPU 0.
 
-**`data/` is a real directory in the repo, not a symlink to `/var/tmp`.** The
-expanded dataset is only 5.2 MB. A symlink broke `find` in `node_acceptance.sh`
-(needs `-L`) and would be a recurring footgun in every downstream script.
-`/var/tmp/solbench` still holds the genuinely large things: the HF cache, the
-raw parquet download, and sweep scratch.
+**Architectural constants are shared between MI350X and MI355X; measured ones
+are not.** `solexbench_rocm/parts.py` separates the three kinds explicitly, and
+the shared MAC/cycle table is justified by reproducing *both* parts' published
+peak FLOPS from one set of numbers — 524288 MAC/cycle × 2 × 2.4 GHz = 2.52
+PFLOPS (MI355X spec 2.5) and × 2.2 GHz = 2.31 PFLOPS (MI350X spec 2.3). A
+constant that derives both parts' published figures is architectural; one that
+does not is a measurement in disguise.
 
-**Floors measured sequentially, one GPU at a time, siblings idle.** Running
-GPUs 0/1/2 concurrently would confound per-GPU variation with cross-GPU power
-coupling, and per-GPU variation is precisely what step 1 exists to detect.
+**T_SOL uses SOLAR's `fused` model.** `unfused` assumes every intermediate
+round-trips to DRAM, which is above what a competent fused kernel achieves and
+would make the "lower bound" exceed real measurements. Both are recorded so a
+T_SOL ≤ measured violation can be diagnosed rather than merely observed.
 
-**A fourth, worst-case floor was added: GPU 0 with all seven siblings loaded.**
-Not in the task's step list. The reasoning: tasks 05/06 shard across GPUs 1–7,
-so for most of the project the node is fully loaded, and the guard rails forbid
-raising F_LOCK later (doing so invalidates everything measured before it). A
-floor measured only on a quiet node is the best case, and picking F_LOCK from
-the best case is the one direction that cannot be corrected cheaply. This is an
-*addition* of data under the existing methodology, not a change to how anything
-is measured. It cost 15 minutes and it turned the interference question from an
-inference into a measurement.
-
-**F_LOCK = 1650 MHz.** Lowest p5 observed anywhere is 1725 MHz (GPU 0, quiet).
-1650 is the round number at least 50 MHz below it, giving 75 MHz of margin — so
-the cap sits below the floor even on the worst GPU sampled, in the worst node
-condition, and the hardware never has to throttle to hold it. Verified at
-1648 MHz median under sustained load.
-
-Deliberately *not* chosen: 1700 MHz, which is round but only 25 MHz below the
-lowest floor — less margin than the task specifies, and this node has another
-user on it whose load is outside our control. No NVIDIA number entered this
-decision; the B200 ratio (1500/1970 ≈ 76%) would have suggested ~1830 MHz,
-which is **above** the measured floor and would have throttled continuously.
-The AMD derate is milder: 1650/2400 ≈ 69% of the clock ceiling.
-
-**Interference verdict: sweeps and authoritative timing may share the node.**
-Measured −0.19% at step 5, corroborated independently by the busy-node floor
-(1728 MHz loaded vs 1725 MHz quiet). Both say the same thing. The CLAUDE.md §4
-working rule ("GPU 0 authoritative only, idle otherwise") can therefore be
-relaxed — task 01 was explicitly the experiment that decides this. GPU 0 is
-still recorded per artifact, and the shared-node caveat in D2 is unaffected:
-this measures *our own* induced load, not another user's.
+**Timing methodology is recorded on every trace.** Upstream had one default
+(CUPTI) and so needed no field; the AMD port ships on `hip_events` until task
+04, and the two are not comparable on short kernels. `Environment.methodology`
+is resolved once per run and passed to both the timer and the trace, so
+"recorded" and "used" cannot drift.
 
 ---
 
@@ -481,18 +368,21 @@ this measures *our own* induced load, not another user's.
 
 ```
 ### 2026-08-03 — session 1  (node: mia1-p02-g10, 8x MI355X)
-Worked: task 00 (done), task 01 (done), task 02 (port written, sweep not run)
-Produced: artifacts/00/ — node report, rooflines, acceptance log
-          artifacts/01/ — 4 clock floors, stability, interference
-          F_LOCK = 1650 MHz, measured and verified under load
-          data/SOL-ExecBench/benchmark/ — all 235 problems (gitignored)
-          data/flashinfer-trace/ — 304 external blobs (gitignored)
-          src/sol_execbench/ — vendored upstream v1.0.2 + AMD port
-          env/{Dockerfile,solb,solb-root}
-          scripts/{gpu_map,materialize_dataset,fetch_flashinfer_traces}.py
-          11 first-contact fixes (F1-F11); F2, F3 and F11 were each capable of
-          producing plausible, undetectably wrong numbers
-Ended because: work moved to a different node (MI350X)
-Next session should: read HANDOFF.md. Then re-run task 01 on the new node --
-          F_LOCK 1650 is an MI355X number and must not be carried over.
+Worked: task 00 (done), 01 (done, F_LOCK 1650), 02 (port written, sweep not run)
+Ended because: work moved to an MI350X node.
+
+### 2026-08-03 — session 2  (node: gbt350-odcdh1-a08-1, 8x MI350X)
+Worked: environment rebuild, task 00 (done), task 01 (done, F_LOCK 1300)
+Produced: restored src/sol_execbench/core/data (D6 — never committed)
+          artifacts/00/ — node report, part-aware rooflines, acceptance log
+          artifacts/01/ — 4 floors, determinism sweeps, stability, interference
+          solexbench_rocm/parts.py — dual-SKU constants, one source of truth
+          scripts/runners/{_common,run_reference,time_tb_candidates,
+                           calibrate_tolerance}.py
+          scripts/sol_bounds.py — SOLAR bridge, works end to end
+          reference/exploits/ — replay corpus (concurrency, caching,
+                           environment, AMD-specific) + static source screen
+          reference/tb-candidates/variants.py — generic T_b variant set
+          methodology + compute-partition recorded on every trace
+          smi lockout, stream policy, static source screen (task 08 defenses)
 ```

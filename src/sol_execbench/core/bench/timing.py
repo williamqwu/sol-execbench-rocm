@@ -356,9 +356,7 @@ def time_runnable(
         Benchmark result(s) in milliseconds.
     """
     if methodology is None:
-        methodology = (
-            "hip_events" if device_layer.detect_vendor() == "amd" else "cupti"
-        )
+        methodology = device_layer.default_timing_methodology()
     total_iterations = warmup + rep
     with torch.cuda.device(device):
         if methodology in ("cuda_events", "hip_events"):

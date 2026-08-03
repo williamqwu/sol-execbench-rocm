@@ -11,7 +11,10 @@ instead of by quietly forking the methodology.
     python scripts/roofline_probe.py --gpu 0 --out artifacts/00/roofline-gpu0.json
     python scripts/roofline_probe.py --gpu 0 --llc-sweep   # task 03 V2 + task 02 flush check
 
-!! NOT YET RUN ON HARDWARE.
+Peaks to compare against are looked up per part (``solexbench_rocm.parts``),
+never hardcoded: MI350X and MI355X are the same die at different clocks, so a
+fixed "2500 TFLOPS" denominator would understate MI350X's achieved fraction by
+9% while looking perfectly reasonable.
 
 Task 00 runs this at default clocks (reference points only — do NOT cite them
 downstream). Re-run at F_LOCK after task 01 for the numbers that go in the
@@ -26,7 +29,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from provenance import write_artifact  # noqa: E402
+from solexbench_rocm.parts import detect_part  # noqa: E402
 
 
 def _sync(dev):
@@ -142,7 +147,21 @@ def main():
     ap.add_argument("--llc-sweep", action="store_true")
     a = ap.parse_args()
 
-    payload: dict = {"gpu": a.gpu}
+    part = detect_part(a.gpu)
+    payload: dict = {
+        "gpu": a.gpu,
+        # Which part these ceilings belong to, and the peaks they are a
+        # fraction OF. Recorded in the artifact so a reader never has to infer
+        # the denominator, and so an MI350X number can never be read against an
+        # MI355X peak.
+        "part": part.name,
+        "part_peak": {
+            "freq_ghz": part.peak_freq_ghz,
+            "power_cap_w": part.power_cap_w,
+            "hbm_tbs": part.dram_bytes_per_sec / 1e12,
+            "bf16_tflops": part.peak_flops("bf16_tc") / 1e12,
+        },
+    }
     for name, fn in (("hbm", lambda: hbm_bandwidth(a.gpu)),
                      ("gemm", lambda: gemm_bf16(a.gpu))):
         try:
@@ -159,9 +178,22 @@ def main():
         except Exception as e:
             payload["llc_sweep"] = {"error": str(e)}
 
+    peak_hbm = part.dram_bytes_per_sec / 1e12
+    peak_gemm = part.peak_flops("bf16_tc") / 1e12
+    for key, got, peak, unit in (
+        ("hbm_tbs", payload["hbm_tbs"], peak_hbm, "TB/s"),
+        ("gemm_bf16_tflops", payload["gemm_bf16_tflops"], peak_gemm, "TFLOPS BF16"),
+    ):
+        if isinstance(got, (int, float)):
+            payload[f"{key}_frac_of_peak"] = got / peak
+
     write_artifact(a.out, "roofline-probe", payload)
-    print(f"HBM  {payload['hbm_tbs']} TB/s   (spec peak 8.0)")
-    print(f"GEMM {payload['gemm_bf16_tflops']} TFLOPS BF16   (spec peak 2500 @ 2.4GHz)")
+    print(f"part {part.name}  (peak {part.peak_freq_ghz} GHz, {part.power_cap_w} W)")
+    print(f"HBM  {payload['hbm_tbs']} TB/s   "
+          f"({payload.get('hbm_tbs_frac_of_peak', float('nan')):.1%} of {peak_hbm:.1f} spec peak)")
+    print(f"GEMM {payload['gemm_bf16_tflops']} TFLOPS BF16   "
+          f"({payload.get('gemm_bf16_tflops_frac_of_peak', float('nan')):.1%} of "
+          f"{peak_gemm:.0f} spec peak @ {part.peak_freq_ghz} GHz)")
     print(f"wrote {a.out}")
 
 

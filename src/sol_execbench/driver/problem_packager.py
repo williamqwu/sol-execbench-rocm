@@ -36,6 +36,7 @@ from ..core import (
     Trace,
     Workload,
 )
+from ..core.bench.reward_hack import check_static_source_screen
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -148,6 +149,15 @@ class ProblemPackager:
         self.workloads = workloads
         self.solution = solution
         self.config = config
+
+        # AMD: static source screen, before anything is written, compiled or
+        # imported. The runtime guards live in Python and a compiled HIP
+        # submission runs underneath them -- `install_smi_guard` cannot see a
+        # `system("rocm-smi …")` inside an extension, and the stream check
+        # cannot see a stream created and consumed inside a kernel launch.
+        # Screening here rather than in the driver means it covers every entry
+        # point (CLI, sweeps, submission intake) with one call.
+        check_static_source_screen(solution.sources)
 
         # Write problem files to staging directory up front.
         (self.output_dir / "definition.json").write_text(definition.model_dump_json())

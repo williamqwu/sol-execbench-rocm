@@ -62,6 +62,17 @@ def materialize(parquet_dir: Path, out: Path) -> dict:
             # them to real objects so definition.json matches upstream.
             for k in DEFINITION_JSON:
                 definition[k] = json.loads(row[k])
+            # The reference code goes in BOTH places, on purpose:
+            #   definition.json["reference"] -- because `Definition` declares it
+            #       as a required field, so a definition.json without it cannot
+            #       be loaded by the harness, upstream's `run_dataset.py`, or
+            #       the CLI. The audit's file layout described the directory
+            #       contents, not a different schema.
+            #   reference.py -- because a 200-line kernel embedded in a JSON
+            #       string is unreadable and ungreppable, and every sweep
+            #       triage starts by reading it.
+            # verify_roundtrip checks the two agree, so they cannot drift.
+            definition["reference"] = row["reference"]
             (d / "definition.json").write_text(
                 json.dumps(definition, indent=2) + "\n")
 
@@ -94,6 +105,9 @@ def verify_roundtrip(parquet_dir: Path, out: Path) -> list[str]:
                     problems.append(f"{cat}/{row['name']}: field {k} differs")
             if (d / "reference.py").read_text() != row["reference"]:
                 problems.append(f"{cat}/{row['name']}: reference.py differs")
+            if definition.get("reference") != row["reference"]:
+                problems.append(
+                    f"{cat}/{row['name']}: definition.json reference differs")
             got = [json.loads(x) for x in
                    (d / "workload.jsonl").read_text().splitlines() if x.strip()]
             if got != json.loads(row["workloads"]):

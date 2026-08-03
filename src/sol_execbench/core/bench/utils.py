@@ -65,6 +65,8 @@ def make_eval(
     correctness: Optional[Correctness] = None,
     performance: Optional[Performance] = None,
     extra_msg: Optional[str] = None,
+    # AMD: the timing methodology this evaluation used, recorded on the trace.
+    methodology: Optional[str] = None,
 ) -> Evaluation:
     log_text = _read_log_file(log_path) or ""
     if extra_msg:
@@ -72,7 +74,7 @@ def make_eval(
     return Evaluation(
         status=status,
         log=log_text,
-        environment=env_snapshot(device),
+        environment=env_snapshot(device, methodology),
         timestamp=datetime.now().isoformat(),
         correctness=correctness,
         performance=performance,

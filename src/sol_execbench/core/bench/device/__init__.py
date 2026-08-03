@@ -104,6 +104,20 @@ def default_ld_flags() -> list[str]:
     return get_backend().default_ld_flags()
 
 
+def default_timing_methodology() -> str:
+    """The timing methodology this vendor uses when none is requested.
+
+    AMD: ``cupti`` has no ROCm build, so ROCm ships on ``hip_events`` until the
+    rocprofiler-sdk source (task 04) lands. The two are NOT interchangeable --
+    event pairs include host launch overhead that activity tracing excludes, so
+    short kernels read slow. That is why the answer is recorded on every trace
+    rather than inferred later from the vendor: a trace captured before task 04
+    and one captured after are not comparable, and nothing else in the trace
+    would reveal it.
+    """
+    return "hip_events" if detect_vendor() == "amd" else "cupti"
+
+
 __all__ = [
     "Vendor",
     "detect_vendor",
@@ -114,4 +128,5 @@ __all__ = [
     "arch_flags",
     "default_device_cflags",
     "default_ld_flags",
+    "default_timing_methodology",
 ]

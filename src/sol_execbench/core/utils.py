@@ -18,7 +18,7 @@ from __future__ import annotations
 import os
 import platform
 import sys
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 
 if TYPE_CHECKING:
@@ -38,9 +38,15 @@ def list_cuda_devices() -> List[str]:
     return [f"cuda:{i}" for i in range(n)]
 
 
-def env_snapshot(device: str) -> "Environment":
+def env_snapshot(device: str, methodology: Optional[str] = None) -> "Environment":
+    # AMD: *methodology* is the timing methodology actually used for this
+    # evaluation. Passed in rather than re-derived here, so the trace records
+    # what ran and not what the default would have been -- an explicit
+    # `methodology=` argument at the call site would otherwise be recorded
+    # wrongly. Defaults to the vendor's default when the caller does not know.
     import torch
 
+    from sol_execbench.core.bench import device as device_layer
     from sol_execbench.core.data import Environment
 
     libs: Dict[str, str] = {"torch": torch.__version__}
@@ -58,7 +64,29 @@ def env_snapshot(device: str) -> "Environment":
             libs["cuda"] = tv.cuda
     except Exception:
         pass
-    return Environment(hardware=hardware_from_device(device), libs=libs)
+    if methodology is None:
+        try:
+            methodology = device_layer.default_timing_methodology()
+        except Exception:
+            methodology = None
+
+    # AMD: compute-partition mode belongs in libs rather than as another
+    # top-level field -- it is environment detail, not a schema concept, and
+    # upstream has no analogue. It must be recorded because SPX and CPX give a
+    # kernel different amounts of the GPU, so two traces taken under different
+    # modes are not comparable and nothing else in the trace would say so.
+    try:
+        from sol_execbench.core.bench.reward_hack import compute_partition_mode
+
+        partition = compute_partition_mode()
+        if partition:
+            libs["compute_partition"] = partition
+    except Exception:
+        pass
+
+    return Environment(
+        hardware=hardware_from_device(device), libs=libs, methodology=methodology
+    )
 
 
 def hardware_from_device(device: str) -> str:

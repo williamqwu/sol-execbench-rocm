@@ -32,7 +32,34 @@ class ClockPreset:
     """
 
     gpu_clk_mhz: int
+    """The clock to REQUEST. On NVIDIA this is also what you get."""
+
     dram_clk_mhz: Optional[int]
+
+    # AMD: what the part actually HOLDS when the request above is applied.
+    #
+    # On NVIDIA, `nvidia-smi -lgc 1500` pins the clock at 1500 and the two
+    # numbers are the same, so upstream never needed to distinguish them. On
+    # MI350X they are not the same and not close: `rocm-smi
+    # --setperfdeterminism 1600` yields a rock-steady 1303 MHz under sustained
+    # load -- about 81% of the request -- while drawing 885 W of a 1000 W cap,
+    # so it is the determinism mode setting the operating point, not power.
+    #
+    # Both numbers are load-bearing and neither substitutes for the other:
+    #   gpu_clk_mhz          is what `lock_clocks` must pass to rocm-smi.
+    #   achieved_gpu_clk_mhz is F_LOCK -- the frequency every T_SOL and T_b is
+    #                        expressed at. Using the requested value here
+    #                        would overstate the clock by ~23% and make every
+    #                        analytic bound wrong in the direction that looks
+    #                        entirely plausible.
+    #
+    # None means "requested == achieved" (the NVIDIA case).
+    achieved_gpu_clk_mhz: Optional[int] = None
+
+    @property
+    def f_lock_mhz(self) -> int:
+        """The frequency measurements are actually taken at."""
+        return self.achieved_gpu_clk_mhz or self.gpu_clk_mhz
 
 
 CLOCK_LOCK_PRESETS: dict[str, ClockPreset] = {
@@ -57,24 +84,35 @@ CLOCK_LOCK_PRESETS: dict[str, ClockPreset] = {
     # MI355X derate is milder at 1650/2400 ~ 69%.
     "AMD Instinct MI355X": ClockPreset(gpu_clk_mhz=1650, dram_clk_mhz=None),
     #
-    # NO "AMD Instinct MI350X" ENTRY, DELIBERATELY.
+    # MI350X. MEASURED on gbt350-odcdh1-a08-1 (tasks/01, 2026-08-03). Same
+    # CDNA4 die and the same gfx950 target as the MI355X above; a different
+    # part, and emphatically NOT the same clock. Copying 1650 down from the
+    # line above would have been the same class of error as copying a B200
+    # constant into an AMD artifact.
     #
-    # MI350X is the same CDNA4 die and the same gfx950 target, so it shares the
-    # build path and the 256 MiB LLC sizing. It does NOT share this clock. It
-    # is the air-cooled part with a materially lower power budget, and the
-    # 1650 MHz above was derived from floors measured on a 1400 W liquid-cooled
-    # MI355X that sat pinned at ~1400 W / 59-63 C throughout. A part with less
-    # power and less cooling headroom will settle at a different -- almost
-    # certainly lower -- sustained floor.
+    # How different: MI350X is the air-cooled 1000 W part (MI355X is
+    # liquid-cooled at 1400 W) with a 2200 MHz ceiling (MI355X: 2400). Its
+    # sustained UNLOCKED floors under saturating BF16 GEMM were 1390 / 1367 /
+    # 1335 MHz on GPUs 0 / 1 / 2 -- versus 1725-1757 on MI355X.
     #
-    # Copying 1650 here because "it's the same architecture" is the same class
-    # of error as copying a B200 constant into an AMD artifact: the number
-    # would be plausible, nothing downstream could detect it, and every T_SOL
-    # and T_b derived from it would be silently wrong.
+    # The request/achieved split is the part of this that does not transfer at
+    # all. `--setperfdeterminism 1600` holds 1303 MHz on GPU 0 (min 1296 over
+    # 20 samples) at 885 W, i.e. ~110 W below the cap, so the lock binds and
+    # not the power limit -- which is what makes it reproducible. Requesting
+    # more stops helping: at 1900 and at 2200 the part pins to the 1000 W cap
+    # and lands on the same ~1400 MHz, at the mercy of ambient temperature.
     #
-    # Re-run tasks/01 on the MI350X node. Absent an entry, `lock_clocks` logs
-    # "No GPU clock preset" and returns False unless SOL_EXECBENCH_GPU_CLK_MHZ
-    # is set explicitly -- a loud stop, which is the intended behaviour.
+    # 1600 was chosen over 1700 (which gives 1380 MHz) for exactly that
+    # margin: 1700 sits at 947 W on two of three GPUs sampled, and a setting
+    # that is one warm afternoon away from becoming power-bound is not a lock.
+    #
+    # Per-GPU achieved at this setting, all eight measured:
+    #   1303 1295 1264 1307 1279 1296 1285 1242  (median MHz, spread 65)
+    # The spread is why authoritative timing is pinned to one GPU and why every
+    # timing artifact records which GPU produced it.
+    "AMD Instinct MI350X": ClockPreset(
+        gpu_clk_mhz=1600, dram_clk_mhz=None, achieved_gpu_clk_mhz=1300
+    ),
 }
 
 

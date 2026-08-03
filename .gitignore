@@ -1,7 +1,12 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-data/
+# Anchored to the repo root ON PURPOSE. An unanchored `data/` also matches
+# src/sol_execbench/core/data/ and tests/sol_execbench/core/data/, and in
+# session 1 it silently excluded the vendored data-model package from the
+# commit -- the code imported it, the working tree had it, and git did not.
+# See STATE.md deviation D6.
+/data/
 artifacts/**/logs/
 *.so
 .venv/

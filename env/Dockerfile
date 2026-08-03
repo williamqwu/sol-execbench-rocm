@@ -41,6 +41,60 @@ RUN pip install --no-cache-dir -c /tmp/constraints.txt \
  && python -c "import torch; assert 'rocm' in torch.__version__, torch.__version__; \
                print('torch intact:', torch.__version__)"
 
+# SOLAR — the analytic SOL model (task 03). Not vendored: it is a separate
+# Apache-2.0 repo (NVlabs/SOLAR) with its own release cadence, and the AMD port
+# adds an arch config to it rather than changing it. Pinned to a SHA for the
+# same reason every other version here is pinned: T_SOL must be reproducible,
+# and a silently newer SOLAR would move every bound.
+#
+# `--no-deps` for solar itself plus an explicit, constrained dependency list:
+# its requirements.txt asks for `torch>=2.0.0`, which pip would happily satisfy
+# by replacing the ROCm build with a CUDA wheel from PyPI. Nothing would fail
+# until the numbers did.
+#
+# SOLAR also requires a PATCHED torchview: stock torchview does not emit
+# parameter-tensor nodes, so weights would be invisible to the analyzer and
+# every weight-heavy problem's memory bound would come out too low -- SOLAR
+# refuses to run rather than let that happen.
+#
+# SOLAR ships TWO patches. Only one is applied here, and the reason is
+# checked rather than assumed:
+#
+#   torchview-parameter-tensors.patch   applied. Required.
+#   torchview-collect-attributes.patch  NOT applied: both of its changes are
+#       ALREADY PRESENT in torchview at the pinned commit (expressed with
+#       functools.partial instead of the patch's lambda). The patch file is
+#       also malformed -- its first hunk header claims 9 lines and supplies 8
+#       -- so `git apply` refuses it, and SOLAR's own install.sh silently
+#       skips it on failure. Silently skipping a patch that mattered would
+#       leave reduction-op attributes (dim/keepdim) uncaptured and quietly
+#       change the analysis, so the presence of both changes is ASSERTED
+#       below. If a future torchview bump drops them, this build fails
+#       instead of producing subtly wrong SOL bounds.
+ARG SOLAR_SHA=d3524c4488f32db002d5f1e33b5d58d01b707b51
+ARG TORCHVIEW_COMMIT=edbe1fa
+RUN pip install --no-cache-dir -c /tmp/constraints.txt \
+        networkx pyyaml matplotlib scipy pandas graphviz \
+ && git clone -q https://github.com/mert-kurttutan/torchview.git /tmp/torchview \
+ && git -C /tmp/torchview checkout -q ${TORCHVIEW_COMMIT} \
+ && git clone -q https://github.com/NVlabs/SOLAR /tmp/solar-src \
+ && git -C /tmp/solar-src checkout -q ${SOLAR_SHA} \
+ && git -C /tmp/torchview apply /tmp/solar-src/patches/torchview-parameter-tensors.patch \
+ && python -c "import pathlib; \
+tv = pathlib.Path('/tmp/torchview/src/torchview'); \
+a = (tv/'torchview.py').read_text(); r = (tv/'recorder_tensor.py').read_text(); \
+assert a.count('get_recorder_tensor, collect_attributes=collect_attributes') >= 2, \
+    'torchview lost collect_attributes propagation in process_input'; \
+assert r.count(chr(39)+'collect_attributes'+chr(39)+': collect_attributes') >= 2, \
+    'torchview lost collect_attributes in attach_kwargs'; \
+print('collect-attributes changes verified present upstream')" \
+ && pip install --no-cache-dir --no-deps /tmp/torchview \
+ && pip install --no-cache-dir --no-deps /tmp/solar-src \
+ && rm -rf /tmp/torchview /tmp/solar-src \
+ && python -c "import torch, solar, torchview; \
+               assert 'rocm' in torch.__version__, torch.__version__; \
+               print('torch intact after SOLAR:', torch.__version__)"
+
 # The repo is bind-mounted from a host user's home; git refuses to read a
 # repo it does not own, which silently nulls git_sha in every provenance
 # block. An artifact without provenance is not usable for scoring.

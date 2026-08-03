@@ -125,12 +125,16 @@ from sol_execbench.core.bench.io import (  # noqa: E402
 )
 from sol_execbench.core.bench.reward_hack import (  # noqa: E402
     RewardHackDetected,
+    check_default_stream,
     check_eval_integrity,
     check_lazy_outputs,
     check_monkey_patch,
     check_thread_injection,
+    compute_partition_mode,
+    install_smi_guard,
     snapshot_critical_functions,
 )
+from sol_execbench.core.bench import device as device_layer  # noqa: E402
 from sol_execbench.core.bench.timing import time_runnable  # noqa: E402
 from sol_execbench.core.bench.utils import (  # noqa: E402
     make_eval,
@@ -187,6 +191,10 @@ if ref_fn is None:
 # Checked after user code import and after each user_fn() call.
 _CRITICAL_NAMES = [
     "time_runnable",
+    # AMD: the ROCm-side guards are snapshotted too, or a submission could
+    # simply replace them and walk through the door they were guarding.
+    "check_default_stream",
+    "install_smi_guard",
     "compute_error_stats",
     "check_monkey_patch",
     "check_lazy_outputs",
@@ -199,6 +207,12 @@ _CRITICAL_NAMES = [
     "make_eval",
 ]
 _integrity_snapshot = snapshot_critical_functions(globals(), _CRITICAL_NAMES)
+
+# AMD: block GPU management tools BEFORE user code is imported. A submission
+# that raises the clock cap mid-run beats the locked-clock calibration outright
+# and leaves nothing in the output to show for it. Installed here rather than
+# at first use so an import-time invocation is caught too.
+install_smi_guard()
 # Keep a local reference so that patching the name in globals() is ineffective.
 _check_integrity = check_eval_integrity
 
@@ -314,6 +328,12 @@ if bench_config.lock_clocks:
     _clock_status_msg = "Clocks locked: yes" if _clocks_locked else "Clocks locked: no"
 
 
+# AMD: resolved once per run, then both USED for timing and RECORDED on every
+# trace. Deriving it separately in the two places is how a trace ends up
+# claiming a methodology that did not produce its numbers.
+_methodology = device_layer.default_timing_methodology()
+
+
 def _make_eval(
     status, device, log_path, *, correctness=None, performance=None, extra_msg=None
 ):
@@ -325,6 +345,7 @@ def _make_eval(
         correctness=correctness,
         performance=performance,
         extra_msg="\n".join(parts) or None,
+        methodology=_methodology,
     )
 
 
@@ -594,6 +615,7 @@ for _workload in workloads:
             warmup=bench_config.warmup_runs,
             rep=bench_config.iterations,
             seed=bench_config.seed,
+            methodology=_methodology,
         )
     except Exception as _e:
         _emit(
@@ -617,6 +639,13 @@ for _workload in workloads:
     ):
         continue
 
+    # -- AMD: stream policy (interim guard while timing is event-based) --
+    # Event pairs recorded on the default stream do not observe work running
+    # on another stream, so on ROCm this check stands in for upstream's
+    # activity-sequence count assertion until task 04 lands.
+    if _reward_hack_check(_workload, check_default_stream):
+        continue
+
     # -- Reference latency (for speedup factor) —always return-value style --
     # Inputs are cloned (not regenerated) since the reference cannot cheat.
     _ref_latency_ms = 0.0
@@ -630,6 +659,7 @@ for _workload in workloads:
                 warmup=bench_config.warmup_runs,
                 rep=bench_config.iterations,
                 seed=bench_config.seed,
+                methodology=_methodology,
             )
         except Exception:
             pass
