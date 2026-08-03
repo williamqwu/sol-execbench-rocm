@@ -230,22 +230,62 @@ def _as_list(out):
 
 
 def _dtype_floor(tensors) -> dict:
-    """Per-dtype tolerance floor: one ulp of the output dtype.
+    """Tolerance floor: one ulp of the output dtype, AT THE OUTPUT'S SCALE.
 
     A reference that is bit-exact across runs yields zero measured variance.
     Shipping a zero tolerance would then fail any submission that merely
-    reassociates an accumulation -- correct kernels, rejected. The floor is
-    derived from the dtype rather than chosen, so it cannot drift into being a
-    number that makes a particular submission pass.
+    reassociates an accumulation -- correct kernels, rejected. So there is a
+    floor, and it is derived rather than chosen, so it cannot drift into being
+    a number that makes a particular submission pass.
+
+    The scale factor is the point. `eps` is a RELATIVE quantity: bf16's
+    0.0078125 means "one ulp at magnitude 1". Using it directly as an
+    *absolute* tolerance is a units error, and not a harmless one --
+
+      outputs near 1000: one ulp is 7.8, and a fixed atol of 0.0078 is
+                         far tighter than the dtype can even represent
+      outputs near 0.001: one ulp is 7.6e-6, and a fixed atol of 0.0078
+                          accepts a thousand-fold error
+
+    The second case is the dangerous direction, and it is not hypothetical:
+    against upstream's B200 values a fixed bf16 epsilon floor came out 781x
+    looser on problems whose measured AMD variance was exactly zero. A
+    tolerance that loose is what lets a kernel that is wrong but fast through,
+    which is the specific failure task 05 exists to prevent.
+
+    So the floor is one ulp **at the output's own scale**, and the scale used
+    is the RMS magnitude, not the maximum. That choice matters:
+
+      max|y|  is dominated by a single outlier. On a tensor spanning 1e-3 to
+              1e11, one ulp of the max grants every small element absolute
+              slack a thousand times its own value -- blanket permission to be
+              wrong wherever the answer happens to be small.
+      RMS|y|  is the typical element's magnitude, so the floor means "one ulp
+              of a typical element". Elements above it are covered by the rtol
+              term, which is proportional by construction.
+
+    rtol floors at eps itself, which is already relative and needs no scaling.
+    Together they reproduce the harness's own bound, `atol + rtol*|y|`, at
+    about one ulp for a typical element.
     """
     import torch
 
-    dtype = tensors[0].dtype if tensors else torch.float32
+    if not tensors:
+        return {"atol": 0.0, "rtol": 0.0}
+    dtype = tensors[0].dtype
     try:
         eps = float(torch.finfo(dtype).eps)
     except TypeError:                                # integer outputs
         return {"atol": 0.0, "rtol": 0.0}
-    return {"atol": eps, "rtol": eps}
+
+    total_sq, total_n = 0.0, 0
+    for t in tensors:
+        finite = t[torch.isfinite(t)].to(torch.float64)
+        if finite.numel():
+            total_sq += float((finite * finite).sum())
+            total_n += finite.numel()
+    scale = math.sqrt(total_sq / total_n) if total_n else 0.0
+    return {"atol": eps * scale, "rtol": eps}
 
 
 if __name__ == "__main__":
