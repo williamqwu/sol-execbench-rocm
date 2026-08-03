@@ -136,6 +136,10 @@ def evaluate(definition, workloads, solution, config=None, timeout: int = 900,
     # the CWD. Without this, 9 of the 26 FlashInfer problems fail as ordinary
     # runtime errors and quietly leave the benchmark (STATE.md D5).
     env.setdefault("FLASHINFER_TRACE_DIR", str(ROOT))
+    # Where the eval driver finds the rocprofiler shim when the rocprof
+    # methodology is selected. Passed by path rather than assumed importable:
+    # the driver runs from a staging directory with its own sys.path.
+    env.setdefault("SOLEXBENCH_ROCPROF_SHIM", str(ROOT / "src" / "solexbench_rocm" / "shim"))
 
     if packager._is_cpp:
         cmd, _ = packager.compile()

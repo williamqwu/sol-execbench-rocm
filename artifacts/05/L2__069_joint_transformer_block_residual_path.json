@@ -1,7 +1,7 @@
 {
  "_provenance": {
   "task": "05-tolerances",
-  "utc": "2026-08-03T22:20:51.782694+00:00",
+  "utc": "2026-08-03T22:45:39.411951+00:00",
   "git_sha": "895307ea2a3922bf7181353b47f0f678d8303323-dirty",
   "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
   "python": "3.12.3",
@@ -21,19 +21,20 @@
    "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
   },
   "f_lock_mhz": 1300,
-  "visible_devices": "6"
+  "visible_devices": "2"
  },
- "problem": "L1__076_batched_expert_forward",
- "definition": "076_batched_expert_forward",
+ "problem": "L2__069_joint_transformer_block_residual_path",
+ "definition": "069_joint_transformer_block_residual_path",
  "margin": 1.25,
  "seeds": 10,
  "golden_available": false,
  "per_workload": [
   {
-   "workload_uuid": "34878b6f-70f3-5d2c-af3d-39f31e30b737",
+   "workload_uuid": "18928f68-44fe-552f-ba82-50a71583d7b7",
    "axes": {
-    "batch_size": 4,
-    "seq_len": 293
+    "batch_size": 1,
+    "seq_len": 1024,
+    "context_len": 77
    },
    "run_to_run": {
     "max_abs": 0.0,
@@ -44,7 +45,7 @@
    "deterministic": true,
    "vs_golden": null,
    "tolerance": {
-    "max_atol": 2.7654032549721267e-08,
+    "max_atol": 0.02464955384779021,
     "max_rtol": 1.1920928955078125e-07,
     "required_matched_ratio": 0.99,
     "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
@@ -52,10 +53,11 @@
    "ok": true
   },
   {
-   "workload_uuid": "d660acd8-f6aa-515d-befc-34463b993132",
+   "workload_uuid": "6756e51e-5b84-52d7-bc96-f697fa0e5767",
    "axes": {
-    "batch_size": 4,
-    "seq_len": 128
+    "batch_size": 1,
+    "seq_len": 2048,
+    "context_len": 77
    },
    "run_to_run": {
     "max_abs": 0.0,
@@ -66,7 +68,7 @@
    "deterministic": true,
    "vs_golden": null,
    "tolerance": {
-    "max_atol": 2.7768256406616346e-08,
+    "max_atol": 0.022338592442303032,
     "max_rtol": 1.1920928955078125e-07,
     "required_matched_ratio": 0.99,
     "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
@@ -74,10 +76,218 @@
    "ok": true
   },
   {
-   "workload_uuid": "5b22e252-e21e-5e0d-a493-beebd80546db",
+   "workload_uuid": "b58d2ffa-b5e7-5c54-abe1-a65c4f442cc1",
+   "axes": {
+    "batch_size": 32,
+    "seq_len": 256,
+    "context_len": 77
+   },
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.01913029544967228,
+    "max_rtol": 1.1920928955078125e-07,
+    "required_matched_ratio": 0.99,
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "90180c06-521b-532d-8a7f-1bf437635df2",
+   "axes": {
+    "batch_size": 64,
+    "seq_len": 128,
+    "context_len": 77
+   },
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.01758231994811705,
+    "max_rtol": 1.1920928955078125e-07,
+    "required_matched_ratio": 0.99,
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "33bc808b-a5fd-5f28-a72f-883f7fb5fe66",
+   "axes": {
+    "batch_size": 1,
+    "seq_len": 2053,
+    "context_len": 77
+   },
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.02233825653988803,
+    "max_rtol": 1.1920928955078125e-07,
+    "required_matched_ratio": 0.99,
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "9d63585f-d445-5ed0-9ebc-54bccf8610a1",
+   "axes": {
+    "batch_size": 1,
+    "seq_len": 8192,
+    "context_len": 77
+   },
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.022914914448671317,
+    "max_rtol": 1.1920928955078125e-07,
+    "required_matched_ratio": 0.99,
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "d47a5308-881e-5a52-b167-35eaaae2448e",
+   "axes": {
+    "batch_size": 2,
+    "seq_len": 256,
+    "context_len": 154
+   },
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.02002266642028702,
+    "max_rtol": 1.1920928955078125e-07,
+    "required_matched_ratio": 0.99,
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "074060df-2003-54ae-9a24-fcdd214cf9a2",
+   "axes": {
+    "batch_size": 2,
+    "seq_len": 2048,
+    "context_len": 77
+   },
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.02436324998616425,
+    "max_rtol": 1.1920928955078125e-07,
+    "required_matched_ratio": 0.99,
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "d4cbea35-b505-5727-9d13-fcc49bc3962b",
+   "axes": {
+    "batch_size": 1,
+    "seq_len": 293,
+    "context_len": 77
+   },
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.02306986512870977,
+    "max_rtol": 1.1920928955078125e-07,
+    "required_matched_ratio": 0.99,
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "0b63d284-33dd-510b-a035-63a92b1d7162",
+   "axes": {
+    "batch_size": 8,
+    "seq_len": 256,
+    "context_len": 77
+   },
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.01871684737642534,
+    "max_rtol": 1.1920928955078125e-07,
+    "required_matched_ratio": 0.99,
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "334d9b96-bf92-5bc1-845f-02a9f1e0ea82",
+   "axes": {
+    "batch_size": 4,
+    "seq_len": 512,
+    "context_len": 77
+   },
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.01954442910248465,
+    "max_rtol": 1.1920928955078125e-07,
+    "required_matched_ratio": 0.99,
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "a94f50c4-326d-5d67-bfa4-c46b4431310c",
    "axes": {
     "batch_size": 16,
-    "seq_len": 256
+    "seq_len": 512,
+    "context_len": 77
    },
    "run_to_run": {
     "max_abs": 0.0,
@@ -88,7 +298,7 @@
    "deterministic": true,
    "vs_golden": null,
    "tolerance": {
-    "max_atol": 2.751460288835101e-08,
+    "max_atol": 0.019505177941728756,
     "max_rtol": 1.1920928955078125e-07,
     "required_matched_ratio": 0.99,
     "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
@@ -96,32 +306,11 @@
    "ok": true
   },
   {
-   "workload_uuid": "e348b6b4-ea74-53c9-893d-1f1c11ac4ef5",
-   "axes": {
-    "batch_size": 2,
-    "seq_len": 512
-   },
-   "run_to_run": {
-    "max_abs": 0.0,
-    "max_rel": 0.0
-   },
-   "seeds": 10,
-   "executions_per_seed": 2,
-   "deterministic": true,
-   "vs_golden": null,
-   "tolerance": {
-    "max_atol": 2.7557952201403318e-08,
-    "max_rtol": 1.1920928955078125e-07,
-    "required_matched_ratio": 0.99,
-    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
-   },
-   "ok": true
-  },
-  {
-   "workload_uuid": "208673e1-4a01-52ae-970b-efe5c343921c",
+   "workload_uuid": "a8b9e1ea-c058-5a84-8dd7-26c4860afa73",
    "axes": {
     "batch_size": 1,
-    "seq_len": 128
+    "seq_len": 128,
+    "context_len": 154
    },
    "run_to_run": {
     "max_abs": 0.0,
@@ -132,7 +321,7 @@
    "deterministic": true,
    "vs_golden": null,
    "tolerance": {
-    "max_atol": 2.7815336885430055e-08,
+    "max_atol": 0.01830621167651159,
     "max_rtol": 1.1920928955078125e-07,
     "required_matched_ratio": 0.99,
     "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
@@ -140,76 +329,11 @@
    "ok": true
   },
   {
-   "workload_uuid": "29a3c188-7a67-546f-b825-8226ed8af120",
-   "axes": {
-    "batch_size": 1,
-    "seq_len": 613
-   },
-   "run_to_run": {
-    "max_abs": 0.0,
-    "max_rel": 0.0
-   },
-   "seeds": 10,
-   "executions_per_seed": 2,
-   "deterministic": true,
-   "vs_golden": null,
-   "tolerance": {
-    "max_atol": 2.7707650538322783e-08,
-    "max_rtol": 1.1920928955078125e-07,
-    "required_matched_ratio": 0.99,
-    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
-   },
-   "ok": true
-  },
-  {
-   "workload_uuid": "5f1d0cc1-613a-55d0-aa23-2c1f78731de7",
-   "axes": {
-    "batch_size": 2,
-    "seq_len": 128
-   },
-   "run_to_run": {
-    "max_abs": 0.0,
-    "max_rel": 0.0
-   },
-   "seeds": 10,
-   "executions_per_seed": 2,
-   "deterministic": true,
-   "vs_golden": null,
-   "tolerance": {
-    "max_atol": 2.76664933839831e-08,
-    "max_rtol": 1.1920928955078125e-07,
-    "required_matched_ratio": 0.99,
-    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
-   },
-   "ok": true
-  },
-  {
-   "workload_uuid": "a7952cef-4739-5c33-b8b4-764f896c116e",
-   "axes": {
-    "batch_size": 2,
-    "seq_len": 211
-   },
-   "run_to_run": {
-    "max_abs": 0.0,
-    "max_rel": 0.0
-   },
-   "seeds": 10,
-   "executions_per_seed": 2,
-   "deterministic": true,
-   "vs_golden": null,
-   "tolerance": {
-    "max_atol": 2.7633023121269777e-08,
-    "max_rtol": 1.1920928955078125e-07,
-    "required_matched_ratio": 0.99,
-    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
-   },
-   "ok": true
-  },
-  {
-   "workload_uuid": "a612adb5-6ffd-53bf-b0b9-a30f097a8a9f",
+   "workload_uuid": "21a7b522-7e29-59a0-b5b7-7ce0f11c1ce5",
    "axes": {
     "batch_size": 4,
-    "seq_len": 512
+    "seq_len": 1024,
+    "context_len": 77
    },
    "run_to_run": {
     "max_abs": 0.0,
@@ -220,7 +344,7 @@
    "deterministic": true,
    "vs_golden": null,
    "tolerance": {
-    "max_atol": 2.7662918729292153e-08,
+    "max_atol": 0.021714440594153867,
     "max_rtol": 1.1920928955078125e-07,
     "required_matched_ratio": 0.99,
     "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
@@ -228,76 +352,11 @@
    "ok": true
   },
   {
-   "workload_uuid": "4bcd45cd-46bc-561d-8de4-28948fc78374",
-   "axes": {
-    "batch_size": 1,
-    "seq_len": 2048
-   },
-   "run_to_run": {
-    "max_abs": 0.0,
-    "max_rel": 0.0
-   },
-   "seeds": 10,
-   "executions_per_seed": 2,
-   "deterministic": true,
-   "vs_golden": null,
-   "tolerance": {
-    "max_atol": 2.7662918729292153e-08,
-    "max_rtol": 1.1920928955078125e-07,
-    "required_matched_ratio": 0.99,
-    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
-   },
-   "ok": true
-  },
-  {
-   "workload_uuid": "cfc126eb-74cb-5e30-94f5-e1cec368a6d7",
-   "axes": {
-    "batch_size": 4,
-    "seq_len": 1024
-   },
-   "run_to_run": {
-    "max_abs": 0.0,
-    "max_rel": 0.0
-   },
-   "seeds": 10,
-   "executions_per_seed": 2,
-   "deterministic": true,
-   "vs_golden": null,
-   "tolerance": {
-    "max_atol": 2.751460288835101e-08,
-    "max_rtol": 1.1920928955078125e-07,
-    "required_matched_ratio": 0.99,
-    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
-   },
-   "ok": true
-  },
-  {
-   "workload_uuid": "a5183311-049e-562c-9d64-4e2fe34f20d1",
-   "axes": {
-    "batch_size": 1,
-    "seq_len": 256
-   },
-   "run_to_run": {
-    "max_abs": 0.0,
-    "max_rel": 0.0
-   },
-   "seeds": 10,
-   "executions_per_seed": 2,
-   "deterministic": true,
-   "vs_golden": null,
-   "tolerance": {
-    "max_atol": 2.76664933839831e-08,
-    "max_rtol": 1.1920928955078125e-07,
-    "required_matched_ratio": 0.99,
-    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
-   },
-   "ok": true
-  },
-  {
-   "workload_uuid": "6bf309ba-198c-5355-bd40-4a8948a944db",
+   "workload_uuid": "9ee20155-d915-59bb-a209-91d4dcecb3e7",
    "axes": {
     "batch_size": 2,
-    "seq_len": 256
+    "seq_len": 4096,
+    "context_len": 77
    },
    "run_to_run": {
     "max_abs": 0.0,
@@ -308,7 +367,7 @@
    "deterministic": true,
    "vs_golden": null,
    "tolerance": {
-    "max_atol": 2.7768256406616346e-08,
+    "max_atol": 0.020674427844880282,
     "max_rtol": 1.1920928955078125e-07,
     "required_matched_ratio": 0.99,
     "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
@@ -316,10 +375,11 @@
    "ok": true
   },
   {
-   "workload_uuid": "4eda8519-1c92-5351-9f37-fb8ba3ba2e7b",
+   "workload_uuid": "71c9fe3a-683d-5b31-adf2-aafb47ca4c70",
    "axes": {
-    "batch_size": 1,
-    "seq_len": 4096
+    "batch_size": 4,
+    "seq_len": 2048,
+    "context_len": 77
    },
    "run_to_run": {
     "max_abs": 0.0,
@@ -330,7 +390,7 @@
    "deterministic": true,
    "vs_golden": null,
    "tolerance": {
-    "max_atol": 2.751460288835101e-08,
+    "max_atol": 0.019874808822152916,
     "max_rtol": 1.1920928955078125e-07,
     "required_matched_ratio": 0.99,
     "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.float32 epsilon"
@@ -338,7 +398,7 @@
    "ok": true
   }
  ],
- "n_ok": 14,
- "n_workloads": 14,
+ "n_ok": 16,
+ "n_workloads": 16,
  "ok": true
 }

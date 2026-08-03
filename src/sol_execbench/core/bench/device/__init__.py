@@ -26,6 +26,7 @@ never require the other vendor's libraries to be installed.
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from typing import Literal
 
@@ -115,6 +116,12 @@ def default_timing_methodology() -> str:
     and one captured after are not comparable, and nothing else in the trace
     would reveal it.
     """
+    override = os.environ.get("SOLEXBENCH_METHODOLOGY")
+    if override:
+        # Explicit override, used by task 04's methodology comparison. Not a
+        # back door: whatever it selects is recorded on every trace, so a
+        # trace taken under an override is never mistaken for a default one.
+        return override
     return "hip_events" if detect_vendor() == "amd" else "cupti"
 
 

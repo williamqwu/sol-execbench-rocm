@@ -361,7 +361,7 @@ def do_problem(args) -> tuple[str, dict]:
         return key, out
 
 
-def _fanout(problems, arch_yaml, scratch, freq_ghz, jobs, timeout):
+def _fanout(problems, arch_yaml, scratch, freq_ghz, jobs, timeout, resume=False):
     """One subprocess per problem, with a hard timeout.
 
     Not a process pool: SOLAR's stage 1 traces arbitrary reference code, and
@@ -379,6 +379,17 @@ def _fanout(problems, arch_yaml, scratch, freq_ghz, jobs, timeout):
         key = f"{problem.parent.name}__{problem.name}"
         out_file = scratch / "per-problem" / f"{key}.json"
         out_file.parent.mkdir(parents=True, exist_ok=True)
+        if resume and out_file.exists():
+            # Resume skips only problems that SUCCEEDED. A failure is re-run,
+            # because the common reason to re-run at all is a longer timeout,
+            # and skipping recorded failures would silently freeze the gap in
+            # place while looking like a completed sweep.
+            try:
+                prior = json.loads(out_file.read_text())
+                if prior.get("status") == "ok":
+                    return key, prior
+            except Exception:                          # noqa: BLE001
+                pass
         cmd = [
             sys.executable, str(Path(__file__).resolve()),
             "--one", str(problem), "--out", str(out_file),
@@ -409,6 +420,9 @@ def main():
     ap.add_argument("--out", default="artifacts/03/t_sol.json")
     ap.add_argument("--one", type=Path, default=None,
                     help="internal: run a single problem and write its JSON")
+    ap.add_argument("--resume", action="store_true",
+                    help="skip problems that already succeeded; re-run "
+                         "failures (which is the point of resuming)")
     ap.add_argument("--timeout", type=int, default=900,
                     help="per-problem wall clock before it is recorded as a "
                          "timeout and the sweep moves on")
@@ -463,7 +477,7 @@ def main():
 
     results = {}
     for key, res in _fanout(problems, arch_yaml, scratch, freq_ghz,
-                            a.jobs, a.timeout):
+                            a.jobs, a.timeout, resume=a.resume):
         results[key] = res
 
     n_wl = sum(r.get("n_workloads", 0) for r in results.values())

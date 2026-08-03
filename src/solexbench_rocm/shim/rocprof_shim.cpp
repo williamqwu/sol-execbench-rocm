@@ -302,6 +302,11 @@ uint64_t timestamp() {
 
 PYBIND11_MODULE(_rocprof_shim, m) {
   m.doc() = "rocprofiler-sdk activity source for SOL-ExecBench-AMD";
+  m.def("configure", &ensure_configured,
+        "Register with rocprofiler. MUST be called before the HIP runtime "
+        "initializes: rocprofiler locks its configuration once a runtime is "
+        "up, and a session configured too late produces zero records rather "
+        "than an error.");
   m.def("start", &start, "Configure and start buffered tracing");
   m.def("stop", &stop, "Stop tracing and flush");
   m.def("drain", &drain, "Return recorded activities as tuples");

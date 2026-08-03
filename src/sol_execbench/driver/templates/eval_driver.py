@@ -42,6 +42,36 @@ _real_stdout = os.fdopen(_real_stdout_fd, "w", buffering=1)
 os.dup2(2, 1)  # fd 1 now points at stderr
 sys.stdout = open(1, "w", buffering=1, closefd=False)
 
+# AMD: rocprofiler-sdk registration, BEFORE torch.
+#
+# rocprofiler locks its configuration once a ROCm runtime has initialized, and
+# a session configured after that point does not fail -- it produces zero
+# records, which surfaces much later as "No GPU activities recorded during
+# discovery iteration". Registering here, ahead of `import torch`, is the only
+# placement that works.
+#
+# Conditional on the methodology so that the default (`hip_events`) path does
+# not load a profiler it will not use: rocprofiler intercepts dispatches for
+# every process it attaches to, and that is not free.
+if os.environ.get("SOLEXBENCH_METHODOLOGY") == "rocprof":
+    _shim_dir = os.environ.get("SOLEXBENCH_ROCPROF_SHIM")
+    if _shim_dir:
+        sys.path.insert(0, _shim_dir)
+    try:
+        import _rocprof_shim as _solb_shim
+
+        _solb_shim.configure()
+    except Exception as _shim_err:                    # noqa: BLE001
+        # Loud, and early. A silent fallback to event timing here would emit
+        # traces labelled `rocprof` that were produced by a different
+        # methodology -- the exact confusion the methodology field exists to
+        # prevent.
+        raise RuntimeError(
+            f"methodology='rocprof' requested but the shim did not configure: "
+            f"{_shim_err}. Build it with "
+            f"`python src/solexbench_rocm/shim/build.py`."
+        ) from _shim_err
+
 import torch  # noqa: E402 — must come after redirect
 
 # ── Staging directory ────────────────────────────────────────────────────────
