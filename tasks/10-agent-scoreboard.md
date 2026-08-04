@@ -38,6 +38,27 @@ tmux send-keys -t solb 'SOLB_RUN_ID=full-01 SOLB_BUDGET_USD=1500 \
 tmux attach -t solb        # detach again with Ctrl-b d
 ```
 
+### Watching it
+
+```bash
+tmux new-session -d -s solb-status -c "$PWD" \
+    'env/solb-native python scripts/status_server.py --port 8099'
+ssh -N -L 8099:localhost:8099 <node>      # then http://localhost:8099
+```
+
+Refreshes every 5 s, standard library only, read-only — it shells out to
+`rocm-smi` at most once per interval and never opens a GPU context, which matters
+because what it is watching is a timing run.
+
+It exists mainly to answer one question a scrolling log answers badly: **which
+GPUs are actually doing work, and who is holding them.** During stages 1 and 4
+the honest answer is *one*, by construction, and the page says so rather than
+leaving it to look like a fault. It also collapses the fan-out — a single
+`torch.compile` timing run spawns ~33 inductor compile workers, and listing each
+pid buries the one process that says what the GPU is doing.
+
+Binds to `127.0.0.1` by default because it exposes process command lines.
+
 `scripts/run_pipeline.sh` runs these stages in order. Every stage is idempotent —
 a completed one leaves a marker in `artifacts/10/pipeline/` and is skipped on
 restart — so the session can be killed and relaunched at any point without losing
