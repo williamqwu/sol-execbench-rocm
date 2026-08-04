@@ -103,6 +103,11 @@ env/solb-native python scripts/score_solutions.py --run-id pilot-01
 env/solb-native python scripts/build_scoreboard.py --all-runs
 ```
 
+For a full run, drive it through `scripts/run_pipeline.sh` in tmux instead — it
+orders the stages so that timing measurements never share the node with agents,
+and it is resumable stage by stage. See
+[`tasks/10-agent-scoreboard.md`](tasks/10-agent-scoreboard.md).
+
 Two things about this deserve saying before any number from it is quoted.
 
 **A harness is not a model.** Claude Code and Codex differ in how many tool calls

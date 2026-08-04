@@ -105,6 +105,11 @@ def _rope_cos_sin_kernel(
 # already-compiled kernel. Populated on first use of each configuration.
 _LAUNCH_CACHE = {}
 
+# Maps (batch, seq, H, device_index, ptr-alignment) -> everything a launch
+# needs, so the steady-state call does one dict lookup instead of recomputing
+# the config, the grid and the specialization key every time.
+_PLAN_CACHE = {}
+
 # Resolved lazily so importing this module never requires a live GPU.
 _STREAM_FN = None
 

@@ -1,0 +1,218 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-04T17:02:59.675234+00:00",
+  "git_sha": "2057b109e8c85e42144474e6269f5e2891ec8934-dirty",
+  "host": "mia1-p02-g10",
+  "python": "3.10.12",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "part": "MI355X",
+  "kernel_stack": {
+   "triton": {
+    "available": true,
+    "path": "/sgl-workspace/triton-custom/python/triton/__init__.py",
+    "dist_version": "3.6.0+git42270451",
+    "is_release_wheel": false,
+    "gluon": true
+   },
+   "aiter": {
+    "available": true,
+    "path": "/sgl-workspace/aiter/aiter/__init__.py",
+    "dist_version": null,
+    "git_sha": "d9e5ef7ce08ee7045d583aed768cff41aa9210fe-dirty"
+   },
+   "hipcc": "HIP version: 7.2.26015-fc0010cf6a\nAMD clang version 22.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.2.0 26014 7b800a19466229b8479a78de19143dc33c3ab9b5)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /opt/rocm-7.2.0/lib/llvm/bin\nConfiguration file: /opt/rocm-7.2.0/lib/llvm/bin/clang++.cfg",
+   "rocm_libraries": {
+    "ck": true,
+    "ck_tile": true,
+    "hipblaslt": true,
+    "miopen": true
+   }
+  },
+  "env": {
+   "mode": "native",
+   "in_docker": true,
+   "stack_drift_allowed": false
+  },
+  "f_lock_mhz": 1640,
+  "visible_devices": "0"
+ },
+ "problem": "FlashInfer-Bench__025_rmsnorm_h4096",
+ "definition": "025_rmsnorm_h4096",
+ "workloads_from": "data/SOL-ExecBench/benchmark/FlashInfer-Bench/025_rmsnorm_h4096/workload.jsonl",
+ "gpu": "0",
+ "variants": {
+  "v1_eager": {
+   "ok": true,
+   "workloads": 14,
+   "passed": 14,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "33bf737d-3b37-4e38-be80-ea39b4b46ae6": 0.03237999975681305,
+    "864d596c-a930-4fc4-b241-02e6a06e92cb": 0.028759999200701714,
+    "f7c3b329-5d22-491c-9635-5b5906f0f4b1": 0.03460000082850456,
+    "b010c7f2-801d-41c0-b5d0-be619ecb4090": 0.039319999516010284,
+    "f0f508c3-e880-4ec8-b8be-1062db313d36": 0.4468425065279007,
+    "cfddc087-69e0-4acb-a945-8cc6dff8afcf": 0.3767620027065277,
+    "14531e96-f6e6-4515-abb4-10855f72c80e": 0.03604000061750412,
+    "a497c980-9e07-44cc-80c6-fc647ab29e84": 0.03438050113618374,
+    "d1337dc1-e869-4174-9dcc-0f68950d3fef": 0.34348200261592865,
+    "0cf0fdba-799e-4086-8fd6-610d23ba5508": 0.2735015004873276,
+    "d9e317ac-cf73-4d56-94e0-11edfb536ff3": 0.034539999440312386,
+    "818219cc-f770-4957-84cd-cafdfb53e64b": 0.035999998450279236,
+    "841b0afa-80fa-449a-9e1d-f294da92d02f": 0.4519619941711426,
+    "9d403d2b-7859-4dab-aaf4-12e53c555001": 0.03394000045955181
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v2_compile": {
+   "ok": true,
+   "workloads": 14,
+   "passed": 14,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "33bf737d-3b37-4e38-be80-ea39b4b46ae6": 0.007779999868944287,
+    "864d596c-a930-4fc4-b241-02e6a06e92cb": 0.007199999876320362,
+    "f7c3b329-5d22-491c-9635-5b5906f0f4b1": 0.007240000180900097,
+    "b010c7f2-801d-41c0-b5d0-be619ecb4090": 0.007600000128149986,
+    "f0f508c3-e880-4ec8-b8be-1062db313d36": 0.06135999970138073,
+    "cfddc087-69e0-4acb-a945-8cc6dff8afcf": 0.051600001752376556,
+    "14531e96-f6e6-4515-abb4-10855f72c80e": 0.007160000037401915,
+    "a497c980-9e07-44cc-80c6-fc647ab29e84": 0.007340000011026859,
+    "d1337dc1-e869-4174-9dcc-0f68950d3fef": 0.34028200805187225,
+    "0cf0fdba-799e-4086-8fd6-610d23ba5508": 0.2694610059261322,
+    "d9e317ac-cf73-4d56-94e0-11edfb536ff3": 0.03457999974489212,
+    "818219cc-f770-4957-84cd-cafdfb53e64b": 0.03586049936711788,
+    "841b0afa-80fa-449a-9e1d-f294da92d02f": 0.45058250427246094,
+    "9d403d2b-7859-4dab-aaf4-12e53c555001": 0.033879999071359634
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v3_compile_max_autotune": {
+   "ok": true,
+   "workloads": 14,
+   "passed": 14,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "33bf737d-3b37-4e38-be80-ea39b4b46ae6": 0.007240000180900097,
+    "864d596c-a930-4fc4-b241-02e6a06e92cb": 0.007199999876320362,
+    "f7c3b329-5d22-491c-9635-5b5906f0f4b1": 0.00814000004902482,
+    "b010c7f2-801d-41c0-b5d0-be619ecb4090": 0.007400000002235174,
+    "f0f508c3-e880-4ec8-b8be-1062db313d36": 0.06259999796748161,
+    "cfddc087-69e0-4acb-a945-8cc6dff8afcf": 0.05222049914300442,
+    "14531e96-f6e6-4515-abb4-10855f72c80e": 0.008080000057816505,
+    "a497c980-9e07-44cc-80c6-fc647ab29e84": 0.007360000163316727,
+    "d1337dc1-e869-4174-9dcc-0f68950d3fef": 0.34240199625492096,
+    "0cf0fdba-799e-4086-8fd6-610d23ba5508": 0.2665414959192276,
+    "d9e317ac-cf73-4d56-94e0-11edfb536ff3": 0.03455999866127968,
+    "818219cc-f770-4957-84cd-cafdfb53e64b": 0.03581999987363815,
+    "841b0afa-80fa-449a-9e1d-f294da92d02f": 0.44898250699043274,
+    "9d403d2b-7859-4dab-aaf4-12e53c555001": 0.03360049985349178
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v4_contiguous": {
+   "ok": true,
+   "workloads": 14,
+   "passed": 14,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "33bf737d-3b37-4e38-be80-ea39b4b46ae6": 0.03234049864113331,
+    "864d596c-a930-4fc4-b241-02e6a06e92cb": 0.028880500234663486,
+    "f7c3b329-5d22-491c-9635-5b5906f0f4b1": 0.03481999970972538,
+    "b010c7f2-801d-41c0-b5d0-be619ecb4090": 0.03918050043284893,
+    "f0f508c3-e880-4ec8-b8be-1062db313d36": 0.44804249703884125,
+    "cfddc087-69e0-4acb-a945-8cc6dff8afcf": 0.3776419907808304,
+    "14531e96-f6e6-4515-abb4-10855f72c80e": 0.03604000061750412,
+    "a497c980-9e07-44cc-80c6-fc647ab29e84": 0.0344610009342432,
+    "d1337dc1-e869-4174-9dcc-0f68950d3fef": 0.3436415046453476,
+    "0cf0fdba-799e-4086-8fd6-610d23ba5508": 0.27310149371623993,
+    "d9e317ac-cf73-4d56-94e0-11edfb536ff3": 0.03432049974799156,
+    "818219cc-f770-4957-84cd-cafdfb53e64b": 0.035840000957250595,
+    "841b0afa-80fa-449a-9e1d-f294da92d02f": 0.4512225091457367,
+    "9d403d2b-7859-4dab-aaf4-12e53c555001": 0.033900000154972076
+   },
+   "is_override": false,
+   "failures": []
+  }
+ },
+ "winner_by_workload": {
+  "33bf737d-3b37-4e38-be80-ea39b4b46ae6": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.007240000180900097
+  },
+  "864d596c-a930-4fc4-b241-02e6a06e92cb": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.007199999876320362
+  },
+  "f7c3b329-5d22-491c-9635-5b5906f0f4b1": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.007240000180900097
+  },
+  "b010c7f2-801d-41c0-b5d0-be619ecb4090": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.007400000002235174
+  },
+  "f0f508c3-e880-4ec8-b8be-1062db313d36": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.06135999970138073
+  },
+  "cfddc087-69e0-4acb-a945-8cc6dff8afcf": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.051600001752376556
+  },
+  "14531e96-f6e6-4515-abb4-10855f72c80e": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.007160000037401915
+  },
+  "a497c980-9e07-44cc-80c6-fc647ab29e84": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.007340000011026859
+  },
+  "d1337dc1-e869-4174-9dcc-0f68950d3fef": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.34028200805187225
+  },
+  "0cf0fdba-799e-4086-8fd6-610d23ba5508": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.2665414959192276
+  },
+  "d9e317ac-cf73-4d56-94e0-11edfb536ff3": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.03432049974799156
+  },
+  "818219cc-f770-4957-84cd-cafdfb53e64b": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.03581999987363815
+  },
+  "841b0afa-80fa-449a-9e1d-f294da92d02f": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.44898250699043274
+  },
+  "9d403d2b-7859-4dab-aaf4-12e53c555001": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.03360049985349178
+  }
+ },
+ "n_workloads": 14,
+ "n_workloads_with_tb": 14,
+ "complete": true,
+ "ok": true
+}

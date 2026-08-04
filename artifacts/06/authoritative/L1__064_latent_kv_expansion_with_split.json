@@ -1,0 +1,182 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-04T17:40:39.998272+00:00",
+  "git_sha": "2057b109e8c85e42144474e6269f5e2891ec8934-dirty",
+  "host": "mia1-p02-g10",
+  "python": "3.10.12",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "part": "MI355X",
+  "kernel_stack": {
+   "triton": {
+    "available": true,
+    "path": "/sgl-workspace/triton-custom/python/triton/__init__.py",
+    "dist_version": "3.6.0+git42270451",
+    "is_release_wheel": false,
+    "gluon": true
+   },
+   "aiter": {
+    "available": true,
+    "path": "/sgl-workspace/aiter/aiter/__init__.py",
+    "dist_version": null,
+    "git_sha": "d9e5ef7ce08ee7045d583aed768cff41aa9210fe-dirty"
+   },
+   "hipcc": "HIP version: 7.2.26015-fc0010cf6a\nAMD clang version 22.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.2.0 26014 7b800a19466229b8479a78de19143dc33c3ab9b5)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /opt/rocm-7.2.0/lib/llvm/bin\nConfiguration file: /opt/rocm-7.2.0/lib/llvm/bin/clang++.cfg",
+   "rocm_libraries": {
+    "ck": true,
+    "ck_tile": true,
+    "hipblaslt": true,
+    "miopen": true
+   }
+  },
+  "env": {
+   "mode": "native",
+   "in_docker": true,
+   "stack_drift_allowed": false
+  },
+  "f_lock_mhz": 1640,
+  "visible_devices": "0"
+ },
+ "problem": "L1__064_latent_kv_expansion_with_split",
+ "definition": "064_latent_kv_expansion_with_split",
+ "workloads_from": "data/SOL-ExecBench/benchmark/L1/064_latent_kv_expansion_with_split/workload.jsonl",
+ "gpu": "0",
+ "variants": {
+  "v1_eager": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "6881c73d-29fa-5b49-8f13-edb695bb05d1": 0.10454050078988075,
+    "a29750c1-eaef-5721-8a03-246f12807ca0": 0.38610199093818665,
+    "950d3ad1-ac1c-537b-91c3-e21f1077d137": 0.6979835033416748,
+    "74338f45-a5e9-58b2-b913-1c9935fa187d": 0.3902219980955124,
+    "cf8e8791-9203-5a58-9d7c-3ffcef822714": 0.22130150347948074,
+    "51e8b16a-e0ae-5171-a487-139d954eb797": 0.13460099697113037,
+    "bcb57fed-cb7c-51f7-bafa-6792c83a58ff": 0.06145999953150749,
+    "23606510-61e2-58ca-a782-c7cdc050fb2a": 0.44466251134872437,
+    "a75be66d-9e4b-51cc-a074-8285ff053bb1": 0.8007639944553375,
+    "f8bdf76e-73c9-5a93-ae2c-dba4c60e756e": 0.13536100089550018,
+    "2d3ec369-ec86-5829-9e05-54df6addc0b2": 0.06337999925017357,
+    "7e49f9a3-5441-521d-8867-cf1e75f5881a": 1.6624889969825745,
+    "bfa1b600-1a49-5e4d-9b28-70dbff9adf1b": 0.9900850057601929,
+    "41f28140-b858-58a4-a737-540f6c61cd56": 1.8189690113067627,
+    "d039b1db-b3ab-5b08-8ffd-ce7fe1c3a0bf": 1.4903075098991394,
+    "c5b1b387-4d0f-580a-8c64-fc35466ecf84": 2.172851085662842
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v4_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "6881c73d-29fa-5b49-8f13-edb695bb05d1": 0.10448049753904343,
+    "a29750c1-eaef-5721-8a03-246f12807ca0": 0.3858020007610321,
+    "950d3ad1-ac1c-537b-91c3-e21f1077d137": 0.6923439800739288,
+    "74338f45-a5e9-58b2-b913-1c9935fa187d": 0.3872219920158386,
+    "cf8e8791-9203-5a58-9d7c-3ffcef822714": 0.22088100016117096,
+    "51e8b16a-e0ae-5171-a487-139d954eb797": 0.13528099656105042,
+    "bcb57fed-cb7c-51f7-bafa-6792c83a58ff": 0.06111999973654747,
+    "23606510-61e2-58ca-a782-c7cdc050fb2a": 0.4406825006008148,
+    "a75be66d-9e4b-51cc-a074-8285ff053bb1": 0.8002240061759949,
+    "f8bdf76e-73c9-5a93-ae2c-dba4c60e756e": 0.13536100089550018,
+    "2d3ec369-ec86-5829-9e05-54df6addc0b2": 0.06294050067663193,
+    "7e49f9a3-5441-521d-8867-cf1e75f5881a": 0.39590199291706085,
+    "bfa1b600-1a49-5e4d-9b28-70dbff9adf1b": 0.25028151273727417,
+    "41f28140-b858-58a4-a737-540f6c61cd56": 0.6911030113697052,
+    "d039b1db-b3ab-5b08-8ffd-ce7fe1c3a0bf": 0.15120100229978561,
+    "c5b1b387-4d0f-580a-8c64-fc35466ecf84": 0.6943430006504059
+   },
+   "is_override": false,
+   "failures": []
+  }
+ },
+ "winner_by_workload": {
+  "6881c73d-29fa-5b49-8f13-edb695bb05d1": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.10448049753904343
+  },
+  "a29750c1-eaef-5721-8a03-246f12807ca0": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.3858020007610321
+  },
+  "950d3ad1-ac1c-537b-91c3-e21f1077d137": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.6923439800739288
+  },
+  "74338f45-a5e9-58b2-b913-1c9935fa187d": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.3872219920158386
+  },
+  "cf8e8791-9203-5a58-9d7c-3ffcef822714": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.22088100016117096
+  },
+  "51e8b16a-e0ae-5171-a487-139d954eb797": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.13460099697113037
+  },
+  "bcb57fed-cb7c-51f7-bafa-6792c83a58ff": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.06111999973654747
+  },
+  "23606510-61e2-58ca-a782-c7cdc050fb2a": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.4406825006008148
+  },
+  "a75be66d-9e4b-51cc-a074-8285ff053bb1": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.8002240061759949
+  },
+  "f8bdf76e-73c9-5a93-ae2c-dba4c60e756e": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.13536100089550018
+  },
+  "2d3ec369-ec86-5829-9e05-54df6addc0b2": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.06294050067663193
+  },
+  "7e49f9a3-5441-521d-8867-cf1e75f5881a": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.39590199291706085
+  },
+  "bfa1b600-1a49-5e4d-9b28-70dbff9adf1b": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.25028151273727417
+  },
+  "41f28140-b858-58a4-a737-540f6c61cd56": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.6911030113697052
+  },
+  "d039b1db-b3ab-5b08-8ffd-ce7fe1c3a0bf": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.15120100229978561
+  },
+  "c5b1b387-4d0f-580a-8c64-fc35466ecf84": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.6943430006504059
+  }
+ },
+ "n_workloads": 16,
+ "n_workloads_with_tb": 16,
+ "complete": true,
+ "ok": true
+}

@@ -27,6 +27,32 @@ saying out loud:
 - Task 03 (T_SOL) and task 06 (T_b) are **not** preconditions. Without them the
   scoreboard reports a weaker basis and says which; see *Score bases* below.
 
+## Running the whole thing unattended
+
+```bash
+mkdir -p artifacts/10/pipeline/logs
+tmux new-session -d -s solb -c "$PWD"
+tmux send-keys -t solb 'SOLB_RUN_ID=full-01 SOLB_BUDGET_USD=1500 \
+    bash scripts/run_pipeline.sh 2>&1 \
+    | tee -a artifacts/10/pipeline/logs/pipeline-session.log' C-m
+tmux attach -t solb        # detach again with Ctrl-b d
+```
+
+`scripts/run_pipeline.sh` runs stages 1–7 below in order. Every stage is
+idempotent — a completed one leaves a marker in `artifacts/10/pipeline/` and is
+skipped on restart — so the session can be killed and relaunched at any point
+without losing work or repeating GPU time. It also **waits for** an authoritative
+T_b pass already in flight rather than starting a second one on the same GPU.
+
+The ordering is not cosmetic. Stages 1–3 measure timings and need the node to
+themselves; stage 4 saturates seven GPUs and 120 CPUs with agents. Running them
+together is what voided the first T_b measurement, so `require_idle` refuses to
+start a timing stage while any agent or eval process is alive.
+
+tmux rather than `nohup` because these stages span more than a day between them,
+and a detached session keeps the scrollback, lets the run be watched live, and
+survives the operator's shell going away.
+
 ## Steps
 
 ### 1. Sweep

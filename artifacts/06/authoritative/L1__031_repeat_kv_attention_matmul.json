@@ -1,0 +1,234 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-04T17:21:41.521396+00:00",
+  "git_sha": "2057b109e8c85e42144474e6269f5e2891ec8934-dirty",
+  "host": "mia1-p02-g10",
+  "python": "3.10.12",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "part": "MI355X",
+  "kernel_stack": {
+   "triton": {
+    "available": true,
+    "path": "/sgl-workspace/triton-custom/python/triton/__init__.py",
+    "dist_version": "3.6.0+git42270451",
+    "is_release_wheel": false,
+    "gluon": true
+   },
+   "aiter": {
+    "available": true,
+    "path": "/sgl-workspace/aiter/aiter/__init__.py",
+    "dist_version": null,
+    "git_sha": "d9e5ef7ce08ee7045d583aed768cff41aa9210fe-dirty"
+   },
+   "hipcc": "HIP version: 7.2.26015-fc0010cf6a\nAMD clang version 22.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.2.0 26014 7b800a19466229b8479a78de19143dc33c3ab9b5)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /opt/rocm-7.2.0/lib/llvm/bin\nConfiguration file: /opt/rocm-7.2.0/lib/llvm/bin/clang++.cfg",
+   "rocm_libraries": {
+    "ck": true,
+    "ck_tile": true,
+    "hipblaslt": true,
+    "miopen": true
+   }
+  },
+  "env": {
+   "mode": "native",
+   "in_docker": true,
+   "stack_drift_allowed": false
+  },
+  "f_lock_mhz": 1640,
+  "visible_devices": "0"
+ },
+ "problem": "L1__031_repeat_kv_attention_matmul",
+ "definition": "031_repeat_kv_attention_matmul",
+ "workloads_from": "data/SOL-ExecBench/benchmark/L1/031_repeat_kv_attention_matmul/workload.jsonl",
+ "gpu": "0",
+ "variants": {
+  "v1_eager": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "6ee00d7d-be8d-5c15-9b7b-c8a0f5c713cf": 0.14124049991369247,
+    "b2e4dc2e-32f5-5d88-9642-392320eca8ec": 0.030640000477433205,
+    "224c4ea9-5629-502e-8500-4c0f8435ca60": 0.06328099966049194,
+    "591de1fe-f8e5-5b03-a0ca-ee9a2fafed85": 0.7804440259933472,
+    "2dc3d5ad-9bcd-53b4-810d-f2a6439d7b21": 0.19558100402355194,
+    "5e8e850c-6029-53aa-959d-8786bbf15120": 0.09582050144672394,
+    "bcc0842d-03d5-5dda-90d4-4b7ddb35f7ac": 0.3675215095281601,
+    "d4a2646e-4c54-5e4c-8d71-0d5cbb54414f": 2.8720134496688843,
+    "f74192e1-3662-5d1e-a53f-e7b9eeb595b6": 0.11060050129890442,
+    "5c6e4ab3-a7c3-59b5-95e9-e401984495cc": 0.10030100122094154,
+    "c363dc16-cb77-507f-b7fc-292466896b41": 0.03415999934077263,
+    "91305a3e-3abe-53f2-8e37-eb09e1f95269": 1.480167031288147,
+    "16e78778-40b1-5c26-baaa-27a70b603123": 0.06930049881339073,
+    "19070c72-8622-5762-8281-f1c44d3773e5": 0.04012100026011467,
+    "fd28dc6e-fc6f-5c99-b9b3-b6e8b2cf6368": 5.624107122421265,
+    "c2ac802e-1645-5b73-93eb-273fa50c94e6": 1.0247249603271484
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v2_compile": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "6ee00d7d-be8d-5c15-9b7b-c8a0f5c713cf": 0.11992049962282181,
+    "b2e4dc2e-32f5-5d88-9642-392320eca8ec": 0.01798049919307232,
+    "224c4ea9-5629-502e-8500-4c0f8435ca60": 0.05212000012397766,
+    "591de1fe-f8e5-5b03-a0ca-ee9a2fafed85": 0.5529225170612335,
+    "2dc3d5ad-9bcd-53b4-810d-f2a6439d7b21": 0.15028100460767746,
+    "5e8e850c-6029-53aa-959d-8786bbf15120": 0.06616000086069107,
+    "bcc0842d-03d5-5dda-90d4-4b7ddb35f7ac": 0.289002001285553,
+    "d4a2646e-4c54-5e4c-8d71-0d5cbb54414f": 2.009510040283203,
+    "f74192e1-3662-5d1e-a53f-e7b9eeb595b6": 0.11112000048160553,
+    "5c6e4ab3-a7c3-59b5-95e9-e401984495cc": 0.10068050026893616,
+    "c363dc16-cb77-507f-b7fc-292466896b41": 0.03440000116825104,
+    "91305a3e-3abe-53f2-8e37-eb09e1f95269": 1.4745270013809204,
+    "16e78778-40b1-5c26-baaa-27a70b603123": 0.06936050206422806,
+    "19070c72-8622-5762-8281-f1c44d3773e5": 0.04016000032424927,
+    "fd28dc6e-fc6f-5c99-b9b3-b6e8b2cf6368": 5.6215879917144775,
+    "c2ac802e-1645-5b73-93eb-273fa50c94e6": 1.025605022907257
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v3_compile_max_autotune": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "6ee00d7d-be8d-5c15-9b7b-c8a0f5c713cf": 0.11699999868869781,
+    "b2e4dc2e-32f5-5d88-9642-392320eca8ec": 0.017160000279545784,
+    "224c4ea9-5629-502e-8500-4c0f8435ca60": 0.05324000120162964,
+    "591de1fe-f8e5-5b03-a0ca-ee9a2fafed85": 0.5533625185489655,
+    "2dc3d5ad-9bcd-53b4-810d-f2a6439d7b21": 0.14970099925994873,
+    "5e8e850c-6029-53aa-959d-8786bbf15120": 0.06464049965143204,
+    "bcc0842d-03d5-5dda-90d4-4b7ddb35f7ac": 0.289342001080513,
+    "d4a2646e-4c54-5e4c-8d71-0d5cbb54414f": 2.008430004119873,
+    "f74192e1-3662-5d1e-a53f-e7b9eeb595b6": 0.1106410026550293,
+    "5c6e4ab3-a7c3-59b5-95e9-e401984495cc": 0.1002810001373291,
+    "c363dc16-cb77-507f-b7fc-292466896b41": 0.03357999958097935,
+    "91305a3e-3abe-53f2-8e37-eb09e1f95269": 1.474887490272522,
+    "16e78778-40b1-5c26-baaa-27a70b603123": 0.0693805031478405,
+    "19070c72-8622-5762-8281-f1c44d3773e5": 0.039799999445676804,
+    "fd28dc6e-fc6f-5c99-b9b3-b6e8b2cf6368": 5.6118481159210205,
+    "c2ac802e-1645-5b73-93eb-273fa50c94e6": 1.026265025138855
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v4_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "6ee00d7d-be8d-5c15-9b7b-c8a0f5c713cf": 0.14134100079536438,
+    "b2e4dc2e-32f5-5d88-9642-392320eca8ec": 0.03075999952852726,
+    "224c4ea9-5629-502e-8500-4c0f8435ca60": 0.06356000155210495,
+    "591de1fe-f8e5-5b03-a0ca-ee9a2fafed85": 0.7782829999923706,
+    "2dc3d5ad-9bcd-53b4-810d-f2a6439d7b21": 0.19468100368976593,
+    "5e8e850c-6029-53aa-959d-8786bbf15120": 0.0960405021905899,
+    "bcc0842d-03d5-5dda-90d4-4b7ddb35f7ac": 0.36774151027202606,
+    "d4a2646e-4c54-5e4c-8d71-0d5cbb54414f": 2.860834002494812,
+    "f74192e1-3662-5d1e-a53f-e7b9eeb595b6": 0.11092100292444229,
+    "5c6e4ab3-a7c3-59b5-95e9-e401984495cc": 0.10100050270557404,
+    "c363dc16-cb77-507f-b7fc-292466896b41": 0.034279998391866684,
+    "91305a3e-3abe-53f2-8e37-eb09e1f95269": 1.4824069738388062,
+    "16e78778-40b1-5c26-baaa-27a70b603123": 0.06936100125312805,
+    "19070c72-8622-5762-8281-f1c44d3773e5": 0.040300000458955765,
+    "fd28dc6e-fc6f-5c99-b9b3-b6e8b2cf6368": 5.623427629470825,
+    "c2ac802e-1645-5b73-93eb-273fa50c94e6": 1.0290849804878235
+   },
+   "is_override": false,
+   "failures": []
+  }
+ },
+ "winner_by_workload": {
+  "6ee00d7d-be8d-5c15-9b7b-c8a0f5c713cf": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.11699999868869781
+  },
+  "b2e4dc2e-32f5-5d88-9642-392320eca8ec": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.017160000279545784
+  },
+  "224c4ea9-5629-502e-8500-4c0f8435ca60": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.05212000012397766
+  },
+  "591de1fe-f8e5-5b03-a0ca-ee9a2fafed85": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.5529225170612335
+  },
+  "2dc3d5ad-9bcd-53b4-810d-f2a6439d7b21": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.14970099925994873
+  },
+  "5e8e850c-6029-53aa-959d-8786bbf15120": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.06464049965143204
+  },
+  "bcc0842d-03d5-5dda-90d4-4b7ddb35f7ac": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.289002001285553
+  },
+  "d4a2646e-4c54-5e4c-8d71-0d5cbb54414f": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 2.008430004119873
+  },
+  "f74192e1-3662-5d1e-a53f-e7b9eeb595b6": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.11060050129890442
+  },
+  "5c6e4ab3-a7c3-59b5-95e9-e401984495cc": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.1002810001373291
+  },
+  "c363dc16-cb77-507f-b7fc-292466896b41": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.03357999958097935
+  },
+  "91305a3e-3abe-53f2-8e37-eb09e1f95269": {
+   "variant": "v2_compile",
+   "t_b_ms": 1.4745270013809204
+  },
+  "16e78778-40b1-5c26-baaa-27a70b603123": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.06930049881339073
+  },
+  "19070c72-8622-5762-8281-f1c44d3773e5": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.039799999445676804
+  },
+  "fd28dc6e-fc6f-5c99-b9b3-b6e8b2cf6368": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 5.6118481159210205
+  },
+  "c2ac802e-1645-5b73-93eb-273fa50c94e6": {
+   "variant": "v1_eager",
+   "t_b_ms": 1.0247249603271484
+  }
+ },
+ "n_workloads": 16,
+ "n_workloads_with_tb": 16,
+ "complete": true,
+ "ok": true
+}

@@ -1,0 +1,182 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-04T17:44:57.879728+00:00",
+  "git_sha": "2057b109e8c85e42144474e6269f5e2891ec8934-dirty",
+  "host": "mia1-p02-g10",
+  "python": "3.10.12",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "part": "MI355X",
+  "kernel_stack": {
+   "triton": {
+    "available": true,
+    "path": "/sgl-workspace/triton-custom/python/triton/__init__.py",
+    "dist_version": "3.6.0+git42270451",
+    "is_release_wheel": false,
+    "gluon": true
+   },
+   "aiter": {
+    "available": true,
+    "path": "/sgl-workspace/aiter/aiter/__init__.py",
+    "dist_version": null,
+    "git_sha": "d9e5ef7ce08ee7045d583aed768cff41aa9210fe-dirty"
+   },
+   "hipcc": "HIP version: 7.2.26015-fc0010cf6a\nAMD clang version 22.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.2.0 26014 7b800a19466229b8479a78de19143dc33c3ab9b5)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /opt/rocm-7.2.0/lib/llvm/bin\nConfiguration file: /opt/rocm-7.2.0/lib/llvm/bin/clang++.cfg",
+   "rocm_libraries": {
+    "ck": true,
+    "ck_tile": true,
+    "hipblaslt": true,
+    "miopen": true
+   }
+  },
+  "env": {
+   "mode": "native",
+   "in_docker": true,
+   "stack_drift_allowed": false
+  },
+  "f_lock_mhz": 1640,
+  "visible_devices": "0"
+ },
+ "problem": "L1__071_kv_cache_update_with_rope",
+ "definition": "071_kv_cache_update_with_rope",
+ "workloads_from": "data/SOL-ExecBench/benchmark/L1/071_kv_cache_update_with_rope/workload.jsonl",
+ "gpu": "0",
+ "variants": {
+  "v1_eager": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "d5b0b88a-6e0f-5d90-9055-fb00d467c63c": 0.05104000121355057,
+    "201ce092-54dd-5a53-b3b7-43e73b4aa783": 0.11870099976658821,
+    "c2e9ad69-6e72-54d7-9428-af039de1d509": 0.032819999381899834,
+    "b458661d-848d-5a36-8148-02c99f6382f4": 0.03601999953389168,
+    "3d8d3177-0da4-5d6c-b171-d77ecda77ed9": 0.051540499553084373,
+    "c5e553b1-a5c2-50a0-93f0-14533c293e61": 0.04294000007212162,
+    "2780d9d6-afed-5f0f-b199-482f1ca6ec51": 0.055399999022483826,
+    "77e96b57-5b85-5668-80ea-d3c05f8fd281": 0.08000000193715096,
+    "230543eb-f998-54e2-80c3-e64fd15342d1": 0.07166000083088875,
+    "ecf47f2e-ba18-5cdc-bc72-d12307cedc2b": 0.04012000001966953,
+    "572023f3-db1d-517e-bce6-525dcc0c3311": 0.11734100058674812,
+    "65062d47-61c9-59bc-9aeb-82704cac7709": 0.0384799987077713,
+    "b4205425-ab6c-5855-b1e3-c5cd3a8dcf15": 0.042460499331355095,
+    "d064c65e-ca20-506c-8b74-f9e258d9f7fb": 0.04611999914050102,
+    "f2ed038a-8da7-55c0-a0f4-8bc2684814b8": 0.04367999918758869,
+    "e47e5660-a914-5710-b0e3-cd148e2f8a30": 0.038720499724149704
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v4_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "d5b0b88a-6e0f-5d90-9055-fb00d467c63c": 0.050919998437166214,
+    "201ce092-54dd-5a53-b3b7-43e73b4aa783": 0.11848099902272224,
+    "c2e9ad69-6e72-54d7-9428-af039de1d509": 0.03256000019609928,
+    "b458661d-848d-5a36-8148-02c99f6382f4": 0.036460500210523605,
+    "3d8d3177-0da4-5d6c-b171-d77ecda77ed9": 0.051360998302698135,
+    "c5e553b1-a5c2-50a0-93f0-14533c293e61": 0.042500000447034836,
+    "2780d9d6-afed-5f0f-b199-482f1ca6ec51": 0.05540099926292896,
+    "77e96b57-5b85-5668-80ea-d3c05f8fd281": 0.08000050112605095,
+    "230543eb-f998-54e2-80c3-e64fd15342d1": 0.07206099852919579,
+    "ecf47f2e-ba18-5cdc-bc72-d12307cedc2b": 0.04017999954521656,
+    "572023f3-db1d-517e-bce6-525dcc0c3311": 0.1178005002439022,
+    "65062d47-61c9-59bc-9aeb-82704cac7709": 0.03838000074028969,
+    "b4205425-ab6c-5855-b1e3-c5cd3a8dcf15": 0.04252050071954727,
+    "d064c65e-ca20-506c-8b74-f9e258d9f7fb": 0.04609999991953373,
+    "f2ed038a-8da7-55c0-a0f4-8bc2684814b8": 0.044040000066161156,
+    "e47e5660-a914-5710-b0e3-cd148e2f8a30": 0.03868049941956997
+   },
+   "is_override": false,
+   "failures": []
+  }
+ },
+ "winner_by_workload": {
+  "d5b0b88a-6e0f-5d90-9055-fb00d467c63c": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.050919998437166214
+  },
+  "201ce092-54dd-5a53-b3b7-43e73b4aa783": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.11848099902272224
+  },
+  "c2e9ad69-6e72-54d7-9428-af039de1d509": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.03256000019609928
+  },
+  "b458661d-848d-5a36-8148-02c99f6382f4": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.03601999953389168
+  },
+  "3d8d3177-0da4-5d6c-b171-d77ecda77ed9": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.051360998302698135
+  },
+  "c5e553b1-a5c2-50a0-93f0-14533c293e61": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.042500000447034836
+  },
+  "2780d9d6-afed-5f0f-b199-482f1ca6ec51": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.055399999022483826
+  },
+  "77e96b57-5b85-5668-80ea-d3c05f8fd281": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.08000000193715096
+  },
+  "230543eb-f998-54e2-80c3-e64fd15342d1": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.07166000083088875
+  },
+  "ecf47f2e-ba18-5cdc-bc72-d12307cedc2b": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.04012000001966953
+  },
+  "572023f3-db1d-517e-bce6-525dcc0c3311": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.11734100058674812
+  },
+  "65062d47-61c9-59bc-9aeb-82704cac7709": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.03838000074028969
+  },
+  "b4205425-ab6c-5855-b1e3-c5cd3a8dcf15": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.042460499331355095
+  },
+  "d064c65e-ca20-506c-8b74-f9e258d9f7fb": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.04609999991953373
+  },
+  "f2ed038a-8da7-55c0-a0f4-8bc2684814b8": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.04367999918758869
+  },
+  "e47e5660-a914-5710-b0e3-cd148e2f8a30": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.03868049941956997
+  }
+ },
+ "n_workloads": 16,
+ "n_workloads_with_tb": 16,
+ "complete": true,
+ "ok": true
+}
