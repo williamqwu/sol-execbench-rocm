@@ -44,7 +44,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "scripts" / "runners"))
 
-from _common import CLOCK_VIOLATION_EXIT  # noqa: E402
+from _common import CLOCK_VIOLATION_EXIT, write_result  # noqa: E402
 
 
 def variants_to_retime(doc: dict, top_k: int, within: float = 0.25) -> list[str]:
@@ -168,9 +168,18 @@ def main() -> int:
                       flush=True)
                 return 2
         except subprocess.TimeoutExpired:
-            out_file.write_text(json.dumps(
-                {"problem": key, "ok": False,
-                 "error": f"timeout after {a.timeout}s", "gpu": a.gpu}, indent=1))
+            # Through write_result, not json.dump: the runner was killed before
+            # it could stamp its own artifact, and an artifact with no
+            # provenance block cannot be told apart from one written by an
+            # unknown commit against an unknown stack. It carries no
+            # measured_clock -- the monitor died with the subprocess -- and says
+            # so rather than leaving the field absent.
+            write_result(out_file, "06-tb-candidates", {
+                "problem": key, "ok": False,
+                "error": f"timeout after {a.timeout}s",
+                "gpu": a.gpu,
+                "measured_clock": None,
+            })
             good = False
         ok, failed = ok + good, failed + (not good)
         elapsed = time.time() - start
