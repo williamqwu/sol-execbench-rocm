@@ -1,0 +1,43 @@
+{
+  "_provenance": {
+    "task": "09-agent-baseline",
+    "utc": "2026-08-04T14:27:06.786035+00:00",
+    "git_sha": "7bc4235619a05fb3cb863cb6761db9d2e656c6bd-dirty",
+    "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+    "python": "3.12.3",
+    "torch": {
+      "available": true,
+      "version": "2.9.1+rocm7.2.0.git7e1940d4",
+      "hip": "7.2.26015-fc0010cf6a",
+      "cuda": null,
+      "device_count": 8,
+      "devices": [
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X"
+      ]
+    },
+    "rocm": {
+      "version": "7.2.0",
+      "driver": "7.1.1.31500000",
+      "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+    },
+    "f_lock_mhz": 1300,
+    "visible_devices": null
+  },
+  "ran": false,
+  "reason": "No kernel-optimizing agent was run on this node. Upstream's median SOL of 0.732 and its headroom correlation of r = 0.981 are results ABOUT AGENTS, and there is no honest way to produce a comparable figure from the PyTorch variant set: those four formulations cluster around T_b by construction, since T_b is defined as the fastest of them.",
+  "what_was_done_instead": "artifacts/09/score-distribution.json scores the same variant set against the frozen manifest. That validates the scale -- every score finite and in (0,1], S = 0.5 exactly at T_b -- and establishes the within-workload relationship between S and headroom reclaimed (median r = 1.000 over 2518 workloads). It is not an agent baseline and is labelled as not being one wherever it appears.",
+  "what_a_replication_needs": [
+    "a kernel-optimizing agent producing submissions that span the performance range, not four formulations of one reference",
+    "the pooled headroom correlation recomputed over those submissions -- the pooled figure here (r = 0.175) is computed over a sample that barely varies and is not comparable to upstream's 0.981",
+    "the flagged-submission rate, to compare against upstream's 14.5%"
+  ],
+  "blocks_release": false,
+  "blocks_comparison_with_upstream_agent_numbers": true
+}

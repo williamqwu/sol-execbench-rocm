@@ -73,7 +73,8 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
     """
     out: dict[str, dict] = {}
     stats = {"solar_fused": 0, "declared_traffic": 0, "max_of_both": 0,
-             "traffic_rejected_above_t_b": 0}
+             "traffic_rejected_above_t_b": 0, "solar_rejected_above_t_b": 0,
+             "no_valid_bound": 0}
     for key in set(solar) | set(traffic):
         s_w, t_w = solar.get(key, {}), traffic.get(key, {})
         merged: dict[str, dict] = {}
@@ -81,10 +82,19 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
             s, t = s_w.get(u) or {}, t_w.get(u) or {}
             s_cyc, t_cyc = s.get("t_sol_cycles"), t.get("t_sol_cycles")
             measured = ((tb.get(key) or {}).get(u) or {}).get("t_b_ms")
-            if t_cyc is not None and measured is not None \
-                    and t.get("t_sol_ms", 0) > measured:
-                stats["traffic_rejected_above_t_b"] += 1
-                t_cyc = None
+            # A candidate bound above the measured time is not a loose lower
+            # bound, it is not a lower bound at all -- it would make
+            # (T_b - T_SOL) negative and push scores past 1. The rule is
+            # symmetric: reject any candidate that fails, take the max of what
+            # survives, and if nothing survives the workload is not scoreable
+            # and is counted as such rather than shipped with a bad anchor.
+            if measured is not None:
+                if t_cyc is not None and t.get("t_sol_ms", 0) > measured:
+                    stats["traffic_rejected_above_t_b"] += 1
+                    t_cyc = None
+                if s_cyc is not None and s.get("t_sol_ms", 0) > measured:
+                    stats["solar_rejected_above_t_b"] += 1
+                    s_cyc = None
             if s_cyc is not None and t_cyc is not None:
                 source = "max_of_both" if t_cyc > s_cyc else "solar_fused"
                 chosen = t if t_cyc > s_cyc else s
@@ -93,6 +103,7 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
             elif t_cyc is not None:
                 source, chosen = "declared_traffic", t
             else:
+                stats["no_valid_bound"] += 1
                 continue
             stats[source] += 1
             merged[u] = {**chosen, "t_sol_source": source,
@@ -113,6 +124,24 @@ def collect_t_b(directory: Path) -> dict[str, dict]:
         if doc and doc.get("winner_by_workload"):
             out[doc.get("problem", f.stem)] = doc["winner_by_workload"]
     return out
+
+
+def _methodology_of(directory: Path) -> str:
+    """Which timing methodology produced the T_b measurements.
+
+    Read from the artifacts rather than assumed, and a mixture is reported as
+    a mixture instead of being collapsed to whichever came first.
+    """
+    seen = set()
+    for f in sorted(directory.glob("*.json")):
+        doc = _load(f) or {}
+        prov = doc.get("_provenance") or {}
+        m = prov.get("methodology") or (doc.get("environment") or {}).get("methodology")
+        if m:
+            seen.add(m)
+    if not seen:
+        return "hip_events"        # the harness default; see device.py
+    return "+".join(sorted(seen))
 
 
 def collect_tolerances(directory: Path) -> dict[str, dict]:
@@ -156,6 +185,7 @@ def main():
             f"instead, or pass --force if this one was never published."
         )
 
+    methodology = _methodology_of(Path(a.t_b))
     t_b = collect_t_b(Path(a.t_b))
     t_sol, bound_sources = combine_bounds(
         collect_t_sol(Path(a.t_sol)),
@@ -232,6 +262,12 @@ def main():
     scoreable_problems = [k for k, v in problems.items() if v["n_scoreable"]]
     payload = {
         "manifest_version": a.version,
+        # Stated at the top level, not buried in provenance: a manifest built
+        # from hip_events traces and one built from rocprof traces are not
+        # comparable, and the whole point of recording the methodology per
+        # trace is lost if the manifest that aggregates them does not say
+        # which one it aggregated.
+        "methodology": methodology,
         "score_formula": "S(T_k) = 1 / (1 + (T_k - T_SOL) / (T_b - T_SOL))",
         "problem_set": {
             "total_in_dataset": len(census),

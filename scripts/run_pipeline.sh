@@ -75,7 +75,7 @@ wait_for() {
 
 # Kill anything an agent left behind that is still holding a GPU. An orphan
 # inflates every later measurement on that device and nothing in the output says
-# so (STATE.md D20).
+# so (STATE.md D22).
 reap() {
   env/solb-native python - <<'PY' 2>/dev/null || true
 import sys

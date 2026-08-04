@@ -159,7 +159,7 @@ def main() -> int:
     if violations:
         print(f"\n{violations} record(s) remain faster than their T_SOL bound. "
               f"Those bounds are wrong, not those kernels; S must not be "
-              f"published for them (STATE.md D23).")
+              f"published for them (STATE.md D25).")
     print(f"\nnext: python scripts/build_scoreboard.py --run-id {args.run_id}")
     return 0
 

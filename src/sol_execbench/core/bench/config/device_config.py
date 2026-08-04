@@ -87,7 +87,7 @@ CLOCK_LOCK_PRESETS: dict[str, ClockPreset] = {
     # GPUs hold wildly different clocks -- 1644, 1643, 1318, 1341, 1370, 1357,
     # 1352, 1327 -- because only two of them obey the request while the other six
     # land at ~0.80x it, and not because of power (they draw 950-995 W of 1400).
-    # See STATE.md D16. That 326 MHz spread is why authoritative timing is pinned
+    # See STATE.md D18. That 326 MHz spread is why authoritative timing is pinned
     # to GPU 0 and why every timing artifact records which GPU produced it.
     #
     # For scale: the B200 ratio (1500/1970 ~ 76%) would imply ~1830 MHz here,

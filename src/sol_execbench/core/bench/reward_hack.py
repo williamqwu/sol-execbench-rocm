@@ -279,7 +279,7 @@ _SOURCE_HAZARDS: tuple[tuple[str, str], ...] = (
 #
 # Observed: a submission shipped `sitecustomize.py` defining `enum.StrEnum` to
 # work around this node running Python 3.10 when the project requires 3.12
-# (STATE.md D21). That particular patch was benign and arguably a repair, but it
+# (STATE.md D23). That particular patch was benign and arguably a repair, but it
 # made the difference between a problem scoring 16/16 and not evaluating at all,
 # which is far too much leverage to leave undetected.
 _PATH_HAZARDS: tuple[tuple[str, str], ...] = (

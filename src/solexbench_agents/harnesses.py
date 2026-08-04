@@ -169,7 +169,7 @@ class Harness:
             # whole tree can be signalled. Without it, a timeout kills only the
             # CLI and every process the agent launched keeps running -- observed:
             # an autotuning script the agent wrote was still saturating a GPU an
-            # hour after its session was capped. See STATE.md D20.
+            # hour after its session was capped. See STATE.md D22.
             proc = subprocess.Popen(
                 cmd,
                 cwd=str(packet_dir),

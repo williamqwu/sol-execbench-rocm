@@ -1,0 +1,107 @@
+{
+  "_provenance": {
+    "task": "09-score-distribution",
+    "utc": "2026-08-04T14:27:32.729471+00:00",
+    "git_sha": "7bc4235619a05fb3cb863cb6761db9d2e656c6bd-dirty",
+    "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+    "python": "3.12.3",
+    "torch": {
+      "available": true,
+      "version": "2.9.1+rocm7.2.0.git7e1940d4",
+      "hip": "7.2.26015-fc0010cf6a",
+      "cuda": null,
+      "device_count": 8,
+      "devices": [
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X",
+        "AMD Instinct MI350X"
+      ]
+    },
+    "rocm": {
+      "version": "7.2.0",
+      "driver": "7.1.1.31500000",
+      "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+    },
+    "f_lock_mhz": 1300,
+    "visible_devices": null
+  },
+  "_note": "Scores of the T_b variant set against the frozen manifest. NOT an agent baseline -- no agent was run. See the script docstring.",
+  "manifest_version": "v1",
+  "all_variants": {
+    "n": 12248,
+    "min": 0.04572772828684364,
+    "max": 0.5,
+    "p10": 0.4256168840828311,
+    "median": 0.4988717332825412,
+    "p90": 0.5,
+    "mean": 0.4728040577549607
+  },
+  "by_variant": {
+    "v1_eager": {
+      "n": 3633,
+      "min": 0.04655832010694738,
+      "max": 0.5,
+      "p10": 0.3284451579444215,
+      "median": 0.4987287327352607,
+      "p90": 0.5,
+      "mean": 0.459873258058538
+    },
+    "v2_compile": {
+      "n": 2586,
+      "min": 0.08840476403062765,
+      "max": 0.5,
+      "p10": 0.4783814805840045,
+      "median": 0.49900714917721345,
+      "p90": 0.5,
+      "mean": 0.49071672520219256
+    },
+    "v3_compile_max_autotune": {
+      "n": 2394,
+      "min": 0.11362118447752656,
+      "max": 0.5,
+      "p10": 0.4825239815216278,
+      "median": 0.49912538266159073,
+      "p90": 0.5,
+      "mean": 0.4928413914103516
+    },
+    "v4_contiguous": {
+      "n": 3635,
+      "min": 0.04572772828684364,
+      "max": 0.5,
+      "p10": 0.3280886519917234,
+      "median": 0.4986238992838853,
+      "p90": 0.5,
+      "mean": 0.4597878433141234
+    }
+  },
+  "anchor_check": {
+    "n": 3717,
+    "min": 0.5,
+    "max": 0.5,
+    "p10": 0.5,
+    "median": 0.5,
+    "p90": 0.5,
+    "mean": 0.5,
+    "_note": "The variant that became T_b, scored against it. Must be 0.5 by construction; a deviation means the manifest's T_b is not the time that implementation takes.",
+    "max_abs_deviation_from_half": 0.0
+  },
+  "headroom_correlation": {
+    "n": 12080,
+    "pearson_r_pooled": 0.17537654195521843,
+    "within_workload_r_median": 0.9999963481944683,
+    "within_workload_n": 2518,
+    "headroom_span_covered": [
+      -9.311607592250933,
+      0.9511681510376494
+    ],
+    "definition": "x = (T_ref - T_k)/(T_ref - T_SOL) with T_ref the problem's own reference (v1_eager); y = S(T_k).",
+    "_not_comparable_to_upstream": "Upstream reports r = 0.981 over AGENT submissions, which span the performance range. These submissions are four PyTorch formulations of the same reference, and T_b is the fastest of them, so they cluster: the pooled correlation is computed over a sample that barely varies and is not a replication of that result. The within-workload figure is the one this data can support. A real replication needs the agent baseline, which was not run -- see the release notes."
+  },
+  "workload_variant_pairs": 12248,
+  "pairs_not_scoreable": 0
+}

@@ -188,18 +188,18 @@ and that claim is stated rather than implied.
 - **The agent's `verify` points at a reduced harness tree**, not the repo. A
   smoke run was observed reading `src/sol_execbench/core/bench/timing.py`; the
   same reach covers `artifacts/05` tolerance derivations and `artifacts/03`
-  bounds. See deviation D17.
+  bounds. See deviation D19.
 - **`benchmark_reference` defaults to False**, which silently leaves every
   speedup undefined. Both the scorer and `agent_verify.py` set it.
 - **`are_clocks_locked()` reads an environment variable, not the hardware.**
   `score_solutions.py` probes sysfs for `perf_determinism` on the authoritative
   GPU and refuses to score if it is absent, then sets the flag. Exporting the
   flag on an unlocked node would make every latency read as authoritative while
-  being taken at a boost clock. See D19.
+  being taken at a boost clock. See D21.
 - **Gateway 403s happen mid-session** and are retried rather than recorded as a
-  model failure. A session that produced a solution is never retried. See D18.
+  model failure. A session that produced a solution is never retried. See D20.
 - **Agents get GPUs 1–7 and never GPU 0.** On this node the achieved clock at one
-  determinism setting spans 1318–1644 MHz across the eight GPUs (D16), so an
+  determinism setting spans 1318–1644 MHz across the eight GPUs (D18), so an
   agent's own timings come from a ~20% slower clock than the score does. That is
   harmless — it compares its kernel to the reference on its own GPU, so the ratio
   it optimizes against is right — but it is why the score never comes from the

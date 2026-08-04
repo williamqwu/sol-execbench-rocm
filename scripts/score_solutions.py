@@ -162,7 +162,7 @@ def score_one(session_dir: Path, problem_dir: Path, workloads_root: Path | None,
 
     This is not defensive decoration. An earlier version loaded the definition
     from the packet, and a submission was found having rewritten the reference
-    inside it to work around a broken interpreter (STATE.md D22). Editing the
+    inside it to work around a broken interpreter (STATE.md D24). Editing the
     reference edits the definition of correctness: in the limit a submission can
     replace the reference with its own kernel and score 100% on every workload.
     Only ``solution.json`` and its sources may come from the packet.

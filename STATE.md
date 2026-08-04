@@ -31,6 +31,42 @@ output.
 
 ---
 
+## Where this stands
+
+**On MI350X the benchmark is measured and the manifest is frozen.**
+`manifest-v1` scores **220 of 235 problems / 3717 workload instances** on MI350X
+at F_LOCK = 1300 MHz. The 15 that are not scoreable are the NVFP4 Quant
+problems, whose *references* fail on ROCm; they are in `artifacts/deferred.json`
+with the error text quoted from the calibration artifact, and every count in
+every document quotes that file.
+
+**On MI355X — this node, session 3 — it is not.** `manifest-v1` is an MI350X
+artifact and cannot score a measurement taken here: F_LOCK is 1640 rather than
+1300, so every `T_b` in it is a wall-clock time at the wrong clock.
+`scripts/score_solutions.py` compares an artifact's `part` against the live node
+and refuses rather than rescaling. What session 3 has re-derived is listed in the
+task table below; `T_b` for this part is measured but **not yet anchor-verified**
+(blocker B2).
+
+What a consumer needs to know before using either:
+
+* **Correctness runs against `artifacts/05/workloads/`**, not the dataset's own
+  tolerances. Opt in with `SOLEXBENCH_WORKLOADS_ROOT`. Under upstream's B200
+  tolerances the same references fail 8 workloads of `L2/033`.
+* **`T_SOL` comes from one of two derivations and every workload says which.**
+  SOLAR's roofline over the traced graph, or the traffic the definition itself
+  declares over DRAM bandwidth. Neither dominates; the manifest takes the max
+  of the two that survive being checked against the measurement.
+* **Every `T_b` was re-timed on one GPU alone.** On MI350X the eight GPUs span
+  1242–1307 MHz at the same determinism setting; on MI355X they span
+  **1318–1644**, which is a 25% spread and a much stronger reason (D16).
+* **An agent baseline now exists, for MI355X only** — task 10,
+  `artifacts/10/scoreboard.json`. It is not comparable to upstream's median of
+  0.732: that figure is a `sol_score_v1` number and this one currently rests on a
+  weaker basis, because B2 holds. `artifacts/09/score-distribution.json` remains
+  what it says it is — evidence the MI350X scale is well formed, not an agent
+  result.
+
 ## Environment (current node — session 3)
 
 | Field | Value |
@@ -71,19 +107,25 @@ Concretely observed while the first floor ran: `--gpu 0` put the load on
 
 ## Task status
 
-| ID | Task | Status | Part | Artifacts | Notes |
+| ID | Task | MI350X | MI355X (this node) | Artifacts | Notes |
 |---|---|---|---|---|---|
-| 00 | Node acceptance | `done` | **MI355X** | `artifacts/00/` | 13 checks, 0 failed; rooflines reproduce session 1 to within 1% |
-| 01 | Clock calibration (F_LOCK) | `in-progress` | **MI355X** | `artifacts/01/` | re-measuring on this part; session-1 preset is `1650` **requested** with no achieved value recorded — see below |
-| 02 | Harness port validation | `done` | MI350X | `artifacts/02/` | 235/235 problems swept; references run on ROCm. Port is part-independent |
-| 03 | SOL bounds (T_SOL) | `in-progress` | **MI355X** | `artifacts/03/t_sol-MI355X.json` | **222/235 problems bounded at F_LOCK 1640 on MI355X.** The MI350X file is kept beside it and is rejected by the scorer on this node. D23: 3 problems have bounds a good kernel beats |
-| 04 | rocprofiler shim | `in-progress` | MI350X | `src/solexbench_rocm/shim/` | shim built and verified; L1 comparison sweep pending |
-| 05 | Tolerance calibration | `done` | MI350X | `artifacts/05/` | 3717/3957 workloads AMD-derived; missing 240 are exactly the 15 deferred NVFP4 × 16 |
-| 06 | Baselines (T_b) | `blocked` | MI355X | `artifacts/06/` | **selection done, 223/235.** The authoritative re-time and the anchor check were both run under CPU contention and are void — blocker B2. Needs a quiet node, nothing else |
-| 07 | Quant / MXFP4 | `done` | MI350X | `artifacts/07/`, `artifacts/deferred.json` | 15 NVFP4 deferred with evidence; 220 ship |
-| 08 | Red team | `done` | — | `reference/exploits/`, `artifacts/08/` | 28/28 replay cases pass. Extended in session 3: the static screen now screens filenames, after D21 |
-| 09 | Release | `in-progress` | MI355X | `artifacts/09/manifest-MI355X-v1.json` | manifest builds and reports its own gaps honestly; 0/235 scoreable while B2 holds |
-| 10 | Agent scoreboard | `in-progress` | **MI355X** | `artifacts/10/` | **pilot done and scored, 24 problems × 2 harnesses.** Acceptance passes: 24 checks, 0 failed. Full 404-session sweep running |
+| 00 | Node acceptance | `done` | `done` | `artifacts/00/`, `00-MI350X/` | 13 checks, 0 failed on both; MI355X rooflines reproduce session 1 to within 1% |
+| 01 | Clock calibration (F_LOCK) | `done` 1300 | `done` **1640** | `artifacts/01/`, `01-MI350X/` | achieved, not requested. D16: on MI355X only two of eight GPUs obey the request |
+| 02 | Harness port validation | `done` | `done` | `artifacts/02/` | 3717/3717 non-deferred workloads pass under AMD tolerances. Port is part-independent |
+| 03 | SOL bounds (T_SOL) | `done` | `in-progress` | `artifacts/03/` | MI350X: 235/235, two derivations, source recorded. MI355X: `t_sol-MI355X.json` must be **re-derived** — it was generated before the fp32-rate fix (`9a0f98a`) |
+| 04 | rocprofiler shim | `done` | `n/a` | `artifacts/04/` | median divergence −0.61% over 1430 pairs; clock domain verified. Not part-specific |
+| 05 | Tolerance calibration | `done` | `inherited` | `artifacts/05/` | 3717/3957 AMD-derived. Numerics of the same gfx950 ISA; not re-derived here |
+| 06 | Baselines (T_b) | `done` | `blocked` | `artifacts/06/`, `06-MI350X/` | MI350X: 220 anchored, 336/349 anchor checks pass. MI355X: selection 223/235 and 132 re-timed, but **not anchor-verified** — blocker B2 |
+| 07 | Quant / MXFP4 | `done` | `blocked` | `artifacts/07/`, `artifacts/deferred.json` | 15 NVFP4 deferred with evidence; 220 ship. On MI355X the other 18 are blocked by B1 (`artifacts/blocked.json`) |
+| 08 | Red team | `done` | `done` | `reference/exploits/`, `artifacts/08/` | 28/28 replay cases, 0 false positives on 235 references. Extended in session 3: the screen now screens filenames, after D21 |
+| 09 | Release | `done` | `in-progress` | `artifacts/09/` | MI350X: **manifest v1, 220/235 problems, 3717 workloads scoreable**. MI355X: `manifest-MI355X-v1.json` builds and reports its own gaps; 0 scoreable while B2 holds |
+| 10 | Agent scoreboard | `not-run` | `in-progress` | `artifacts/10/` | **pilot done and scored**, 24 problems × 2 harnesses, acceptance 24 checks / 0 failed. Full 404-session sweep paused for this merge |
+
+Read the two status columns as two independent ports of the same benchmark. A
+task `done` on MI350X is not done here whenever its result is a measured
+quantity: F_LOCK, T_SOL in milliseconds and T_b all differ by part, and
+`scripts/score_solutions.py` refuses an artifact whose `part` is not the live
+node's rather than rescaling it.
 
 Status vocabulary: `not-started` · `in-progress` · `blocked` · `done` · `deferred`
 
@@ -794,7 +836,69 @@ allocator under pressure does not do that.
 Every non-NVFP4 workload now has an AMD-derived tolerance — 3717 of 3957, with
 the missing 240 exactly the 15 deferred NVFP4 problems × 16 workloads.
 
-### D14 — `triton` here is a development checkout, not a release [session 3]
+### D14 — the bound was priced at the vector-FP32 rate on 160 of 235 problems
+
+The single largest error found in this session, and it was invisible until
+`T_SOL ≤ T_b` could be checked against real measurements: **437 workloads had
+a T_SOL above their own measured time**, by up to 13.4×.
+
+`_precision_for()` chose the *widest* dtype among a problem's inputs, on the
+reasoning that the widest drives both the compute peak and the byte count.
+That is right for bytes and exactly wrong for the rate. In SOLAR's config
+`fp32` is `MAC_per_cycle_fp32_sm` — the **vector** rate, 32768 MAC/cycle,
+16× below the bf16 matrix rate — so a bf16 kernel with one `float32` epsilon
+argument was priced at 0.085 PFLOPS instead of 1.36. 160 of the 235 problems
+resolved to `fp32` that way, most of them mixed-precision kernels whose scalar
+`eps` decided the answer.
+
+T_SOL is a **lower** bound, so every term in it must be a lower bound: the
+fastest rate the arithmetic could plausibly run at, and the least traffic it
+could plausibly move. The fix is therefore two changes in the same direction:
+
+* scalars (`shape: null`) are excluded — an `eps` rides in a kernel argument
+  and is not a compute precision;
+* among the tensor inputs the **narrowest** floating type wins, not the widest.
+
+After the fix: `fp32` 108, `bf16` 104, `fp16` 12, `fp8` 4, `nvfp4` 1, and the
+violations fall from 437 to **63**.
+
+The 63 that remain are two kinds, both recorded rather than smoothed over:
+depthwise-convolution problems where SOLAR appears to count a grouped
+convolution as dense (`L1/006`, `L1/029`, `L2/035`, ratios 2–5.8×), and eight
+workloads within 1–6% where the model and the measurement are simply that
+close. Neither is shipped: `build_manifest` rejects **any** candidate bound
+above the measured time, from either derivation, and falls back to the other —
+a bound above a measured time makes `(T_b − T_SOL)` negative and pushes scores
+past 1.
+
+What this says about the method, and it is worth saying plainly: cross-check D
+is the only one of the four that could have caught this, and it could not run
+until task 06 finished. Checks A–C all passed throughout on a bound that was
+wrong by 13× on some problems. A roofline that is internally consistent is not
+thereby right.
+
+### D15 — one problem's T_b does not reproduce to 3%
+
+The anchor check re-times `T_b`'s own implementation and requires it to score
+0.5 ± 0.03. Over a 20-problem sample, **336 of 349 workloads pass**, no
+measured time falls below its `T_SOL`, and the reference never scores above the
+anchor. Of the 13 that fail, **12 are one problem** —
+`FlashInfer-Bench/018_mla_paged_decode` — where the re-timed latency comes back
+a median of **1.16×** the recorded `T_b`. Two independent runs of the check
+reproduced 13 and 12 failures on it, so the effect is stable and it is the
+problem, not the check.
+
+That problem's `T_b` is therefore optimistic by roughly 16%, which makes every
+score on it *lower* than it should be — the conservative direction, but wrong.
+The cause is not established: MLA paged decode is the most input-layout-
+dependent kernel in the set and loads its inputs from safetensors blobs, so
+allocation and page-table state are the obvious suspects. Recorded rather than
+smoothed away, and it is a reason to be careful about drawing conclusions from
+that one problem's scores.
+
+The remaining single failure (`L1/072`) is one workload at the tolerance edge.
+
+### D16 — `triton` here is a development checkout, not a release [session 3]
 
 On this node `import triton` resolves to
 `/sgl-workspace/triton-custom/python/triton/__init__.py`, version
@@ -824,7 +928,22 @@ The probe uses `importlib.util.find_spec` rather than importing: importing
 `aiter` loads a compiled extension, and a provenance stamp taken mid-measurement
 must not create a HIP context on the device it is describing.
 
-### D23 — 19% of bounded workloads came in faster than their Speed-of-Light bound
+### D25 — 19% of bounded workloads came in faster than their Speed-of-Light bound
+
+**Superseded in cause by D14, which was already fixed on master when this was
+written.** Session 3 branched from `ea94b18` and re-derived `T_SOL` for MI355X
+with the *pre-fix* `sol_bounds.py`, in which `_precision_for()` took the widest
+dtype among a problem's inputs and so priced a bf16 kernel with one float32 `eps`
+argument at the fp32 **vector** rate — 16× below the bf16 matrix rate. That is
+the same defect D14 records as producing 437 violations on MI350X, reduced to 63
+by excluding scalars and taking the narrowest tensor dtype.
+
+So the numbers below describe a bound that is known to be mis-derived, and
+`artifacts/03/t_sol-MI355X.json` **must be re-derived** with the merged
+`sol_bounds.py` before any of this is read as a property of the hardware. Kept
+rather than deleted for two reasons: the shape of the violations is what makes
+D14's fix legible on this part, and the second mechanism below is *not* explained
+by D14 at all.
 
 Measured across the pilot: **90 of 474** correct-and-bounded workloads have
 `t_k < t_sol`. A kernel cannot beat an analytic lower bound, so those bounds are
@@ -876,12 +995,22 @@ Consequences, applied:
   `fused` does. Both are task 03 work, recorded here because the pilot is what
   surfaced them.
 
-### D22 — the scorer trusted the packet's copy of the problem, and an agent edited it
+**What survives the D14 fix, and what the merge says about it.** The paged-KV
+mechanism is independent of the compute rate — `FlashInfer-Bench__018` is
+`bottleneck: memory`, charged for 2.28 GB of traffic, so repricing the arithmetic
+cannot move it. Master reaches the same problem from the other side and records it
+as **D15**: on MI350X, `018` re-times a median 1.16× slower than its own recorded
+`T_b`, reproduced across two independent runs, and its anchor is called optimistic
+by ~16%. Two ports, two derivations, one problem — which is worth more than either
+observation alone, and is the reason `018` should not ship a score on either part
+until the paged case is modelled rather than traced.
+
+### D24 — the scorer trusted the packet's copy of the problem, and an agent edited it
 
 The most serious defect found in session 3, and it was mine, not an agent's.
 
 While investigating why two Codex Quant submissions passed without the
-`sitecustomize.py` shim of D21, a diff of the packet against the dataset showed
+`sitecustomize.py` shim of D23, a diff of the packet against the dataset showed
 the packet's `definition.json` had been **rewritten**:
 
 ```diff
@@ -932,7 +1061,7 @@ The reason it stayed contained is luck, not design — B1 gave the agents a reas
 to touch the reference, and B1 only affects Quant. A submission with a different
 motive would have had the same opening on any problem.
 
-### D21 — an agent repaired the harness's own environment, and it counted as a solve
+### D23 — an agent repaired the harness's own environment, and it counted as a solve
 
 Blocker B1 makes all 33 Quant references unimportable on this node. Claude Code
 scored 0/6 on the pilot's Quant sample as a result. Codex scored **6/6**, and the
@@ -981,7 +1110,7 @@ benchmark that the benchmark's own authors had not, and the mechanism it used to
 route around it would have gone unrecorded. Anti-gaming machinery built by
 enumerating known exploits catches known exploits.
 
-### D20 — an agent's autotuner outlived the agent and kept a GPU busy for an hour
+### D22 — an agent's autotuner outlived the agent and kept a GPU busy for an hour
 
 Found by noticing a GPU at 100% while the pilot was supposed to be between
 waves, and tracing it to:
@@ -1039,7 +1168,7 @@ symptom is a spurious timeout recorded as a result. The reaping logic in
 that is left as a known gap rather than done, because it is the repo's own runner
 and changing it mid-sweep would have invalidated the T_b pass in flight.
 
-### D17 — the agent left its packet and read the harness [session 3]
+### D19 — the agent left its packet and read the harness [session 3]
 
 The first smoke run of task 10 was given one problem in an isolated packet. Its
 transcript shows it doing this:
@@ -1076,7 +1205,7 @@ things that do not depend on containment: scoring re-evaluates every solution
 from a tree fingerprinted at sweep start, and the static source screen runs on
 every submission before it is scored.
 
-### D18 — a gateway 403 mid-session is not a model failure [session 3]
+### D20 — a gateway 403 mid-session is not a model failure [session 3]
 
 The same smoke run died after 27 productive turns and $1.36 with:
 
@@ -1111,7 +1240,7 @@ And `is_error: true` arrived alongside `subtype: "success"`, so reporting the
 subtype described a clean run that merely produced nothing. The `result` field
 carries the real message and is now preferred.
 
-### D19 — two integration defaults that silently removed the speed axis
+### D21 — two integration defaults that silently removed the speed axis
 
 `BenchmarkConfig.benchmark_reference` defaults to **False**, so
 `reference_latency_ms` stays `0.0` and every speedup is undefined. The first
@@ -1136,7 +1265,7 @@ torch 7 here — and `score_solutions.py` refuses to score unless it reads
 have made every latency read as authoritative while being taken at a boost clock
 that varies 10–30% under load.
 
-### D16 — on MI355X, two GPUs obey the clock request and six do not [session 3]
+### D18 — on MI355X, two GPUs obey the clock request and six do not [session 3]
 
 The single most consequential finding of session 3, and it is not what D8
 predicted.
@@ -1194,7 +1323,7 @@ whether the boundary moves with temperature. Both matter for whether F_LOCK is
 stable across a long sweep, and the CV of 0.0041 over 30 processes is evidence
 that it is stable *now*. Recorded rather than explained, per prime directive 8.
 
-### D15 — no docker on this node, so `env/solb` cannot work [session 3]
+### D17 — no docker on this node, so `env/solb` cannot work [session 3]
 
 `docker` is not installed. `env/solb` is a `docker exec` wrapper, so the entire
 documented run path was unavailable.
