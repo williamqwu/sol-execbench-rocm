@@ -28,7 +28,12 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "src"))
 
-from provenance import stamp  # noqa: E402
+from provenance import ClockMonitor, stamp  # noqa: E402
+
+# Distinct from 1 (the body failed) because the caller must react differently:
+# the node is wrong, not the problem, so the pass has to stop rather than move
+# on to the next problem and mismeasure that one too.
+CLOCK_VIOLATION_EXIT = 3
 
 
 def problem_key(problem: Path) -> str:
@@ -49,9 +54,18 @@ def write_result(out: Path, kind: str, payload: dict[str, Any]) -> None:
 
 
 def run_guarded(out: Path, kind: str, body: Callable[[], dict[str, Any]]) -> int:
-    """Run *body*, always writing an artifact. Returns a process exit code."""
+    """Run *body*, always writing an artifact. Returns a process exit code.
+
+    The GFX clock is sampled throughout and recorded as `measured_clock`. F_LOCK
+    is a table constant, and on MI355X that constant holds only for one GPU on
+    an idle node (STATE.md D27), so an artifact that does not carry the clock it
+    actually ran at cannot be told apart from one measured 13% fast -- which is
+    how 143 T_b came to be wrong.
+    """
+    monitor = ClockMonitor()
     try:
-        payload = body()
+        with monitor:
+            payload = body()
         payload.setdefault("ok", True)
     except BaseException as e:                     # noqa: BLE001 - deliberate
         payload = {
@@ -59,6 +73,25 @@ def run_guarded(out: Path, kind: str, body: Callable[[], dict[str, Any]]) -> int
             "error": f"{type(e).__name__}: {e}",
             "traceback": traceback.format_exc(),
         }
+
+    measured = monitor.summary()
+    payload["measured_clock"] = measured
+
+    if payload.get("ok") and measured.get("within_tolerance") is False:
+        payload["ok"] = False
+        payload["clock_violation"] = True
+        payload["error"] = (
+            f"measured {measured['median_mhz']} MHz against F_LOCK "
+            f"{measured['expected_f_lock_mhz']} "
+            f"({measured['deviation']:+.1%}, tolerance "
+            f"±{measured['tolerance']:.0%}). The timings in this artifact are "
+            f"wall-clock times and are wrong by that ratio.")
+        # Written rather than discarded -- prime directive 1 -- but the caller
+        # is expected to move it aside so the problem is retried once the node
+        # is right, not skipped as already done.
+        write_result(out, kind, payload)
+        return CLOCK_VIOLATION_EXIT
+
     write_result(out, kind, payload)
     return 0 if payload.get("ok") else 1
 

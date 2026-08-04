@@ -325,6 +325,144 @@ def assert_clock_lock() -> None:
             "--all-gpus`, then re-run.")
 
 
+# GFX activity, not power, decides whether a sample counts. Power lags: a GPU
+# running kernels between compilations reads 100% busy at 273 W, barely above
+# the ~240 W idle draw, so a power threshold high enough to mean "working"
+# discards most of the samples a timing run offers.
+_BUSY_ACTIVITY_PCT = 50
+_DEFAULT_TOLERANCE = 0.03
+
+
+class ClockMonitor:
+    """Sample the GFX clock while a measurement runs, and report what it was.
+
+    ``assert_clock_lock()`` proves the setpoint was *applied*. It cannot prove
+    what the silicon did with it, and on this part those are different
+    questions: at one setting GPU 0 holds 1647 MHz alone and 1394 MHz with its
+    siblings loaded, and GPU 2 never reaches the request at all (D27). So F_LOCK
+    as a table constant is a claim about one GPU in one node condition, and the
+    only way an artifact can be trusted to have been measured at it is to have
+    measured it.
+
+    Sampling is deliberately indirect: it reads every GPU and takes the busiest
+    one, rather than resolving which physical GPU ``HIP_VISIBLE_DEVICES`` maps
+    to. That needs no torch and no PCI mapping, so the monitor cannot create a
+    HIP context on the device it is describing before the measurement does --
+    and because the authoritative pass requires an idle node, the busiest GPU
+    *is* the one being timed. ``busy_gpus`` records how many were working, which
+    catches the case where that assumption did not hold.
+
+    Samples taken while nothing is busy are dropped. A runner spends much of its
+    wall clock in Triton compilation, which is CPU-bound; counting those would
+    drag the median toward the idle floor and flag every problem. Measured on
+    this node: 25 s of a `max_autotune` compile yielded zero busy samples, which
+    is why ``n_busy_samples`` is reported and a count of zero is not a pass.
+    """
+
+    def __init__(self, hz: float = 5.0, tolerance: float | None = None):
+        self.hz = hz
+        if tolerance is None:
+            try:
+                tolerance = float(os.environ.get(
+                    "SOLEXBENCH_CLOCK_TOLERANCE", _DEFAULT_TOLERANCE))
+            except ValueError:
+                tolerance = _DEFAULT_TOLERANCE
+        self.tolerance = tolerance
+        self._samples: list[tuple[int, float, int]] = []   # mhz, watts, gpu
+        self._busy_gpus: set[int] = set()
+        self._thread = None
+        self._halt = None
+        self._error: str | None = None
+
+    def _sample_once(self, amdsmi, handles) -> None:
+        busiest, busiest_act = None, -1
+        for i, h in enumerate(handles):
+            try:
+                act = amdsmi.amdsmi_get_gpu_activity(h).get("gfx_activity")
+            except Exception:
+                continue
+            if not isinstance(act, int) or act < _BUSY_ACTIVITY_PCT:
+                continue
+            self._busy_gpus.add(i)
+            if act > busiest_act:
+                busiest, busiest_act = (i, h), act
+        if busiest is None:
+            return
+        i, h = busiest
+        try:
+            clk = amdsmi.amdsmi_get_clock_info(
+                h, amdsmi.AmdSmiClkType.GFX).get("clk")
+            pw = amdsmi.amdsmi_get_power_info(h).get("current_socket_power")
+        except Exception:
+            return
+        if clk:
+            self._samples.append((clk, pw or 0.0, i))
+
+    def _loop(self) -> None:
+        try:
+            import amdsmi
+            amdsmi.amdsmi_init()
+            handles = amdsmi.amdsmi_get_processor_handles()
+        except Exception as e:                              # noqa: BLE001
+            self._error = f"{type(e).__name__}: {e}"
+            return
+        import time as _t
+        while not self._halt.is_set():
+            self._sample_once(amdsmi, handles)
+            self._halt.wait(1.0 / self.hz)
+        del _t
+
+    def __enter__(self) -> "ClockMonitor":
+        import threading
+        self._halt = threading.Event()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        if self._halt is not None:
+            self._halt.set()
+        if self._thread is not None:
+            self._thread.join(timeout=30)
+
+    def summary(self) -> dict:
+        """What clock the measurement ran at, and whether that is F_LOCK."""
+        import statistics
+
+        expected = f_lock_mhz()
+        clk = [s[0] for s in self._samples]
+        pw = [s[1] for s in self._samples]
+        out: dict = {
+            "expected_f_lock_mhz": expected,
+            "tolerance": self.tolerance,
+            "n_busy_samples": len(clk),
+            "busy_gpus": sorted(self._busy_gpus),
+            "sampler_error": self._error,
+        }
+        if not clk:
+            # Not a violation: a problem can be short enough, or compile-bound
+            # enough, that no sample lands on GPU work. Recorded as unverified
+            # rather than silently passed -- assert_clock_lock() still covers
+            # the systematic case.
+            out.update(median_mhz=None, min_mhz=None, max_mhz=None,
+                       median_power_w=None, deviation=None,
+                       within_tolerance=None)
+            return out
+        clk.sort()
+        med = statistics.median(clk)
+        dev = (med - expected) / expected if expected else None
+        out.update(
+            median_mhz=med,
+            min_mhz=clk[0],
+            max_mhz=clk[-1],
+            p5_mhz=clk[max(0, int(0.05 * len(clk)) - 1)],
+            median_power_w=statistics.median(pw),
+            deviation=dev,
+            within_tolerance=(dev is not None and abs(dev) <= self.tolerance),
+        )
+        return out
+
+
 def stamp(task: str, extra: dict | None = None) -> dict:
     """Build a provenance block. Attach to every artifact."""
     return {

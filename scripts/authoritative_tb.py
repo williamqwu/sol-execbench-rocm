@@ -42,6 +42,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "scripts" / "runners"))
+
+from _common import CLOCK_VIOLATION_EXIT  # noqa: E402
 
 
 def variants_to_retime(doc: dict, top_k: int, within: float = 0.25) -> list[str]:
@@ -149,6 +152,21 @@ def main() -> int:
             r = subprocess.run(cmd, capture_output=True, text=True,
                                timeout=a.timeout, env=env)
             good = r.returncode == 0
+            if r.returncode == CLOCK_VIOLATION_EXIT:
+                # The node drifted off F_LOCK mid-pass. Every artifact after
+                # this one would be wrong the same way, so the pass stops here.
+                # The artifact is moved aside rather than left in place: left in
+                # place it counts as done and the problem is never re-timed.
+                moved = out_file.with_suffix(".clock-violation.json")
+                out_file.replace(moved)
+                print(f"\nABORTING at [{n}/{len(pending)}] {key} — the node is "
+                      f"not at F_LOCK.\n"
+                      f"  evidence  {moved}\n"
+                      f"  {key} is pending again, not recorded as failed.\n"
+                      f"  Re-apply the lock (clock_calibrate.py lock "
+                      f"--freq-mhz <setpoint> --all-gpus), then re-run.",
+                      flush=True)
+                return 2
         except subprocess.TimeoutExpired:
             out_file.write_text(json.dumps(
                 {"problem": key, "ok": False,
