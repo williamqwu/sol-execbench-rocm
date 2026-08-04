@@ -118,17 +118,19 @@ if is_done tb_authoritative; then
   say "stage 1 T_b authoritative — already done, skipping"
 else
   wait_for "authoritative_tb" "an authoritative T_b pass"
-  TOTAL_CANDIDATES=$(ls artifacts/06/candidates/*.json 2>/dev/null | wc -l)
-  HAVE=$(ls artifacts/06/authoritative/*.json 2>/dev/null | wc -l)
-  say "stage 1 T_b authoritative — ${HAVE} done of ${TOTAL_CANDIDATES} candidates"
-  if [ "${HAVE}" -lt "$(( TOTAL_CANDIDATES - 40 ))" ]; then
-    require_idle || exit 1
-    env/solb-native python -u scripts/authoritative_tb.py \
-        --candidates artifacts/06/candidates \
-        --out artifacts/06/authoritative \
-        --gpu 0 --top-k 2 --within 0.25 --timeout 900 \
-        2>&1 | tee -a "${LOGS}/01-tb-authoritative.log"
-  fi
+  require_idle || exit 1
+  say "stage 1 T_b authoritative — $(ls artifacts/06/authoritative/*.json 2>/dev/null | wc -l) \
+of $(ls artifacts/06/candidates/*.json 2>/dev/null | wc -l) candidates already re-timed"
+  # Run it unconditionally. authoritative_tb.py skips any problem whose artifact
+  # already exists, so this costs nothing when the work is done and cannot skip
+  # work that is not. Guessing completeness from a file count would do both wrong:
+  # a pass that legitimately ends below the candidate count (some problems have no
+  # winner) would look unfinished forever.
+  env/solb-native python -u scripts/authoritative_tb.py \
+      --candidates artifacts/06/candidates \
+      --out artifacts/06/authoritative \
+      --gpu 0 --top-k 2 --within 0.25 --timeout 900 \
+      2>&1 | tee -a "${LOGS}/01-tb-authoritative.log"
   mark_done tb_authoritative
 fi
 
