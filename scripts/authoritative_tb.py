@@ -3,11 +3,13 @@
 """Task 06, second pass — re-time the selected T_b variants on ONE GPU.
 
 The selection sweep shards across all eight GPUs, which is the only way it
-finishes in an evening. But the eight GPUs do not share a clock: at the same
-determinism setting they land between 1242 and 1307 MHz, a 5% spread, which is
-wider than most of the differences this benchmark exists to measure. A T_b
-assembled from eight GPUs would encode that spread into the score scale, and
-nothing downstream could see it.
+finishes in an evening. But the eight GPUs do not share a clock. On MI350X they
+land between 1242 and 1307 MHz at the same determinism setting; on MI355X the
+spread is far worse -- 1316 to 1647 MHz at `--setperfdeterminism 1650`, 25% --
+because only GPUs 0 and 1 reach the requested clock and the other six sit at
+~0.80x it. That is wider than most of the differences this benchmark exists to
+measure. A T_b assembled from eight GPUs would encode the spread into the score
+scale, and nothing downstream could see it.
 
 So selection and measurement are separated:
 
@@ -89,6 +91,13 @@ def main() -> int:
     ap.add_argument("--warmup", type=int, default=10)
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
+
+    # Before any GPU time is spent. A pass measured at the wrong setpoint is
+    # not recoverable after the fact: T_b is a wall-clock time and the artifact
+    # records the clock it was *supposed* to run at.
+    if not a.dry_run:
+        from provenance import assert_clock_lock
+        assert_clock_lock()
 
     cand_dir, out_dir = Path(a.candidates), Path(a.out)
     out_dir.mkdir(parents=True, exist_ok=True)

@@ -203,8 +203,13 @@ def f_lock_mhz() -> int | None:
 
     Step 2 exists because an env var is exactly the kind of thing a sweep
     forgets to export, and an artifact whose F_LOCK is null cannot be used for
-    scoring. Reading it from the same table the lock is applied from means the
-    recorded clock and the applied clock cannot disagree.
+    scoring.
+
+    **This is the INTENDED clock, and it cannot tell you the hardware agreed.**
+    An earlier version of this docstring claimed that reading the value from
+    the same table the lock is applied from meant the recorded and applied
+    clocks could not disagree. That is false, and it cost a day: the table is
+    not the hardware. See ``clock_lock_state`` for the readback that can.
 
     Note this returns the ACHIEVED clock, not the requested one: on AMD they
     differ (see ``ClockPreset``), and the achieved value is the one every
@@ -228,6 +233,98 @@ def f_lock_mhz() -> int | None:
         return None
 
 
+def clock_lock_state() -> dict | None:
+    """The clock lock as the DEVICES report it, not as the preset table says.
+
+    ``f_lock_mhz()`` cannot detect a wrong lock, because it reads the table the
+    lock is supposed to have been applied from. On 2026-08-04 an unreset
+    determinism sweep left this node at a 1900 MHz setpoint; 138 authoritative
+    T_b were then measured at ~1860 MHz and every one was stamped
+    ``f_lock_mhz: 1640``. Nothing downstream could see it — including
+    ``build_manifest.collect_t_b``, which rejects artifacts measured at the
+    wrong clock by comparing that same stamp.
+
+    ``max_clk`` is the determinism setpoint read back off the device, so it is
+    a genuinely independent second source. It reads correctly while the GPU is
+    idle, which is what makes it usable here: an artifact is normally stamped
+    before its load starts, so the live clock would just read the idle floor.
+
+    Every GPU is checked, not just the one being timed. A partial lock is the
+    dangerous case, and `rocm-smi --setperfdeterminism` is applied node-wide
+    often enough that "some GPUs took it" is a real outcome.
+    """
+    expected = None
+    try:
+        import torch
+
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+        from sol_execbench.core.bench.config import get_clock_preset
+
+        preset = get_clock_preset(torch.cuda.get_device_name(0))
+        # The REQUESTED setpoint, not the achieved F_LOCK: `max_clk` reads back
+        # what was asked for.
+        expected = preset.gpu_clk_mhz if preset else None
+    except Exception:
+        pass
+
+    setpoints: list[int | None] = []
+    try:
+        import amdsmi
+
+        amdsmi.amdsmi_init()
+        for h in amdsmi.amdsmi_get_processor_handles():
+            try:
+                info = amdsmi.amdsmi_get_clock_info(h, amdsmi.AmdSmiClkType.GFX)
+                setpoints.append(info.get("max_clk"))
+            except Exception:
+                setpoints.append(None)
+    except Exception:
+        return None
+
+    import glob
+
+    levels = []
+    for f in sorted(glob.glob(
+            "/sys/class/drm/card*/device/power_dpm_force_performance_level")):
+        try:
+            levels.append(Path(f).read_text().strip())
+        except Exception:
+            pass
+
+    distinct = sorted({s for s in setpoints if s})
+    return {
+        "expected_setpoint_mhz": expected,
+        "setpoint_mhz_per_gpu": setpoints,
+        "perf_levels": sorted(set(levels)),
+        "agrees": bool(expected) and distinct == [expected]
+                  and set(levels) == {"perf_determinism"},
+    }
+
+
+def assert_clock_lock() -> None:
+    """Refuse to measure when the hardware lock is not what the preset claims.
+
+    Timing runners call this at startup. A measurement taken at the wrong clock
+    is not a slightly-wrong measurement -- T_b is a wall-clock time, so it is
+    wrong by the clock ratio, silently, and looks entirely plausible.
+    """
+    st = clock_lock_state()
+    if st is None:
+        raise SystemExit(
+            "REFUSING to measure: could not read the clock lock back from the "
+            "devices (amdsmi unavailable). An unverified lock means every "
+            "timing is taken at an unknown clock.")
+    if not st["agrees"]:
+        raise SystemExit(
+            "REFUSING to measure: the hardware clock lock is not what the "
+            f"preset table claims.\n"
+            f"  expected setpoint : {st['expected_setpoint_mhz']} MHz on every GPU\n"
+            f"  actual setpoints  : {st['setpoint_mhz_per_gpu']}\n"
+            f"  perf levels       : {st['perf_levels']}\n"
+            "Apply it with `clock_calibrate.py lock --freq-mhz <setpoint> "
+            "--all-gpus`, then re-run.")
+
+
 def stamp(task: str, extra: dict | None = None) -> dict:
     """Build a provenance block. Attach to every artifact."""
     return {
@@ -243,6 +340,7 @@ def stamp(task: str, extra: dict | None = None) -> dict:
             "kernel_stack": kernel_stack(),
             "env": env_mode(),
             "f_lock_mhz": f_lock_mhz(),
+            "clock_lock": clock_lock_state(),
             "visible_devices": os.environ.get("HIP_VISIBLE_DEVICES"),
             **(extra or {}),
         }

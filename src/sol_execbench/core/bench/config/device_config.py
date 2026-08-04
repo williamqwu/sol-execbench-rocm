@@ -83,12 +83,19 @@ CLOCK_LOCK_PRESETS: dict[str, ClockPreset] = {
     # median and below its measured minimum, which makes every T_SOL marginally
     # conservative rather than marginally optimistic.
     #
-    # **This is a GPU-0 number and only GPU 0's.** At this same setting the eight
-    # GPUs hold wildly different clocks -- 1644, 1643, 1318, 1341, 1370, 1357,
-    # 1352, 1327 -- because only two of them obey the request while the other six
-    # land at ~0.80x it, and not because of power (they draw 950-995 W of 1400).
-    # See STATE.md D18. That 326 MHz spread is why authoritative timing is pinned
-    # to GPU 0 and why every timing artifact records which GPU produced it.
+    # **This is a GPU-0 number, and only GPU 0 alone on an idle node.** At this
+    # same setting the eight GPUs hold wildly different clocks -- 1644, 1643,
+    # 1318, 1341, 1370, 1357, 1352, 1327 -- and not because of power (the slow
+    # ones draw 950-995 W of 1400) nor because of weak silicon (unlocked, GPU 2
+    # sustains 1756 MHz, the fastest on the node).
+    #
+    # Worse, it is not stable even for GPU 0: re-measured after a clean reset it
+    # holds 1647 MHz alone but only 1394 MHz while its siblings are loaded, at
+    # this same setting. The value below is therefore a claim about one GPU in
+    # one node condition, and `provenance.assert_clock_lock()` exists because
+    # nothing else in the pipeline could tell you the condition was not met.
+    # See STATE.md D27. That is why authoritative timing is pinned to GPU 0, why
+    # it requires an idle node, and why every timing artifact records its GPU.
     #
     # For scale: the B200 ratio (1500/1970 ~ 76%) would imply ~1830 MHz here,
     # which is ABOVE the measured floor and would throttle continuously. The

@@ -110,7 +110,34 @@ env/solb-native python -c "
 import sys; sys.path.insert(0,'scripts')
 from provenance import stamp
 p = stamp('10-pipeline')['_provenance']
-print(f\"part={p['part']} f_lock={p['f_lock_mhz']} torch={p['torch']['version']}\")"
+print(f\"part={p['part']} f_lock={p['f_lock_mhz']} torch={p['torch']['version']}\")
+print(f\"clock lock  {p['clock_lock']}\")"
+
+# ---------------------------------------------------------------- stage -1
+# The clock lock is APPLIED here and READ BACK off the devices, not assumed.
+# It does not survive a reboot or `rocm-smi -r`, and a determinism sweep leaves
+# the node at whatever setpoint it finished on. That is not hypothetical: on
+# 2026-08-04 a sweep left this node at 1900 MHz and 138 authoritative T_b were
+# measured at ~1860 MHz, every one of them stamped f_lock_mhz 1640, because the
+# only thing that ever checked the clock read it out of the preset table.
+say "clock lock — apply, then verify against the devices"
+SETPOINT="$(env/solb-native python -c "
+import sys; sys.path.insert(0,'src')
+import torch
+from sol_execbench.core.bench.config import get_clock_preset
+p = get_clock_preset(torch.cuda.get_device_name(0))
+print(p.gpu_clk_mhz if p else '')" 2>/dev/null)"
+if [ -z "${SETPOINT}" ]; then
+  say "no clock preset for this part — REFUSING to run timing stages blind"
+  exit 1
+fi
+env/solb-native python scripts/clock_calibrate.py lock \
+    --freq-mhz "${SETPOINT}" --all-gpus || exit 1
+env/solb-native python -c "
+import sys; sys.path.insert(0,'scripts')
+from provenance import assert_clock_lock
+assert_clock_lock()
+print('clock lock verified against the devices')" || exit 1
 
 # ---------------------------------------------------------------- stage 0
 # T_SOL for this part. CPU and meta-device only, so it can overlap anything --

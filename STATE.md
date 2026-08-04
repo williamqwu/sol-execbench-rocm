@@ -80,8 +80,8 @@ What a consumer needs to know before using either:
 | torch version + build | `2.9.1+rocm7.2.0.git7e1940d4` — the pinned version, natively |
 | triton | `3.6.0+git42270451` from `/sgl-workspace/triton-custom` — **a dev checkout, not a release** (D14) |
 | Clock-lock setting | see task 01 below |
-| **F_LOCK (achieved)** | see task 01 below |
-| Sibling-GPU interference | see task 01 below |
+| **F_LOCK (achieved)** | see task 01 below — **valid for GPU 0 alone on an idle node only** (D27) |
+| Sibling-GPU interference | negligible for burst-shaped timing probes; **-15% of GPU 0's clock under sustained sibling load** (D27) |
 | Dataset present | yes — 235 problems, L1=94 L2=82 Quant=33 FlashInfer-Bench=26, round-trip verified |
 | FlashInfer blobs | yes — 304 external safetensors blobs |
 | Measurement environment | **`env/solb-native`** — no docker on this node (D15) |
@@ -115,7 +115,7 @@ Concretely observed while the first floor ran: `--gpu 0` put the load on
 | 03 | SOL bounds (T_SOL) | `done` | `in-progress` | `artifacts/03/` | MI350X: 235/235, two derivations, source recorded. MI355X: **re-derived after the fp32-rate fix** — 166/235 problems from SOLAR, and all 90 bound violations went to 0 (D25). The traffic tier still owes the other 69 |
 | 04 | rocprofiler shim | `done` | `n/a` | `artifacts/04/` | median divergence −0.61% over 1430 pairs; clock domain verified. Not part-specific |
 | 05 | Tolerance calibration | `done` | `inherited` | `artifacts/05/` | 3717/3957 AMD-derived. Numerics of the same gfx950 ISA; not re-derived here |
-| 06 | Baselines (T_b) | `done` | `blocked` | `artifacts/06/`, `06-MI350X/` | MI350X: 220 anchored, 336/349 anchor checks pass. MI355X: selection 223/235 and 132 re-timed, but **not anchor-verified** — blocker B2 |
+| 06 | Baselines (T_b) | `done` | `in-progress` | `artifacts/06/`, `06-MI350X/` | MI350X: 220 anchored, 336/349 anchor checks pass. MI355X: **143 authoritative artifacts quarantined and being re-measured** — they were timed at ~1860 MHz while stamped 1640 (D27). Candidates kept: selection is within-problem and within-GPU. Blocker B2 stands until the re-measured set is anchor-verified |
 | 07 | Quant / MXFP4 | `done` | `blocked` | `artifacts/07/`, `artifacts/deferred.json` | 15 NVFP4 deferred with evidence; 220 ship. On MI355X the other 18 are blocked by B1 (`artifacts/blocked.json`) |
 | 08 | Red team | `done` | `done` | `reference/exploits/`, `artifacts/08/` | 28/28 replay cases, 0 false positives on 235 references. Extended in session 3: the screen now screens filenames, after D21 |
 | 09 | Release | `done` | `in-progress` | `artifacts/09/` | MI350X: **manifest v1, 220/235 problems, 3717 workloads scoreable**. MI355X: `manifest-MI355X-v1.json` builds and reports its own gaps; 0 scoreable while B2 holds |
@@ -1025,6 +1025,80 @@ reasons about files, and a measurement's validity is a property of the set it
 belongs to.** Any directory that accumulates per-problem artifacts across two
 machines has this hazard, and the only durable defence is for the consumer to
 check provenance rather than for the merger to be careful.
+
+### D27 — the node was never locked, and F_LOCK is not a property of the lock
+
+Two findings, one of which invalidates a day of measurement and one of which
+undermines what F_LOCK means on this part.
+
+**1. 143 authoritative T_b were measured at ~1860 MHz and stamped 1640.**
+
+`determinism-sweep` applies a setpoint per step and never resets, so the node
+was left at the last one it asked for — 1900 MHz, at 08:48 — and stayed there.
+Eleven hours later `run_pipeline.sh` printed `f_lock=1640`, applied nothing, and
+measured 138 authoritative artifacts plus 232 candidates at a live 1848-1870 MHz.
+
+The stamp could not disagree with the table, because it *was* the table:
+`provenance.f_lock_mhz()` returned `preset.f_lock_mhz` without reading a device.
+D26's `collect_t_b()` guard compares that same stamp, so it checked 1640 against
+1640 and passed. **An artifact recorded what it was supposed to run at and there
+was no second source anywhere in the pipeline.**
+
+Fixed: `clock_lock_state()` reads the setpoint back off every GPU
+(`amdsmi` `max_clk`, which reports the determinism request and is readable while
+idle), `assert_clock_lock()` refuses to measure on disagreement,
+`authoritative_tb.py` calls it before spending GPU time, and `run_pipeline.sh`
+now *applies* the lock and verifies it rather than printing a number. Both
+failure modes were planted and observed to refuse: setpoint 1900 against an
+expected 1650, and a partial lock with one GPU reset to `auto`.
+
+**2. The 1318-1644 spread is real, reproducible, and not a property of the GPUs.**
+
+Re-measured after a clean `rocm-smi -r`, at `--setperfdeterminism 1650`, with
+every GPU loaded simultaneously so no GPU is sampled in a different node state
+than any other:
+
+| condition | GPU 0 | GPU 2 |
+|---|---|---|
+| saturating GEMM, that GPU alone | **1647** (1272 W) | 1317 (969 W) |
+| saturating GEMM, all 8 loaded | **1394** (983 W) | 1316 (973 W) |
+| timing-harness duty, that GPU alone | **1647** (1024 W) | 1389 (815 W) |
+
+GPU 0 — the GPU F_LOCK 1640 was derived from and every authoritative number is
+pinned to — **lands anywhere between 1394 and 1647 MHz at one setting**,
+depending on whether its siblings are busy and on the duty cycle of the workload
+being timed. Nothing in an artifact records either.
+
+So the earlier reading, "two of eight GPUs obey", was measured one GPU at a time
+on an otherwise idle node and is only true under that condition. What is stable:
+
+* Not power. The slow branch draws 949-995 W of a 1400 W cap.
+* Not the silicon. Unlocked, GPU 2 sustains **1756 MHz** — the *fastest* of the
+  three GPUs floored, and the slowest under lock. The ordering inverts.
+* Not stale mode. Every measurement above follows a full reset; pre-setting 2400
+  and dropping to 1650 changes nothing (1399 vs 1394).
+* GPU 2 never reaches the requested clock at any setpoint tried with a fresh
+  reset: 1600→1288, 1700→1347, 1800→1428, 2000→1541, all at 0.77-0.81x.
+
+There is **no setpoint at which all eight agree**, and not merely because the
+GPUs differ: GPU 0 cannot produce any clock between ~1214 (setpoint 1500) and
+~1593 (setpoint 1600). That gap is a DPM state boundary, and a common target has
+to fall outside it.
+
+Consequences taken: authoritative timing stays pinned to GPU 0 on an idle node,
+which is the one condition measured to give 1647 reproducibly, and stage 1 now
+verifies the setpoint before it starts. Consequence *not* yet taken: F_LOCK is
+still a single constant in `CLOCK_LOCK_PRESETS`, and the honest version of this
+part would sample the clock during each timing run and record the measured value
+per artifact. That is a larger change than this session should make silently.
+
+**`artifacts/01/interference.json`'s verdict does not transfer.** It was measured
+at 08:51, i.e. at the 1900 setpoint, and its probe is a 50-iteration burst — a
+duty cycle that keeps GPU 0 on the fast branch. Re-run at 1650 it still reports
+-0.54%, but the clock table above shows GPU 0 losing 15% of its clock to sibling
+load under a *sustained* one. "Sweeps and authoritative timing can share the
+node" is true only for burst-shaped timing probes, which is not a property the
+sentence claims.
 
 ### D24 — the scorer trusted the packet's copy of the problem, and an agent edited it
 
