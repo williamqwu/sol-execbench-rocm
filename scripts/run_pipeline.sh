@@ -176,10 +176,17 @@ of $(ls artifacts/06/candidates/*.json 2>/dev/null | wc -l) candidates already r
   # work that is not. Guessing completeness from a file count would do both wrong:
   # a pass that legitimately ends below the candidate count (some problems have no
   # winner) would look unfinished forever.
+  # 2700 s, not 900. At 900 four of the 143 problems the first pass reached
+  # (2.8%) were killed mid-`max_autotune` with the GPU at 100% and load average
+  # 42 -- making progress, not hung -- and a killed problem is recorded as having
+  # no T_b, which is indistinguishable downstream from a problem where no variant
+  # passed. Extrapolated, that trades ~4 h of worst-case wall clock for ~6
+  # anchors. Still bounded, because the ceiling is what makes a stuck problem
+  # cost one slot instead of the run.
   env/solb-native python -u scripts/authoritative_tb.py \
       --candidates artifacts/06/candidates \
       --out artifacts/06/authoritative \
-      --gpu 0 --top-k 2 --within 0.25 --timeout 900 \
+      --gpu 0 --top-k 2 --within 0.25 --timeout 2700 \
       2>&1 | tee -a "${LOGS}/01-tb-authoritative.log"
   mark_done tb_authoritative
 fi
