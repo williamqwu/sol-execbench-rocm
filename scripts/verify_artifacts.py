@@ -69,8 +69,48 @@ def state_text() -> str:
 
 
 def f_lock_from_state() -> int | None:
-    m = re.search(r"F_LOCK.*?(\d{3,4})\s*(?:MHz)?", state_text(), re.I)
+    """F_LOCK as STATE.md declares it, from a canonical marker only.
+
+    Deliberately narrow. The original pattern was ``F_LOCK.*?(\\d{3,4})``, which
+    matches the *first* number after the *first* mention of F_LOCK anywhere in the
+    file — a prose sentence, a table cell, a deviation write-up, whichever comes
+    first. That is fine while STATE.md documents one part and silently wrong as
+    soon as it documents two: on an MI355X node whose STATE.md still discussed the
+    MI350X bound, this resolved to 1300 and the acceptance check reported
+
+        [PASS] F_LOCK recorded in STATE.md                1300 MHz
+        [PASS] F_LOCK at or below lowest observed floor   F_LOCK 1300 <= min p5 1724
+
+    Both green, and neither could have failed: 1300 clears a 1724 floor so
+    comfortably that no wrong answer would ever trip it. A check that cannot fail
+    is worse than no check, because it is read as evidence.
+
+    The marker is ``**F_LOCK = <n> MHz**``, written once, in *Decisions taken*.
+    """
+    m = re.search(r"^\s*\*\*F_LOCK\s*=\s*(\d{3,4})\s*MHz\*\*", state_text(),
+                  re.I | re.M)
     return int(m.group(1)) if m else None
+
+
+def f_lock_from_preset() -> tuple[int | None, str | None]:
+    """(F_LOCK, part) as the *code* will use it, from ``CLOCK_LOCK_PRESETS``.
+
+    This is the value every T_SOL and T_b is actually expressed at, because it is
+    the one ``provenance.stamp()`` records and the one ``lock_clocks()`` applies.
+    If it and STATE.md disagree, one of them is lying about the frequency the whole
+    benchmark is calibrated to, and nothing downstream can tell which.
+    """
+    try:
+        sys.path.insert(0, str(ROOT / "src"))
+        import torch
+
+        from sol_execbench.core.bench.config import get_clock_preset
+        from solexbench_rocm.parts import detect_part
+
+        preset = get_clock_preset(torch.cuda.get_device_name(0))
+        return (preset.f_lock_mhz if preset else None), detect_part().name
+    except Exception:
+        return None, None
 
 
 # --------------------------------------------------------------------------
@@ -119,7 +159,24 @@ def check_00(c: Checks):
 def check_01(c: Checks):
     fl = f_lock_from_state()
     c.require(fl is not None, "F_LOCK recorded in STATE.md",
-              f"{fl} MHz", "blocks tasks 03, 05, 06")
+              f"{fl} MHz",
+              "no canonical `**F_LOCK = <n> MHz**` line — blocks tasks 03, 05, 06")
+
+    preset_fl, part = f_lock_from_preset()
+    c.require(preset_fl is not None, "F_LOCK present in CLOCK_LOCK_PRESETS",
+              f"{preset_fl} MHz for {part}",
+              "no preset for this device — lock_clocks() will refuse and every "
+              "artifact's f_lock_mhz will be null")
+    if fl is not None and preset_fl is not None:
+        # The one comparison that catches a stale document or a stale constant.
+        # Both are load-bearing: the preset is what gets applied and stamped, the
+        # document is what a human reads, and a benchmark whose two records of its
+        # own clock disagree cannot be trusted to a percent.
+        c.require(fl == preset_fl,
+                  "STATE.md and CLOCK_LOCK_PRESETS agree on F_LOCK",
+                  f"both {fl} MHz",
+                  f"STATE.md says {fl} MHz, code applies {preset_fl} MHz — one of "
+                  f"them is wrong and every T_SOL and T_b depends on which")
 
     floors = list((ART / "01").glob("floor-gpu*.json")) if (ART / "01").exists() else []
     c.require(len(floors) >= 3, "clock floor sampled on >=3 GPUs",

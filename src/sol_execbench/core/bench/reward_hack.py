@@ -269,11 +269,45 @@ _SOURCE_HAZARDS: tuple[tuple[str, str], ...] = (
 )
 
 
+# AMD: hazards in the source FILENAME rather than in its contents.
+#
+# Python imports some names automatically at interpreter startup, before any
+# harness guard has installed itself and outside every timed region. A submission
+# that ships one is executing code the harness never invoked, which is the same
+# escape as monkey-patching — and it is invisible to a content scan, because the
+# content can be, and was, entirely innocuous.
+#
+# Observed: a submission shipped `sitecustomize.py` defining `enum.StrEnum` to
+# work around an interpreter older than the project requires. That particular
+# patch was benign and arguably a repair; it was also the difference between a
+# problem scoring 16/16 and not evaluating at all, which is far too much leverage
+# to leave outside the record.
+_PATH_HAZARDS: tuple[tuple[str, str], ...] = (
+    (
+        r"(^|/)(sitecustomize|usercustomize)\.py$",
+        "is imported automatically at interpreter startup, so it runs before any "
+        "harness guard and outside every timed region.",
+    ),
+    (
+        r"\.pth$",
+        "a .pth file in a site directory executes lines beginning with `import` "
+        "at interpreter startup, before the harness runs.",
+    ),
+    (
+        r"(^|/)conftest\.py$",
+        "is imported automatically by pytest, outside the evaluation path.",
+    ),
+)
+
+
 def static_source_screen(sources: Any) -> list[tuple[str, str, str]]:
     """Screen submission sources for hazards. Returns [(path, pattern, why)].
 
     *sources* is any iterable of objects with ``path`` and ``content``, or of
     ``(path, content)`` pairs.
+
+    Screens both the content and the **filename**: some names the interpreter
+    imports by itself, so their content never has to look suspicious.
 
     Reports rather than raises, so a caller can decide between refusing the
     submission and recording the finding. Empty list means clean.
@@ -288,6 +322,9 @@ def static_source_screen(sources: Any) -> list[tuple[str, str, str]]:
             path, content = getattr(src, "path", "?"), getattr(src, "content", "")
         for pattern, why in _SOURCE_HAZARDS:
             if re.search(pattern, content or ""):
+                findings.append((str(path), pattern, why))
+        for pattern, why in _PATH_HAZARDS:
+            if re.search(pattern, str(path)):
                 findings.append((str(path), pattern, why))
     return findings
 

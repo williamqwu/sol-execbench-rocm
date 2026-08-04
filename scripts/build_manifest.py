@@ -114,15 +114,50 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
     return out, stats
 
 
-def collect_t_b(directory: Path) -> dict[str, dict]:
-    """{problem: {workload_uuid: {variant, t_b_ms}}} from artifacts/06."""
+def collect_t_b(directory: Path, f_lock_mhz: int | None = None) -> dict[str, dict]:
+    """{problem: {workload_uuid: {variant, t_b_ms}}} from artifacts/06.
+
+    ``f_lock_mhz`` refuses any artifact measured at a different clock. T_b is a
+    wall-clock time, so mixing two clocks rescales those problems' scores by the
+    ratio between them — silently, and per problem.
+
+    This is not hypothetical. Merging two ports of this benchmark added 87 T_b
+    artifacts measured at F_LOCK 1300 into a directory of artifacts measured at
+    1640, and no conflict was raised, because a three-way merge does not conflict
+    on a file present on only one side. The manifest then built from the mixture
+    without complaint. Every one of those files was internally correct and
+    correctly stamped; the *directory* was wrong, and a directory has no
+    provenance of its own — which is exactly why every artifact here carries one.
+
+    Rejecting at the point of consumption rather than asking the merger to be
+    careful is the only version of this that stays true: any directory that
+    accumulates per-problem artifacts across two machines has the same hazard.
+    """
     out: dict[str, dict] = {}
     if not directory.exists():
         return out
+    foreign: list[tuple[str, object]] = []
     for f in sorted(directory.glob("*.json")):
         doc = _load(f)
-        if doc and doc.get("winner_by_workload"):
-            out[doc.get("problem", f.stem)] = doc["winner_by_workload"]
+        if not (doc and doc.get("winner_by_workload")):
+            continue
+        # None means the artifact predates provenance stamping of F_LOCK, which is
+        # a different problem from being measured at the wrong clock; those are
+        # admitted, and check_06 already requires provenance separately.
+        measured_at = (doc.get("_provenance") or {}).get("f_lock_mhz")
+        if f_lock_mhz is not None and measured_at not in (None, f_lock_mhz):
+            foreign.append((f.name, measured_at))
+            continue
+        out[doc.get("problem", f.stem)] = doc["winner_by_workload"]
+    if foreign:
+        print(f"\n  REJECTED {len(foreign)} T_b artifact(s) measured at a different "
+              f"clock than F_LOCK={f_lock_mhz}:", file=sys.stderr)
+        for name, at in foreign[:5]:
+            print(f"    {name} (F_LOCK {at})", file=sys.stderr)
+        if len(foreign) > 5:
+            print(f"    ... and {len(foreign) - 5} more", file=sys.stderr)
+        print("  T_b is a wall-clock time; mixing clocks rescales those problems' "
+              "scores.\n", file=sys.stderr)
     return out
 
 
@@ -186,7 +221,12 @@ def main():
         )
 
     methodology = _methodology_of(Path(a.t_b))
-    t_b = collect_t_b(Path(a.t_b))
+    # The clock every T_b in this manifest must have been measured at, read from
+    # the same table lock_clocks() applies from, so the manifest and the hardware
+    # cannot disagree about it.
+    from provenance import f_lock_mhz as _f_lock
+
+    t_b = collect_t_b(Path(a.t_b), _f_lock())
     t_sol, bound_sources = combine_bounds(
         collect_t_sol(Path(a.t_sol)),
         collect_t_sol(Path(a.t_sol_traffic)),
