@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 import statistics
 import sys
@@ -221,11 +222,24 @@ def ingest_variants(conn, manifest: dict) -> None:
                           for v in excluded})))
 
 
-def ingest_agent_runs(conn) -> None:
-    """Any `artifacts/10/<run>/scored.json` written by `agent_score.py`."""
-    if not AGENT_RUNS.exists():
-        return
-    for scored in sorted(AGENT_RUNS.glob("*/scored.json")):
+def ingest_agent_runs(conn, extra_roots: list[Path] | None = None) -> None:
+    """Any `<root>/<run>/scored.json` written by `agent_score.py`.
+
+    Extra roots matter because a run directory does not have to live in the
+    repo -- a scratch experiment under $HOME is a legitimate place for one, and
+    globbing only `artifacts/10` silently omits it from the board rather than
+    reporting that it was skipped.
+    """
+    roots = [AGENT_RUNS, *(extra_roots or [])]
+    scored_files = []
+    for root in roots:
+        if root.exists():
+            scored_files += sorted(root.glob("*/scored.json"))
+            if (root / "scored.json").exists():      # root IS a run directory
+                scored_files.append(root / "scored.json")
+        else:
+            print(f"  (agent-run root not found, skipped: {root})")
+    for scored in scored_files:
         doc = json.loads(scored.read_text())
         run_id = doc.get("run_id", scored.parent.name)
         # Validation runs are scored the same way and kept as artifacts, but a
@@ -275,7 +289,15 @@ def ingest_agent_runs(conn) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", type=Path, default=Path(__file__).parent / "solbench.db")
+    ap.add_argument("--agent-runs", type=Path, nargs="*", default=None,
+                    help="extra directories holding <run>/scored.json, for runs "
+                         "kept outside the repo. Also read from "
+                         "SOLEXBENCH_AGENT_RUNS (colon-separated).")
     a = ap.parse_args()
+
+    extra = list(a.agent_runs or [])
+    env_roots = os.environ.get("SOLEXBENCH_AGENT_RUNS", "")
+    extra += [Path(p) for p in env_roots.split(":") if p.strip()]
 
     manifest = json.loads(MANIFEST.read_text())
     if a.db.exists():
@@ -288,7 +310,7 @@ def main() -> int:
     print("variants:")
     ingest_variants(conn, manifest)
     print("agent runs:")
-    ingest_agent_runs(conn)
+    ingest_agent_runs(conn, extra)
     conn.commit()
 
     n_p = conn.execute("SELECT COUNT(*) FROM problem").fetchone()[0]

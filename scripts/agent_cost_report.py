@@ -211,8 +211,31 @@ def trajectory(run: dict) -> dict:
             if best is not None:
                 by_step.setdefault(st["n"], []).append(best)
 
+    # Where the score stopped moving. Sessions that run to natural completion
+    # keep working long after the last measurable gain, so the budget that
+    # matters is the one that reaches the plateau -- not the one the agent
+    # stops at. Eval index is a proxy for spend; it is not linear in dollars,
+    # and the report says so.
+    plateau = {}
+    for key, steps in per_problem.items():
+        valid = [(st["n"], st["mean_score"]) for st in steps
+                 if st["all_passed"] and st["mean_score"] is not None]
+        if not valid:
+            continue
+        best = max(v for _, v in valid)
+        first_at_99 = next((n for n, v in valid if v >= 0.99 * best), None)
+        plateau[key] = {
+            "evals_total": len(steps),
+            "evals_to_99pct_of_best": first_at_99,
+            "wasted_evals_after_plateau":
+                (len(steps) - first_at_99) if first_at_99 else None,
+            "best_score": best,
+            "first_score": valid[0][1],
+        }
+
     return {
         "per_problem": per_problem,
+        "plateau": plateau,
         "best_by_eval_index": {
             str(n): {"n_problems": len(v), "mean_best_score": statistics.fmean(v)}
             for n, v in sorted(by_step.items())},
@@ -348,9 +371,15 @@ def main() -> int:
         "wall_hours_serial":
             total_problems * summary["wall_seconds"]["per_problem_mean"] / 3600.0,
         "caveats": [
-            f"{n_capped} of {n} sessions were stopped at the "
-            f"${run.get('budget_usd_per_session')} spend cap, so their cost is a "
-            f"LOWER bound and so is any figure derived from them.",
+            (f"{n_capped} of {n} sessions were stopped at the "
+             f"${run.get('budget_usd_per_session')} spend cap, so their cost is a "
+             f"LOWER bound and so is any figure derived from them."
+             if n_capped else
+             f"No session hit the ${run.get('budget_usd_per_session')} cap — all "
+             f"{n} ran to natural completion, so these are the costs the "
+             f"problems actually incur rather than the budget they were "
+             f"allowed. They are an UPPER bound on what is worth spending: the "
+             f"score plateaus well before the agent stops."),
             f"n = {n}. Cost per problem spans "
             f"${min(costs) if costs else 0:.2f} to ${max(costs) if costs else 0:.2f} "
             f"in this sample; the range above reflects that spread, not "
@@ -491,6 +520,24 @@ def render_md(s: dict) -> str:
               f"| {best - first:+.3f} | {ok} |")
         if gains:
             A(f"\nMedian gain over the reference: **{statistics.median(gains):+.3f}**.\n")
+        pl = tr.get("plateau") or {}
+        if pl:
+            A("\n### Where the score stopped moving\n")
+            A("| problem | evals | reached 99% of best at | evals after that |")
+            A("|---|--:|--:|--:|")
+            for key, v in sorted(pl.items()):
+                A(f"| `{key[:44]}` | {v['evals_total']} "
+                  f"| {v['evals_to_99pct_of_best']} | {v['wasted_evals_after_plateau']} |")
+            wasted = [v["wasted_evals_after_plateau"] for v in pl.values()
+                      if v["wasted_evals_after_plateau"] is not None]
+            if wasted:
+                A(f"\n**{sum(wasted)} of "
+                  f"{sum(v['evals_total'] for v in pl.values())} evaluations came "
+                  f"after the score had stopped improving.** A session that runs to "
+                  f"natural completion keeps polishing well past its last "
+                  f"measurable gain, so the budget worth paying for is the one "
+                  f"that reaches the plateau, not the one the agent stops at. "
+                  f"Eval index is a proxy for spend here, not a linear one.\n")
         A("A cross-problem average at eval N would be survivorship: the problems "
           "that reach a high N are the ones the agent was struggling with, so "
           "the mean falls as N rises for reasons that have nothing to do with "
