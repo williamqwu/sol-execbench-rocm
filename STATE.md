@@ -31,6 +31,37 @@ output.
 
 ---
 
+## More than one session works on this node — read this before starting anything
+
+Session 3 has had **two agent sessions committing to `feat/agent-scoreboard`
+concurrently**. That is workable and has already been productive — `fc92b73`
+found a defect in `f5b1af9`'s own reasoning within the hour — but it has one
+failure mode that costs real GPU time, so it is interlocked in code rather than
+by convention:
+
+**Never run two `scripts/run_pipeline.sh` at once.** Each builds its own GPU pool
+and both hand out the same seven cards, so two agents land on one GPU — deviation
+D11, where the artifact records the device it was *told* to use and cannot tell
+you it was shared. It is also how a timing stage ends up beside an agent sweep,
+which is what voided the first T_b measurement (B2).
+
+`acquire_lock()` refuses to start when either a live pid holds
+`artifacts/10/pipeline/driver.lock` **or** another `run_pipeline.sh` exists. The
+second check is there because a driver started before the lock existed has no
+lock file, which was exactly the situation when it was written.
+
+To join work already in flight: `tmux attach -t solb`. To see what the other
+session has done: `git log --oneline` — the pipeline stages are idempotent behind
+markers in `artifacts/10/pipeline/`, so whoever restarts it resumes rather than
+repeats.
+
+One thing that is **not** interlocked and needs saying out loud: the clock. A
+determinism sweep left at a 1900 MHz setpoint cost eleven hours of T_b
+measurement (D27). If you change the clock for any reason, reset it, and do not
+assume `run_pipeline.sh` will notice — `assert_clock_lock()` now reads the
+setpoint back off every GPU precisely because the preset table is not the
+hardware.
+
 ## Where this stands
 
 **On MI350X the benchmark is measured and the manifest is frozen.**

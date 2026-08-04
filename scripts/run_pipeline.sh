@@ -105,7 +105,79 @@ require_idle() {
   return 0
 }
 
+# --- one driver at a time -------------------------------------------------
+#
+# Two drivers is not a tidiness problem. Each builds its own GPU pool, so both
+# hand out the same seven cards and two agents land on one GPU -- deviation D11,
+# where the artifact records the device it was told to use and cannot tell you it
+# was shared. It is also how a timing stage ends up running beside an agent sweep,
+# which is what voided the first T_b measurement (B2).
+#
+# This node is worked on by more than one session, so the interlock is enforced by
+# code rather than by everyone remembering. Checked two ways, because a driver
+# started before this existed has no lock file:
+#   1. a lock file naming a live pid
+#   2. any other run_pipeline.sh process
+LOCK="${MARKERS}/driver.lock"
+
+# Per-harness views on the sweep, as extra windows in whatever tmux session is
+# driving. One window per harness rather than one SESSION per harness, and that
+# distinction is the whole point: a session each would mean a run_agents.py each,
+# and two GPU pools handing out the same seven cards (D11).
+#
+# A static split instead -- claude on 1-3, codex on 4-7 -- avoids the collision
+# but wastes the node. The pilot measured 28.1 min/problem for claude-code against
+# 12.2 for codex, so codex would finish its half in ~10 h and leave four cards idle
+# for the ~21 h claude needs. One queue self-balances; a partition cannot.
+open_harness_windows() {
+  [ -n "${TMUX:-}" ] || return 0
+  local session
+  session="$(tmux display-message -p '#S' 2>/dev/null)" || return 0
+  for h in claude-code codex; do
+    tmux list-windows -t "${session}" -F '#W' 2>/dev/null | grep -qx "${h}" && continue
+    tmux new-window -d -t "${session}" -n "${h}" \
+      "watch -n 10 \"grep -a '\\[${h}\\]' '${LOGS}/05-sweep.log' | tail -30\"" \
+      2>/dev/null || true
+  done
+  say "opened tmux windows: claude-code, codex  (Ctrl-b w to switch)"
+}
+
+release_lock() {
+  # Only if it is still ours. A driver that lost a race must not free the winner's.
+  if [ -f "${LOCK}" ] && [ "$(cat "${LOCK}" 2>/dev/null)" = "$$" ]; then
+    rm -f "${LOCK}"
+  fi
+}
+
+acquire_lock() {
+  local holder
+  if [ -f "${LOCK}" ]; then
+    holder="$(cat "${LOCK}" 2>/dev/null)"
+    if [ -n "${holder}" ] && kill -0 "${holder}" 2>/dev/null; then
+      say "REFUSING: pipeline already driven by pid ${holder} (${LOCK})."
+      echo "  Two drivers each build a GPU pool and hand out the same cards." >&2
+      echo "  Attach to it instead:  tmux attach -t solb" >&2
+      exit 1
+    fi
+    say "clearing a stale lock from pid ${holder:-unknown}"
+    rm -f "${LOCK}"
+  fi
+
+  local others
+  others="$(matching_pids 'run_pipeline.sh' | tr '\n' ' ')"
+  if [ -n "${others// /}" ]; then
+    say "REFUSING: another run_pipeline.sh is running (pids: ${others})."
+    echo "  It predates this lock, so there is no lock file to check." >&2
+    echo "  Attach to it instead:  tmux attach -t solb" >&2
+    exit 1
+  fi
+
+  echo "$$" > "${LOCK}"
+  trap release_lock EXIT INT TERM
+}
+
 say "pipeline start — run_id=${RUN_ID}"
+acquire_lock
 env/solb-native python -c "
 import sys; sys.path.insert(0,'scripts')
 from provenance import stamp
@@ -252,6 +324,7 @@ if is_done sweep; then
   say "stage 5 agent sweep — already done, skipping"
 else
   say "stage 5 agent sweep (${RUN_ID})"
+  open_harness_windows
   reap
   env/solb-native python -u scripts/run_agents.py \
       --run-id "${RUN_ID}" \
