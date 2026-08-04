@@ -574,6 +574,22 @@ past clocks: a three-way merge reasons about files, while a measurement's validi
 is a property of the set it belongs to, so the durable defence is the consumer
 checking provenance rather than the merger being careful.
 
+**This check is necessary and not sufficient, and the first version of this entry
+claimed more than that.** It compares the artifact's stamp against the preset
+table. Both read from the same place, so it catches an artifact from *another
+clock* and is blind to an artifact whose stamp is simply wrong. That is not a
+hypothetical gap: an unreset determinism sweep left a node at a 1900 MHz setpoint,
+`provenance.f_lock_mhz()` returned the preset's 1640 without reading a device, and
+143 artifacts measured at ~1860 MHz were stamped 1640 — then 1640 was checked
+against 1640 and passed. Eleven hours of measurement, every value about 12% faster
+than the number it claimed.
+
+The original argument here was that reading the expected clock from the same table
+`lock_clocks()` applies from meant the two could not disagree. **The table is not
+the hardware.** Closing it needs the setpoint read back off the GPUs before
+measuring, and the observed clock stamped rather than the requested one — a change
+to the timing runners, not to `collect_t_b()`.
+
 **F19 — the static source screen could not see a startup hook.**
 
 `static_source_screen()` scanned file *contents* only. Python imports some names

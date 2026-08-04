@@ -117,21 +117,35 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
 def collect_t_b(directory: Path, f_lock_mhz: int | None = None) -> dict[str, dict]:
     """{problem: {workload_uuid: {variant, t_b_ms}}} from artifacts/06.
 
-    ``f_lock_mhz`` refuses any artifact measured at a different clock. T_b is a
+    ``f_lock_mhz`` refuses any artifact whose *stamped* clock differs. T_b is a
     wall-clock time, so mixing two clocks rescales those problems' scores by the
     ratio between them — silently, and per problem.
 
     This is not hypothetical. Merging two ports of this benchmark added 87 T_b
-    artifacts measured at F_LOCK 1300 into a directory of artifacts measured at
-    1640, and no conflict was raised, because a three-way merge does not conflict
-    on a file present on only one side. The manifest then built from the mixture
-    without complaint. Every one of those files was internally correct and
-    correctly stamped; the *directory* was wrong, and a directory has no
-    provenance of its own — which is exactly why every artifact here carries one.
+    artifacts stamped F_LOCK 1300 into a directory of artifacts stamped 1640, and
+    no conflict was raised, because a three-way merge does not conflict on a file
+    present on only one side. The manifest then built from the mixture without
+    complaint. Every one of those files was internally correct and correctly
+    stamped; the *directory* was wrong, and a directory has no provenance of its
+    own — which is exactly why every artifact here carries one.
 
     Rejecting at the point of consumption rather than asking the merger to be
     careful is the only version of this that stays true: any directory that
     accumulates per-problem artifacts across two machines has the same hazard.
+
+    **What this check does NOT do, stated because an earlier version of this
+    docstring claimed otherwise.** It compares the stamp against the preset table.
+    Both come from the same place, so it catches artifacts from *another clock* and
+    is blind to an artifact whose stamp is simply **wrong** — and that happens: an
+    unreset determinism sweep once left a node at a 1900 MHz setpoint while
+    ``provenance.f_lock_mhz()`` returned the preset's 1640 without reading a
+    device, so 143 artifacts measured at ~1860 MHz were stamped 1640, and 1640 was
+    checked against 1640 and passed. The table is not the hardware.
+
+    Closing that requires reading the setpoint back off the GPUs before measuring
+    and stamping the clock actually observed, which is a change to the timing
+    runners rather than to this function. This check remains necessary and is not
+    sufficient.
     """
     out: dict[str, dict] = {}
     if not directory.exists():
