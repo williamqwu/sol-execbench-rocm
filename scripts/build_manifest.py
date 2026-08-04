@@ -114,15 +114,64 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
     return out, stats
 
 
-def collect_t_b(directory: Path) -> dict[str, dict]:
-    """{problem: {workload_uuid: {variant, t_b_ms}}} from artifacts/06."""
+def collect_t_b(directory: Path, f_lock_mhz: int | None = None) -> dict[str, dict]:
+    """{problem: {workload_uuid: {variant, t_b_ms}}} from artifacts/06.
+
+    ``f_lock_mhz`` refuses any artifact whose *stamped* clock differs. T_b is a
+    wall-clock time, so mixing two clocks rescales those problems' scores by the
+    ratio between them — silently, and per problem.
+
+    This is not hypothetical. Merging two ports of this benchmark added 87 T_b
+    artifacts stamped F_LOCK 1300 into a directory of artifacts stamped 1640, and
+    no conflict was raised, because a three-way merge does not conflict on a file
+    present on only one side. The manifest then built from the mixture without
+    complaint. Every one of those files was internally correct and correctly
+    stamped; the *directory* was wrong, and a directory has no provenance of its
+    own — which is exactly why every artifact here carries one.
+
+    Rejecting at the point of consumption rather than asking the merger to be
+    careful is the only version of this that stays true: any directory that
+    accumulates per-problem artifacts across two machines has the same hazard.
+
+    **What this check does NOT do, stated because an earlier version of this
+    docstring claimed otherwise.** It compares the stamp against the preset table.
+    Both come from the same place, so it catches artifacts from *another clock* and
+    is blind to an artifact whose stamp is simply **wrong** — and that happens: an
+    unreset determinism sweep once left a node at a 1900 MHz setpoint while
+    ``provenance.f_lock_mhz()`` returned the preset's 1640 without reading a
+    device, so 143 artifacts measured at ~1860 MHz were stamped 1640, and 1640 was
+    checked against 1640 and passed. The table is not the hardware.
+
+    Closing that requires reading the setpoint back off the GPUs before measuring
+    and stamping the clock actually observed, which is a change to the timing
+    runners rather than to this function. This check remains necessary and is not
+    sufficient.
+    """
     out: dict[str, dict] = {}
     if not directory.exists():
         return out
+    foreign: list[tuple[str, object]] = []
     for f in sorted(directory.glob("*.json")):
         doc = _load(f)
-        if doc and doc.get("winner_by_workload"):
-            out[doc.get("problem", f.stem)] = doc["winner_by_workload"]
+        if not (doc and doc.get("winner_by_workload")):
+            continue
+        # None means the artifact predates provenance stamping of F_LOCK, which is
+        # a different problem from being measured at the wrong clock; those are
+        # admitted, and check_06 already requires provenance separately.
+        measured_at = (doc.get("_provenance") or {}).get("f_lock_mhz")
+        if f_lock_mhz is not None and measured_at not in (None, f_lock_mhz):
+            foreign.append((f.name, measured_at))
+            continue
+        out[doc.get("problem", f.stem)] = doc["winner_by_workload"]
+    if foreign:
+        print(f"\n  REJECTED {len(foreign)} T_b artifact(s) measured at a different "
+              f"clock than F_LOCK={f_lock_mhz}:", file=sys.stderr)
+        for name, at in foreign[:5]:
+            print(f"    {name} (F_LOCK {at})", file=sys.stderr)
+        if len(foreign) > 5:
+            print(f"    ... and {len(foreign) - 5} more", file=sys.stderr)
+        print("  T_b is a wall-clock time; mixing clocks rescales those problems' "
+              "scores.\n", file=sys.stderr)
     return out
 
 
@@ -186,7 +235,28 @@ def main():
         )
 
     methodology = _methodology_of(Path(a.t_b))
-    t_b = collect_t_b(Path(a.t_b))
+    # The clock every T_b in this manifest must have been measured at, read from
+    # the same table lock_clocks() applies from, so the manifest and the hardware
+    # cannot disagree about it.
+    from provenance import f_lock_mhz as _f_lock
+
+    expected_f_lock = _f_lock()
+    if expected_f_lock is None:
+        # The guard below is only a guard when it has a number to compare
+        # against. `f_lock_mhz()` returns None off-GPU with no override set, and
+        # `collect_t_b(..., None)` then admits artifacts from any clock -- so
+        # building the manifest in the wrong environment would silently restore
+        # exactly the defect F18 fixed, and the output would look normal.
+        # Refusing is the only safe reading: an unknown clock is not a
+        # permissive one.
+        raise SystemExit(
+            "cannot resolve F_LOCK: no GPU preset and no SOLEXBENCH_F_LOCK_MHZ.\n"
+            "  The T_b clock guard cannot run without it, and building without "
+            "the guard is how a two-clock T_b directory got into a manifest in "
+            "the first place (STATE.md F18).\n"
+            "  Set SOLEXBENCH_F_LOCK_MHZ=<achieved MHz> to build off-GPU.")
+
+    t_b = collect_t_b(Path(a.t_b), expected_f_lock)
     t_sol, bound_sources = combine_bounds(
         collect_t_sol(Path(a.t_sol)),
         collect_t_sol(Path(a.t_sol_traffic)),

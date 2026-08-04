@@ -635,14 +635,217 @@ so one bad problem stalls the sweep behind it — the classic way a "finished"
 sweep silently covers 200 problems instead of 235. Each problem now runs as a
 killable subprocess with a timeout, and a timeout is recorded as a result.
 
+**F17 — `verify_artifacts.py --task 01` had a check that could not fail.**
+
+`f_lock_from_state()` matched `F_LOCK.*?(\d{3,4})` against the whole of STATE.md,
+i.e. the first number following the first mention of F_LOCK anywhere — a prose
+sentence, a table cell, a deviation write-up, whichever came first. That is fine
+while the file documents one part. On a node whose STATE.md still discussed the
+other part's bound it resolved to the wrong number and reported:
+
+```
+[PASS] F_LOCK recorded in STATE.md                1300 MHz
+[PASS] F_LOCK at or below lowest observed floor   F_LOCK 1300 <= min p5 1724
+```
+
+Both green, and neither could have failed: 1300 clears a 1724 floor so
+comfortably that no wrong answer would ever trip it. The check protecting the
+most consequential measurement in the project was inert.
+
+Now the match requires a canonical `**F_LOCK = <n> MHz**` line, and a new check
+compares it against `CLOCK_LOCK_PRESETS` — the value the code actually applies
+and stamps. A document and a constant that disagree about the frequency every
+bound is expressed at is exactly the failure nothing downstream can detect.
+
+**F18 — `build_manifest.py` built from a T_b directory holding two clocks.**
+
+Merging two ports of this benchmark added 87 T_b artifacts measured at F_LOCK
+1300 into a directory of artifacts measured at 1640. No conflict was raised,
+because a three-way merge does not conflict on a file present on only one side,
+and the manifest then built from the mixture without complaint.
+
+Every one of those files was internally correct and correctly stamped. The
+*directory* was wrong — and a directory has no provenance of its own, which is
+precisely why every artifact here carries one. T_b is a wall-clock time, so those
+87 problems would have carried an anchor from one clock while their kernels were
+timed at another, rescaling those problems' scores by the ratio, per problem,
+invisibly.
+
+`collect_t_b()` now takes the expected F_LOCK — read from the same
+`CLOCK_LOCK_PRESETS` table `lock_clocks()` applies from, so the manifest and the
+hardware cannot disagree — and rejects any artifact measured elsewhere with a
+loud count. An artifact with *no* recorded clock is still admitted: that is a
+missing-provenance defect, which `check_06` already covers separately, and
+conflating the two would hide both.
+
+Regression tests in `tests/scripts/test_build_manifest.py`. The lesson generalizes
+past clocks: a three-way merge reasons about files, while a measurement's validity
+is a property of the set it belongs to, so the durable defence is the consumer
+checking provenance rather than the merger being careful.
+
+**This check is necessary and not sufficient, and the first version of this entry
+claimed more than that.** It compares the artifact's stamp against the preset
+table. Both read from the same place, so it catches an artifact from *another
+clock* and is blind to an artifact whose stamp is simply wrong. That is not a
+hypothetical gap: an unreset determinism sweep left a node at a 1900 MHz setpoint,
+`provenance.f_lock_mhz()` returned the preset's 1640 without reading a device, and
+143 artifacts measured at ~1860 MHz were stamped 1640 — then 1640 was checked
+against 1640 and passed. Eleven hours of measurement, every value about 12% faster
+than the number it claimed.
+
+The original argument here was that reading the expected clock from the same table
+`lock_clocks()` applies from meant the two could not disagree. **The table is not
+the hardware.** Closing it needs the setpoint read back off the GPUs before
+measuring, and the observed clock stamped rather than the requested one — a change
+to the timing runners, not to `collect_t_b()`.
+
+**F19 — the static source screen could not see a startup hook.**
+
+`static_source_screen()` scanned file *contents* only. Python imports some names
+automatically at interpreter startup — `sitecustomize.py`, `usercustomize.py`,
+a `.pth` line beginning with `import`, and `conftest.py` under pytest — before any
+runtime guard has installed itself and outside every timed region. A submission
+shipping one of those executes code the harness never invoked, which is the same
+escape as monkey-patching.
+
+**A content scan cannot catch it, because the content does not have to look
+suspicious.** The case that surfaced this shipped a two-line
+`sitecustomize.py` defining `enum.StrEnum` to work around an interpreter older
+than `requires-python`. It was not malicious, did not touch the numerics, and was
+arguably a repair — it was also the difference between a problem scoring 16/16 and
+not evaluating at all, which is more leverage than any submission should hold
+outside the record.
+
+The screen now checks the filename as well as the contents. False-positive
+anchors are in `reference/exploits/test_source_screen.py`: all 235 dataset
+references still pass, as do near-misses like `my_conftest.py`, `site_customize.py`
+and `path.py`.
+
+**F20–F24 — review of PR #1, and three more checks in the same file.**
+
+PR #1 (`fix/verification-gaps`) contributed F17–F19 above. All three describe
+real defects and the fixes are directionally right. Two needed correction
+before merge, and auditing them surfaced three further checks in
+`verify_artifacts.py` that were not reporting the state of the work.
+
+**F20 — the PR failed its own check.** F17 requires a canonical
+`**F_LOCK = <n> MHz**` line, and the PR states master's line already matches.
+It does not: master's line reads `**F_LOCK = 1300 MHz achieved, at determinism
+setting 1600.**`, and the pattern requires `MHz**` immediately after the digits.
+The regex matched nothing on `b1c53dc`, on `654864c`, on the PR head itself, or
+on current master, so `--task 01` failed on the PR's own branch. Fixed by
+restructuring the *Decisions taken* line to lead with the bare marker.
+
+Worse, the tightening silently removed a working check. The floor comparison is
+guarded by `if p5s and fl:`, so a missing marker took `F_LOCK at or below
+lowest observed floor` out of the run entirely — task 01 went from 8 checks to
+7, losing the one that catches a clock the GPU cannot hold. It now falls back
+to the preset, so a documentation defect can no longer delete a physics check.
+
+**F21 — F18's clock guard failed open.** `collect_t_b(dir, None)` admits every
+artifact regardless of clock, and `f_lock_mhz()` returns `None` off-GPU with no
+override set. Building the manifest in the wrong environment would therefore
+restore the exact defect F18 fixes, silently, with normal-looking output.
+`build_manifest.py` now refuses to build when F_LOCK cannot be resolved.
+Verified the guard does not change the result: rebuilding with
+`SOLEXBENCH_F_LOCK_MHZ=1300` reproduces manifest v1 exactly — 235 problems,
+220 scoreable, 3717 workloads, identical `bound_sources`.
+
+**F24 — the determinism setpoint, read back off the hardware.** The PR's own
+follow-up (`254cdd1`) retracts part of F18: the guard compares an artifact's
+stamp against `CLOCK_LOCK_PRESETS`, and `provenance.f_lock_mhz()` answers from
+that same table without reading a device, so it is blind to an artifact whose
+stamp is simply wrong. On another node an unreset sweep left a 1900 MHz
+setpoint while the preset returned 1640; 143 artifacts were measured at ~1860
+and stamped 1640, and 1640 checked against 1640 passed.
+
+The retraction is right, but it scopes the fix out as "a change to the timing
+runners". It is not. `amd-smi metric -c` reports the setpoint as `MAX_CLK` per
+GFX block on an **idle** device, so task 01 now compares the hardware against
+the preset's *requested* clock with no load and no timed region:
+
+```
+[PASS] every GPU is at the preset's determinism setpoint   all 8 GPUs at 1600 MHz
+```
+
+Run against a negative control rather than merely observed passing, since a
+check nobody has watched fail is the subject of this whole PR: against a preset
+requesting 1640 the same hardware reports `FAIL (8 GPUs at [1600])`.
+
+**This node audited while implementing it.** All 8 GPUs at setpoint 1600, and
+GPU 0 under sustained load holds **1295–1303 MHz** against a stamped 1300 — so
+the 220 T_b artifacts here are *not* affected by the defect `254cdd1`
+describes. Verified rather than assumed.
+
+Not fixed here: stamping the observed clock rather than the requested one in
+`provenance.f_lock_mhz()`. That is the real end state and it changes the
+provenance of every artifact the project produces, so it is its own change.
+
+**F22 — `check_06` asserted a schema that was never produced.** It required
+`artifacts/06/t_b.json` with a `problems` map, and `anchor-verification.md`.
+Task 06 writes one file per problem under `authoritative/` keyed by
+`winner_by_workload`, and the anchor result as `.json`. So `t_b.json exists`
+has failed on every run this repo has ever had, while STATE.md recorded task 06
+as done. The mirror image of F17: not a check that could not fail, but one that
+could not pass. Rewritten against the real layout, and extended with F18's
+one-clock invariant at acceptance time. It now reports 220/220 problems
+anchored at a single F_LOCK, and surfaces D15 as a WARN (336/349) rather than
+silence.
+
+While rewriting it I keyed the anchor check on `n_failed`, a field that does not
+exist in the artifact, which resolved to `None` and printed "every checked
+workload within tolerance" over 13 real failures — the audited defect,
+reproduced inside the audit. Worth recording precisely because it took thirty
+seconds to introduce.
+
+**F23 — `check D` was a literal unconditional PASS.** The line was
+
+```python
+c.add(JUDGE if "PENDING" in text else PASS,
+      "check D: T_SOL <= best measured", "needs task 06")
+```
+
+`cross-checks.md` contains no `PENDING` and no check-D section, so this passed
+always and compared nothing. It is also the one invariant that would have
+caught D18. It now compares T_SOL against every measurement under
+`artifacts/10/*/scored.json`, and reports, correctly:
+
+```
+[FAIL] check D: no measurement beats its T_SOL   25 of 115 measured workloads are
+       faster than T_SOL (worst 0.29x the bound) across 1 problem(s):
+       FlashInfer-Bench__019_mla_paged_prefill — the bound is wrong (D18)
+```
+
+With no submissions on disk it reports JUDGE rather than PASS, because the T_b
+variants cannot falsify a bound that is too slow — the reference over-reads
+exactly the way the bound does.
+
+**Also: `check_07` required a write-up, not evidence.** It asserted
+`artifacts/07/fp8-validation.md`, never written, and so failed permanently
+while the validation it stands for had been done. It now checks the evidence —
+all 18 non-NVFP4 Quant problems pass every workload in the task 02 reference
+sweep, 18/18 — and warns separately that no summary document exists.
+
+`.pth` in `_PATH_HAZARDS` flags any such file, where the hazard is specific to
+site directories and `.pth` is also the conventional PyTorch checkpoint suffix.
+Left as-is deliberately: submissions here carry source text, a `.pth` among
+them is never legitimate, and the screen reports rather than raises.
+
 ---
 
 ## Decisions taken
 
-**F_LOCK = 1300 MHz achieved, at determinism setting 1600.** Full reasoning in
-the task 01 section above. The two-number form is a real structural difference
-from NVIDIA, where `nvidia-smi -lgc` makes them the same; `ClockPreset` now
-carries both and `f_lock_mhz` returns the achieved one.
+**F_LOCK = 1300 MHz**
+
+Achieved, at determinism setting 1600. Full reasoning in the task 01 section
+above. The two-number form is a real structural difference from NVIDIA, where
+`nvidia-smi -lgc` makes them the same; `ClockPreset` now carries both and
+`f_lock_mhz` returns the achieved one.
+
+The line above is the canonical marker `verify_artifacts.py` parses, and it is
+the only place in this file that form appears. Prose may mention other parts'
+clocks freely — that is the whole point of requiring a marker rather than
+matching the first number that follows the first mention of F_LOCK (F17).
 
 **Authoritative timing is pinned to GPU 0.** Not a style choice: at the same
 determinism setting the eight GPUs hold clocks spanning 1242–1307 MHz (5%),
