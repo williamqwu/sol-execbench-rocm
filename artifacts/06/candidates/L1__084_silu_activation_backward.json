@@ -1,0 +1,324 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-04T12:25:16.019495+00:00",
+  "git_sha": "ea94b186877c340518bd8410f29bcb520b5cfca0-dirty",
+  "host": "mia1-p02-g10",
+  "python": "3.10.12",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "part": "MI355X",
+  "kernel_stack": {
+   "triton": {
+    "available": true,
+    "path": "/sgl-workspace/triton-custom/python/triton/__init__.py",
+    "dist_version": "3.6.0+git42270451",
+    "is_release_wheel": false,
+    "gluon": true
+   },
+   "aiter": {
+    "available": true,
+    "path": "/sgl-workspace/aiter/aiter/__init__.py",
+    "dist_version": null,
+    "git_sha": "d9e5ef7ce08ee7045d583aed768cff41aa9210fe-dirty"
+   },
+   "hipcc": "HIP version: 7.2.26015-fc0010cf6a\nAMD clang version 22.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.2.0 26014 7b800a19466229b8479a78de19143dc33c3ab9b5)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /opt/rocm-7.2.0/lib/llvm/bin\nConfiguration file: /opt/rocm-7.2.0/lib/llvm/bin/clang++.cfg",
+   "rocm_libraries": {
+    "ck": true,
+    "ck_tile": true,
+    "hipblaslt": true,
+    "miopen": true
+   }
+  },
+  "env": {
+   "mode": "native",
+   "in_docker": true,
+   "stack_drift_allowed": false
+  },
+  "f_lock_mhz": 1640,
+  "visible_devices": "5"
+ },
+ "problem": "L1__084_silu_activation_backward",
+ "definition": "084_silu_activation_backward",
+ "workloads_from": "data/SOL-ExecBench/benchmark/L1/084_silu_activation_backward/workload.jsonl",
+ "gpu": "5",
+ "variants": {
+  "v1_eager": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "906b1fa4-75cc-5eb3-bce2-62aeadf72b3e": 0.01679999940097332,
+    "b68baddc-1c7d-5189-9a3c-c3fd999f5571": 0.01655999943614006,
+    "8e603ae0-94a0-5f51-bff5-a728679afb0f": 0.15396050363779068,
+    "5497b9a7-4a2a-5a8b-b1c7-3e961d16c0f2": 0.016200000420212746,
+    "92b646fc-c705-531b-bc42-14880615578f": 0.020200499333441257,
+    "6304a2c6-9459-5ead-9aff-ba343c4949a0": 0.020919999107718468,
+    "74ac1a2a-21d2-5e9b-84f3-904ff7932647": 0.01733999978750944,
+    "59d6ae02-804f-5a09-8a22-fb85c04e8501": 0.08451999723911285,
+    "4178c04a-6fd5-5646-8cac-7a027232822e": 0.04919999837875366,
+    "9d7fbac0-ed82-5fea-9d16-0918a301da20": 0.015900500118732452,
+    "a313cb84-587c-54fe-8d5a-3ad23bb9e7a1": 0.01600000075995922,
+    "96c6850e-3ff8-5339-8fb6-35c2b3a06b94": 0.03108000010251999,
+    "acd3c5d6-a75e-5a5a-a46c-c01770de5e51": 0.017720000818371773,
+    "034644e8-d596-5779-9329-bd80f3c6bd44": 0.057900501415133476,
+    "8d275daa-6499-5364-b581-ea0d188ce5c6": 0.015879999846220016,
+    "a8edee94-3cca-5d26-b163-90c533ef4423": 0.10000099986791611
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v2_compile": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "906b1fa4-75cc-5eb3-bce2-62aeadf72b3e": 0.007400000002235174,
+    "b68baddc-1c7d-5189-9a3c-c3fd999f5571": 0.007419999921694398,
+    "8e603ae0-94a0-5f51-bff5-a728679afb0f": 0.08064050227403641,
+    "5497b9a7-4a2a-5a8b-b1c7-3e961d16c0f2": 0.007340000011026859,
+    "92b646fc-c705-531b-bc42-14880615578f": 0.007600000128149986,
+    "6304a2c6-9459-5ead-9aff-ba343c4949a0": 0.008799999952316284,
+    "74ac1a2a-21d2-5e9b-84f3-904ff7932647": 0.007439999841153622,
+    "59d6ae02-804f-5a09-8a22-fb85c04e8501": 0.043379999697208405,
+    "4178c04a-6fd5-5646-8cac-7a027232822e": 0.04954049922525883,
+    "9d7fbac0-ed82-5fea-9d16-0918a301da20": 0.01585999969393015,
+    "a313cb84-587c-54fe-8d5a-3ad23bb9e7a1": 0.01600000075995922,
+    "96c6850e-3ff8-5339-8fb6-35c2b3a06b94": 0.031159999780356884,
+    "acd3c5d6-a75e-5a5a-a46c-c01770de5e51": 0.017640000209212303,
+    "034644e8-d596-5779-9329-bd80f3c6bd44": 0.057760000228881836,
+    "8d275daa-6499-5364-b581-ea0d188ce5c6": 0.01583999954164028,
+    "a8edee94-3cca-5d26-b163-90c533ef4423": 0.09948050230741501
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v3_compile_max_autotune": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "906b1fa4-75cc-5eb3-bce2-62aeadf72b3e": 0.007439999841153622,
+    "b68baddc-1c7d-5189-9a3c-c3fd999f5571": 0.007400000002235174,
+    "8e603ae0-94a0-5f51-bff5-a728679afb0f": 0.08076100051403046,
+    "5497b9a7-4a2a-5a8b-b1c7-3e961d16c0f2": 0.007400000002235174,
+    "92b646fc-c705-531b-bc42-14880615578f": 0.007699999958276749,
+    "6304a2c6-9459-5ead-9aff-ba343c4949a0": 0.008840000256896019,
+    "74ac1a2a-21d2-5e9b-84f3-904ff7932647": 0.007539999904111028,
+    "59d6ae02-804f-5a09-8a22-fb85c04e8501": 0.043139999732375145,
+    "4178c04a-6fd5-5646-8cac-7a027232822e": 0.04956050030887127,
+    "9d7fbac0-ed82-5fea-9d16-0918a301da20": 0.01600000075995922,
+    "a313cb84-587c-54fe-8d5a-3ad23bb9e7a1": 0.016200000420212746,
+    "96c6850e-3ff8-5339-8fb6-35c2b3a06b94": 0.03129999898374081,
+    "acd3c5d6-a75e-5a5a-a46c-c01770de5e51": 0.01775999926030636,
+    "034644e8-d596-5779-9329-bd80f3c6bd44": 0.05794049985706806,
+    "8d275daa-6499-5364-b581-ea0d188ce5c6": 0.01592000015079975,
+    "a8edee94-3cca-5d26-b163-90c533ef4423": 0.099481001496315
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v4_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "906b1fa4-75cc-5eb3-bce2-62aeadf72b3e": 0.016840499825775623,
+    "b68baddc-1c7d-5189-9a3c-c3fd999f5571": 0.016539999283850193,
+    "8e603ae0-94a0-5f51-bff5-a728679afb0f": 0.1539205014705658,
+    "5497b9a7-4a2a-5a8b-b1c7-3e961d16c0f2": 0.016279999166727066,
+    "92b646fc-c705-531b-bc42-14880615578f": 0.020320000126957893,
+    "6304a2c6-9459-5ead-9aff-ba343c4949a0": 0.02096049953252077,
+    "74ac1a2a-21d2-5e9b-84f3-904ff7932647": 0.01742000039666891,
+    "59d6ae02-804f-5a09-8a22-fb85c04e8501": 0.08449999988079071,
+    "4178c04a-6fd5-5646-8cac-7a027232822e": 0.04942050017416477,
+    "9d7fbac0-ed82-5fea-9d16-0918a301da20": 0.015880499966442585,
+    "a313cb84-587c-54fe-8d5a-3ad23bb9e7a1": 0.016200000420212746,
+    "96c6850e-3ff8-5339-8fb6-35c2b3a06b94": 0.031379999592900276,
+    "acd3c5d6-a75e-5a5a-a46c-c01770de5e51": 0.01775999926030636,
+    "034644e8-d596-5779-9329-bd80f3c6bd44": 0.05786049924790859,
+    "8d275daa-6499-5364-b581-ea0d188ce5c6": 0.01592050027102232,
+    "a8edee94-3cca-5d26-b163-90c533ef4423": 0.09942099824547768
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v5_compile_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 0,
+   "all_passed": false,
+   "latency_ms_by_workload": {},
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "906b1fa4-75cc-5eb3-bce2-62aeadf72b3e",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "b68baddc-1c7d-5189-9a3c-c3fd999f5571",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "8e603ae0-94a0-5f51-bff5-a728679afb0f",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "5497b9a7-4a2a-5a8b-b1c7-3e961d16c0f2",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "92b646fc-c705-531b-bc42-14880615578f",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "6304a2c6-9459-5ead-9aff-ba343c4949a0",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "74ac1a2a-21d2-5e9b-84f3-904ff7932647",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "59d6ae02-804f-5a09-8a22-fb85c04e8501",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "4178c04a-6fd5-5646-8cac-7a027232822e",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "9d7fbac0-ed82-5fea-9d16-0918a301da20",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "a313cb84-587c-54fe-8d5a-3ad23bb9e7a1",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "96c6850e-3ff8-5339-8fb6-35c2b3a06b94",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "acd3c5d6-a75e-5a5a-a46c-c01770de5e51",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "034644e8-d596-5779-9329-bd80f3c6bd44",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "8d275daa-6499-5364-b581-ea0d188ce5c6",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    },
+    {
+     "workload_uuid": "a8edee94-3cca-5d26-b163-90c533ef4423",
+     "status": "RUNTIME_ERROR",
+     "log": "ython3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake"
+    }
+   ]
+  }
+ },
+ "winner_by_workload": {
+  "906b1fa4-75cc-5eb3-bce2-62aeadf72b3e": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.007400000002235174
+  },
+  "b68baddc-1c7d-5189-9a3c-c3fd999f5571": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.007400000002235174
+  },
+  "8e603ae0-94a0-5f51-bff5-a728679afb0f": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.08064050227403641
+  },
+  "5497b9a7-4a2a-5a8b-b1c7-3e961d16c0f2": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.007340000011026859
+  },
+  "92b646fc-c705-531b-bc42-14880615578f": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.007600000128149986
+  },
+  "6304a2c6-9459-5ead-9aff-ba343c4949a0": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.008799999952316284
+  },
+  "74ac1a2a-21d2-5e9b-84f3-904ff7932647": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.007439999841153622
+  },
+  "59d6ae02-804f-5a09-8a22-fb85c04e8501": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.043139999732375145
+  },
+  "4178c04a-6fd5-5646-8cac-7a027232822e": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.04919999837875366
+  },
+  "9d7fbac0-ed82-5fea-9d16-0918a301da20": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.01585999969393015
+  },
+  "a313cb84-587c-54fe-8d5a-3ad23bb9e7a1": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.01600000075995922
+  },
+  "96c6850e-3ff8-5339-8fb6-35c2b3a06b94": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.03108000010251999
+  },
+  "acd3c5d6-a75e-5a5a-a46c-c01770de5e51": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.017640000209212303
+  },
+  "034644e8-d596-5779-9329-bd80f3c6bd44": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.057760000228881836
+  },
+  "8d275daa-6499-5364-b581-ea0d188ce5c6": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.01583999954164028
+  },
+  "a8edee94-3cca-5d26-b163-90c533ef4423": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.09942099824547768
+  }
+ },
+ "n_workloads": 16,
+ "n_workloads_with_tb": 16,
+ "complete": true,
+ "ok": true
+}

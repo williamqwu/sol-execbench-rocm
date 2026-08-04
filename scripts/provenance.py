@@ -85,6 +85,115 @@ def rocm_info() -> dict:
     }
 
 
+def kernel_stack() -> dict:
+    """Which kernel-authoring toolchains were available, and from where.
+
+    Upstream needed none of this: a CUDA C++ solution is pinned by the CUDA
+    version already in ``rocm``/``torch``. The AMD side is different in a way
+    that matters for the agent scoreboard, because an agent may write a solution
+    in any of these and the *build* of the toolchain then decides what the
+    kernel is:
+
+    - ``triton`` may resolve to a release wheel or to a development checkout.
+      A Gluon kernel that compiles against a checkout may not exist at all in a
+      release, so "triton 3.6.0" alone does not identify the compiler. The
+      import path is recorded for that reason.
+    - ``aiter`` is a source checkout with its own git SHA; the library *is* the
+      kernel, so its SHA is part of the result.
+    - ``ck`` / ``ck_tile`` / ``hipblaslt`` / ``miopen`` ship with ROCm, so the
+      ROCm version pins them, but their presence is recorded so a failure to
+      use one can be distinguished from an inability to.
+
+    Never raises: a missing toolchain is recorded as absent, which is itself a
+    fact worth having on the artifact.
+    """
+    import importlib.metadata as md
+    import importlib.util
+
+    def _pkg(name: str, module: str | None = None) -> dict:
+        """Locate a package WITHOUT importing it.
+
+        Deliberately uses ``find_spec`` rather than ``import_module``: importing
+        ``aiter`` loads a compiled extension, and a provenance stamp taken in the
+        middle of a timing run must not create a HIP context or perturb the
+        device it is describing. Versions come from installed metadata, which
+        needs no import either.
+        """
+        entry: dict = {"available": False}
+        try:
+            spec = importlib.util.find_spec(module or name)
+        except Exception as exc:
+            entry["error"] = f"{type(exc).__name__}: {exc}"
+            return entry
+        if spec is None:
+            return entry
+        entry["available"] = True
+        entry["path"] = spec.origin
+        try:
+            entry["dist_version"] = md.version(name)
+        except Exception:
+            entry["dist_version"] = None
+        return entry
+
+    triton = _pkg("triton")
+    if triton.get("available"):
+        # A dist version carrying a git suffix, or an import path outside
+        # site-packages, both mean "not a release wheel".
+        path = triton.get("path") or ""
+        dist = triton.get("dist_version") or ""
+        triton["is_release_wheel"] = ("site-packages" in path) and ("git" not in dist)
+        triton["gluon"] = _pkg("triton", "triton.experimental.gluon").get("available", False)
+
+    stack: dict = {
+        "triton": triton,
+        "aiter": _pkg("aiter"),
+        "hipcc": _run(["hipcc", "--version"]),
+        "rocm_libraries": {
+            name: Path(f"/opt/rocm/include/{name}").exists()
+            for name in ("ck", "ck_tile", "hipblaslt", "miopen")
+        },
+    }
+
+    aiter = stack["aiter"]
+    if aiter.get("available") and aiter.get("path"):
+        repo = Path(aiter["path"]).resolve().parent.parent
+        aiter["git_sha"] = git_sha(repo)
+
+    return stack
+
+
+def part_name() -> str | None:
+    """The Instinct part these measurements were taken on, e.g. ``MI355X``.
+
+    Recorded explicitly because MI350X and MI355X are the same gfx950 die and
+    are therefore indistinguishable from ``gcnArchName`` alone, while their
+    measured quantities -- F_LOCK above all -- do not transfer between them.
+    """
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+        from solexbench_rocm.parts import detect_part
+
+        return detect_part().name
+    except Exception:
+        return None
+
+
+def env_mode() -> dict:
+    """Whether this ran in the pinned container or natively against it.
+
+    ``env/solb`` runs inside ``solbench:rocm7.2-torch2.9.1``; ``env/solb-native``
+    reproduces the same environment contract on a node with no docker, and
+    asserts the stack matches rather than assuming it. The two are intended to
+    be equivalent, so which one produced a number is exactly the kind of thing
+    that should be on the record rather than inferred later.
+    """
+    return {
+        "mode": os.environ.get("SOLEXBENCH_ENV_MODE", "unknown"),
+        "in_docker": Path("/.dockerenv").exists(),
+        "stack_drift_allowed": os.environ.get("SOLB_ALLOW_STACK_DRIFT") == "1",
+    }
+
+
 def f_lock_mhz() -> int | None:
     """F_LOCK for this artifact: the clock its measurements were taken at.
 
@@ -130,6 +239,9 @@ def stamp(task: str, extra: dict | None = None) -> dict:
             "python": sys.version.split()[0],
             "torch": torch_info(),
             "rocm": rocm_info(),
+            "part": part_name(),
+            "kernel_stack": kernel_stack(),
+            "env": env_mode(),
             "f_lock_mhz": f_lock_mhz(),
             "visible_devices": os.environ.get("HIP_VISIBLE_DEVICES"),
             **(extra or {}),

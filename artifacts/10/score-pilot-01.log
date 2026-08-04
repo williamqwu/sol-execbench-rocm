@@ -1,0 +1,67 @@
+WARNING: the scoring-critical source tree changed since the sweep started.
+  changed: scripts/score_solutions.py
+  changed: src/sol_execbench/core/bench/reward_hack.py
+  changed: src/solexbench_agents/aggregate.py
+  changed: src/solexbench_agents/harnesses.py
+  changed: src/solexbench_agents/runner.py
+  This is recorded on the summary. It does not prove tampering -- an operator edit looks the same -- but a score whose harness moved mid-run is not comparable with one whose did not.
+  T_b: absent — scores fall back to a weaker basis
+  clock lock: GPU 0 at perf_determinism (/sys/class/drm/card1)
+48 session(s) to score on GPU 0 (serial)
+  [1/48] claude-code/FlashInfer-Bench__001_fused_add_rmsnorm_h2048: 7/7 workloads passed
+  [2/48] claude-code/FlashInfer-Bench__005_gemm_n256_k7168: 17/17 workloads passed
+  [3/48] claude-code/FlashInfer-Bench__009_gemm_n5120_k2048: 25/25 workloads passed
+  [4/48] claude-code/FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1: 30/30 workloads passed
+  [5/48] claude-code/FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1: 47/47 workloads passed
+  [6/48] claude-code/FlashInfer-Bench__022_rmsnorm_h512: 8/8 workloads passed
+  [7/48] claude-code/L1__001_attention_softmax_dropout_value_matmul_backward: no_solution
+  [8/48] claude-code/L1__016_rope_inverse_frequency_computation: 16/16 workloads passed
+  [9/48] claude-code/L1__032_attention_weights_matmul_with_value_projection: 16/16 workloads passed
+  [10/48] claude-code/L1__048_fused_gate_up_projection_with_swiglu: 16/16 workloads passed
+  [11/48] claude-code/L1__063_attention_output_reshape_and_projection: 16/16 workloads passed
+  [12/48] claude-code/L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward: 16/16 workloads passed
+  [13/48] claude-code/L2__001_fused_vision_multihead_attention_with_norms_backward: 16/16 workloads passed
+  [14/48] claude-code/L2__014_audio_encoder_varlen_attention_with_chunking_backward: 16/16 workloads passed
+  [15/48] claude-code/L2__028_gqa_rotary_attention_core_backward: 0/16 workloads passed
+  [16/48] claude-code/L2__042_ffn_gelu_projection_fused_backward: 16/16 workloads passed
+  [17/48] claude-code/L2__055_audio_encoder_conv_positional_layer_stack: 15/15 workloads passed
+  [18/48] claude-code/L2__069_joint_transformer_block_residual_path: 0/16 workloads passed
+  [19/48] claude-code/Quant__001_fp8_attention_output_projection: eval_failed
+  [20/48] claude-code/Quant__004_fp8_moe_expert_linear: eval_failed
+  [21/48] claude-code/Quant__007_fp8_vision_attention_qkv_projection: eval_failed
+  [22/48] claude-code/Quant__012_fp8_shared_expert_mlp: eval_failed
+  [23/48] claude-code/Quant__015_fp8_mla_attention_output_projection: eval_failed
+  [24/48] claude-code/Quant__021_fp8_mamba2_in_projection: eval_failed
+  [25/48] codex/FlashInfer-Bench__001_fused_add_rmsnorm_h2048: 7/7 workloads passed
+  [26/48] codex/FlashInfer-Bench__005_gemm_n256_k7168: 17/17 workloads passed
+  [27/48] codex/FlashInfer-Bench__009_gemm_n5120_k2048: 25/25 workloads passed
+  [28/48] codex/FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1: eval_failed
+  [29/48] codex/FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1: 47/47 workloads passed
+  [30/48] codex/FlashInfer-Bench__022_rmsnorm_h512: 8/8 workloads passed
+  [31/48] codex/L1__001_attention_softmax_dropout_value_matmul_backward: 16/16 workloads passed
+  [32/48] codex/L1__016_rope_inverse_frequency_computation: 16/16 workloads passed
+  [33/48] codex/L1__032_attention_weights_matmul_with_value_projection: 16/16 workloads passed
+  [34/48] codex/L1__048_fused_gate_up_projection_with_swiglu: 16/16 workloads passed
+  [35/48] codex/L1__063_attention_output_reshape_and_projection: 16/16 workloads passed
+  [36/48] codex/L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward: 16/16 workloads passed
+  [37/48] codex/L2__001_fused_vision_multihead_attention_with_norms_backward: 16/16 workloads passed
+  [38/48] codex/L2__014_audio_encoder_varlen_attention_with_chunking_backward: 16/16 workloads passed
+  [39/48] codex/L2__028_gqa_rotary_attention_core_backward: 16/16 workloads passed
+  [40/48] codex/L2__042_ffn_gelu_projection_fused_backward: 16/16 workloads passed
+  [41/48] codex/L2__055_audio_encoder_conv_positional_layer_stack: 15/15 workloads passed
+  [42/48] codex/L2__069_joint_transformer_block_residual_path: 16/16 workloads passed
+  [43/48] codex/Quant__001_fp8_attention_output_projection: eval_failed
+  [44/48] codex/Quant__004_fp8_moe_expert_linear: rejected_static_screen
+  [45/48] codex/Quant__007_fp8_vision_attention_qkv_projection: rejected_static_screen
+  [46/48] codex/Quant__012_fp8_shared_expert_mlp: rejected_static_screen
+  [47/48] codex/Quant__015_fp8_mla_attention_output_projection: eval_failed
+  [48/48] codex/Quant__021_fp8_mamba2_in_projection: rejected_static_screen
+
+wrote /sgl-workspace/sol-execbench-rocm/artifacts/10/scores/pilot-01/summary.json
+{
+  "eval_failed": 9,
+  "evaluated": 34,
+  "no_solution": 1,
+  "rejected_static_screen": 4
+}
+next: python scripts/build_scoreboard.py --run-id pilot-01

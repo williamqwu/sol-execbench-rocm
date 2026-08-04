@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOL-ExecBench-AMD — agent scoreboard</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --line: #262b36; --ink: #e6e9ef;
+    --dim: #98a1b3; --accent: #5b9dff; --good: #3fb950; --warn: #d29922;
+    --bad: #f85149; --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 32px 24px 96px; }
+  h1 { font-size: 24px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 17px; margin: 40px 0 12px; letter-spacing: -0.01em; }
+  h3 { font-size: 14px; margin: 24px 0 8px; color: var(--dim);
+       text-transform: uppercase; letter-spacing: 0.06em; }
+  .sub { color: var(--dim); font-size: 13px; margin: 0 0 24px; }
+  .panel { background: var(--panel); border: 1px solid var(--line);
+           border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+  .note { border-left: 3px solid var(--warn); background: #1d1a12;
+          padding: 12px 16px; border-radius: 6px; font-size: 13.5px;
+          margin-bottom: 20px; color: #e8d9b0; }
+  .note b { color: #ffd479; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--dim); font-weight: 600; font-size: 11.5px;
+       text-transform: uppercase; letter-spacing: 0.05em; }
+  tbody tr:hover { background: #1c2029; }
+  td.mono, .mono { font-family: var(--mono); font-size: 12.5px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+           gap: 12px; margin-bottom: 8px; }
+  .card { background: var(--panel); border: 1px solid var(--line);
+          border-radius: 10px; padding: 14px 16px; }
+  .card .k { color: var(--dim); font-size: 11.5px; text-transform: uppercase;
+             letter-spacing: 0.05em; }
+  .card .v { font-size: 26px; font-weight: 650; margin-top: 4px;
+             letter-spacing: -0.02em; }
+  .card .d { color: var(--dim); font-size: 12px; margin-top: 2px; }
+  .bar { height: 7px; background: #21262f; border-radius: 4px; overflow: hidden; }
+  .bar > span { display: block; height: 100%; background: var(--accent); }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px;
+          font-size: 11.5px; border: 1px solid var(--line); color: var(--dim); }
+  .ok { color: var(--good); } .no { color: var(--bad); } .mid { color: var(--warn); }
+  .empty { color: var(--dim); }
+  .legend { color: var(--dim); font-size: 12.5px; margin-top: 8px; }
+  select { background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+           border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>SOL-ExecBench-AMD — agent scoreboard</h1>
+  <p class="sub" id="subtitle"></p>
+  <div class="row" style="margin-bottom:20px">
+    <label for="runsel" class="mono">run</label>
+    <select id="runsel"></select>
+  </div>
+  <div id="app"></div>
+</div>
+<script id="payload" type="application/json">{"_provenance": {"task": "10-scoreboard", "utc": "2026-08-04T15:11:08.878289+00:00", "git_sha": "ea94b186877c340518bd8410f29bcb520b5cfca0-dirty", "host": "mia1-p02-g10", "python": "3.10.12", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X"]}, "rocm": {"version": "7.2.0", "driver": "6.16.6", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"}, "part": "MI355X", "kernel_stack": {"triton": {"available": true, "path": "/sgl-workspace/triton-custom/python/triton/__init__.py", "dist_version": "3.6.0+git42270451", "is_release_wheel": false, "gluon": true}, "aiter": {"available": true, "path": "/sgl-workspace/aiter/aiter/__init__.py", "dist_version": null, "git_sha": "d9e5ef7ce08ee7045d583aed768cff41aa9210fe-dirty"}, "hipcc": "HIP version: 7.2.26015-fc0010cf6a\nAMD clang version 22.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.2.0 26014 7b800a19466229b8479a78de19143dc33c3ab9b5)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /opt/rocm-7.2.0/lib/llvm/bin\nConfiguration file: /opt/rocm-7.2.0/lib/llvm/bin/clang++.cfg", "rocm_libraries": {"ck": true, "ck_tile": true, "hipblaslt": true, "miopen": true}}, "env": {"mode": "native", "in_docker": true, "stack_drift_allowed": false}, "f_lock_mhz": 1640, "visible_devices": "0,1,2,3,4,5,6,7"}, "runs": {"pilot-01": {"scoring": {"run_id": "pilot-01", "part": "MI355X", "authoritative_gpu": 0, "clock_lock": {"gpu": 0, "locked": true, "drm_card": "/sys/class/drm/card1", "performance_level": "perf_determinism"}, "f_lock_mhz": 1640, "sessions_scored": 48, "t_sol": {"path": "artifacts/03/t_sol-MI355X.json", "used": true, "_provenance": {"task": "03-sol-bounds", "utc": "2026-08-04T10:31:56.499802+00:00", "git_sha": "ea94b186877c340518bd8410f29bcb520b5cfca0-dirty", "host": "mia1-p02-g10", "python": "3.10.12", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X"]}, "rocm": {"version": "7.2.0", "driver": "6.16.6", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"}, "part": "MI355X", "kernel_stack": {"triton": {"available": true, "path": "/sgl-workspace/triton-custom/python/triton/__init__.py", "dist_version": "3.6.0+git42270451", "is_release_wheel": false, "gluon": true}, "aiter": {"available": true, "path": "/sgl-workspace/aiter/aiter/__init__.py", "dist_version": null, "git_sha": "d9e5ef7ce08ee7045d583aed768cff41aa9210fe-dirty"}, "hipcc": "HIP version: 7.2.26015-fc0010cf6a\nAMD clang version 22.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.2.0 26014 7b800a19466229b8479a78de19143dc33c3ab9b5)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /opt/rocm-7.2.0/lib/llvm/bin\nConfiguration file: /opt/rocm-7.2.0/lib/llvm/bin/clang++.cfg", "rocm_libraries": {"ck": true, "ck_tile": true, "hipblaslt": true, "miopen": true}}, "env": {"mode": "native", "in_docker": true, "stack_drift_allowed": false}, "f_lock_mhz": 1640, "visible_devices": "0,1,2,3,4,5,6,7"}, "part": "MI355X", "f_lock_mhz": 1640, "arch_yaml": "/sgl-workspace/sol-execbench-rocm/SOLAR/configs/arch/MI355X.yaml", "sol_model": "fused", "n_problems": 235, "n_problems_ok": 167, "n_workloads": 3515, "n_workloads_ok": 2736}, "t_b": {"path": "/sgl-workspace/sol-execbench-rocm/artifacts/06/t_b.json", "used": false}, "harness_integrity": {"comparable": true, "match": false, "changed": ["scripts/score_solutions.py", "src/sol_execbench/core/bench/reward_hack.py", "src/solexbench_agents/aggregate.py", "src/solexbench_agents/harnesses.py", "src/solexbench_agents/runner.py"], "added": [], "removed": []}, "workloads_root": "/sgl-workspace/sol-execbench-rocm/artifacts/05/workloads", "spec_tampered": [{"harness": "codex", "problem": "Quant__001_fp8_attention_output_projection", "divergence": ["definition.reference"]}, {"harness": "codex", "problem": "Quant__015_fp8_mla_attention_output_projection", "divergence": ["definition.reference"]}], "outcomes": {"eval_failed": 8, "evaluated": 35, "no_solution": 1, "rejected_static_screen": 4}, "score_bases": {"correctness_only": 32, "sol_headroom": 474, "speedup_vs_reference": 128}}, "harnesses": {"claude-code": {"model": "claude-opus-5", "attempted": 24, "delivered": 17, "solved": 15, "solve_rate_pct": 62.5, "workloads": 309, "workloads_passed": 277, "workload_pass_rate_pct": 89.64401294498381, "timing": {"speedup_vs_reference": {"n": 277, "mean": 235.25445076489893, "median": 1.827997239992911, "basis": "speedup_vs_reference"}, "headroom_fraction": {"n": 221, "mean": 0.34392151846952806, "median": 0.4570469313243992, "basis": "sol_headroom"}, "sol_score": {"n": 0, "mean": null, "median": null, "basis": "sol_score_v1"}}, "cost": {"total_usd": 17.846346999999998, "priced_sessions": 4, "unpriced_sessions": 20, "usd_per_solved": 1.1897564666666665}, "tokens": {"input": 2203292, "output": 237047, "sessions_with_tokens": 4, "input_per_solved": 146886.13333333333}, "time": {"total_min": 673.3811883290608, "mean_min": 28.057549513710867, "min_per_solved": 44.89207922193739}, "verify_attempts": {"mean": 0.9166666666666666, "median": 0.5}, "languages": {"triton": 17, "pytorch": 1}, "reference_copies": {"distinct": 17}, "failures": {"passed": 277, "runtime_error": 16, "incorrect_numerical": 16, "harness_error": 6, "no_solution": 1}, "bound_violations": [{"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "00cb2bc2-c7c7-43a1-b857-b516eb2ce061", "detail": "t_k 0.00986 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "c2e8ef55-ec17-442c-acd9-30ba9e9ecd4f", "detail": "t_k 0.01552 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "deb5f26c-b29b-47f4-b5e6-bb70f89080e4", "detail": "t_k 0.0232005 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "7cd78cb9-ecb1-469c-a651-1063ffa4d662", "detail": "t_k 0.02748 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "951de642-3020-4954-b87e-8d21ed0edf70", "detail": "t_k 0.0189 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "4d9f5e3e-84d0-43d4-bb18-c451ef8009c0", "detail": "t_k 0.01896 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "5c200fe9-c07f-4dab-a8e8-dc8ff9b17c20", "detail": "t_k 0.0209005 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "d232cde2-c7ff-4f74-aac4-f6c86d59c0b6", "detail": "t_k 0.0216 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "2cde88e6-dc7a-4cd0-8a97-980cd2c02740", "detail": "t_k 0.02288 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "53a7dfec-6b9f-479d-afcd-1878dbe090bd", "detail": "t_k 0.0363205 ms is below t_sol 0.285038 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "f26d4f7f-b6fd-4868-953f-84fa4af0e120", "detail": "t_k 0.03186 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "e6bef587-9992-4a28-8339-f4a7c197d457", "detail": "t_k 0.0276605 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "d0da33e2-2d94-42b5-be8a-09111f9f2649", "detail": "t_k 0.0359805 ms is below t_sol 0.285038 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "990b57e3-2975-41a1-be67-ecd1ba020887", "detail": "t_k 0.0275405 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "28210082-1728-4ee1-a365-9d3f0f64170a", "detail": "t_k 0.0279605 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "5e86857b-bb94-4f2c-b9e6-6000c253dc10", "detail": "t_k 0.08256 ms is below t_sol 0.285099 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "34026642-ef29-42d6-88b9-4b0ff96c5553", "detail": "t_k 0.035321 ms is below t_sol 0.285098 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "89070a1d-4d70-4122-8955-03cae1300f24", "detail": "t_k 0.08292 ms is below t_sol 0.285099 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "1250b1f6-1957-4001-ad14-9f511b3d6c83", "detail": "t_k 0.09014 ms is below t_sol 0.285099 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "5bfb8416-4862-448a-a52c-c684372f03d2", "detail": "t_k 0.02716 ms is below t_sol 0.285098 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "57106903-f8b5-491b-8b6c-58e2d77b222e", "detail": "t_k 0.0277005 ms is below t_sol 0.285098 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "373074ba-f398-4a23-b628-90778267ef79", "detail": "t_k 0.04622 ms is below t_sol 0.285098 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "c4e14a53-dad1-404e-ae4f-bbe3355d8504", "detail": "t_k 0.0365 ms is below t_sol 0.285099 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "f42ce054-47e4-4db1-a4f8-650674a8d6d1", "detail": "t_k 0.02696 ms is below t_sol 0.285098 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "220b10b5-0a65-4892-8bf0-4d0ecf5b69d2", "detail": "t_k 0.0374205 ms is below t_sol 0.285099 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "787d2d2f-548c-46ab-9ded-55fd30b1de20", "detail": "t_k 0.027761 ms is below t_sol 0.285098 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "e417264f-195d-4204-89fa-3ebdb539f1cf", "detail": "t_k 0.0387205 ms is below t_sol 0.285099 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "a128f96f-583a-48cb-aceb-d70e0015aca3", "detail": "t_k 0.0269805 ms is below t_sol 0.285098 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "bd2dae14-7bae-4edb-964f-2163accf506e", "detail": "t_k 0.03946 ms is below t_sol 0.285099 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "84221f45-78f8-4d44-84f6-998153d2c1fa", "detail": "t_k 0.0401005 ms is below t_sol 0.285099 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "7a9dc58c-7844-4b82-9a02-722027bcf4f3", "detail": "t_k 0.0357205 ms is below t_sol 0.285099 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "fd4b2558-ee4f-4d9e-ab3f-7a8333db6340", "detail": "t_k 0.047381 ms is below t_sol 0.285296 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "7e083fc8-60fc-4a06-8536-5bb47511e81d", "detail": "t_k 0.0482405 ms is below t_sol 0.285296 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "60b29b12-9c97-44ea-b82b-765fd04e2a38", "detail": "t_k 0.0556405 ms is below t_sol 0.285296 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "b018a35e-fff0-4baa-9c2f-397db906c529", "detail": "t_k 0.05566 ms is below t_sol 0.285296 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "86a0eb47-e5b4-4854-adac-7b85b2774afe", "detail": "t_k 0.0555205 ms is below t_sol 0.285296 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "80797c3d-c602-495e-be70-a6e87f2d0479", "detail": "t_k 0.0626605 ms is below t_sol 0.285296 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "f4367b30-b3e2-4e11-8554-e10602245b1d", "detail": "t_k 0.063881 ms is below t_sol 0.285296 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "b15c7099-4863-4c19-a8c2-c8c7201f38f6", "detail": "t_k 0.07006 ms is below t_sol 0.285296 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "65082ffb-4d9d-4ad4-bc55-5216464087c7", "detail": "t_k 0.0716805 ms is below t_sol 0.285297 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "d771f51c-9886-42bf-a55f-2ff996ba3725", "detail": "t_k 0.0720205 ms is below t_sol 0.285297 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "5bef8d88-0f74-4ccb-a256-b02842951df3", "detail": "t_k 0.169481 ms is below t_sol 0.285299 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "45be562f-a643-46ca-be28-229e56a23e87", "detail": "t_k 0.11126 ms is below t_sol 0.285296 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "939f995a-1ab2-4d19-8d94-50f07e73542d", "detail": "t_k 0.137001 ms is below t_sol 0.285299 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "c9ba5e7f-839b-446f-9c02-7ab25e23fb7e", "detail": "t_k 0.11902 ms is below t_sol 0.285296 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "0c746a7a-977c-46cd-a4be-2403b80ad7ef", "detail": "t_k 0.0510205 ms is below t_sol 0.285296 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "1c3743b9-d48e-453a-a023-9b52b1b73989", "detail": "t_k 0.1598 ms is below t_sol 0.285299 ms"}], "by_category": {"L1": {"attempted": 6, "solved": 5, "solve_rate_pct": 83.33333333333333, "workloads": 80, "workloads_passed": 80, "workload_pass_rate_pct": 100.0}, "L2": {"attempted": 6, "solved": 4, "solve_rate_pct": 66.66666666666667, "workloads": 95, "workloads_passed": 63, "workload_pass_rate_pct": 66.3157894736842}, "Quant": {"attempted": 6, "solved": 0, "solve_rate_pct": 0.0, "workloads": 0, "workloads_passed": 0, "workload_pass_rate_pct": null}, "FlashInfer-Bench": {"attempted": 6, "solved": 6, "solve_rate_pct": 100.0, "workloads": 134, "workloads_passed": 134, "workload_pass_rate_pct": 100.0}}}, "codex": {"model": null, "attempted": 24, "delivered": 18, "solved": 18, "solve_rate_pct": 75.0, "workloads": 325, "workloads_passed": 325, "workload_pass_rate_pct": 100.0, "timing": {"speedup_vs_reference": {"n": 325, "mean": 16.40232849491402, "median": 1.5646403102500963, "basis": "speedup_vs_reference"}, "headroom_fraction": {"n": 237, "mean": 0.45145954539959837, "median": 0.3180798015623027, "basis": "sol_headroom"}, "sol_score": {"n": 0, "mean": null, "median": null, "basis": "sol_score_v1"}}, "cost": {"total_usd": null, "priced_sessions": 0, "unpriced_sessions": 24, "usd_per_solved": null}, "tokens": {"input": 45789772, "output": 631061, "sessions_with_tokens": 23, "input_per_solved": 2543876.222222222}, "time": {"total_min": 293.1453414877256, "mean_min": 12.214389228655232, "min_per_solved": 16.285852304873643}, "verify_attempts": {"mean": 4.208333333333333, "median": 5.0}, "languages": {"triton": 14, "pytorch": 11}, "reference_copies": {"distinct": 18}, "failures": {"passed": 325, "rejected_static_screen": 4, "harness_error": 2}, "bound_violations": [{"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "00cb2bc2-c7c7-43a1-b857-b516eb2ce061", "detail": "t_k 0.01832 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "c2e8ef55-ec17-442c-acd9-30ba9e9ecd4f", "detail": "t_k 0.02422 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "deb5f26c-b29b-47f4-b5e6-bb70f89080e4", "detail": "t_k 0.02976 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "7cd78cb9-ecb1-469c-a651-1063ffa4d662", "detail": "t_k 0.03624 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "951de642-3020-4954-b87e-8d21ed0edf70", "detail": "t_k 0.0415 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "4d9f5e3e-84d0-43d4-bb18-c451ef8009c0", "detail": "t_k 0.04932 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "5c200fe9-c07f-4dab-a8e8-dc8ff9b17c20", "detail": "t_k 0.0534005 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "d232cde2-c7ff-4f74-aac4-f6c86d59c0b6", "detail": "t_k 0.06126 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "2cde88e6-dc7a-4cd0-8a97-980cd2c02740", "detail": "t_k 0.06876 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "53a7dfec-6b9f-479d-afcd-1878dbe090bd", "detail": "t_k 0.18832 ms is below t_sol 0.285038 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "f26d4f7f-b6fd-4868-953f-84fa4af0e120", "detail": "t_k 0.14126 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "e6bef587-9992-4a28-8339-f4a7c197d457", "detail": "t_k 0.0834205 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "d0da33e2-2d94-42b5-be8a-09111f9f2649", "detail": "t_k 0.1784 ms is below t_sol 0.285038 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "990b57e3-2975-41a1-be67-ecd1ba020887", "detail": "t_k 0.08456 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "28210082-1728-4ee1-a365-9d3f0f64170a", "detail": "t_k 0.09364 ms is below t_sol 0.285037 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "34026642-ef29-42d6-88b9-4b0ff96c5553", "detail": "t_k 0.120521 ms is below t_sol 0.285098 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "5bfb8416-4862-448a-a52c-c684372f03d2", "detail": "t_k 0.178041 ms is below t_sol 0.285098 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "57106903-f8b5-491b-8b6c-58e2d77b222e", "detail": "t_k 0.193241 ms is below t_sol 0.285098 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "373074ba-f398-4a23-b628-90778267ef79", "detail": "t_k 0.184521 ms is below t_sol 0.285098 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "f42ce054-47e4-4db1-a4f8-650674a8d6d1", "detail": "t_k 0.192721 ms is below t_sol 0.285098 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "787d2d2f-548c-46ab-9ded-55fd30b1de20", "detail": "t_k 0.216781 ms is below t_sol 0.285098 ms"}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "workload_uuid": "a128f96f-583a-48cb-aceb-d70e0015aca3", "detail": "t_k 0.0484205 ms is below t_sol 0.285098 ms"}, {"problem": "L1__001_attention_softmax_dropout_value_matmul_backward", "workload_uuid": "c18f8f2c-2e93-591a-a556-c9ec769e90d5", "detail": "t_k 0.08636 ms is below t_sol 0.0999024 ms"}, {"problem": "L1__001_attention_softmax_dropout_value_matmul_backward", "workload_uuid": "6df0a854-b395-53d5-a025-437717991a6b", "detail": "t_k 0.261361 ms is below t_sol 0.39961 ms"}, {"problem": "L1__001_attention_softmax_dropout_value_matmul_backward", "workload_uuid": "f6d77072-2d79-5b0c-8d67-d8cee4135735", "detail": "t_k 0.136041 ms is below t_sol 0.199805 ms"}, {"problem": "L1__001_attention_softmax_dropout_value_matmul_backward", "workload_uuid": "a9b12084-b120-5a14-bd85-200672fec78f", "detail": "t_k 0.141221 ms is below t_sol 0.199805 ms"}, {"problem": "L1__001_attention_softmax_dropout_value_matmul_backward", "workload_uuid": "16764f0f-67b0-59e7-a8d0-b4492b7c8dc2", "detail": "t_k 0.14826 ms is below t_sol 0.199805 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "b01fa960-2217-5bfc-a257-117c07a2f3b3", "detail": "t_k 1.0405 ms is below t_sol 2.80558 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "457b844e-09f3-535c-b76e-be84a61ee98d", "detail": "t_k 1.51987 ms is below t_sol 4.15234 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "626e79e5-38dd-5b6e-863f-effd1a723017", "detail": "t_k 8.67898 ms is below t_sol 29.4853 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "742d8cbf-eeec-511e-bc31-f5fde968c4c9", "detail": "t_k 0.616722 ms is below t_sol 0.934088 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "5e2d7124-6cfc-51e1-b560-00521a393136", "detail": "t_k 7.02085 ms is below t_sol 18.5419 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "665bdbf1-0fd6-56bb-a6e4-037095911be5", "detail": "t_k 110.767 ms is below t_sol 434.589 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "86496fe7-2e9e-5ef3-b1dd-109899f09bc5", "detail": "t_k 2.54791 ms is below t_sol 15.1852 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "7bb64d0f-a4c3-5ea6-96f2-105d177a17b3", "detail": "t_k 4.8077 ms is below t_sol 30.3703 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "5ef30ef6-d268-535c-bc0f-a7cc1396f239", "detail": "t_k 4.1422 ms is below t_sol 29.8908 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "c0421eba-72c5-5d2a-b7dc-a2aa2f7bb582", "detail": "t_k 1.94571 ms is below t_sol 6.81686 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "a499c1ca-d9b2-5453-b3fd-6e87a495eff0", "detail": "t_k 4.68106 ms is below t_sol 16.6238 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "ea60fca5-b989-55ac-bffb-07c45463b405", "detail": "t_k 11.0261 ms is below t_sol 43.1875 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "2bb5f8c9-b445-5a73-aed0-91e2b7c34e9f", "detail": "t_k 2.50207 ms is below t_sol 8.31188 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "d46de212-f88b-579e-b17c-a82375e5e5ac", "detail": "t_k 7.94805 ms is below t_sol 59.7816 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "2288b854-65c7-522a-b004-af99ff47ec21", "detail": "t_k 1.30082 ms is below t_sol 4.36481 ms"}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "workload_uuid": "cf3d6998-0b63-5511-a802-d4bd235f92c1", "detail": "t_k 0.760723 ms is below t_sol 1.86818 ms"}], "by_category": {"L1": {"attempted": 6, "solved": 6, "solve_rate_pct": 100.0, "workloads": 96, "workloads_passed": 96, "workload_pass_rate_pct": 100.0}, "L2": {"attempted": 6, "solved": 6, "solve_rate_pct": 100.0, "workloads": 95, "workloads_passed": 95, "workload_pass_rate_pct": 100.0}, "Quant": {"attempted": 6, "solved": 0, "solve_rate_pct": 0.0, "workloads": 0, "workloads_passed": 0, "workload_pass_rate_pct": null}, "FlashInfer-Bench": {"attempted": 6, "solved": 6, "solve_rate_pct": 100.0, "workloads": 134, "workloads_passed": 134, "workload_pass_rate_pct": 100.0}}}}, "problems": [{"problem": "FlashInfer-Bench__001_fused_add_rmsnorm_h2048", "category": "FlashInfer-Bench", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 7, "workloads": 7, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 5.326704450934746, "cost_usd": 7.834045499999998, "wallclock_min": 23.620811716715494}, "codex": {"outcome": "evaluated", "solved": true, "passed": 7, "workloads": 7, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 5.166666774458633, "cost_usd": null, "wallclock_min": 10.673168973128002}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "FlashInfer-Bench__005_gemm_n256_k7168", "category": "FlashInfer-Bench", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 17, "workloads": 17, "languages": ["triton", "pytorch"], "reference_copy": "distinct", "median_speedup": 1.261829743358928, "cost_usd": null, "wallclock_min": 30.002006324132285}, "codex": {"outcome": "evaluated", "solved": true, "passed": 17, "workloads": 17, "languages": ["pytorch", "triton"], "reference_copy": "distinct", "median_speedup": 0.9987139505054399, "cost_usd": null, "wallclock_min": 9.271683514118195}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "FlashInfer-Bench__009_gemm_n5120_k2048", "category": "FlashInfer-Bench", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 25, "workloads": 25, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 0.9921453215669251, "cost_usd": null, "wallclock_min": 30.002145306269327}, "codex": {"outcome": "evaluated", "solved": true, "passed": 25, "workloads": 25, "languages": ["pytorch"], "reference_copy": "distinct", "median_speedup": 0.9858608808135663, "cost_usd": null, "wallclock_min": 13.098372495174408}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1", "category": "FlashInfer-Bench", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 30, "workloads": 30, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 1336.771639154727, "cost_usd": null, "wallclock_min": 30.002083194255828}, "codex": {"outcome": "evaluated", "solved": true, "passed": 30, "workloads": 30, "languages": ["pytorch", "triton"], "reference_copy": "distinct", "median_speedup": 61.23685899432819, "cost_usd": null, "wallclock_min": 30.000272965431215}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1", "category": "FlashInfer-Bench", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 47, "workloads": 47, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 90.98233579037046, "cost_usd": null, "wallclock_min": 30.00211835304896}, "codex": {"outcome": "evaluated", "solved": true, "passed": 47, "workloads": 47, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 11.833816195544406, "cost_usd": null, "wallclock_min": 11.032373253504435}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "FlashInfer-Bench__022_rmsnorm_h512", "category": "FlashInfer-Bench", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 8, "workloads": 8, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 4.347682632365535, "cost_usd": 4.7723665, "wallclock_min": 17.790349900722504}, "codex": {"outcome": "evaluated", "solved": true, "passed": 8, "workloads": 8, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 4.339919982670764, "cost_usd": null, "wallclock_min": 7.239389363924662}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "L1__001_attention_softmax_dropout_value_matmul_backward", "category": "L1", "harnesses": {"claude-code": {"outcome": "no_solution", "solved": false, "passed": 0, "workloads": 0, "languages": [], "reference_copy": null, "median_speedup": null, "cost_usd": 0.38674000000000003, "wallclock_min": 12.225227483113606}, "codex": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["pytorch", "triton"], "reference_copy": "distinct", "median_speedup": 3.34177563810295, "cost_usd": null, "wallclock_min": 11.765907959143322}}, "solved_by": ["codex"], "solved_by_none": false}, {"problem": "L1__016_rope_inverse_frequency_computation", "category": "L1", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 2.6913059630484772, "cost_usd": 4.853195, "wallclock_min": 19.70126943588257}, "codex": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 2.7167629380992824, "cost_usd": null, "wallclock_min": 5.964760553836823}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "L1__032_attention_weights_matmul_with_value_projection", "category": "L1", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 1.3891846809043178, "cost_usd": null, "wallclock_min": 30.002399067083996}, "codex": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 1.4989939539425872, "cost_usd": null, "wallclock_min": 10.08480618794759}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "L1__048_fused_gate_up_projection_with_swiglu", "category": "L1", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 2.200645256126072, "cost_usd": null, "wallclock_min": 30.002456823984783}, "codex": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 1.9963992594547764, "cost_usd": null, "wallclock_min": 8.992436623573303}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "L1__063_attention_output_reshape_and_projection", "category": "L1", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 0.6031308064496697, "cost_usd": null, "wallclock_min": 30.00215119520823}, "codex": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["pytorch", "triton"], "reference_copy": "distinct", "median_speedup": 1.0035238648226126, "cost_usd": null, "wallclock_min": 11.313066053390504}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward", "category": "L1", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 1.1220423320034096, "cost_usd": null, "wallclock_min": 30.00212145646413}, "codex": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["pytorch", "triton"], "reference_copy": "distinct", "median_speedup": 1.4097767190012582, "cost_usd": null, "wallclock_min": 7.606652744611105}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "L2__001_fused_vision_multihead_attention_with_norms_backward", "category": "L2", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 1.0978950325219943, "cost_usd": null, "wallclock_min": 30.002357959747314}, "codex": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["pytorch", "triton"], "reference_copy": "distinct", "median_speedup": 1.0072436451918254, "cost_usd": null, "wallclock_min": 8.952504909038543}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "L2__014_audio_encoder_varlen_attention_with_chunking_backward", "category": "L2", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 4.947720547268082, "cost_usd": null, "wallclock_min": 30.00209938287735}, "codex": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 5.190290607670216, "cost_usd": null, "wallclock_min": 14.8502849817276}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "L2__028_gqa_rotary_attention_core_backward", "category": "L2", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": false, "passed": 0, "workloads": 16, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": null, "cost_usd": null, "wallclock_min": 30.00270366271337}, "codex": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["pytorch", "triton"], "reference_copy": "distinct", "median_speedup": 1.1189782329025473, "cost_usd": null, "wallclock_min": 14.736888353029887}}, "solved_by": ["codex"], "solved_by_none": false}, {"problem": "L2__042_ffn_gelu_projection_fused_backward", "category": "L2", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 1.4534035444034115, "cost_usd": null, "wallclock_min": 30.002247722943626}, "codex": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["pytorch"], "reference_copy": "distinct", "median_speedup": 0.9981330496978922, "cost_usd": null, "wallclock_min": 13.785346921284994}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "L2__055_audio_encoder_conv_positional_layer_stack", "category": "L2", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 15, "workloads": 15, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 1.6758668087508557, "cost_usd": null, "wallclock_min": 30.002281411488852}, "codex": {"outcome": "evaluated", "solved": true, "passed": 15, "workloads": 15, "languages": ["pytorch"], "reference_copy": "distinct", "median_speedup": 1.2012043063180011, "cost_usd": null, "wallclock_min": 16.407792019844056}}, "solved_by": ["claude-code", "codex"], "solved_by_none": false}, {"problem": "L2__069_joint_transformer_block_residual_path", "category": "L2", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": false, "passed": 0, "workloads": 16, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": null, "cost_usd": null, "wallclock_min": 30.002530427773795}, "codex": {"outcome": "evaluated", "solved": true, "passed": 16, "workloads": 16, "languages": ["pytorch"], "reference_copy": "distinct", "median_speedup": 0.9975832552987305, "cost_usd": null, "wallclock_min": 7.460899106661478}}, "solved_by": ["codex"], "solved_by_none": false}, {"problem": "Quant__001_fp8_attention_output_projection", "category": "Quant", "harnesses": {"claude-code": {"outcome": "eval_failed", "solved": false, "passed": 0, "workloads": 0, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": null, "cost_usd": null, "wallclock_min": 30.0023975054423}, "codex": {"outcome": "eval_failed", "solved": false, "passed": 0, "workloads": 0, "languages": ["pytorch", "triton"], "reference_copy": "distinct", "median_speedup": null, "cost_usd": null, "wallclock_min": 9.034402680397033}}, "solved_by": [], "solved_by_none": true}, {"problem": "Quant__004_fp8_moe_expert_linear", "category": "Quant", "harnesses": {"claude-code": {"outcome": "eval_failed", "solved": false, "passed": 0, "workloads": 0, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": null, "cost_usd": null, "wallclock_min": 30.00235574245453}, "codex": {"outcome": "rejected_static_screen", "solved": false, "passed": 0, "workloads": 0, "languages": ["pytorch", "triton", "aiter"], "reference_copy": "distinct", "median_speedup": null, "cost_usd": null, "wallclock_min": 23.81197272539139}}, "solved_by": [], "solved_by_none": true}, {"problem": "Quant__007_fp8_vision_attention_qkv_projection", "category": "Quant", "harnesses": {"claude-code": {"outcome": "eval_failed", "solved": false, "passed": 0, "workloads": 0, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": null, "cost_usd": null, "wallclock_min": 30.002142679691314}, "codex": {"outcome": "rejected_static_screen", "solved": false, "passed": 0, "workloads": 0, "languages": ["pytorch", "triton", "aiter"], "reference_copy": "distinct", "median_speedup": null, "cost_usd": null, "wallclock_min": 12.357984471321107}}, "solved_by": [], "solved_by_none": true}, {"problem": "Quant__012_fp8_shared_expert_mlp", "category": "Quant", "harnesses": {"claude-code": {"outcome": "eval_failed", "solved": false, "passed": 0, "workloads": 0, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": null, "cost_usd": null, "wallclock_min": 30.00210641225179}, "codex": {"outcome": "rejected_static_screen", "solved": false, "passed": 0, "workloads": 0, "languages": ["pytorch", "triton"], "reference_copy": "distinct", "median_speedup": null, "cost_usd": null, "wallclock_min": 11.443591479460398}}, "solved_by": [], "solved_by_none": true}, {"problem": "Quant__015_fp8_mla_attention_output_projection", "category": "Quant", "harnesses": {"claude-code": {"outcome": "eval_failed", "solved": false, "passed": 0, "workloads": 0, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": null, "cost_usd": null, "wallclock_min": 30.002149351437886}, "codex": {"outcome": "eval_failed", "solved": false, "passed": 0, "workloads": 0, "languages": ["aiter"], "reference_copy": "distinct", "median_speedup": null, "cost_usd": null, "wallclock_min": 7.435800500710806}}, "solved_by": [], "solved_by_none": true}, {"problem": "Quant__021_fp8_mamba2_in_projection", "category": "Quant", "harnesses": {"claude-code": {"outcome": "eval_failed", "solved": false, "passed": 0, "workloads": 0, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": null, "cost_usd": null, "wallclock_min": 30.000675813357034}, "codex": {"outcome": "rejected_static_screen", "solved": false, "passed": 0, "workloads": 0, "languages": ["pytorch", "triton", "aiter"], "reference_copy": "distinct", "median_speedup": null, "cost_usd": null, "wallclock_min": 15.824982651074727}}, "solved_by": [], "solved_by_none": true}], "totals": {"score_files": 48, "harnesses": ["claude-code", "codex"]}}, "smoke-01": {"scoring": {"run_id": "smoke-01", "part": "MI355X", "authoritative_gpu": 0, "clock_lock": {"gpu": 0, "locked": true, "drm_card": "/sys/class/drm/card1", "performance_level": "perf_determinism"}, "f_lock_mhz": 1640, "sessions_scored": 1, "t_sol": {"path": "/sgl-workspace/sol-execbench-rocm/artifacts/03/t_sol.json", "used": false, "_provenance": {"task": "03-sol-bounds", "utc": "2026-08-04T04:03:11.530018+00:00", "git_sha": "92b6079a5baab20cc680d7d716b0fc6d768c7040-dirty", "host": "459a0b762789", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 0, "devices": []}, "rocm": {"version": "7.2.0", "driver": "7.1.1.31500000", "amd_smi": null}, "f_lock_mhz": 1300, "visible_devices": null}, "part": "MI350X", "f_lock_mhz": 1300, "arch_yaml": "/work/SOLAR/configs/arch/MI350X.yaml", "sol_model": "fused", "n_problems": 235, "n_problems_ok": 185, "n_workloads": 3627, "n_workloads_ok": 3014, "rejected": "artifact was derived on MI350X but this node is MI355X; not used"}, "t_b": {"path": "/sgl-workspace/sol-execbench-rocm/artifacts/06/t_b.json", "used": false}, "harness_integrity": {"comparable": true, "match": false, "changed": ["scripts/agent_verify.py", "scripts/score_solutions.py", "src/solexbench_agents/scoring.py"], "added": [], "removed": []}, "outcomes": {"evaluated": 1}, "score_bases": {"speedup_vs_reference": 7}}, "harnesses": {"claude-code": {"model": "claude-opus-5", "attempted": 1, "delivered": 1, "solved": 1, "solve_rate_pct": 100.0, "workloads": 7, "workloads_passed": 7, "workload_pass_rate_pct": 100.0, "timing": {"speedup_vs_reference": {"n": 7, "mean": 5.372720564277345, "median": 5.343750035139568, "basis": "speedup_vs_reference"}, "headroom_fraction": {"n": 0, "mean": null, "median": null, "basis": "sol_headroom"}, "sol_score": {"n": 0, "mean": null, "median": null, "basis": "sol_score_v1"}}, "cost": {"total_usd": 3.1500450000000004, "priced_sessions": 1, "unpriced_sessions": 0, "usd_per_solved": 3.1500450000000004}, "tokens": {"input": 404781, "output": 44932, "sessions_with_tokens": 1, "input_per_solved": 404781.0}, "time": {"total_min": 17.62540584007899, "mean_min": 17.62540584007899, "min_per_solved": 17.62540584007899}, "verify_attempts": {"mean": 3.0, "median": 3}, "languages": {"triton": 1}, "reference_copies": {"distinct": 1}, "failures": {"passed": 7}, "bound_violations": [], "by_category": {"FlashInfer-Bench": {"attempted": 1, "solved": 1, "solve_rate_pct": 100.0, "workloads": 7, "workloads_passed": 7, "workload_pass_rate_pct": 100.0}}}}, "problems": [{"problem": "FlashInfer-Bench__001_fused_add_rmsnorm_h2048", "category": "FlashInfer-Bench", "harnesses": {"claude-code": {"outcome": "evaluated", "solved": true, "passed": 7, "workloads": 7, "languages": ["triton"], "reference_copy": "distinct", "median_speedup": 5.343750035139568, "cost_usd": 3.1500450000000004, "wallclock_min": 17.62540584007899}}, "solved_by": ["claude-code"], "solved_by_none": false}], "totals": {"score_files": 1, "harnesses": ["claude-code"]}}}, "run_ids": ["pilot-01", "smoke-01"]}</script>
+<script>
+const SB = JSON.parse(document.getElementById('payload').textContent);
+
+const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v))
+  ? '<span class="empty">-</span>' : Number(v).toFixed(d);
+const pct = (v) => (v === null || v === undefined)
+  ? '<span class="empty">-</span>' : Number(v).toFixed(1) + '%';
+const usd = (v) => (v === null || v === undefined)
+  ? '<span class="empty">n/a</span>' : '$' + Number(v).toFixed(2);
+const esc = (s) => String(s ?? '').replace(/[&<>]/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+function bar(fraction) {
+  const w = Math.max(0, Math.min(1, fraction || 0)) * 100;
+  return `<div class="bar"><span style="width:${w}%"></span></div>`;
+}
+
+function basisNote(run) {
+  const bases = (run.scoring && run.scoring.score_bases) || {};
+  const hasFull = (bases['sol_score_v1'] || 0) > 0;
+  const tb = (run.scoring && run.scoring.t_b) || {};
+  const tsol = (run.scoring && run.scoring.t_sol) || {};
+  if (hasFull) return '';
+  const bits = [];
+  if (!tsol.used) bits.push(`<b>T_SOL</b> unavailable for this part${tsol.rejected ? ` (${esc(tsol.rejected)})` : ''}`);
+  if (!tb.used) bits.push(`<b>T_b</b> unavailable${tb.rejected ? ` (${esc(tb.rejected)})` : ''}`);
+  return `<div class="note">No <b>SOL score</b> column below is populated, and that is
+    a statement about the bounds rather than the kernels: ${bits.join('; ')}.
+    Until both land, speed is reported as measured speedup over each problem's own
+    reference. That is <b>not</b> the SOL score and is not comparable to
+    upstream's published figures &mdash; the reference is whatever the dataset
+    shipped, while the anchor T_b is an optimized-PyTorch variant chosen by a
+    sweep. Every record carries a <span class="mono">score_basis</span> field so
+    the two can never be pooled by accident.</div>`;
+}
+
+function cards(run) {
+  const hs = Object.entries(run.harnesses);
+  const totalSolved = hs.reduce((a, [, h]) => a + h.solved, 0);
+  const totalAttempt = hs.reduce((a, [, h]) => a + h.attempted, 0);
+  const totalCost = hs.reduce((a, [, h]) => a + (h.cost.total_usd || 0), 0);
+  const anyUnpriced = hs.some(([, h]) => h.cost.unpriced_sessions > 0);
+  const totalMin = hs.reduce((a, [, h]) => a + (h.time.total_min || 0), 0);
+  const wl = hs.reduce((a, [, h]) => a + h.workloads, 0);
+  const wlp = hs.reduce((a, [, h]) => a + h.workloads_passed, 0);
+  return `<div class="cards">
+    <div class="card"><div class="k">problems solved</div>
+      <div class="v">${totalSolved}<span style="font-size:15px;color:var(--dim)"> / ${totalAttempt}</span></div>
+      <div class="d">all workloads passing</div></div>
+    <div class="card"><div class="k">workload pass rate</div>
+      <div class="v">${pct(wl ? 100 * wlp / wl : null)}</div>
+      <div class="d">${wlp} of ${wl} workloads</div></div>
+    <div class="card"><div class="k">agent spend</div>
+      <div class="v">${usd(totalCost || null)}</div>
+      <div class="d">${anyUnpriced ? `${hs.reduce((a, [, h]) => a + h.cost.unpriced_sessions, 0)} of ${totalAttempt} sessions report no price` : 'as reported by the harnesses'}</div></div>
+    <div class="card"><div class="k">input tokens</div>
+      <div class="v">${(hs.reduce((a, [, h]) => a + (h.tokens ? h.tokens.input : 0), 0) / 1e6).toFixed(1)}<span style="font-size:15px;color:var(--dim)"> M</span></div>
+      <div class="d">effort measure that survives a timeout</div></div>
+    <div class="card"><div class="k">agent wallclock</div>
+      <div class="v">${fmt(totalMin / 60, 1)}<span style="font-size:15px;color:var(--dim)"> h</span></div>
+      <div class="d">summed across GPUs</div></div>
+  </div>`;
+}
+
+function harnessTable(run) {
+  const rows = Object.entries(run.harnesses).map(([name, h]) => `
+    <tr>
+      <td><b>${esc(name)}</b><div class="d mono" style="color:var(--dim);font-size:11.5px">${esc(h.model || 'model not reported')}</div></td>
+      <td>${h.solved} / ${h.attempted}</td>
+      <td>${pct(h.solve_rate_pct)}${bar((h.solve_rate_pct || 0) / 100)}</td>
+      <td>${pct(h.workload_pass_rate_pct)}</td>
+      <td>${fmt(h.timing.speedup_vs_reference.median)}x<div class="d" style="color:var(--dim);font-size:11px">n=${h.timing.speedup_vs_reference.n}</div></td>
+      <td>${h.timing.sol_score.n ? fmt(h.timing.sol_score.median, 3) : '<span class="empty">-</span>'}</td>
+      <td>${usd(h.cost.total_usd)}${h.cost.unpriced_sessions
+        ? `<div class="d" style="color:var(--warn);font-size:11px">${h.cost.unpriced_sessions} unpriced</div>` : ''}</td>
+      <td>${h.tokens ? (h.tokens.input / 1e6).toFixed(1) + 'M' : '-'}</td>
+      <td>${fmt(h.time.mean_min, 1)}</td>
+      <td>${fmt(h.verify_attempts.mean, 1)}</td>
+    </tr>`).join('');
+  return `<h2>By harness</h2><div class="panel"><table>
+    <thead><tr><th>harness</th><th>solved</th><th>solve rate</th>
+      <th>workload pass</th><th>median speedup</th><th>median S</th>
+      <th>spend</th><th>input tok</th><th>mean min</th><th>mean verifies</th>
+    </tr></thead><tbody>${rows}</tbody></table>
+    <div class="legend">"solved" means every workload of the problem passed on the
+      authoritative GPU. Median speedup is over passing workloads only, since the
+      latency of a wrong kernel is not a measurement of anything. Spend is only
+      what a harness reported: a session killed at the wallclock cap never emits
+      its price, so tokens are shown beside it as the effort measure that
+      survives.</div>
+  </div>`;
+}
+
+function categoryTable(run) {
+  const cats = ['L1', 'L2', 'Quant', 'FlashInfer-Bench'];
+  const names = Object.keys(run.harnesses);
+  const head = names.map(n => `<th>${esc(n)}</th>`).join('');
+  const rows = cats.map(c => {
+    const cells = names.map(n => {
+      const bc = run.harnesses[n].by_category[c];
+      if (!bc) return '<td><span class="empty">-</span></td>';
+      const cls = bc.solve_rate_pct >= 66 ? 'ok' : bc.solve_rate_pct >= 33 ? 'mid' : 'no';
+      return `<td><span class="${cls}">${bc.solved}/${bc.attempted}</span>
+        <div class="d" style="color:var(--dim);font-size:11px">${pct(bc.workload_pass_rate_pct)} wl</div></td>`;
+    }).join('');
+    return `<tr><td>${esc(c)}</td>${cells}</tr>`;
+  }).join('');
+  return `<h2>By category</h2><div class="panel"><table>
+    <thead><tr><th>category</th>${head}</tr></thead><tbody>${rows}</tbody></table>
+    <div class="legend">Top figure is problems solved; below it the workload pass
+      rate, which moves earlier than the solve rate because a problem needs every
+      workload to pass.</div></div>`;
+}
+
+function failureTable(run) {
+  const names = Object.keys(run.harnesses);
+  const kinds = new Set();
+  names.forEach(n => Object.keys(run.harnesses[n].failures).forEach(k => kinds.add(k)));
+  const ordered = [...kinds].sort((a, b) => (a === 'passed' ? -1 : b === 'passed' ? 1 : a.localeCompare(b)));
+  const rows = ordered.map(k => {
+    const cells = names.map(n => `<td>${run.harnesses[n].failures[k] || 0}</td>`).join('');
+    return `<tr><td class="mono">${esc(k)}</td>${cells}</tr>`;
+  }).join('');
+  return `<h2>Where it went wrong</h2><div class="panel"><table>
+    <thead><tr><th>stage</th>${names.map(n => `<th>${esc(n)}</th>`).join('')}</tr></thead>
+    <tbody>${rows}</tbody></table>
+    <div class="legend">Counted per workload for anything that reached evaluation,
+      per problem for anything that did not. <span class="mono">no_solution</span>
+      and <span class="mono">invalid_solution</span> are harness or budget
+      outcomes; <span class="mono">incorrect_numerical</span> and
+      <span class="mono">compile_error</span> are the model's.</div></div>`;
+}
+
+function languageTable(run) {
+  const names = Object.keys(run.harnesses);
+  const langs = new Set();
+  names.forEach(n => Object.keys(run.harnesses[n].languages).forEach(l => langs.add(l)));
+  if (!langs.size) return '';
+  const rows = [...langs].sort().map(l => `<tr><td class="mono">${esc(l)}</td>${
+    names.map(n => `<td>${run.harnesses[n].languages[l] || 0}</td>`).join('')}</tr>`).join('');
+  const copyRows = names.map(n => {
+    const c = run.harnesses[n].reference_copies || {};
+    return `<tr><td>${esc(n)}</td><td>${c.exact || 0}</td><td>${c.near || 0}</td><td>${c.distinct || 0}</td></tr>`;
+  }).join('');
+  return `<h2>What they wrote</h2>
+    <div class="panel"><h3>declared language</h3><table>
+      <thead><tr><th>language</th>${names.map(n => `<th>${esc(n)}</th>`).join('')}</tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <div class="panel"><h3>was it just the reference again?</h3><table>
+      <thead><tr><th>harness</th><th>exact copy</th><th>near copy</th><th>distinct</th></tr></thead>
+      <tbody>${copyRows}</tbody></table>
+      <div class="legend">Resubmitting the reference is correct, so it lifts the
+        pass rate without demonstrating any kernel work, and it lands near the
+        anchor by construction. Labelled rather than penalized.</div></div>`;
+}
+
+function problemTable(run) {
+  const names = Object.keys(run.harnesses);
+  const rows = run.problems.map(p => {
+    const cells = names.map(n => {
+      const h = p.harnesses[n];
+      if (!h) return '<td><span class="empty">-</span></td>';
+      const mark = h.solved
+        ? `<span class="ok">${h.passed}/${h.workloads}</span>`
+        : `<span class="no">${h.passed}/${h.workloads}</span>`;
+      const extra = h.solved && h.median_speedup ? ` <span class="pill">${fmt(h.median_speedup)}x</span>` : '';
+      const lang = (h.languages || []).join(',');
+      return `<td>${mark}${extra}<div class="d mono" style="color:var(--dim);font-size:11px">${esc(lang || h.outcome)}</div></td>`;
+    }).join('');
+    const flag = p.solved_by_none ? ' <span class="pill no">unsolved</span>' : '';
+    return `<tr><td class="mono">${esc(p.problem)}${flag}</td>${cells}</tr>`;
+  }).join('');
+  const unsolved = run.problems.filter(p => p.solved_by_none).length;
+  return `<h2>Per problem</h2><div class="panel">
+    <div class="legend" style="margin-bottom:10px">${unsolved} of ${run.problems.length}
+      problems were solved by no harness. Those are the rows worth reading first:
+      they are either genuinely hard kernels or a defect in the port, and the two
+      look identical from the headline rate.</div>
+    <table><thead><tr><th>problem</th>${names.map(n => `<th>${esc(n)}</th>`).join('')}</tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+
+function integrityNote(run) {
+  const hi = (run.scoring && run.scoring.harness_integrity) || {};
+  if (!hi.comparable) {
+    return `<div class="note">The scoring harness was <b>not fingerprinted</b> when
+      this sweep started, so it cannot be shown that the code judging correctness
+      stayed put while agents were running. ${esc(hi.note || '')}</div>`;
+  }
+  if (hi.match) return '';
+  return `<div class="note">The scoring-critical source tree <b>changed</b> between
+    the sweep starting and it being scored: ${(hi.changed || []).map(esc).join(', ') || 'see summary.json'}.
+    An operator edit produces the same signal as tampering, so this is reported
+    rather than judged &mdash; but these scores are not comparable with ones taken
+    across an unchanged harness.</div>`;
+}
+
+function violationNote(run) {
+  const all = Object.entries(run.harnesses)
+    .flatMap(([n, h]) => (h.bound_violations || []).map(v => ({ ...v, harness: n })));
+  if (!all.length) return '';
+  return `<div class="note">${all.length} workload(s) came in <b>faster than their
+    own Speed-of-Light bound</b>, which is impossible and means the bound is too
+    loose rather than the kernel being exceptional. Not clamped, because clamping
+    would hide it: ${all.slice(0, 4).map(v => `<span class="mono">${esc(v.harness)}/${esc(v.problem)}</span>`).join(', ')}${all.length > 4 ? ', ...' : ''}.</div>`;
+}
+
+function render(runId) {
+  const run = SB.runs[runId];
+  const p = SB._provenance || {};
+  document.getElementById('subtitle').innerHTML =
+    `${esc(p.part || 'unknown part')} &middot; F_LOCK ${esc(p.f_lock_mhz ?? '?')} MHz &middot; `
+    + `torch ${esc((p.torch || {}).version || '?')} &middot; ROCm ${esc((p.rocm || {}).version || '?')} &middot; `
+    + `built ${esc((p.utc || '').slice(0, 19))} &middot; <span class="mono">${esc((p.git_sha || '').slice(0, 12))}</span>`;
+  document.getElementById('app').innerHTML = [
+    basisNote(run), integrityNote(run), violationNote(run),
+    cards(run), harnessTable(run), categoryTable(run),
+    failureTable(run), languageTable(run), problemTable(run),
+  ].join('');
+}
+
+const sel = document.getElementById('runsel');
+SB.run_ids.forEach(id => {
+  const o = document.createElement('option');
+  o.value = id; o.textContent = id; sel.appendChild(o);
+});
+sel.addEventListener('change', () => render(sel.value));
+render(SB.run_ids[SB.run_ids.length - 1]);
+</script>
+</body>
+</html>

@@ -46,6 +46,14 @@ new version.
 
 ## Running it
 
+Two ways into the pinned environment. `env/solb` runs everything inside
+`solbench:rocm7.2-torch2.9.1` and is the documented path. `env/solb-native`
+satisfies the same environment contract on a node with no docker daemon, and
+**asserts** the stack matches the pin rather than assuming it — it refuses to run
+when torch or ROCm has drifted, because every baseline here is relative to one
+stack and a drifted one produces numbers that look equally authoritative. Swap
+`env/solb` for `env/solb-native` throughout if docker is unavailable.
+
 ```bash
 # 1. Build the pinned measurement container (ROCm 7.2 / torch 2.9.1 / SOLAR)
 env/solb bash -lc 'python -c "import torch; print(torch.__version__)"'
@@ -79,6 +87,36 @@ env/solb sol-execbench data/SOL-ExecBench/benchmark/L1/<problem> \
     --solution my_solution.json
 ```
 
+## Scoring coding agents against it
+
+Task 10 runs coding agents over the problem set and reports what they achieved
+and what it cost.
+
+```bash
+# sweep: one agent per problem per harness, each on its own leased GPU
+env/solb-native python scripts/run_agents.py --run-id pilot-01 --limit-per-category 6
+
+# score: re-evaluate every harvested solution on the authoritative GPU
+env/solb-native python scripts/score_solutions.py --run-id pilot-01
+
+# publish: artifacts/10/scoreboard.json + a self-contained dashboard.html
+env/solb-native python scripts/build_scoreboard.py --all-runs
+```
+
+Two things about this deserve saying before any number from it is quoted.
+
+**A harness is not a model.** Claude Code and Codex differ in how many tool calls
+they make, how they recover from a compile error, and how long they persist. A
+difference in score is a difference between *agents*, not between the underlying
+models in isolation.
+
+**The score's basis is part of the score.** `S` needs `T_SOL` *and* `T_b`; with
+either missing the scoreboard falls back to a weaker basis and labels every
+record with which one — `correctness_only`, `speedup_vs_reference`,
+`sol_headroom`, or `sol_score_v1`. Records of different bases are never averaged
+together, because such a mean moves when the *bounds* land rather than when the
+kernels improve. See [`tasks/10-agent-scoreboard.md`](tasks/10-agent-scoreboard.md).
+
 `env/solb` runs unprivileged as the invoking user. `env/solb-root` is
 privileged and exists *only* to apply the clock lock, because `/sys` is
 read-only in a stock container.
@@ -97,12 +135,22 @@ scripts/
   sol_bounds.py            SOLAR bridge — T_SOL for every problem/workload
   build_manifest.py        freezes the scoring manifest
   verify_anchor.py         the check that proves the score scale is real
+  run_agents.py            task 10 — sweep coding agents over the problem set
+  agent_verify.py          the on-GPU feedback channel an agent calls
+  score_solutions.py       re-evaluate harvested solutions, authoritatively
+  build_scoreboard.py      scoreboard.json + self-contained dashboard.html
 src/sol_execbench/         vendored upstream fork; AMD deltas marked "# AMD:"
 src/solexbench_rocm/
   parts.py                 dual-SKU constants — one source of truth
   activity/                vendor-neutral timing attribution (mutation-tested)
   shim/                    rocprofiler-sdk activity source (C++)
   solar/                   SOLAR arch-config generator
+src/solexbench_agents/
+  task_packet.py           the sandboxed per-problem directory an agent works in
+  harnesses.py             claude-code / codex adapters, with cost accounting
+  gpu_pool.py              GPU leasing — agents never share a device
+  scoring.py               S, headroom, reference-copy and integrity checks
+  aggregate.py             the scoreboard's numbers
 reference/
   tb-candidates/           T_b variant set
   exploits/                anti-reward-hacking replay corpus

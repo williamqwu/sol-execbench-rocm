@@ -1,0 +1,324 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-04T12:09:33.931733+00:00",
+  "git_sha": "ea94b186877c340518bd8410f29bcb520b5cfca0-dirty",
+  "host": "mia1-p02-g10",
+  "python": "3.10.12",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "part": "MI355X",
+  "kernel_stack": {
+   "triton": {
+    "available": true,
+    "path": "/sgl-workspace/triton-custom/python/triton/__init__.py",
+    "dist_version": "3.6.0+git42270451",
+    "is_release_wheel": false,
+    "gluon": true
+   },
+   "aiter": {
+    "available": true,
+    "path": "/sgl-workspace/aiter/aiter/__init__.py",
+    "dist_version": null,
+    "git_sha": "d9e5ef7ce08ee7045d583aed768cff41aa9210fe-dirty"
+   },
+   "hipcc": "HIP version: 7.2.26015-fc0010cf6a\nAMD clang version 22.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.2.0 26014 7b800a19466229b8479a78de19143dc33c3ab9b5)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /opt/rocm-7.2.0/lib/llvm/bin\nConfiguration file: /opt/rocm-7.2.0/lib/llvm/bin/clang++.cfg",
+   "rocm_libraries": {
+    "ck": true,
+    "ck_tile": true,
+    "hipblaslt": true,
+    "miopen": true
+   }
+  },
+  "env": {
+   "mode": "native",
+   "in_docker": true,
+   "stack_drift_allowed": false
+  },
+  "f_lock_mhz": 1640,
+  "visible_devices": "7"
+ },
+ "problem": "L1__016_rope_inverse_frequency_computation",
+ "definition": "016_rope_inverse_frequency_computation",
+ "workloads_from": "data/SOL-ExecBench/benchmark/L1/016_rope_inverse_frequency_computation/workload.jsonl",
+ "gpu": "7",
+ "variants": {
+  "v1_eager": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "9fb76bd1-f8db-5a3d-8309-cab6262ddbcb": 0.01955999992787838,
+    "fab3a116-7604-59ef-a46e-148de0bd6e76": 0.019499999471008778,
+    "77246dd6-4d5a-5643-9419-f45c8fbe85de": 0.019440000876784325,
+    "31393548-9097-57a7-83de-0073875dba70": 0.019539999775588512,
+    "c23f1156-0a9b-5717-b6f7-5c0231fce44e": 0.019499999471008778,
+    "0b0116c7-2901-57d0-8da2-1c2614688939": 0.019460000097751617,
+    "3e592fed-88aa-5025-9a7d-e5a83fb31bfe": 0.01944050006568432,
+    "1c1a87a0-547b-5bce-ad01-08d861c1c92f": 0.01947999931871891,
+    "78e7f885-b04b-54f6-9726-742d5ad4ef3c": 0.019460000097751617,
+    "5fe8bfe0-d409-5e41-bc74-d93e95ebe175": 0.019460000097751617,
+    "60179896-8684-58ec-b343-e451991604a6": 0.01947999931871891,
+    "6ca7a5b1-60b9-5ce2-b90e-39b2d6f24fc5": 0.01955999992787838,
+    "9087c4a8-df84-51eb-a6b6-25b75d6705fd": 0.019500499591231346,
+    "6aeccbaa-1541-5a82-8744-f4d6d9bf56b1": 0.019500499591231346,
+    "ca432817-1216-553c-ac83-cc854d394696": 0.019539999775588512,
+    "abcb83aa-a95d-557d-9b12-cae4ddd1113e": 0.019519999623298645
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v2_compile": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "9fb76bd1-f8db-5a3d-8309-cab6262ddbcb": 0.0069599999114871025,
+    "fab3a116-7604-59ef-a46e-148de0bd6e76": 0.007040000054985285,
+    "77246dd6-4d5a-5643-9419-f45c8fbe85de": 0.00698000006377697,
+    "31393548-9097-57a7-83de-0073875dba70": 0.0069599999114871025,
+    "c23f1156-0a9b-5717-b6f7-5c0231fce44e": 0.007000000216066837,
+    "0b0116c7-2901-57d0-8da2-1c2614688939": 0.0069599999114871025,
+    "3e592fed-88aa-5025-9a7d-e5a83fb31bfe": 0.007000000216066837,
+    "1c1a87a0-547b-5bce-ad01-08d861c1c92f": 0.0069599999114871025,
+    "78e7f885-b04b-54f6-9726-742d5ad4ef3c": 0.019499999471008778,
+    "5fe8bfe0-d409-5e41-bc74-d93e95ebe175": 0.01947999931871891,
+    "60179896-8684-58ec-b343-e451991604a6": 0.019539999775588512,
+    "6ca7a5b1-60b9-5ce2-b90e-39b2d6f24fc5": 0.01947999931871891,
+    "9087c4a8-df84-51eb-a6b6-25b75d6705fd": 0.019460000097751617,
+    "6aeccbaa-1541-5a82-8744-f4d6d9bf56b1": 0.019519999623298645,
+    "ca432817-1216-553c-ac83-cc854d394696": 0.019539999775588512,
+    "abcb83aa-a95d-557d-9b12-cae4ddd1113e": 0.01947999931871891
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v3_compile_max_autotune": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "9fb76bd1-f8db-5a3d-8309-cab6262ddbcb": 0.007120000198483467,
+    "fab3a116-7604-59ef-a46e-148de0bd6e76": 0.007040000054985285,
+    "77246dd6-4d5a-5643-9419-f45c8fbe85de": 0.007079999893903732,
+    "31393548-9097-57a7-83de-0073875dba70": 0.007160000037401915,
+    "c23f1156-0a9b-5717-b6f7-5c0231fce44e": 0.007079999893903732,
+    "0b0116c7-2901-57d0-8da2-1c2614688939": 0.007120000198483467,
+    "3e592fed-88aa-5025-9a7d-e5a83fb31bfe": 0.007120000198483467,
+    "1c1a87a0-547b-5bce-ad01-08d861c1c92f": 0.007120000198483467,
+    "78e7f885-b04b-54f6-9726-742d5ad4ef3c": 0.019700000062584877,
+    "5fe8bfe0-d409-5e41-bc74-d93e95ebe175": 0.019680000841617584,
+    "60179896-8684-58ec-b343-e451991604a6": 0.01964000053703785,
+    "6ca7a5b1-60b9-5ce2-b90e-39b2d6f24fc5": 0.019660000689327717,
+    "9087c4a8-df84-51eb-a6b6-25b75d6705fd": 0.019660000689327717,
+    "6aeccbaa-1541-5a82-8744-f4d6d9bf56b1": 0.019680000841617584,
+    "ca432817-1216-553c-ac83-cc854d394696": 0.01964000053703785,
+    "abcb83aa-a95d-557d-9b12-cae4ddd1113e": 0.01964000053703785
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v4_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "9fb76bd1-f8db-5a3d-8309-cab6262ddbcb": 0.01955999992787838,
+    "fab3a116-7604-59ef-a46e-148de0bd6e76": 0.019460000097751617,
+    "77246dd6-4d5a-5643-9419-f45c8fbe85de": 0.019460000097751617,
+    "31393548-9097-57a7-83de-0073875dba70": 0.019499999471008778,
+    "c23f1156-0a9b-5717-b6f7-5c0231fce44e": 0.019519999623298645,
+    "0b0116c7-2901-57d0-8da2-1c2614688939": 0.019460000097751617,
+    "3e592fed-88aa-5025-9a7d-e5a83fb31bfe": 0.019460000097751617,
+    "1c1a87a0-547b-5bce-ad01-08d861c1c92f": 0.019380000419914722,
+    "78e7f885-b04b-54f6-9726-742d5ad4ef3c": 0.01947999931871891,
+    "5fe8bfe0-d409-5e41-bc74-d93e95ebe175": 0.019440000876784325,
+    "60179896-8684-58ec-b343-e451991604a6": 0.01940000057220459,
+    "6ca7a5b1-60b9-5ce2-b90e-39b2d6f24fc5": 0.019440000876784325,
+    "9087c4a8-df84-51eb-a6b6-25b75d6705fd": 0.01955999992787838,
+    "6aeccbaa-1541-5a82-8744-f4d6d9bf56b1": 0.019520499743521214,
+    "ca432817-1216-553c-ac83-cc854d394696": 0.01947999931871891,
+    "abcb83aa-a95d-557d-9b12-cae4ddd1113e": 0.019380000419914722
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v5_compile_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 0,
+   "all_passed": false,
+   "latency_ms_by_workload": {},
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "9fb76bd1-f8db-5a3d-8309-cab6262ddbcb",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "fab3a116-7604-59ef-a46e-148de0bd6e76",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "77246dd6-4d5a-5643-9419-f45c8fbe85de",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "31393548-9097-57a7-83de-0073875dba70",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "c23f1156-0a9b-5717-b6f7-5c0231fce44e",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "0b0116c7-2901-57d0-8da2-1c2614688939",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "3e592fed-88aa-5025-9a7d-e5a83fb31bfe",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "1c1a87a0-547b-5bce-ad01-08d861c1c92f",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "78e7f885-b04b-54f6-9726-742d5ad4ef3c",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "5fe8bfe0-d409-5e41-bc74-d93e95ebe175",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "60179896-8684-58ec-b343-e451991604a6",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "6ca7a5b1-60b9-5ce2-b90e-39b2d6f24fc5",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "9087c4a8-df84-51eb-a6b6-25b75d6705fd",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "6aeccbaa-1541-5a82-8744-f4d6d9bf56b1",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "ca432817-1216-553c-ac83-cc854d394696",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    },
+    {
+     "workload_uuid": "abcb83aa-a95d-557d-9b12-cae4ddd1113e",
+     "status": "RUNTIME_ERROR",
+     "log": "ckages/torch/_dynamo/symbolic_convert.py\", line 2333, in CALL_FUNCTION\n    self.call_function(fn, args, {})\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 1260, in call_function\n    if hasattr(fn, \"value\"):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 112, in __getattr__\n    return getattr(self.realize(), item)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 72, in realize\n    self._cache.realize()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/lazy.py\", line 33, in realize\n    self.vt = builder.VariableBuilder(tx, self.source)(self.value)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 442, in __call__\n    cached_vt = self.tx.output.variable_tracker_cache.lookup(value, self.source)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/output_graph.py\", line 205, in lookup\n    if key not in self.c"
+    }
+   ]
+  }
+ },
+ "winner_by_workload": {
+  "9fb76bd1-f8db-5a3d-8309-cab6262ddbcb": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.0069599999114871025
+  },
+  "fab3a116-7604-59ef-a46e-148de0bd6e76": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.007040000054985285
+  },
+  "77246dd6-4d5a-5643-9419-f45c8fbe85de": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.00698000006377697
+  },
+  "31393548-9097-57a7-83de-0073875dba70": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.0069599999114871025
+  },
+  "c23f1156-0a9b-5717-b6f7-5c0231fce44e": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.007000000216066837
+  },
+  "0b0116c7-2901-57d0-8da2-1c2614688939": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.0069599999114871025
+  },
+  "3e592fed-88aa-5025-9a7d-e5a83fb31bfe": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.007000000216066837
+  },
+  "1c1a87a0-547b-5bce-ad01-08d861c1c92f": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.0069599999114871025
+  },
+  "78e7f885-b04b-54f6-9726-742d5ad4ef3c": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.019460000097751617
+  },
+  "5fe8bfe0-d409-5e41-bc74-d93e95ebe175": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.019440000876784325
+  },
+  "60179896-8684-58ec-b343-e451991604a6": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.01940000057220459
+  },
+  "6ca7a5b1-60b9-5ce2-b90e-39b2d6f24fc5": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.019440000876784325
+  },
+  "9087c4a8-df84-51eb-a6b6-25b75d6705fd": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.019460000097751617
+  },
+  "6aeccbaa-1541-5a82-8744-f4d6d9bf56b1": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.019500499591231346
+  },
+  "ca432817-1216-553c-ac83-cc854d394696": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.01947999931871891
+  },
+  "abcb83aa-a95d-557d-9b12-cae4ddd1113e": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.019380000419914722
+  }
+ },
+ "n_workloads": 16,
+ "n_workloads_with_tb": 16,
+ "complete": true,
+ "ok": true
+}

@@ -70,19 +70,32 @@ CLOCK_LOCK_PRESETS: dict[str, ClockPreset] = {
     # taken from a spec sheet:
     #
     #   sustained floors under saturating BF16 GEMM (p5 of the final 5 min of
-    #   a 15 min run) were 1725 / 1734 / 1757 MHz on GPUs 0 / 1 / 2, and
-    #   1728 MHz on GPU 0 with all seven siblings loaded. 1650 is the round
+    #   a 15 min run) were 1725 / 1734 / 1751 MHz on GPUs 0 / 1 / 2, and
+    #   1724 MHz on GPU 0 with all seven siblings loaded. 1650 is the round
     #   number >=50 MHz below the lowest of those, so the cap sits under the
     #   floor even on the worst GPU in the worst node condition.
     #
-    #   Verified at 1648 MHz median under sustained load; timing CV 0.0015.
-    #   See tasks/01 and STATE.md. Raising this later invalidates every
-    #   measurement taken at 1650.
+    #   Verified at 1644 MHz median (min 1642) under sustained load on GPU 0,
+    #   drawing 1269 W of a 1400 W cap -- so the setting binds, not the power
+    #   limit, which is what makes it reproducible. Timing CV 0.0041.
+    #
+    # achieved_gpu_clk_mhz is 1640: a round number 0.24% below GPU 0's measured
+    # median and below its measured minimum, which makes every T_SOL marginally
+    # conservative rather than marginally optimistic.
+    #
+    # **This is a GPU-0 number and only GPU 0's.** At this same setting the eight
+    # GPUs hold wildly different clocks -- 1644, 1643, 1318, 1341, 1370, 1357,
+    # 1352, 1327 -- because only two of them obey the request while the other six
+    # land at ~0.80x it, and not because of power (they draw 950-995 W of 1400).
+    # See STATE.md D16. That 326 MHz spread is why authoritative timing is pinned
+    # to GPU 0 and why every timing artifact records which GPU produced it.
     #
     # For scale: the B200 ratio (1500/1970 ~ 76%) would imply ~1830 MHz here,
     # which is ABOVE the measured floor and would throttle continuously. The
     # MI355X derate is milder at 1650/2400 ~ 69%.
-    "AMD Instinct MI355X": ClockPreset(gpu_clk_mhz=1650, dram_clk_mhz=None),
+    "AMD Instinct MI355X": ClockPreset(
+        gpu_clk_mhz=1650, dram_clk_mhz=None, achieved_gpu_clk_mhz=1640
+    ),
     #
     # MI350X. MEASURED on gbt350-odcdh1-a08-1 (tasks/01, 2026-08-03). Same
     # CDNA4 die and the same gfx950 target as the MI355X above; a different

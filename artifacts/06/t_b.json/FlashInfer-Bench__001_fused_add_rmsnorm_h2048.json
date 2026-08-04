@@ -1,0 +1,128 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-04T15:11:34.102141+00:00",
+  "git_sha": "ea94b186877c340518bd8410f29bcb520b5cfca0-dirty",
+  "host": "mia1-p02-g10",
+  "python": "3.10.12",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "part": "MI355X",
+  "kernel_stack": {
+   "triton": {
+    "available": true,
+    "path": "/sgl-workspace/triton-custom/python/triton/__init__.py",
+    "dist_version": "3.6.0+git42270451",
+    "is_release_wheel": false,
+    "gluon": true
+   },
+   "aiter": {
+    "available": true,
+    "path": "/sgl-workspace/aiter/aiter/__init__.py",
+    "dist_version": null,
+    "git_sha": "d9e5ef7ce08ee7045d583aed768cff41aa9210fe-dirty"
+   },
+   "hipcc": "HIP version: 7.2.26015-fc0010cf6a\nAMD clang version 22.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.2.0 26014 7b800a19466229b8479a78de19143dc33c3ab9b5)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /opt/rocm-7.2.0/lib/llvm/bin\nConfiguration file: /opt/rocm-7.2.0/lib/llvm/bin/clang++.cfg",
+   "rocm_libraries": {
+    "ck": true,
+    "ck_tile": true,
+    "hipblaslt": true,
+    "miopen": true
+   }
+  },
+  "env": {
+   "mode": "native",
+   "in_docker": true,
+   "stack_drift_allowed": false
+  },
+  "f_lock_mhz": 1640,
+  "visible_devices": "0"
+ },
+ "problem": "FlashInfer-Bench__001_fused_add_rmsnorm_h2048",
+ "definition": "001_fused_add_rmsnorm_h2048",
+ "workloads_from": "data/SOL-ExecBench/benchmark/FlashInfer-Bench/001_fused_add_rmsnorm_h2048/workload.jsonl",
+ "gpu": "0",
+ "variants": {
+  "v2_compile": {
+   "ok": true,
+   "workloads": 7,
+   "passed": 7,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "906efdc6-aa3b-4b4f-a291-3a2be509d354": 0.007179999956861138,
+    "1526086b-0c06-41a1-b7b9-47b5cfc830d7": 0.008119999896734953,
+    "78c9b621-e151-4fb2-9162-f1b39afe573a": 0.007180499844253063,
+    "7fd454c3-9611-4376-a920-3d1c30639790": 0.007199999876320362,
+    "724a6dfa-06ff-45b7-9972-d174a0e23737": 0.0599604994058609,
+    "5ede385e-9b04-4b49-903f-375a5180d815": 0.04714000038802624,
+    "1602b8db-16e2-4d3f-b63d-68d4ee32e2cc": 0.00732049997895956
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v3_compile_max_autotune": {
+   "ok": true,
+   "workloads": 7,
+   "passed": 7,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "906efdc6-aa3b-4b4f-a291-3a2be509d354": 0.007240000180900097,
+    "1526086b-0c06-41a1-b7b9-47b5cfc830d7": 0.00827999971807003,
+    "78c9b621-e151-4fb2-9162-f1b39afe573a": 0.007319999858736992,
+    "7fd454c3-9611-4376-a920-3d1c30639790": 0.007400000002235174,
+    "724a6dfa-06ff-45b7-9972-d174a0e23737": 0.060120999813079834,
+    "5ede385e-9b04-4b49-903f-375a5180d815": 0.04712050035595894,
+    "1602b8db-16e2-4d3f-b63d-68d4ee32e2cc": 0.007400000002235174
+   },
+   "is_override": false,
+   "failures": []
+  }
+ },
+ "winner_by_workload": {
+  "906efdc6-aa3b-4b4f-a291-3a2be509d354": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.007179999956861138
+  },
+  "1526086b-0c06-41a1-b7b9-47b5cfc830d7": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.008119999896734953
+  },
+  "78c9b621-e151-4fb2-9162-f1b39afe573a": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.007180499844253063
+  },
+  "7fd454c3-9611-4376-a920-3d1c30639790": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.007199999876320362
+  },
+  "724a6dfa-06ff-45b7-9972-d174a0e23737": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.0599604994058609
+  },
+  "5ede385e-9b04-4b49-903f-375a5180d815": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.04712050035595894
+  },
+  "1602b8db-16e2-4d3f-b63d-68d4ee32e2cc": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.00732049997895956
+  }
+ },
+ "n_workloads": 7,
+ "n_workloads_with_tb": 7,
+ "complete": true,
+ "ok": true
+}

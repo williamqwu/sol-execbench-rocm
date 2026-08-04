@@ -1,0 +1,167 @@
+preflight OK: claude-code, codex
+{
+  "run_id": "pilot-01",
+  "harnesses": [
+    "claude-code",
+    "codex"
+  ],
+  "categories": [
+    "L1",
+    "L2",
+    "Quant",
+    "FlashInfer-Bench"
+  ],
+  "limit_per_category": 6,
+  "problems": 24,
+  "units": 48,
+  "gpus": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "max_attempts": 5,
+  "timeout_min": 30.0,
+  "budget_usd": 400.0,
+  "workloads_root": "/sgl-workspace/sol-execbench-rocm/artifacts/05/workloads",
+  "tolerances": "amd-derived",
+  "excluded_deferred": [
+    "Quant__008_nvfp4_multimodal_embedding_projection",
+    "Quant__009_nvfp4_vision_temporal_patch_merge_with_projection",
+    "Quant__018_nvfp4_attention_output_projection_with_residual",
+    "Quant__019_nvfp4_grouped_query_attention",
+    "Quant__020_nvfp4_linear_layer",
+    "Quant__024_nvfp4_attention_output_projection",
+    "Quant__025_nvfp4_attention_qkv_projection",
+    "Quant__026_nvfp4_mamba2_out_projection",
+    "Quant__027_nvfp4_moe_router_projection",
+    "Quant__028_nvfp4_attention_qkv_projection_with_rope",
+    "Quant__029_nvfp4_fused_mlp_silu_gating",
+    "Quant__030_nvfp4_fused_decoder_layer_pre_norm_attention",
+    "Quant__031_nvfp4_grouped_query_attention_with_kv_repeat",
+    "Quant__032_nvfp4_moe_expert_linear_with_gating",
+    "Quant__033_nvfp4_moe_routing_with_topk_selection"
+  ],
+  "excluded_reasons": {
+    "Quant__008_nvfp4_multimodal_embedding_projection": "nvfp4-no-rocm-path",
+    "Quant__009_nvfp4_vision_temporal_patch_merge_with_projection": "nvfp4-no-rocm-path",
+    "Quant__018_nvfp4_attention_output_projection_with_residual": "nvfp4-no-rocm-path",
+    "Quant__019_nvfp4_grouped_query_attention": "nvfp4-no-rocm-path",
+    "Quant__020_nvfp4_linear_layer": "nvfp4-no-rocm-path",
+    "Quant__024_nvfp4_attention_output_projection": "nvfp4-no-rocm-path",
+    "Quant__025_nvfp4_attention_qkv_projection": "nvfp4-no-rocm-path",
+    "Quant__026_nvfp4_mamba2_out_projection": "nvfp4-no-rocm-path",
+    "Quant__027_nvfp4_moe_router_projection": "nvfp4-no-rocm-path",
+    "Quant__028_nvfp4_attention_qkv_projection_with_rope": "nvfp4-no-rocm-path",
+    "Quant__029_nvfp4_fused_mlp_silu_gating": "nvfp4-no-rocm-path",
+    "Quant__030_nvfp4_fused_decoder_layer_pre_norm_attention": "nvfp4-no-rocm-path",
+    "Quant__031_nvfp4_grouped_query_attention_with_kv_repeat": "nvfp4-no-rocm-path",
+    "Quant__032_nvfp4_moe_expert_linear_with_gating": "nvfp4-no-rocm-path",
+    "Quant__033_nvfp4_moe_routing_with_topk_selection": "nvfp4-no-rocm-path"
+  }
+}
+48 unit(s): 48 to run, 0 already done, 7 GPU(s) in the pool
+  [claude-code] L1__001_attention_softmax_dropout_value_matmul_backward: start on GPU 1 (16 workloads)
+  [claude-code] L1__016_rope_inverse_frequency_computation: start on GPU 2 (16 workloads)
+  [claude-code] L1__048_fused_gate_up_projection_with_swiglu: start on GPU 3 (16 workloads)
+  [claude-code] L1__032_attention_weights_matmul_with_value_projection: start on GPU 4 (16 workloads)
+  [claude-code] L2__001_fused_vision_multihead_attention_with_norms_backward: start on GPU 5 (16 workloads)
+  [claude-code] L1__063_attention_output_reshape_and_projection: start on GPU 6 (16 workloads)
+  [claude-code] L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward: start on GPU 7 (16 workloads)
+  [claude-code] L1__001_attention_softmax_dropout_value_matmul_backward: NO SOLUTION, self-verify never verified, 0 attempt(s), 12.2 min, $0.39
+  [claude-code] L2__014_audio_encoder_varlen_attention_with_chunking_backward: start on GPU 1 (16 workloads)
+  [claude-code] L1__016_rope_inverse_frequency_computation: solution, self-verify 16/16, 4 attempt(s), 19.7 min, $4.85
+  [claude-code] L2__028_gqa_rotary_attention_core_backward: start on GPU 2 (16 workloads)
+  [claude-code] L1__032_attention_weights_matmul_with_value_projection: solution, self-verify never verified, 0 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [claude-code] L2__042_ffn_gelu_projection_fused_backward: start on GPU 3 (16 workloads)
+  [claude-code] L1__048_fused_gate_up_projection_with_swiglu: solution, self-verify never verified, 0 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [claude-code] L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward: solution, self-verify never verified, 0 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [claude-code] L1__063_attention_output_reshape_and_projection: solution, self-verify never verified, 0 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [claude-code] Quant__001_fp8_attention_output_projection: start on GPU 4 (16 workloads)
+  [claude-code] L2__055_audio_encoder_conv_positional_layer_stack: start on GPU 7 (15 workloads)
+  [claude-code] L2__069_joint_transformer_block_residual_path: start on GPU 6 (16 workloads)
+  [claude-code] L2__001_fused_vision_multihead_attention_with_norms_backward: solution, self-verify never verified, 0 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [claude-code] Quant__004_fp8_moe_expert_linear: start on GPU 5 (16 workloads)
+  [claude-code] L2__014_audio_encoder_varlen_attention_with_chunking_backward: solution, self-verify 16/16, 1 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [claude-code] Quant__007_fp8_vision_attention_qkv_projection: start on GPU 1 (16 workloads)
+  [claude-code] L2__028_gqa_rotary_attention_core_backward: solution, self-verify 16/16, 1 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [claude-code] Quant__012_fp8_shared_expert_mlp: start on GPU 2 (16 workloads)
+  [claude-code] L2__042_ffn_gelu_projection_fused_backward: solution, self-verify 16/16, 1 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [claude-code] Quant__015_fp8_mla_attention_output_projection: start on GPU 3 (16 workloads)
+  [claude-code] L2__055_audio_encoder_conv_positional_layer_stack: solution, self-verify never verified, 0 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [claude-code] Quant__021_fp8_mamba2_in_projection: start on GPU 7 (16 workloads)
+  [claude-code] Quant__001_fp8_attention_output_projection: solution, self-verify never verified, 1 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [claude-code] FlashInfer-Bench__001_fused_add_rmsnorm_h2048: start on GPU 4 (7 workloads)
+  [claude-code] Quant__004_fp8_moe_expert_linear: solution, self-verify never verified, 0 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [claude-code] FlashInfer-Bench__005_gemm_n256_k7168: start on GPU 5 (17 workloads)
+  [claude-code] L2__069_joint_transformer_block_residual_path: solution, self-verify 0/16, 1 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [claude-code] FlashInfer-Bench__009_gemm_n5120_k2048: start on GPU 6 (25 workloads)
+  [claude-code] Quant__007_fp8_vision_attention_qkv_projection: solution, self-verify never verified, 1 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [claude-code] FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1: start on GPU 1 (30 workloads)
+  [claude-code] Quant__012_fp8_shared_expert_mlp: solution, self-verify never verified, 0 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [claude-code] FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1: start on GPU 2 (47 workloads)
+  [claude-code] FlashInfer-Bench__001_fused_add_rmsnorm_h2048: solution, self-verify 7/7, 5 attempt(s), 23.6 min, $7.83
+  [claude-code] FlashInfer-Bench__022_rmsnorm_h512: start on GPU 4 (8 workloads)
+  [claude-code] Quant__021_fp8_mamba2_in_projection: solution, self-verify never verified, 2 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [codex] L1__001_attention_softmax_dropout_value_matmul_backward: start on GPU 7 (16 workloads)
+  [claude-code] Quant__015_fp8_mla_attention_output_projection: solution, self-verify never verified, 0 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [codex] L1__016_rope_inverse_frequency_computation: start on GPU 3 (16 workloads)
+  [claude-code] FlashInfer-Bench__005_gemm_n256_k7168: solution, self-verify 17/17, 1 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [codex] L1__032_attention_weights_matmul_with_value_projection: start on GPU 5 (16 workloads)
+  [claude-code] FlashInfer-Bench__009_gemm_n5120_k2048: solution, self-verify never verified, 0 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [codex] L1__048_fused_gate_up_projection_with_swiglu: start on GPU 6 (16 workloads)
+  [codex] L1__016_rope_inverse_frequency_computation: solution, self-verify 16/16, 3 attempt(s), 6.0 min, cost n/a
+  [codex] L1__063_attention_output_reshape_and_projection: start on GPU 3 (16 workloads)
+  [codex] L1__048_fused_gate_up_projection_with_swiglu: solution, self-verify 16/16, 4 attempt(s), 9.0 min, cost n/a
+  [codex] L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward: start on GPU 6 (16 workloads)
+  [codex] L1__032_attention_weights_matmul_with_value_projection: solution, self-verify 16/16, 5 attempt(s), 10.1 min, cost n/a
+  [codex] L2__001_fused_vision_multihead_attention_with_norms_backward: start on GPU 5 (16 workloads)
+  [claude-code] FlashInfer-Bench__022_rmsnorm_h512: solution, self-verify 8/8, 3 attempt(s), 17.8 min, $4.77
+  [codex] L2__014_audio_encoder_varlen_attention_with_chunking_backward: start on GPU 4 (16 workloads)
+  [codex] L1__001_attention_softmax_dropout_value_matmul_backward: solution, self-verify 16/16, 5 attempt(s), 11.8 min, cost n/a
+  [codex] L2__028_gqa_rotary_attention_core_backward: start on GPU 7 (16 workloads)
+  [claude-code] FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1: solution, self-verify never verified, 0 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [codex] L2__042_ffn_gelu_projection_fused_backward: start on GPU 1 (16 workloads)
+  [codex] L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward: solution, self-verify 16/16, 3 attempt(s), 7.6 min, cost n/a
+  [codex] L2__055_audio_encoder_conv_positional_layer_stack: start on GPU 6 (15 workloads)
+  [codex] L1__063_attention_output_reshape_and_projection: solution, self-verify 16/16, 3 attempt(s), 11.3 min, cost n/a
+  [codex] L2__069_joint_transformer_block_residual_path: start on GPU 3 (16 workloads)
+  [codex] L2__001_fused_vision_multihead_attention_with_norms_backward: solution, self-verify 16/16, 5 attempt(s), 9.0 min, cost n/a
+  [codex] Quant__001_fp8_attention_output_projection: start on GPU 5 (16 workloads)
+  [claude-code] FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1: solution, self-verify 47/47, 1 attempt(s), 30.0 min, cost n/a TIMED OUT
+  [codex] Quant__004_fp8_moe_expert_linear: start on GPU 2 (16 workloads)
+  [codex] L2__069_joint_transformer_block_residual_path: solution, self-verify 16/16, 5 attempt(s), 7.5 min, cost n/a
+  [codex] Quant__007_fp8_vision_attention_qkv_projection: start on GPU 3 (16 workloads)
+  [codex] L2__042_ffn_gelu_projection_fused_backward: solution, self-verify 16/16, 3 attempt(s), 13.8 min, cost n/a
+  [codex] Quant__012_fp8_shared_expert_mlp: start on GPU 1 (16 workloads)
+  [codex] L2__014_audio_encoder_varlen_attention_with_chunking_backward: solution, self-verify 16/16, 5 attempt(s), 14.9 min, cost n/a
+  [codex] Quant__015_fp8_mla_attention_output_projection: start on GPU 4 (16 workloads)
+  [codex] L2__028_gqa_rotary_attention_core_backward: solution, self-verify 16/16, 4 attempt(s), 14.7 min, cost n/a
+  [codex] Quant__021_fp8_mamba2_in_projection: start on GPU 7 (16 workloads)
+  [codex] Quant__001_fp8_attention_output_projection: solution, self-verify 16/16, 5 attempt(s), 9.0 min, cost n/a
+  [codex] FlashInfer-Bench__001_fused_add_rmsnorm_h2048: start on GPU 5 (7 workloads)
+  [codex] L2__055_audio_encoder_conv_positional_layer_stack: solution, self-verify 15/15, 5 attempt(s), 16.4 min, cost n/a
+  [codex] FlashInfer-Bench__005_gemm_n256_k7168: start on GPU 6 (17 workloads)
+  [codex] Quant__015_fp8_mla_attention_output_projection: solution, self-verify 16/16, 3 attempt(s), 7.4 min, cost n/a
+  [codex] FlashInfer-Bench__009_gemm_n5120_k2048: start on GPU 4 (25 workloads)
+  [codex] Quant__007_fp8_vision_attention_qkv_projection: solution, self-verify 16/16, 5 attempt(s), 12.4 min, cost n/a
+  [codex] FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1: start on GPU 3 (30 workloads)
+  [codex] Quant__012_fp8_shared_expert_mlp: solution, self-verify 16/16, 5 attempt(s), 11.4 min, cost n/a
+  [codex] FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1: start on GPU 1 (47 workloads)
+  [codex] FlashInfer-Bench__001_fused_add_rmsnorm_h2048: solution, self-verify 7/7, 5 attempt(s), 10.7 min, cost n/a
+  [codex] FlashInfer-Bench__022_rmsnorm_h512: start on GPU 5 (8 workloads)
+  [codex] FlashInfer-Bench__005_gemm_n256_k7168: solution, self-verify 17/17, 3 attempt(s), 9.3 min, cost n/a
+  [codex] Quant__021_fp8_mamba2_in_projection: solution, self-verify 16/16, 4 attempt(s), 15.8 min, cost n/a
+  [codex] Quant__004_fp8_moe_expert_linear: solution, self-verify 16/16, 5 attempt(s), 23.8 min, cost n/a
+  [codex] FlashInfer-Bench__022_rmsnorm_h512: solution, self-verify 8/8, 5 attempt(s), 7.2 min, cost n/a
+  [codex] FlashInfer-Bench__009_gemm_n5120_k2048: solution, self-verify 25/25, 4 attempt(s), 13.1 min, cost n/a
+  [codex] FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1: solution, self-verify 47/47, 5 attempt(s), 11.0 min, cost n/a
+  [codex] FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1: solution, self-verify never verified, 2 attempt(s), 30.0 min, cost n/a TIMED OUT
+
+48 session(s) in 157.1 min; spend $17.85, 44 session(s) report no cost
+
+sessions under /sgl-workspace/sol-execbench-rocm/artifacts/10/runs/pilot-01
+next: python scripts/score_solutions.py --run-id pilot-01

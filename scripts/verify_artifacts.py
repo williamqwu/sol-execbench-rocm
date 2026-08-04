@@ -69,8 +69,41 @@ def state_text() -> str:
 
 
 def f_lock_from_state() -> int | None:
-    m = re.search(r"F_LOCK.*?(\d{3,4})\s*(?:MHz)?", state_text(), re.I)
+    """F_LOCK as STATE.md declares it, from a canonical marker only.
+
+    Deliberately narrow. The original pattern was ``F_LOCK.*?(\\d{3,4})``, which
+    matches the *first* number after the *first* mention of F_LOCK anywhere in the
+    file. Once STATE.md documented two parts, that resolved to a sentence about
+    the MI350X bound -- so the acceptance check compared 1300 against MI355X's
+    1724 floor, passed comfortably, and validated nothing. A check that cannot
+    fail is worse than no check.
+
+    The marker is ``F_LOCK = <n> MHz``, written once, in the Decisions section.
+    """
+    m = re.search(r"^\s*\*\*F_LOCK\s*=\s*(\d{3,4})\s*MHz\*\*", state_text(),
+                  re.I | re.M)
     return int(m.group(1)) if m else None
+
+
+def f_lock_from_preset() -> tuple[int | None, str | None]:
+    """(F_LOCK, part) as the *code* will use it, from CLOCK_LOCK_PRESETS.
+
+    This is the value every T_SOL and T_b is actually expressed at, because it is
+    the one ``provenance.stamp()`` reads and the one ``lock_clocks`` applies. If
+    it and STATE.md disagree, one of them is lying about the frequency the whole
+    benchmark is calibrated to, and nothing downstream could tell.
+    """
+    try:
+        sys.path.insert(0, str(ROOT / "src"))
+        import torch
+
+        from sol_execbench.core.bench.config import get_clock_preset
+        from solexbench_rocm.parts import detect_part
+
+        preset = get_clock_preset(torch.cuda.get_device_name(0))
+        return (preset.f_lock_mhz if preset else None), detect_part().name
+    except Exception:
+        return None, None
 
 
 # --------------------------------------------------------------------------
@@ -119,7 +152,24 @@ def check_00(c: Checks):
 def check_01(c: Checks):
     fl = f_lock_from_state()
     c.require(fl is not None, "F_LOCK recorded in STATE.md",
-              f"{fl} MHz", "blocks tasks 03, 05, 06")
+              f"{fl} MHz",
+              "no canonical `**F_LOCK = <n> MHz**` line — blocks tasks 03, 05, 06")
+
+    preset_fl, part = f_lock_from_preset()
+    c.require(preset_fl is not None, "F_LOCK present in CLOCK_LOCK_PRESETS",
+              f"{preset_fl} MHz for {part}",
+              "no preset for this device — lock_clocks() will refuse and every "
+              "artifact's f_lock_mhz will be null")
+    if fl is not None and preset_fl is not None:
+        # The one comparison that catches a stale document or a stale constant.
+        # Both are load-bearing: the preset is what gets applied and stamped, the
+        # document is what a human reads, and a benchmark whose two records of
+        # its own clock disagree cannot be trusted to a percent.
+        c.require(fl == preset_fl,
+                  "STATE.md and CLOCK_LOCK_PRESETS agree on F_LOCK",
+                  f"both {fl} MHz",
+                  f"STATE.md says {fl} MHz, code applies {preset_fl} MHz — one of "
+                  f"them is wrong and every T_SOL and T_b depends on which")
 
     floors = list((ART / "01").glob("floor-gpu*.json")) if (ART / "01").exists() else []
     c.require(len(floors) >= 3, "clock floor sampled on >=3 GPUs",
@@ -430,8 +480,95 @@ def check_09(c: Checks, full=False):
                              "project — state it explicitly")
 
 
+def check_10(c: Checks):
+    """Agent scoreboard. Checks the reporting discipline, not the score itself.
+
+    A low score is a result. A score whose basis is unstated, whose harness moved
+    underneath it, or which silently covers 40 problems instead of 235, is not.
+    """
+    board = load_json(ART / "10" / "scoreboard.json")
+    if not c.require(board is not None, "scoreboard.json exists",
+                     detail_bad="run scripts/build_scoreboard.py --all-runs"):
+        return
+    c.require(has_provenance(board), "scoreboard has provenance")
+    c.require((ART / "10" / "dashboard.html").exists(), "dashboard rendered")
+
+    runs = board.get("runs") or {}
+    if not c.require(bool(runs), "at least one scored run"):
+        return
+
+    for run_id, run in runs.items():
+        harnesses = run.get("harnesses") or {}
+        c.require(bool(harnesses), f"{run_id}: has harness results")
+
+        # Every session must be accounted for as delivered or as a named
+        # non-delivery. A count that does not add up means sessions vanished.
+        for name, h in harnesses.items():
+            attempted, delivered = h.get("attempted", 0), h.get("delivered", 0)
+            non_delivery = sum(
+                v for k, v in (h.get("failures") or {}).items()
+                if k in ("no_solution", "invalid_solution", "scorer_error",
+                         "rejected_static_screen", "harness_error")
+            )
+            c.require(
+                delivered <= attempted,
+                f"{run_id}/{name}: delivered <= attempted",
+                f"{delivered}/{attempted}",
+                f"{delivered} delivered of {attempted} attempted is impossible",
+            )
+            c.require(
+                attempted - delivered <= non_delivery,
+                f"{run_id}/{name}: every non-delivery has a named stage",
+                f"{attempted - delivered} undelivered, {non_delivery} classified",
+                "sessions disappeared between the sweep and the scoreboard",
+            )
+            # Cost must be present or explicitly absent, never inferred.
+            cost = h.get("cost") or {}
+            c.require(
+                cost.get("priced_sessions", 0) + cost.get("unpriced_sessions", 0)
+                == attempted,
+                f"{run_id}/{name}: cost accounted for every session",
+                f"{cost.get('priced_sessions')} priced, "
+                f"{cost.get('unpriced_sessions')} unpriced",
+            )
+            # A populated S column requires the manifest's anchor property to
+            # hold. Publishing S from an unverified anchor is task 09's guard
+            # rail and would be undetectable downstream.
+            if (h.get("timing", {}).get("sol_score", {}).get("n") or 0) > 0:
+                c.require((ART / "06" / "anchor-verification.md").exists(),
+                          f"{run_id}/{name}: S published only with a verified anchor",
+                          detail_bad="artifacts/06/anchor-verification.md absent — "
+                                     "do not publish S (task 06 step 4)")
+
+        scoring = run.get("scoring") or {}
+        integrity = scoring.get("harness_integrity") or {}
+        c.require(bool(integrity), f"{run_id}: harness integrity was checked")
+        if integrity.get("comparable") and not integrity.get("match"):
+            c.add(JUDGE, f"{run_id}: harness tree changed mid-run",
+                  f"{len(integrity.get('changed', []))} file(s); scores not "
+                  f"comparable with an unchanged harness")
+        elif not integrity.get("comparable"):
+            c.add(JUDGE, f"{run_id}: harness was not fingerprinted",
+                  "cannot show the scoring code stayed put during the sweep")
+
+        bases = scoring.get("score_bases") or {}
+        c.require(bool(bases), f"{run_id}: records carry a score_basis",
+                  ", ".join(f"{k}={v}" for k, v in bases.items()),
+                  "no score_basis recorded — a basis-less score invites "
+                  "comparison against numbers derived differently")
+        c.require("None" not in bases and "none" not in bases,
+                  f"{run_id}: no record has a null basis")
+
+        unsolved = sum(1 for p in run.get("problems", []) if p.get("solved_by_none"))
+        if unsolved:
+            c.add(JUDGE, f"{run_id}: problems no harness solved",
+                  f"{unsolved} — genuinely hard kernels or a port defect; "
+                  f"the headline rate cannot tell them apart")
+
+
 CHECKS = {"00": check_00, "01": check_01, "02": check_02, "03": check_03,
-          "05": check_05, "06": check_06, "07": check_07, "08": check_08}
+          "05": check_05, "06": check_06, "07": check_07, "08": check_08,
+          "10": check_10}
 
 
 def main():

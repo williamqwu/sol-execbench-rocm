@@ -1,0 +1,446 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-04T13:02:06.280525+00:00",
+  "git_sha": "ea94b186877c340518bd8410f29bcb520b5cfca0-dirty",
+  "host": "mia1-p02-g10",
+  "python": "3.10.12",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "part": "MI355X",
+  "kernel_stack": {
+   "triton": {
+    "available": true,
+    "path": "/sgl-workspace/triton-custom/python/triton/__init__.py",
+    "dist_version": "3.6.0+git42270451",
+    "is_release_wheel": false,
+    "gluon": true
+   },
+   "aiter": {
+    "available": true,
+    "path": "/sgl-workspace/aiter/aiter/__init__.py",
+    "dist_version": null,
+    "git_sha": "d9e5ef7ce08ee7045d583aed768cff41aa9210fe-dirty"
+   },
+   "hipcc": "HIP version: 7.2.26015-fc0010cf6a\nAMD clang version 22.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.2.0 26014 7b800a19466229b8479a78de19143dc33c3ab9b5)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /opt/rocm-7.2.0/lib/llvm/bin\nConfiguration file: /opt/rocm-7.2.0/lib/llvm/bin/clang++.cfg",
+   "rocm_libraries": {
+    "ck": true,
+    "ck_tile": true,
+    "hipblaslt": true,
+    "miopen": true
+   }
+  },
+  "env": {
+   "mode": "native",
+   "in_docker": true,
+   "stack_drift_allowed": false
+  },
+  "f_lock_mhz": 1640,
+  "visible_devices": "4"
+ },
+ "problem": "L2__043_mamba_chunk_scan_with_segsum",
+ "definition": "043_mamba_chunk_scan_with_segsum",
+ "workloads_from": "data/SOL-ExecBench/benchmark/L2/043_mamba_chunk_scan_with_segsum/workload.jsonl",
+ "gpu": "4",
+ "variants": {
+  "v1_eager": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "6dc47920-87cb-522b-be70-75445f3d5ec2": 0.4925824999809265,
+    "d991fa5b-44ea-5382-9dd7-ab2de30edb3f": 0.5588429868221283,
+    "8b5183aa-fb88-5f42-93e0-7a7f93d21e39": 1.5036089420318604,
+    "ee5f8f4c-bcd1-579f-ba67-111dad5de40e": 0.36066199839115143,
+    "5fd24475-8733-54c5-9b2f-b4c6e85c6346": 0.8695850074291229,
+    "b1a54ea4-b4a1-5ba2-bdde-629f3fc44ac4": 1.7351699471473694,
+    "a85c5733-0c73-556f-8514-570137ce6445": 0.5007430016994476,
+    "e46fbbbe-6435-5117-95a2-8765cae044b2": 0.5015630125999451,
+    "7314d24b-0c2b-56b1-b284-a4788dbdd312": 1.4608885049819946,
+    "ac631b51-84e2-59cb-b2a7-7f5eb5323d33": 0.8601455092430115,
+    "cc6cc950-8370-53a7-a4b9-3ca3a06f0fe6": 0.8768450021743774,
+    "d0a303ee-a62b-52db-bbd2-be2c00180686": 1.4943490028381348,
+    "4bf2c843-37b5-5bcc-8809-79651bc70a27": 0.5465035140514374,
+    "12f5f749-116b-52a6-995a-daf4b2160b3f": 1.4538284540176392,
+    "61c84e38-30c7-54c8-90b4-62584998568e": 0.8628849983215332,
+    "2907639d-da31-514e-aad2-1a90f808b3ad": 0.8634649813175201
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v2_compile": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 1,
+   "all_passed": false,
+   "latency_ms_by_workload": {
+    "ee5f8f4c-bcd1-579f-ba67-111dad5de40e": 0.10310100018978119
+   },
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "6dc47920-87cb-522b-be70-75445f3d5ec2",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_7\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "d991fa5b-44ea-5382-9dd7-ab2de30edb3f",
+     "status": "RUNTIME_ERROR",
+     "log": "ite-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_constant_pad_nd_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_7\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "8b5183aa-fb88-5f42-93e0-7a7f93d21e39",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "5fd24475-8733-54c5-9b2f-b4c6e85c6346",
+     "status": "RUNTIME_ERROR",
+     "log": "ite-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_constant_pad_nd_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "b1a54ea4-b4a1-5ba2-bdde-629f3fc44ac4",
+     "status": "RUNTIME_ERROR",
+     "log": "ite-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_constant_pad_nd_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "a85c5733-0c73-556f-8514-570137ce6445",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_7\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "e46fbbbe-6435-5117-95a2-8765cae044b2",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_7\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "7314d24b-0c2b-56b1-b284-a4788dbdd312",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "ac631b51-84e2-59cb-b2a7-7f5eb5323d33",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "cc6cc950-8370-53a7-a4b9-3ca3a06f0fe6",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "d0a303ee-a62b-52db-bbd2-be2c00180686",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "4bf2c843-37b5-5bcc-8809-79651bc70a27",
+     "status": "RUNTIME_ERROR",
+     "log": "ite-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_constant_pad_nd_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_7\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "12f5f749-116b-52a6-995a-daf4b2160b3f",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "61c84e38-30c7-54c8-90b4-62584998568e",
+     "status": "RUNTIME_ERROR",
+     "log": "ite-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_constant_pad_nd_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "2907639d-da31-514e-aad2-1a90f808b3ad",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    }
+   ]
+  },
+  "v3_compile_max_autotune": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 1,
+   "all_passed": false,
+   "latency_ms_by_workload": {
+    "ee5f8f4c-bcd1-579f-ba67-111dad5de40e": 0.10872099921107292
+   },
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "6dc47920-87cb-522b-be70-75445f3d5ec2",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_7\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "d991fa5b-44ea-5382-9dd7-ab2de30edb3f",
+     "status": "RUNTIME_ERROR",
+     "log": "ite-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_constant_pad_nd_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_7\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "8b5183aa-fb88-5f42-93e0-7a7f93d21e39",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "5fd24475-8733-54c5-9b2f-b4c6e85c6346",
+     "status": "RUNTIME_ERROR",
+     "log": "ite-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_constant_pad_nd_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "b1a54ea4-b4a1-5ba2-bdde-629f3fc44ac4",
+     "status": "RUNTIME_ERROR",
+     "log": "ite-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_constant_pad_nd_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "a85c5733-0c73-556f-8514-570137ce6445",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_7\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "e46fbbbe-6435-5117-95a2-8765cae044b2",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_7\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "7314d24b-0c2b-56b1-b284-a4788dbdd312",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "ac631b51-84e2-59cb-b2a7-7f5eb5323d33",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "cc6cc950-8370-53a7-a4b9-3ca3a06f0fe6",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "d0a303ee-a62b-52db-bbd2-be2c00180686",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "4bf2c843-37b5-5bcc-8809-79651bc70a27",
+     "status": "RUNTIME_ERROR",
+     "log": "ite-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_constant_pad_nd_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_7\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "12f5f749-116b-52a6-995a-daf4b2160b3f",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "61c84e38-30c7-54c8-90b4-62584998568e",
+     "status": "RUNTIME_ERROR",
+     "log": "ite-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_constant_pad_nd_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    },
+    {
+     "workload_uuid": "2907639d-da31-514e-aad2-1a90f808b3ad",
+     "status": "RUNTIME_ERROR",
+     "log": "lib/python3.10/site-packages/torch/_inductor/codecache.py\", line 4289, in result\n    return self.result_fn()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/async_compile.py\", line 461, in get_result\n    raise e.with_name(kernel_name) from e\ntorch._inductor.exc.InductorError: SubprocException: An exception occurred in a subprocess:\n\nName=triton_tem_fused__to_copy__unsafe_view_bitwise_not_bmm_clone_exp_masked_fill_mul_ones_permute_tril_unsqueeze_view_6\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/compile_worker/subproc_pool.py\", line 397, in do_job\n    result = job()\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/compile_tasks.py\", line 66, in _worker_compile_triton\n    kernel.precompile(warm_cache_only=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 477, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.10/site-pack"
+    }
+   ]
+  },
+  "v4_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "6dc47920-87cb-522b-be70-75445f3d5ec2": 0.49510300159454346,
+    "d991fa5b-44ea-5382-9dd7-ab2de30edb3f": 0.5572235286235809,
+    "8b5183aa-fb88-5f42-93e0-7a7f93d21e39": 1.5077680349349976,
+    "ee5f8f4c-bcd1-579f-ba67-111dad5de40e": 0.3649819940328598,
+    "5fd24475-8733-54c5-9b2f-b4c6e85c6346": 0.8721449971199036,
+    "b1a54ea4-b4a1-5ba2-bdde-629f3fc44ac4": 1.7277700304985046,
+    "a85c5733-0c73-556f-8514-570137ce6445": 0.49562299251556396,
+    "e46fbbbe-6435-5117-95a2-8765cae044b2": 0.4966430068016052,
+    "7314d24b-0c2b-56b1-b284-a4788dbdd312": 1.4622079730033875,
+    "ac631b51-84e2-59cb-b2a7-7f5eb5323d33": 0.8618450164794922,
+    "cc6cc950-8370-53a7-a4b9-3ca3a06f0fe6": 0.8789249956607819,
+    "d0a303ee-a62b-52db-bbd2-be2c00180686": 1.4986284971237183,
+    "4bf2c843-37b5-5bcc-8809-79651bc70a27": 0.5491629838943481,
+    "12f5f749-116b-52a6-995a-daf4b2160b3f": 1.454329013824463,
+    "61c84e38-30c7-54c8-90b4-62584998568e": 0.8641050159931183,
+    "2907639d-da31-514e-aad2-1a90f808b3ad": 0.8645249903202057
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v5_compile_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 0,
+   "all_passed": false,
+   "latency_ms_by_workload": {},
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "6dc47920-87cb-522b-be70-75445f3d5ec2",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "d991fa5b-44ea-5382-9dd7-ab2de30edb3f",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "8b5183aa-fb88-5f42-93e0-7a7f93d21e39",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "ee5f8f4c-bcd1-579f-ba67-111dad5de40e",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "5fd24475-8733-54c5-9b2f-b4c6e85c6346",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "b1a54ea4-b4a1-5ba2-bdde-629f3fc44ac4",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "a85c5733-0c73-556f-8514-570137ce6445",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "e46fbbbe-6435-5117-95a2-8765cae044b2",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "7314d24b-0c2b-56b1-b284-a4788dbdd312",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "ac631b51-84e2-59cb-b2a7-7f5eb5323d33",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "cc6cc950-8370-53a7-a4b9-3ca3a06f0fe6",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "d0a303ee-a62b-52db-bbd2-be2c00180686",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "4bf2c843-37b5-5bcc-8809-79651bc70a27",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "12f5f749-116b-52a6-995a-daf4b2160b3f",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "61c84e38-30c7-54c8-90b4-62584998568e",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    },
+    {
+     "workload_uuid": "2907639d-da31-514e-aad2-1a90f808b3ad",
+     "status": "RUNTIME_ERROR",
+     "log": "3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2645, in wrap_fx_proxy\n    return wrap_fx_proxy_cls(target_cls=TensorVariable, **kwargs)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n  File \"/opt/venv/lib/python3.10/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode"
+    }
+   ]
+  }
+ },
+ "winner_by_workload": {
+  "6dc47920-87cb-522b-be70-75445f3d5ec2": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.4925824999809265
+  },
+  "d991fa5b-44ea-5382-9dd7-ab2de30edb3f": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.5572235286235809
+  },
+  "8b5183aa-fb88-5f42-93e0-7a7f93d21e39": {
+   "variant": "v1_eager",
+   "t_b_ms": 1.5036089420318604
+  },
+  "ee5f8f4c-bcd1-579f-ba67-111dad5de40e": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.36066199839115143
+  },
+  "5fd24475-8733-54c5-9b2f-b4c6e85c6346": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.8695850074291229
+  },
+  "b1a54ea4-b4a1-5ba2-bdde-629f3fc44ac4": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 1.7277700304985046
+  },
+  "a85c5733-0c73-556f-8514-570137ce6445": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.49562299251556396
+  },
+  "e46fbbbe-6435-5117-95a2-8765cae044b2": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.4966430068016052
+  },
+  "7314d24b-0c2b-56b1-b284-a4788dbdd312": {
+   "variant": "v1_eager",
+   "t_b_ms": 1.4608885049819946
+  },
+  "ac631b51-84e2-59cb-b2a7-7f5eb5323d33": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.8601455092430115
+  },
+  "cc6cc950-8370-53a7-a4b9-3ca3a06f0fe6": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.8768450021743774
+  },
+  "d0a303ee-a62b-52db-bbd2-be2c00180686": {
+   "variant": "v1_eager",
+   "t_b_ms": 1.4943490028381348
+  },
+  "4bf2c843-37b5-5bcc-8809-79651bc70a27": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.5465035140514374
+  },
+  "12f5f749-116b-52a6-995a-daf4b2160b3f": {
+   "variant": "v1_eager",
+   "t_b_ms": 1.4538284540176392
+  },
+  "61c84e38-30c7-54c8-90b4-62584998568e": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.8628849983215332
+  },
+  "2907639d-da31-514e-aad2-1a90f808b3ad": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.8634649813175201
+  }
+ },
+ "n_workloads": 16,
+ "n_workloads_with_tb": 16,
+ "complete": true,
+ "ok": true
+}

@@ -1,0 +1,45 @@
+/sgl-workspace/sol-execbench-rocm/artifacts/10/runs/pilot-01/claude-code/FlashInfer-Bench__005_gemm_n256_k7168/packet/tune2.py:182: UserWarning: expandable_segments not supported on this platform (Triggered internally at /pytorch/c10/hip/HIPAllocatorConfig.h:36.)
+  A = torch.randn(M, K, generator=g, device=DEV, dtype=torch.float16)
+--- M=4 --- torch gpu=12.18us
+   gsk BM16 BN16 BK64 SK16 w2 nb256                  5.11us
+   gsk BM16 BN16 BK64 SK16 w1 nb256                  5.36us
+   gsk BM32 BN16 BK64 SK16 w2 nb256                  5.38us
+   gsk BM32 BN16 BK64 SK16 w4 nb256                  5.54us
+   gsk BM32 BN16 BK64 SK16 w1 nb256                  5.57us
+   gsk BM16 BN16 BK128 SK8 w2 nb128                  5.59us
+--- M=16 --- torch gpu=9.68us
+   gsk BM16 BN16 BK64 SK16 w2 nb256                  5.34us
+   gsk BM16 BN16 BK64 SK16 w1 nb256                  5.56us
+   gsk BM32 BN16 BK64 SK16 w1 nb256                  5.64us
+   gsk BM32 BN16 BK64 SK16 w2 nb256                  5.64us
+   gsk BM32 BN16 BK64 SK16 w4 nb256                  5.67us
+   gsk BM16 BN16 BK128 SK8 w2 nb128                  5.79us
+--- M=53 --- torch gpu=34.02us
+   gsk BM32 BN16 BK128 SK8 w2 nb256                  6.74us
+   gsk BM16 BN16 BK128 SK8 w2 nb512                  6.81us
+   gsk BM128 BN32 BK64 SK16 w4 nb128                 7.26us
+   gsk BM128 BN64 BK64 SK16 w8 nb64                  7.96us
+   gsk BM128 BN64 BK64 SK16 w4 nb64                  8.07us
+   gsk BM32 BN32 BK64 SK16 w8 nb256                  8.09us
+--- M=63 --- torch gpu=9.90us
+   gsk BM32 BN16 BK64 SK16 w2 nb512                  6.22us
+   gsk BM64 BN16 BK64 SK16 w2 nb256                  6.42us
+   gsk BM32 BN16 BK128 SK8 w2 nb256                  6.56us
+   gsk BM64 BN16 BK64 SK16 w4 nb256                  6.57us
+   gsk BM16 BN16 BK64 SK8 w2 nb512                   6.58us
+   gsk BM32 BN16 BK64 SK16 w1 nb512                  6.64us
+--- M=80 --- torch gpu=9.96us
+   gsk BM32 BN16 BK64 SK16 w2 nb768                  6.59us
+   gsk BM32 BN16 BK64 SK16 w1 nb768                  6.86us
+   gsk BM64 BN32 BK64 SK16 w4 nb256                  7.02us
+   gsk BM64 BN16 BK64 SK16 w2 nb512                  7.03us
+   gsk BM64 BN32 BK64 SK16 w2 nb256                  7.06us
+   gsk BM32 BN16 BK128 SK8 w2 nb384                  7.14us
+--- M=901 --- torch gpu=19.32us
+   gsk BM64 BN64 BK256 SK4 w4 nb240                 15.14us
+   gsk BM128 BN64 BK128 SK8 w8 nb256                15.49us
+   gsk BM128 BN64 BK128 SK8 w4 nb256                15.82us
+   gsk BM64 BN128 BK128 SK8 w8 nb240                15.87us
+   gsk BM128 BN64 BK64 SK8 w4 nb256                 16.23us
+   gsk BM64 BN64 BK128 SK8 w4 nb480                 16.33us
+[W804 10:57:20.377008123 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())

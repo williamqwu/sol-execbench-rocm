@@ -1,0 +1,33 @@
+/sgl-workspace/sol-execbench-rocm/artifacts/10/runs/pilot-01/claude-code/L1__063_attention_output_reshape_and_projection/packet/sweep2.py:105: UserWarning: expandable_segments not supported on this platform (Triggered internally at /pytorch/c10/hip/HIPAllocatorConfig.h:36.)
+  w = torch.randn(N, K, device=dev, dtype=torch.bfloat16)
+
+== B=1 S=131 M=131  ref=0.0892 ms   (676 cfgs)
+     0.1045 ms  0.85x  BM64  BN64  BK64  SK2  w4s2nkd16       7 GB/s
+     0.1076 ms  0.83x  BM64  BN64  BK64  SK2  w4s2nkd0       7 GB/s
+     0.1078 ms  0.83x  BM64  BN128 BK64  SK4  w8s2nkd0       7 GB/s
+     0.1082 ms  0.82x  BM64  BN128 BK64  SK4  w8s2nkd16       7 GB/s
+     0.1086 ms  0.82x  BM64  BN64  BK128 SK1  w4s2nkd16       7 GB/s
+     0.1087 ms  0.82x  BM128 BN128 BK64  SK4  w4s2nkd16       4 GB/s
+     0.1109 ms  0.80x  BM64  BN128 BK64  SK2  w8s2nkd0       6 GB/s
+     0.1122 ms  0.79x  BM64  BN64  BK128 SK1  w4s2nkd0       6 GB/s
+
+== B=1 S=293 M=293  ref=0.1703 ms   (440 cfgs)
+     0.1645 ms  1.04x  BM128 BN64  BK64  SK1  w8s2nkd16       4 GB/s
+     0.1662 ms  1.02x  BM128 BN128 BK64  SK2  w4s2nkd16       4 GB/s
+     0.1698 ms  1.00x  BM128 BN128 BK128 SK1  w8s2nkd16       4 GB/s
+     0.1709 ms  1.00x  BM128 BN64  BK64  SK2  w8s2nkd16       4 GB/s
+     0.1732 ms  0.98x  BM128 BN64  BK64  SK2  w4s2nkd0       4 GB/s
+     0.1735 ms  0.98x  BM128 BN32  BK64  SK1  w4s2nkd16       4 GB/s
+     0.1748 ms  0.97x  BM128 BN64  BK64  SK2  w4s2nkd16       4 GB/s
+     0.1818 ms  0.94x  BM128 BN128 BK64  SK2  w8s2nkd0       4 GB/s
+
+== B=4 S=128 M=512  ref=0.1671 ms   (440 cfgs)
+     0.1747 ms  0.96x  BM128 BN64  BK64  SK1  w8s2nkd16       6 GB/s
+     0.1798 ms  0.93x  BM128 BN64  BK64  SK1  w8s2nkd0       5 GB/s
+     0.1803 ms  0.93x  BM128 BN128 BK128 SK1  w8s2nkd16       5 GB/s
+     0.1933 ms  0.86x  BM128 BN128 BK64  SK1  w4s2nkd16       5 GB/s
+     0.1937 ms  0.86x  BM128 BN64  BK64  SK1  w4s2nkd0       5 GB/s
+     0.1990 ms  0.84x  BM128 BN64  BK64  SK1  w4s2nkd16       5 GB/s
+     0.1996 ms  0.84x  BM128 BN128 BK128 SK1  w8s2nkd0       5 GB/s
+     0.2025 ms  0.83x  BM128 BN128 BK128 SK1  w4s2nkd16       5 GB/s
+[W804 09:55:15.159707132 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())

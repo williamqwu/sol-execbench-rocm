@@ -13,6 +13,15 @@ artifacts/**/logs/
 # no GPU. The per-workload report beside them IS tracked, because which tier
 # produced each golden (float64 vs native_cpu) is a finding, not data.
 artifacts/golden/*.pt
+# The reduced harness tree each agent sweep verifies against. A derived copy of
+# src/ and a few scripts, rebuilt by task_packet.build_verify_root on demand;
+# committing it would duplicate the source tree once per run.
+artifacts/10/runs/*/verify-root/
+# Scratch an agent left in its packet. The solution.json and its declared
+# sources ARE tracked -- they are the result -- but the debug scripts, probes and
+# local test harnesses an agent wrote along the way are not, and they arrive with
+# unpredictable names.
+artifacts/10/runs/*/*/packet/__pycache__/
 *.so
 .venv/
 uv.lock
