@@ -67,14 +67,37 @@ def covered(art: Path, pattern: str | None) -> set[str]:
     return {p.stem for p in art.glob("*.json")}
 
 
-def deferrals(root: Path) -> dict[str, str]:
-    f = root / "artifacts" / "deferred.json"
-    if not f.exists():
+def _problems_from(path: Path) -> dict[str, str]:
+    if not path.exists():
         return {}
     try:
-        return json.loads(f.read_text()).get("problems", {})
+        problems = json.loads(path.read_text()).get("problems", {})
     except Exception:
         return {}
+    return {
+        k: (v.get("reason") if isinstance(v, dict) else str(v))
+        for k, v in problems.items()
+    }
+
+
+def deferrals(root: Path) -> dict[str, str]:
+    """Problems whose absence is a recorded decision rather than a gap.
+
+    Two ledgers, kept apart on purpose:
+
+    ``artifacts/deferred.json``  what the PORT does not ship. Its
+        ``shipped_total`` is quoted by every document that states a count.
+    ``artifacts/blocked.json``   what THIS NODE cannot measure, though the port
+        ships it. Merging this into the first would restate the port's coverage
+        as 202 when it is 220 -- these problems run on a node that satisfies
+        ``requires-python``.
+
+    Both count as accounted-for here, because the question this script asks is
+    "is every problem's absence explained", not "does the port ship it".
+    """
+    art = root / "artifacts"
+    return {**_problems_from(art / "deferred.json"),
+            **_problems_from(art / "blocked.json")}
 
 
 def main():

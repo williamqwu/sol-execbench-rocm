@@ -1,0 +1,35 @@
+{
+  "_note": "Problems this PORT ships but THIS NODE cannot measure. Deliberately separate from artifacts/deferred.json, which states what the port does not ship at all and whose shipped_total every document quotes. Conflating the two would restate the port's coverage as 202 when it is 220: these problems are not deferred, they are blocked by a property of the machine, and on a node that satisfies requires-python they run. scripts/check_coverage.py reads both, so a gap recorded here is a decision rather than a bug.",
+  "node": "mia1-p02-g10",
+  "part": "MI355X",
+  "blocker": "B1",
+  "reason": "python310-lacks-StrEnum",
+  "mechanism": "pyproject.toml declares requires-python >= 3.12, matching upstream. Every interpreter on this node, including /opt/venv/bin/python3 which owns the pinned ROCm torch build, is Python 3.10.12; no 3.11 or 3.12 is installed. `from enum import StrEnum` (added in 3.11) appears in exactly the 33 Quant references and nowhere else in the dataset, so their references fail to exec before any submission is involved: `ImportError: cannot import name 'StrEnum' from 'enum'`. The obvious shim, `class StrEnum(str, Enum)`, is NOT equivalent -- str(member) yields 'Class.MEMBER' where the real class yields the value -- so a reference that formats the enum into a value would compute something different and the dataset's correct answer would silently change. Recorded rather than shimmed, per prime directive 7.",
+  "evidence": "artifacts/deferred.json's own provenance block records python 3.12.3 on gbt350-odcdh1-a08-1, the MI350X node of session 2, where these problems evaluated normally. The blocker is the interpreter, not the port.",
+  "resolution": "A 3.12 interpreter carrying the same ROCm torch build. That is an environment change, not a code change (prime directive 6).",
+  "counts": {
+    "quant_total": 33,
+    "already_deferred_nvfp4": 15,
+    "blocked_here_and_not_otherwise_deferred": 18
+  },
+  "problems": {
+    "Quant__001_fp8_attention_output_projection": "python310-lacks-StrEnum",
+    "Quant__002_fp8_attention_qkv_projection": "python310-lacks-StrEnum",
+    "Quant__003_fp8_mlp_gate_up_projection": "python310-lacks-StrEnum",
+    "Quant__004_fp8_moe_expert_linear": "python310-lacks-StrEnum",
+    "Quant__005_fp8_moe_router_projection": "python310-lacks-StrEnum",
+    "Quant__006_fp8_vision_attention_output_projection": "python310-lacks-StrEnum",
+    "Quant__007_fp8_vision_attention_qkv_projection": "python310-lacks-StrEnum",
+    "Quant__010_fp8_attention_output_projection": "python310-lacks-StrEnum",
+    "Quant__011_fp8_moe_gate_routing": "python310-lacks-StrEnum",
+    "Quant__012_fp8_shared_expert_mlp": "python310-lacks-StrEnum",
+    "Quant__013_fp8_mla_kv_compression_projection": "python310-lacks-StrEnum",
+    "Quant__014_fp8_yarn_rope_embedding": "python310-lacks-StrEnum",
+    "Quant__015_fp8_mla_attention_output_projection": "python310-lacks-StrEnum",
+    "Quant__016_fp8_multi_latent_attention_qkv_projection": "python310-lacks-StrEnum",
+    "Quant__017_fp8_shared_expert_mlp": "python310-lacks-StrEnum",
+    "Quant__021_fp8_mamba2_in_projection": "python310-lacks-StrEnum",
+    "Quant__022_fp8_mamba2_out_projection": "python310-lacks-StrEnum",
+    "Quant__023_fp8_mamba2_ssm_discretization": "python310-lacks-StrEnum"
+  }
+}

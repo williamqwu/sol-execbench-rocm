@@ -431,6 +431,27 @@ guard rail applies — the budget is part of the measurement.
 Every problem unsolved by *both* harnesses is one of the 6 Quant problems, i.e.
 all of them are blocker B1 and none is a kernel nobody could write.
 
+**Why Claude Code runs out of time, from its own transcripts.** It is not
+thinking slowly or failing to understand the task. It is choosing a different
+strategy: on `L1__003_lm_head_projection`, of 21 shell calls it wrote and ran
+`tune.py`, `tune2.py`, `tune3.py`, `scan_m.py`, `probe2.py`, `probe_aiter.py`
+and `sweep_all.py` — its own autotuning harness — and read AMD's tuned GEMM
+tables out of `/sgl-workspace/aiter/hsa/gfx950/bf16gemm/*.csv`. The sweeps it
+launched carried internal budgets of `timeout 3600` and `timeout 5400`, i.e. 60
+and 90 minutes, **inside a 30-minute session cap**.
+
+So it invests the budget in offline tile search and expects to verify once at the
+end; the cap arrives first. Codex instead writes a plausible kernel early and
+converges against `./verify`, which is why it averages 4.2 verifications and
+finishes in 12 minutes.
+
+That reframes the headline: the gap is a **strategy/budget interaction**, not a
+difference in kernel-writing ability. Neither strategy is wrong — offline
+autotuning is what a human performance engineer does — but one of them cannot pay
+off inside 30 minutes. The obvious follow-up experiment is the same pilot at a
+90-minute cap, which would test that explanation directly. It has not been run;
+changing the cap mid-flight would make the full sweep incomparable to the pilot.
+
 **Cost accounting is incomplete and the reason is structural.** A session killed
 at the wallclock cap never emits its result object, which is where Claude reports
 cost — so 20 of 24 claude sessions are unpriced. Tokens are recovered from the
@@ -568,6 +589,19 @@ formats the enum into a value would compute something different, and the
 
 Fixing it properly means a 3.12 interpreter with the same ROCm torch build, which
 is an environment change, not a code change (prime directive 6).
+
+**The evidence that this is the node and not the port** is already in the repo:
+`artifacts/deferred.json`'s own provenance block records `"python": "3.12.3"` on
+`gbt350-odcdh1-a08-1`, session 2's MI350X node, where all 33 Quant problems
+evaluated normally. Nothing about the port changed; the interpreter did.
+
+**Where the 18 are recorded.** In a new `artifacts/blocked.json`, deliberately
+*not* in `artifacts/deferred.json`. The latter states what the port does not
+ship, and its `shipped_total: 220` is quoted by every document that states a
+count; folding an environment limitation into it would restate the port's
+coverage as 202 when it is 220. `scripts/check_coverage.py` now reads both, so
+15 deferred + 18 blocked accounts for all 33 Quant problems with no overlap and
+a sweep that skips Quant can still exit zero.
 
 **Effect on task 10, stated wherever the numbers are:** the pilot's Quant
 results are **not comparable for either harness** and are excluded from the
