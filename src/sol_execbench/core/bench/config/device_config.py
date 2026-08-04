@@ -100,37 +100,43 @@ CLOCK_LOCK_PRESETS: dict[str, ClockPreset] = {
     # For scale: the B200 ratio (1500/1970 ~ 76%) would imply ~1830 MHz here,
     # which is ABOVE the measured floor and would throttle continuously. The
     # MI355X derate is milder at 1650/2400 ~ 69%.
+    # MEASURED on mia1-p02-g10. Setpoint 1660, achieved 1655 MHz, on **GPU 1**.
+    #
+    # 1660 rather than 1650 because 1650 is bistable on this node: at that setpoint
+    # GPU 0 held 1644 MHz in one measurement and 1397 in another. 1660 reproduces.
+    #
+    # F_LOCK 1650 is a round number below the 1655 measured median (min 1652), so
+    # every T_SOL is marginally conservative rather than marginally optimistic.
+    #
+    # **Only ONE GPU on this node holds a determinism setpoint, and it is GPU 1.**
+    # With all eight loaded at setpoint 1660:
+    #
+    #   torch 1 -> 1655 MHz (0.997)  1276 W   <- pinned
+    #   torch 0 -> 1419 MHz (0.855)   989 W
+    #   torch 2 -> 1324 .. torch 7 -> 1341    945-983 W
+    #
+    # The six slow cards are not power-limited; they draw ~950-980 W of a 1400 W
+    # cap. Three ways of parallelizing authoritative timing were measured and all
+    # three fail, which is recorded in STATE.md D29 because the negative result is
+    # the useful part:
+    #
+    #   * Per-GPU setpoints equalizing the SATURATED clock (1471-1490 MHz across
+    #     seven cards, 1.28%) do not pin it. Determinism caps the soft max at the
+    #     setpoint, so a card set to 1910 to reach 1480 under load runs up to
+    #     ~1890 on short or bursty kernels. Rejected on measurement: the clock
+    #     monitor read 1888 MHz against an F_LOCK of 1480, +27.6%.
+    #   * GPU 0 + GPU 1 at a common pinned setpoint: GPU 0 destabilizes under
+    #     concurrent load -- 1654 alone, 1414 with one sibling, 1419 with seven.
+    #   * A node-wide setpoint: only GPU 1 obeys it, per the table above.
+    #
+    # So authoritative timing is serial here, and the parallelism goes where the
+    # clock does not have to be pinned: the agent sweep, where a kernel's own
+    # timings are feedback for the agent and every score is re-measured on GPU 1.
     "AMD Instinct MI355X": ClockPreset(
-        gpu_clk_mhz=1650, dram_clk_mhz=None, achieved_gpu_clk_mhz=1640
+        gpu_clk_mhz=1660, dram_clk_mhz=None, achieved_gpu_clk_mhz=1650
     ),
     #
-    # MI350X. MEASURED on gbt350-odcdh1-a08-1 (tasks/01, 2026-08-03). Same
-    # CDNA4 die and the same gfx950 target as the MI355X above; a different
-    # part, and emphatically NOT the same clock. Copying 1650 down from the
-    # line above would have been the same class of error as copying a B200
-    # constant into an AMD artifact.
-    #
-    # How different: MI350X is the air-cooled 1000 W part (MI355X is
-    # liquid-cooled at 1400 W) with a 2200 MHz ceiling (MI355X: 2400). Its
-    # sustained UNLOCKED floors under saturating BF16 GEMM were 1390 / 1367 /
-    # 1335 MHz on GPUs 0 / 1 / 2 -- versus 1725-1757 on MI355X.
-    #
-    # The request/achieved split is the part of this that does not transfer at
-    # all. `--setperfdeterminism 1600` holds 1303 MHz on GPU 0 (min 1296 over
-    # 20 samples) at 885 W, i.e. ~110 W below the cap, so the lock binds and
-    # not the power limit -- which is what makes it reproducible. Requesting
-    # more stops helping: at 1900 and at 2200 the part pins to the 1000 W cap
-    # and lands on the same ~1400 MHz, at the mercy of ambient temperature.
-    #
-    # 1600 was chosen over 1700 (which gives 1380 MHz) for exactly that
-    # margin: 1700 sits at 947 W on two of three GPUs sampled, and a setting
-    # that is one warm afternoon away from becoming power-bound is not a lock.
-    #
-    # Per-GPU achieved at this setting, all eight measured:
-    #   1303 1295 1264 1307 1279 1296 1285 1242  (median MHz, spread 65)
-    # The spread is why authoritative timing is pinned to one GPU and why every
-    # timing artifact records which GPU produced it.
-    "AMD Instinct MI350X": ClockPreset(
+"AMD Instinct MI350X": ClockPreset(
         gpu_clk_mhz=1600, dram_clk_mhz=None, achieved_gpu_clk_mhz=1300
     ),
 }

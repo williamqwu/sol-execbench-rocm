@@ -253,19 +253,45 @@ def clock_lock_state() -> dict | None:
     dangerous case, and `rocm-smi --setperfdeterminism` is applied node-wide
     often enough that "some GPUs took it" is a real outcome.
     """
-    expected = None
-    try:
-        import torch
+    # Equalized setpoints, when they exist, are the expectation. This node needs a
+    # DIFFERENT setpoint per GPU to reach one common achieved clock -- two GPUs obey
+    # the request and six land at ~0.82x it -- so "every card at the same setpoint"
+    # is exactly the wrong invariant here. It would have been right before
+    # artifacts/01/equalized-clocks.json existed, and the fallback below keeps that
+    # behaviour for a node that has no calibration.
+    expected: int | None = None
+    expected_per_gpu: dict[int, int] = {}
+    eq_path = (Path(__file__).resolve().parent.parent / "artifacts" / "01"
+               / "equalized-clocks.json")
+    if eq_path.exists():
+        try:
+            eq = json.loads(eq_path.read_text())
+            # gpu_map lives beside this file; provenance is imported from many
+            # working directories, so the path is made explicit rather than assumed.
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from gpu_map import torch_to_rocm_smi
 
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-        from sol_execbench.core.bench.config import get_clock_preset
+            m = torch_to_rocm_smi()
+            for g, row in eq.get("per_gpu", {}).items():
+                sp = row.get("setpoint_mhz")
+                if sp and int(g) in m:
+                    expected_per_gpu[m[int(g)]] = sp
+        except Exception:
+            expected_per_gpu = {}
 
-        preset = get_clock_preset(torch.cuda.get_device_name(0))
-        # The REQUESTED setpoint, not the achieved F_LOCK: `max_clk` reads back
-        # what was asked for.
-        expected = preset.gpu_clk_mhz if preset else None
-    except Exception:
-        pass
+    if not expected_per_gpu:
+        try:
+            import torch
+
+            sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+            from sol_execbench.core.bench.config import get_clock_preset
+
+            preset = get_clock_preset(torch.cuda.get_device_name(0))
+            # The REQUESTED setpoint, not the achieved F_LOCK: `max_clk` reads back
+            # what was asked for.
+            expected = preset.gpu_clk_mhz if preset else None
+        except Exception:
+            pass
 
     setpoints: list[int | None] = []
     try:
@@ -292,12 +318,33 @@ def clock_lock_state() -> dict | None:
             pass
 
     distinct = sorted({s for s in setpoints if s})
+    determinism = set(levels) == {"perf_determinism"}
+
+    if expected_per_gpu:
+        # Only the calibrated GPUs are checked. A card left out of the calibration
+        # is not a fault -- GPU 0's achievable range has a gap covering the target,
+        # so it is deliberately excluded from timing and used for agent work, where
+        # the clock is feedback rather than a score.
+        mismatches = {
+            smi_idx: {"want": want, "got": setpoints[smi_idx]}
+            for smi_idx, want in sorted(expected_per_gpu.items())
+            if smi_idx < len(setpoints) and setpoints[smi_idx] != want
+        }
+        return {
+            "mode": "equalized",
+            "expected_setpoint_per_gpu": expected_per_gpu,
+            "setpoint_mhz_per_gpu": setpoints,
+            "mismatches": mismatches,
+            "perf_levels": sorted(set(levels)),
+            "agrees": not mismatches and determinism,
+        }
+
     return {
+        "mode": "uniform",
         "expected_setpoint_mhz": expected,
         "setpoint_mhz_per_gpu": setpoints,
         "perf_levels": sorted(set(levels)),
-        "agrees": bool(expected) and distinct == [expected]
-                  and set(levels) == {"perf_determinism"},
+        "agrees": bool(expected) and distinct == [expected] and determinism,
     }
 
 
@@ -315,6 +362,14 @@ def assert_clock_lock() -> None:
             "devices (amdsmi unavailable). An unverified lock means every "
             "timing is taken at an unknown clock.")
     if not st["agrees"]:
+        if st.get("mode") == "equalized":
+            raise SystemExit(
+                "REFUSING to measure: the per-GPU clock lock is not what the "
+                "calibration says.\n"
+                f"  mismatches (rocm-smi index): {st['mismatches']}\n"
+                f"  actual setpoints           : {st['setpoint_mhz_per_gpu']}\n"
+                f"  perf levels                : {st['perf_levels']}\n"
+                "Apply it with `clock_calibrate.py lock-equalized`, then re-run.")
         raise SystemExit(
             "REFUSING to measure: the hardware clock lock is not what the "
             f"preset table claims.\n"

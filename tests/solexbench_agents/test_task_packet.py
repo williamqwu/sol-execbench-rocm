@@ -262,13 +262,14 @@ class TestResumeSemantics:
     """A recorded failure is a result; an infrastructure failure is not."""
 
     def _sweep(self, tmp_path, retry_transient):
+        from solexbench_agents.gpu_pool import default_agent_gpus
         from solexbench_agents.runner import Sweep, Unit
 
         bench = _make_category(tmp_path, "L1", ["001_p"])
         sweep = Sweep(
             run_root=tmp_path / "run",
             harness_specs={"claude-code": {}},
-            gpus=[1],
+            gpus=default_agent_gpus(8)[:1],
             max_attempts=5,
             timeout_s=60,
             workloads_root=None,

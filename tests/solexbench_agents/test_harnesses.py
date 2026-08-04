@@ -49,7 +49,7 @@ CODEX_STREAM = "\n".join([
 
 def _session() -> AgentSession:
     return AgentSession(harness="t", model=None, problem="L1__x",
-                        packet_dir="/tmp/x", gpu=1)
+                        packet_dir="/tmp/x", gpu=3)
 
 
 class TestClaudeParsing:
@@ -70,7 +70,7 @@ class TestClaudeParsing:
 
     def test_explicit_model_is_not_overwritten(self):
         s = AgentSession(harness="t", model="pinned-model", problem="p",
-                         packet_dir="/tmp", gpu=1)
+                         packet_dir="/tmp", gpu=3)
         ClaudeCodeHarness(timeout_s=60, model="pinned-model").parse_usage(
             CLAUDE_RESULT, s)
         assert s.model == "pinned-model"

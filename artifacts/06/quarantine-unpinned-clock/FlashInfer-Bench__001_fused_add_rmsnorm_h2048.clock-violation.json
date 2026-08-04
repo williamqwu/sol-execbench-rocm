@@ -1,0 +1,173 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-04T23:41:47.059811+00:00",
+  "git_sha": "2407ce740bc48fa67e01b7c4a578391f1c9bdebf-dirty",
+  "host": "mia1-p02-g10",
+  "python": "3.10.12",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "part": "MI355X",
+  "kernel_stack": {
+   "triton": {
+    "available": true,
+    "path": "/sgl-workspace/triton-custom/python/triton/__init__.py",
+    "dist_version": "3.6.0+git42270451",
+    "is_release_wheel": false,
+    "gluon": true
+   },
+   "aiter": {
+    "available": true,
+    "path": "/sgl-workspace/aiter/aiter/__init__.py",
+    "dist_version": null,
+    "git_sha": "d9e5ef7ce08ee7045d583aed768cff41aa9210fe-dirty"
+   },
+   "hipcc": "HIP version: 7.2.26015-fc0010cf6a\nAMD clang version 22.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.2.0 26014 7b800a19466229b8479a78de19143dc33c3ab9b5)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /opt/rocm-7.2.0/lib/llvm/bin\nConfiguration file: /opt/rocm-7.2.0/lib/llvm/bin/clang++.cfg",
+   "rocm_libraries": {
+    "ck": true,
+    "ck_tile": true,
+    "hipblaslt": true,
+    "miopen": true
+   }
+  },
+  "env": {
+   "mode": "native",
+   "in_docker": true,
+   "stack_drift_allowed": false
+  },
+  "f_lock_mhz": 1480,
+  "clock_lock": {
+   "mode": "equalized",
+   "expected_setpoint_per_gpu": {
+    "0": 1650
+   },
+   "setpoint_mhz_per_gpu": [
+    1480,
+    1855,
+    1910,
+    1650,
+    1835,
+    1870,
+    1850,
+    1800
+   ],
+   "mismatches": {
+    "0": {
+     "want": 1650,
+     "got": 1480
+    }
+   },
+   "perf_levels": [
+    "perf_determinism"
+   ],
+   "agrees": false
+  },
+  "visible_devices": "1"
+ },
+ "problem": "FlashInfer-Bench__001_fused_add_rmsnorm_h2048",
+ "definition": "001_fused_add_rmsnorm_h2048",
+ "workloads_from": "data/SOL-ExecBench/benchmark/FlashInfer-Bench/001_fused_add_rmsnorm_h2048/workload.jsonl",
+ "gpu": "1",
+ "variants": {
+  "v2_compile": {
+   "ok": true,
+   "workloads": 7,
+   "passed": 7,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "906efdc6-aa3b-4b4f-a291-3a2be509d354": 0.00814000004902482,
+    "1526086b-0c06-41a1-b7b9-47b5cfc830d7": 0.009359999559819698,
+    "78c9b621-e151-4fb2-9162-f1b39afe573a": 0.0081599997356534,
+    "7fd454c3-9611-4376-a920-3d1c30639790": 0.00814000004902482,
+    "724a6dfa-06ff-45b7-9972-d174a0e23737": 0.05964050069451332,
+    "5ede385e-9b04-4b49-903f-375a5180d815": 0.04820049926638603,
+    "1602b8db-16e2-4d3f-b63d-68d4ee32e2cc": 0.00803999975323677
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v3_compile_max_autotune": {
+   "ok": true,
+   "workloads": 7,
+   "passed": 7,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "906efdc6-aa3b-4b4f-a291-3a2be509d354": 0.00826000003144145,
+    "1526086b-0c06-41a1-b7b9-47b5cfc830d7": 0.009560000151395798,
+    "78c9b621-e151-4fb2-9162-f1b39afe573a": 0.008320000022649765,
+    "7fd454c3-9611-4376-a920-3d1c30639790": 0.008419999852776527,
+    "724a6dfa-06ff-45b7-9972-d174a0e23737": 0.059460001066327095,
+    "5ede385e-9b04-4b49-903f-375a5180d815": 0.047500500455498695,
+    "1602b8db-16e2-4d3f-b63d-68d4ee32e2cc": 0.0083600003272295
+   },
+   "is_override": false,
+   "failures": []
+  }
+ },
+ "winner_by_workload": {
+  "906efdc6-aa3b-4b4f-a291-3a2be509d354": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.00814000004902482
+  },
+  "1526086b-0c06-41a1-b7b9-47b5cfc830d7": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.009359999559819698
+  },
+  "78c9b621-e151-4fb2-9162-f1b39afe573a": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.0081599997356534
+  },
+  "7fd454c3-9611-4376-a920-3d1c30639790": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.00814000004902482
+  },
+  "724a6dfa-06ff-45b7-9972-d174a0e23737": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.059460001066327095
+  },
+  "5ede385e-9b04-4b49-903f-375a5180d815": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.047500500455498695
+  },
+  "1602b8db-16e2-4d3f-b63d-68d4ee32e2cc": {
+   "variant": "v2_compile",
+   "t_b_ms": 0.00803999975323677
+  }
+ },
+ "n_workloads": 7,
+ "n_workloads_with_tb": 7,
+ "complete": true,
+ "ok": false,
+ "measured_clock": {
+  "expected_f_lock_mhz": 1480,
+  "tolerance": 0.03,
+  "n_busy_samples": 3,
+  "busy_gpus": [
+   1,
+   2
+  ],
+  "sampler_error": null,
+  "median_mhz": 1888,
+  "min_mhz": 1721,
+  "max_mhz": 1894,
+  "p5_mhz": 1721,
+  "median_power_w": 582,
+  "deviation": 0.2756756756756757,
+  "within_tolerance": false
+ },
+ "clock_violation": true,
+ "error": "measured 1888 MHz against F_LOCK 1480 (+27.6%, tolerance \u00b13%). The timings in this artifact are wall-clock times and are wrong by that ratio."
+}

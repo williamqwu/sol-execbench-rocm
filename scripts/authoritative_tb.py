@@ -83,6 +83,11 @@ def main() -> int:
     ap.add_argument("--candidates", default="artifacts/06/candidates")
     ap.add_argument("--out", default="artifacts/06/authoritative")
     ap.add_argument("--data", default="data/SOL-ExecBench/benchmark")
+    ap.add_argument("--gpus", default=None,
+                    help="comma-separated TORCH indices to shard across. All must "
+                         "hold the same clock -- see artifacts/01/"
+                         "equalized-clocks.json and `clock_calibrate.py equalize`. "
+                         "Defaults to --gpu for the single-GPU behaviour.")
     ap.add_argument("--gpu", default="0",
                     help="the ONE GPU every authoritative number comes from")
     ap.add_argument("--top-k", type=int, default=2)
@@ -132,17 +137,38 @@ def main() -> int:
           f"top-{a.top_k} variants each")
     print(f"no winner    {len(no_winner)}"
           + (f"  (first: {no_winner[:3]})" if no_winner else ""))
-    print(f"gpu          {a.gpu}  (authoritative, exclusive)")
+    gpus = [int(x) for x in a.gpus.split(",")] if a.gpus else [int(a.gpu)]
+    print(f"gpus         {gpus}  "
+          + ("(authoritative, exclusive)" if len(gpus) == 1
+             else f"(sharded {len(gpus)}-way; every card must hold the same clock)"))
     if a.dry_run:
         for p, v in pending[:10]:
             print(f"  {p.parent.name}/{p.name}: {v}")
         return 0
 
-    env = dict(os.environ, HIP_VISIBLE_DEVICES=str(a.gpu))
+    # A GPU is borrowed and returned rather than assigned by `i % len(gpus)`.
+    # Those are not the same constraint: with the modular form, two problems whose
+    # indices are congruent can be in flight at once and share a card while another
+    # idles, each inflating the other's timing, and the artifact records the device
+    # it was TOLD to use either way. That is deviation D11, and it cost an unknown
+    # subset of 176 artifacts once already.
+    import queue
+    import threading
+
+    pool: queue.Queue[int] = queue.Queue()
+    for g in gpus:
+        pool.put(g)
+    lock = threading.Lock()
+    counters = {"ok": 0, "failed": 0, "n": 0}
+    aborted: list[str] = []
+
     start, ok, failed = time.time(), 0, 0
-    for n, (problem, names) in enumerate(pending, 1):
+
+    def run_one(problem: Path, names: list[str]) -> None:
         key = f"{problem.parent.name}__{problem.name}"
         out_file = out_dir / f"{key}.json"
+        gpu = pool.get()
+        env = dict(os.environ, HIP_VISIBLE_DEVICES=str(gpu))
         cmd = [sys.executable, str(runner), "--problem", str(problem),
                "--out", str(out_file), "--iterations", str(a.iterations),
                "--warmup", str(a.warmup)]
@@ -159,14 +185,14 @@ def main() -> int:
                 # place it counts as done and the problem is never re-timed.
                 moved = out_file.with_suffix(".clock-violation.json")
                 out_file.replace(moved)
-                print(f"\nABORTING at [{n}/{len(pending)}] {key} — the node is "
-                      f"not at F_LOCK.\n"
+                print(f"\nABORTING on GPU {gpu}: {key} — that card is not at "
+                      f"F_LOCK.\n"
                       f"  evidence  {moved}\n"
                       f"  {key} is pending again, not recorded as failed.\n"
-                      f"  Re-apply the lock (clock_calibrate.py lock "
-                      f"--freq-mhz <setpoint> --all-gpus), then re-run.",
-                      flush=True)
-                return 2
+                      f"  Re-apply the lock (clock_calibrate.py lock-equalized), "
+                      f"then re-run.", flush=True)
+                with lock:
+                    aborted.append(key)
         except subprocess.TimeoutExpired:
             # Through write_result, not json.dump: the runner was killed before
             # it could stamp its own artifact, and an artifact with no
@@ -177,17 +203,41 @@ def main() -> int:
             write_result(out_file, "06-tb-candidates", {
                 "problem": key, "ok": False,
                 "error": f"timeout after {a.timeout}s",
-                "gpu": a.gpu,
+                "gpu": gpu,
                 "measured_clock": None,
             })
             good = False
-        ok, failed = ok + good, failed + (not good)
-        elapsed = time.time() - start
-        eta = elapsed / n * (len(pending) - n)
-        print(f"[{n}/{len(pending)}] {'ok' if good else 'FAIL':<4} {key}  "
-              f"({','.join(names)})  eta {eta/60:.0f}m", flush=True)
+        finally:
+            pool.put(gpu)
 
+        with lock:
+            counters["n"] += 1
+            counters["ok"] += good
+            counters["failed"] += (not good)
+            n_done = counters["n"]
+            elapsed = time.time() - start
+            eta = elapsed / n_done * (len(pending) - n_done)
+            print(f"[{n_done}/{len(pending)}] {'ok' if good else 'FAIL':<4} "
+                  f"gpu{gpu} {key}  ({','.join(names)})  eta {eta/60:.0f}m",
+                  flush=True)
+
+    # Concurrency is bounded by the pool, so the executor is sized to it: a wider
+    # pool of threads would simply queue on `pool.get()`.
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=len(gpus)) as ex:
+        futures = [ex.submit(run_one, p_, v_) for p_, v_ in pending]
+        for f in futures:
+            try:
+                f.result()
+            except Exception as exc:  # noqa: BLE001
+                print(f"  worker error: {type(exc).__name__}: {exc}", flush=True)
+
+    ok, failed = counters["ok"], counters["failed"]
     print(f"\ndone: {ok} ok, {failed} failed, {(time.time()-start)/60:.1f} min")
+    if aborted:
+        print(f"{len(aborted)} problem(s) aborted on a clock violation: "
+              f"{aborted[:5]}")
     if no_winner:
         (out_dir / "no-winner.json").write_text(json.dumps(
             {"_note": "No variant passed every workload, so these have no T_b "

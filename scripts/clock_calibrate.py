@@ -591,6 +591,45 @@ def _achieved_at(gpu: int, setpoint: int, settle: int, samples: int) -> dict:
     }
 
 
+def cmd_lock_equalized(args):
+    """Apply the per-GPU setpoints an `equalize` run found.
+
+    A single node-wide `--setperfdeterminism` cannot express this: the setpoints
+    differ per card *because* the achieved clocks are being made equal. Applied
+    through the rocm-smi index, translated from the torch index the artifact is
+    keyed by -- `-d N` takes a rocm-smi index and the two orderings are scrambled
+    on this node.
+    """
+    from gpu_map import torch_to_rocm_smi
+
+    doc = json.loads(Path(args.src).read_text())
+    per_gpu = doc["per_gpu"]
+    target = doc["target_mhz"]
+    wanted = ([int(x) for x in args.gpus.split(",")] if args.gpus
+              else sorted(int(g) for g, r in per_gpu.items() if r.get("ok")))
+
+    m = torch_to_rocm_smi()
+    print(f"applying per-GPU setpoints for a common {target} MHz")
+    ok = True
+    for g in wanted:
+        r = per_gpu.get(str(g))
+        if not r or not r.get("setpoint_mhz"):
+            print(f"  GPU {g}: no calibrated setpoint — SKIPPED", file=sys.stderr)
+            ok = False
+            continue
+        print(f"  torch {g} (rocm-smi {m[g]}) -> setpoint {r['setpoint_mhz']} "
+              f"(expect {r['achieved_median_mhz']} MHz)")
+        ok &= set_perf_determinism(r["setpoint_mhz"], m[g])
+
+    print("locked" if ok else "LOCK FAILED — do not proceed to measurement")
+    print(f"\ntiming GPUs: {wanted}")
+    if 0 not in wanted:
+        print("  GPU 0 is excluded. Its achievable range has a gap covering the "
+              "target;\n  it is still usable for agent work, where the clock is "
+              "feedback and not a score.")
+    sys.exit(0 if ok else 1)
+
+
 def cmd_equalize(args):
     """Find the per-GPU setpoint that makes every GPU hold the same clock.
 
@@ -718,6 +757,15 @@ def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    le = sub.add_parser("lock-equalized",
+                        help="apply the per-GPU setpoints from an equalize run")
+    le.add_argument("--from", dest="src",
+                    default="artifacts/01/equalized-clocks.json")
+    le.add_argument("--gpus", default=None,
+                    help="comma-separated torch indices; default is every GPU the "
+                         "artifact says landed within tolerance")
+    le.set_defaults(fn=cmd_lock_equalized)
 
     eq = sub.add_parser("equalize", help="per-GPU setpoints for one common clock")
     eq.add_argument("--target-mhz", type=int, required=True)

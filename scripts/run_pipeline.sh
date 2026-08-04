@@ -258,7 +258,7 @@ of $(ls artifacts/06/candidates/*.json 2>/dev/null | wc -l) candidates already r
   env/solb-native python -u scripts/authoritative_tb.py \
       --candidates artifacts/06/candidates \
       --out artifacts/06/authoritative \
-      --gpu 0 --top-k 2 --within 0.25 --timeout 2700 \
+      --gpu 1 --top-k 2 --within 0.25 --timeout 2700 \
       2>&1 | tee -a "${LOGS}/01-tb-authoritative.log"
   mark_done tb_authoritative
 fi
@@ -295,7 +295,7 @@ if is_done anchor; then
 else
   say "stage 4 anchor verification (needs an idle node)"
   require_idle || exit 1
-  HIP_VISIBLE_DEVICES=0 env/solb-native python -u scripts/verify_anchor.py \
+  HIP_VISIBLE_DEVICES=1 env/solb-native python -u scripts/verify_anchor.py \
       --manifest "${MANIFEST}" \
       --out artifacts/06/anchor-verification.md --sample 12 \
       2>&1 | tee "${LOGS}/04-anchor.log"

@@ -24,7 +24,11 @@ from typing import Iterable, Iterator
 # of the optimization differences this benchmark exists to measure -- so timings
 # from different GPUs are not interchangeable. Agents therefore never get GPU 0:
 # their exploratory load would perturb whatever is being timed on it.
-AUTHORITATIVE_GPU = 0
+# torch 1, not 0. It is the only GPU on this node that holds a determinism
+# setpoint: with all eight loaded at setpoint 1660, GPU 1 reads 1655 MHz while
+# GPU 0 reads 1419 and the rest 1324-1366 (STATE.md D29). Timing anywhere else is
+# taken at a clock that moves with what the neighbours are doing.
+AUTHORITATIVE_GPU = 1
 
 
 class GpuPool:

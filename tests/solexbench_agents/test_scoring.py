@@ -220,24 +220,25 @@ class TestGpuPool:
         from solexbench_agents.gpu_pool import AUTHORITATIVE_GPU, GpuPool
 
         with pytest.raises(ValueError, match="reserved for authoritative timing"):
-            GpuPool([AUTHORITATIVE_GPU, 1, 2])
+            GpuPool([AUTHORITATIVE_GPU, AUTHORITATIVE_GPU + 1])
 
     def test_lease_returns_the_gpu(self):
-        from solexbench_agents.gpu_pool import GpuPool
+        from solexbench_agents.gpu_pool import default_agent_gpus, GpuPool
 
-        pool = GpuPool([1, 2])
+        two = default_agent_gpus(8)[:2]
+        pool = GpuPool(two)
         with pool.lease() as g:
-            assert g in (1, 2)
+            assert g in two
         with pool.lease() as a, pool.lease() as b:
-            assert {a, b} == {1, 2}
+            assert {a, b} == set(two)
 
     def test_pool_bounds_concurrency(self):
         """The D11 property: a third holder cannot exist while two are out."""
         import queue
 
-        from solexbench_agents.gpu_pool import GpuPool
+        from solexbench_agents.gpu_pool import default_agent_gpus, GpuPool
 
-        pool = GpuPool([1, 2])
+        pool = GpuPool(default_agent_gpus(8)[:2])
         with pool.lease(), pool.lease():
             with pytest.raises(queue.Empty):
                 with pool.lease(timeout=0.05):

@@ -1020,6 +1020,80 @@ observation rather than a `T_SOL` one, it is independent of the rate bug, and it
 is about the same problem my first hypothesis pointed at. So `018` remains the one
 problem both ports flag, for reasons neither has yet closed out.
 
+### D29 — authoritative timing cannot be parallelized on this node, and only GPU 1 holds a lock
+
+Asked to use all eight GPUs for the timing passes, accepting some distortion.
+**Three designs were measured and all three fail.** The negative result is worth
+more than the attempt, because each failure mode looked fine until it was checked.
+
+**The starting observation.** With all eight loaded at a node-wide setpoint 1660:
+
+| torch | achieved | ratio | power |
+|---|---|---|---|
+| **1** | **1655** | **0.997** | 1276 W |
+| 0 | 1419 | 0.855 | 989 W |
+| 2–7 | 1324–1366 | 0.80–0.82 | 945–983 W |
+
+The six slow cards are not power-limited — ~950–980 W of a 1400 W cap.
+
+**Attempt 1: per-GPU setpoints equalizing the saturated clock.** The ratios are
+stable, so asking GPU 2 for 1910 yields the 1480 GPU 1 yields at 1480. This
+*worked* as calibration: seven GPUs held **1471–1490 MHz, a 1.28% spread**, while
+all seven ran a saturating GEMM, each at 1046–1096 W
+(`artifacts/01/parallel-timing-7gpu.json`).
+
+Then the timing runs failed, and the reason is the one thing the calibration could
+not show:
+
+```
+measured 1888 MHz against F_LOCK 1480 (+27.6%, tolerance ±3%)
+median_power_w: 582   n_busy_samples: 3
+```
+
+**Determinism mode caps the soft maximum at the setpoint.** A card set to 1910 to
+*land* at 1480 under saturation runs at up to ~1890 on short or bursty kernels. So
+the calibration equalized the **saturated** clock and left the clock **unpinned** —
+and a benchmark whose workloads are mostly short kernels is exactly the case that
+breaks. A pinned clock requires achieved ≈ setpoint, which is true only on GPU 1.
+22 artifacts were quarantined to `artifacts/06/quarantine-unpinned-clock/`.
+
+Credit where due: this was caught by the clock monitor from `c9c3fb8`, added by the
+other session hours earlier for a different reason. Without it these would have
+shipped as ordinary T_b values 27% fast.
+
+**Attempt 2: GPU 0 + GPU 1 at a common pinned setpoint.** Both reach ~1654 at
+setpoint 1660 *measured alone*. Together they do not: GPU 0 reads 1654 alone, 1414
+with one sibling loaded, 1419 with seven. GPU 1 reads 1655 in all three.
+
+**Attempt 3: a node-wide setpoint.** Only GPU 1 obeys it — the table above.
+
+**Conclusion, and where the parallelism actually goes.** Timing stays serial, on
+**GPU 1** rather than GPU 0. But the agent sweep does not need a pinned clock: an
+agent compares its kernel against the reference on its own card, so the ratio it
+optimizes against is right even when the absolute milliseconds are not, and every
+score is re-measured on GPU 1 afterwards. So the agent pool becomes **seven cards
+including GPU 0**, and stage 5 — the 20-hour phase that dominates wall clock — runs
+all eight GPUs busy. Stages 1, 4 and 6 use one.
+
+**Two earlier readings were invalidated on the way.**
+
+*The original determinism sweep is not trustworthy.* It stepped eleven frequencies
+in one run and recorded GPU 0 at 1214 MHz for a 1500 setpoint; measured in
+isolation the same card holds 1495. The low figure was the part still settling
+toward the new operating point. A sweep that does not settle between steps measures
+its own step order.
+
+*F_LOCK 1640 on GPU 0 does not survive.* Setpoint 1650 is bistable here — 1644 in
+one measurement, 1397 in another — and GPU 0 does not hold a setpoint under
+full-node load at all. F_LOCK is now **1650 achieved at setpoint 1660 on GPU 1**,
+1660 because it reproduces where 1650 does not.
+
+**And one error of my own, of exactly the class `gpu_map.py` exists to prevent.**
+`equalize` passed a **torch** index to `rocm-smi -d`, which takes a **rocm-smi**
+index; torch 0 is rocm-smi 3 here. It set one card and measured another, so GPU 0
+appeared to hold 1807 MHz at a 1480 setpoint — 1480 went elsewhere while torch 0
+sat at a 2100 setpoint from an earlier sweep, pinned to its power cap.
+
 ### D26 — the merge mixed two clocks into one T_b directory, and the manifest did not notice
 
 Resolving the master merge, `artifacts/06/candidates` and
@@ -1563,12 +1637,19 @@ killable subprocess with a timeout, and a timeout is recorded as a result.
 
 ## Decisions taken
 
-**F_LOCK = 1640 MHz** achieved on **GPU 0**, at determinism setting 1650, on
-MI355X. This is the canonical declaration; `scripts/verify_artifacts.py --task 01`
-parses this exact line and fails if it disagrees with `CLOCK_LOCK_PRESETS`.
-Full reasoning in the task 01 session-3 section above.
+**F_LOCK = 1650 MHz** achieved on **GPU 1**, at determinism setting 1660, on
+MI355X. Superseded the earlier 1640-on-GPU-0 choice for two measured reasons
+(D29): setpoint 1650 is bistable on this node, and **GPU 0 does not hold a
+determinism setpoint under full-node load** — at setpoint 1660 with all eight
+GPUs busy, GPU 1 reads 1655 MHz while GPU 0 reads 1419. Authoritative timing
+therefore moves to GPU 1.
 
-*(Session 2, MI350X, archived: F_LOCK was 1300 MHz achieved at setting 1600.)*
+This is the canonical declaration; `scripts/verify_artifacts.py --task 01` parses
+this exact line and fails if it disagrees with `CLOCK_LOCK_PRESETS`.
+
+*(Superseded, kept for the trail: F_LOCK 1640 achieved on GPU 0 at setting 1650 —
+see D29 for why it did not survive. Session 2, MI350X: 1300 achieved at setting
+1600.)*
 
 The two-number form is a real structural difference from NVIDIA, where
 `nvidia-smi -lgc` makes them the same; `ClockPreset` carries both and
