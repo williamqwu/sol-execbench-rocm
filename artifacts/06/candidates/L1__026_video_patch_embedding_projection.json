@@ -1,0 +1,149 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-04T07:36:49.146980+00:00",
+  "git_sha": "ea94b186877c340518bd8410f29bcb520b5cfca0-dirty",
+  "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI350X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "7.1.1.31500000",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+  },
+  "f_lock_mhz": 1300,
+  "visible_devices": "5"
+ },
+ "problem": "L1__026_video_patch_embedding_projection",
+ "definition": "026_video_patch_embedding_projection",
+ "workloads_from": "/work/artifacts/05/workloads/L1/026_video_patch_embedding_projection/workload.jsonl",
+ "gpu": "5",
+ "variants": {
+  "v1_eager": {
+   "ok": true,
+   "workloads": 4,
+   "passed": 4,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "85500ede-d60d-5097-b291-0ccd1a2e8a27": 103.5541763305664,
+    "ded3638e-e404-5055-a495-905d4b4980a9": 80.81540298461914,
+    "813ae5c8-9e11-566a-aad4-c9075bf2e616": 31.918452262878418,
+    "a4eea060-8ad4-5cc2-80db-a6b85f952fe9": 17.612263679504395
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v2_compile": {
+   "ok": true,
+   "workloads": 4,
+   "passed": 4,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "85500ede-d60d-5097-b291-0ccd1a2e8a27": 23.042208671569824,
+    "ded3638e-e404-5055-a495-905d4b4980a9": 16.92053985595703,
+    "813ae5c8-9e11-566a-aad4-c9075bf2e616": 9.299922943115234,
+    "a4eea060-8ad4-5cc2-80db-a6b85f952fe9": 4.453200578689575
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v3_compile_max_autotune": {
+   "ok": true,
+   "workloads": 4,
+   "passed": 2,
+   "all_passed": false,
+   "latency_ms_by_workload": {
+    "813ae5c8-9e11-566a-aad4-c9075bf2e616": 6.556810140609741,
+    "a4eea060-8ad4-5cc2-80db-a6b85f952fe9": 4.301259279251099
+   },
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "85500ede-d60d-5097-b291-0ccd1a2e8a27",
+     "status": "RUNTIME_ERROR",
+     "log": "istics.py\", line 1310, in run\n    self.precompile()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 486, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 508, in _precompile_worker\n    compile_results.append(self._precompile_config(c))\n                           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 819, in _precompile_config\n    binary = triton.compile(*compile_args, **compile_kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/comp"
+    },
+    {
+     "workload_uuid": "ded3638e-e404-5055-a495-905d4b4980a9",
+     "status": "RUNTIME_ERROR",
+     "log": "n_heuristics.py\", line 1310, in run\n    self.precompile()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 486, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 508, in _precompile_worker\n    compile_results.append(self._precompile_config(c))\n                           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 819, in _precompile_config\n    binary = triton.compile(*compile_args, **compile_kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compile"
+    }
+   ]
+  },
+  "v4_contiguous": {
+   "ok": true,
+   "workloads": 4,
+   "passed": 4,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "85500ede-d60d-5097-b291-0ccd1a2e8a27": 103.8189697265625,
+    "ded3638e-e404-5055-a495-905d4b4980a9": 80.78358840942383,
+    "813ae5c8-9e11-566a-aad4-c9075bf2e616": 31.932686805725098,
+    "a4eea060-8ad4-5cc2-80db-a6b85f952fe9": 17.622119903564453
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v5_compile_contiguous": {
+   "ok": true,
+   "workloads": 4,
+   "passed": 0,
+   "all_passed": false,
+   "latency_ms_by_workload": {},
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "85500ede-d60d-5097-b291-0ccd1a2e8a27",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "ded3638e-e404-5055-a495-905d4b4980a9",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "813ae5c8-9e11-566a-aad4-c9075bf2e616",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "a4eea060-8ad4-5cc2-80db-a6b85f952fe9",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    }
+   ]
+  }
+ },
+ "winner_by_workload": {
+  "85500ede-d60d-5097-b291-0ccd1a2e8a27": {
+   "variant": "v2_compile",
+   "t_b_ms": 23.042208671569824
+  },
+  "ded3638e-e404-5055-a495-905d4b4980a9": {
+   "variant": "v2_compile",
+   "t_b_ms": 16.92053985595703
+  },
+  "813ae5c8-9e11-566a-aad4-c9075bf2e616": {
+   "variant": "v2_compile",
+   "t_b_ms": 9.299922943115234
+  },
+  "a4eea060-8ad4-5cc2-80db-a6b85f952fe9": {
+   "variant": "v2_compile",
+   "t_b_ms": 4.453200578689575
+  }
+ },
+ "n_workloads": 4,
+ "n_workloads_with_tb": 4,
+ "complete": true,
+ "ok": true
+}

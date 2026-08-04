@@ -413,16 +413,71 @@ def check_09(c: Checks, full=False):
         f"manifest accounts for all {EXPECTED_TOTAL} problems",
         f"{len(probs)} in manifest",
         f"{len(probs)} in manifest — the rest must be in deferred.json")
-    incomplete = [k for k, v in probs.items()
-                  if not all(x in v for x in ("t_sol", "t_b", "tolerances"))]
-    c.require(not incomplete, "every problem has t_sol, t_b, tolerances",
-              f"{len(probs)} problems",
+    # Completeness is a property of WORKLOADS -- the manifest keys t_sol, t_b
+    # and tolerance per workload instance, because that is where they differ.
+    deferred_keys = set((load_json(ART / "deferred.json") or {}).get("problems", {}))
+    incomplete = []
+    for k, v in probs.items():
+        if k in deferred_keys:
+            continue
+        for u, e in (v.get("workloads") or {}).items():
+            if not all(e.get(x) is not None
+                       for x in ("t_sol_ms", "t_sol_cycles", "t_b_ms", "tolerance")):
+                incomplete.append(f"{k}:{u[:8]}")
+    c.require(not incomplete,
+              "every non-deferred workload has t_sol, t_b and a tolerance",
+              f"{m['stats']['scoreable_workloads']} workloads",
               f"{len(incomplete)} incomplete: {incomplete[:3]}")
-    for field in ("f_lock_mhz", "methodology", "rocm_version", "torch_version"):
-        c.require(field in m, f"manifest records {field}")
+
+    # Every bound says which derivation produced it. Without this a consumer
+    # cannot tell a roofline over the arithmetic from a pure traffic floor.
+    sources = {e.get("t_sol_source")
+               for v in probs.values() for e in (v.get("workloads") or {}).values()
+               if e.get("t_sol_ms") is not None}
+    c.require(None not in sources and sources,
+              "every bound records its derivation", ", ".join(sorted(map(str, sources))))
+
+    prov = m.get("_provenance") or {}
+    c.require(m.get("methodology"), "manifest records the timing methodology",
+              str(m.get("methodology")))
+    c.require(prov.get("f_lock_mhz"), "manifest records f_lock_mhz",
+              f"{prov.get('f_lock_mhz')} MHz")
+    c.require((prov.get("rocm") or {}).get("version"),
+              "manifest records rocm_version",
+              str((prov.get("rocm") or {}).get("version")))
+    c.require((prov.get("torch") or {}).get("version"),
+              "manifest records torch_version",
+              str((prov.get("torch") or {}).get("version")))
     if full:
-        c.require((ART / "09" / "agent-baseline.json").exists(),
-                  "agent baseline sweep ran")
+        base = load_json(ART / "09" / "agent-baseline.json")
+        if base is None:
+            c.add(FAIL, "agent baseline accounted for",
+                  "no artifacts/09/agent-baseline.json — run it, or record "
+                  "explicitly that it was not run and why")
+        elif base.get("ran"):
+            c.require(base.get("median") is not None,
+                      "agent baseline sweep ran", f"median {base.get('median')}")
+        else:
+            c.add(JUDGE, "agent baseline NOT run",
+                  str(base.get("reason", ""))[:90])
+        dist = load_json(ART / "09" / "score-distribution.json")
+        if c.require(dist is not None, "score distribution computed"):
+            ac = dist.get("anchor_check") or {}
+            dev = ac.get("max_abs_deviation_from_half")
+            c.require(dev is not None and dev <= 1e-6,
+                      "S = 0.5 at T_b, by construction",
+                      f"max |S-0.5| = {dev:.1e}" if dev is not None else "",
+                      "T_b in the manifest is not the time that "
+                      "implementation actually takes")
+        anchor = load_json(ART / "06" / "anchor-verification.json")
+        if c.require(anchor is not None, "anchor re-verified on hardware"):
+            ap = anchor["anchor_property"]
+            c.require(not anchor["t_sol_violations"],
+                      "no measured time below its own T_SOL",
+                      f"{anchor['workloads_checked']} workloads checked")
+            c.require(ap["passing"] / max(ap["total"], 1) >= 0.95,
+                      "re-timed anchor scores 0.5 +- tol",
+                      f"{ap['passing']}/{ap['total']}")
         readme = (ROOT / "README.md").read_text() if (ROOT / "README.md").exists() else ""
         c.require("within-platform" in readme.lower(),
                   "cross-vendor caveat present in README",

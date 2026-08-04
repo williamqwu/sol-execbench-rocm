@@ -15,6 +15,29 @@ output.
 
 ---
 
+## Where this stands
+
+**The benchmark is measured and the manifest is frozen.** `manifest-v1` scores
+**220 of 235 problems / 3717 workload instances** on MI350X at F_LOCK =
+1300 MHz. The 15 that are not scoreable are the NVFP4 Quant problems, whose
+*references* fail on ROCm; they are in `artifacts/deferred.json` with the error
+text quoted from the calibration artifact, and every count in every document
+quotes that file.
+
+What a consumer needs to know before using it:
+
+* **Correctness runs against `artifacts/05/workloads/`**, not the dataset's own
+  tolerances. Opt in with `SOLEXBENCH_WORKLOADS_ROOT`. Under upstream's B200
+  tolerances the same references fail 8 workloads of `L2/033`.
+* **`T_SOL` comes from one of two derivations and every workload says which.**
+  SOLAR's roofline over the traced graph, or the traffic the definition itself
+  declares over DRAM bandwidth. Neither dominates; the manifest takes the max
+  of the two that survive being checked against the measurement.
+* **Every `T_b` was re-timed on GPU 0 alone.** The eight GPUs span 1242–1307
+  MHz at the same determinism setting.
+* **No agent baseline was run.** Upstream's median of 0.732 has no counterpart
+  here, and `artifacts/09/score-distribution.json` is labelled as not being one.
+
 ## Environment (current node)
 
 | Field | Value |
@@ -42,14 +65,14 @@ output.
 |---|---|---|---|---|
 | 00 | Node acceptance | `done` | `artifacts/00/` | 13 checks, 0 failed |
 | 01 | Clock calibration (F_LOCK) | `done` | `artifacts/01/` | **F_LOCK = 1300 MHz** at setting 1600; unblocks 03, 05, 06 |
-| 02 | Harness port validation | `done` | `artifacts/02/` | 235/235 problems swept; references run on ROCm |
-| 03 | SOL bounds (T_SOL) | `in-progress` | `artifacts/03/` | 183 problems bounded; resume pass running over the rest |
-| 04 | rocprofiler shim | `in-progress` | `src/solexbench_rocm/shim/` | shim built and verified; L1 comparison sweep pending |
-| 05 | Tolerance calibration | `in-progress` | `artifacts/05/` | 3690/3957 workloads AMD-derived; 240 NVFP4 + 27 to fix |
-| 06 | Baselines (T_b) | `in-progress` | `artifacts/06/candidates/` | selection sweep running on 8 GPUs; authoritative pass after |
+| 02 | Harness port validation | `done` | `artifacts/02/` | 3717/3717 non-deferred workloads pass under AMD tolerances |
+| 03 | SOL bounds (T_SOL) | `done` | `artifacts/03/` | 235/235 problems bounded, two derivations, source recorded |
+| 04 | rocprofiler shim | `done` | `artifacts/04/` | median divergence −0.61% over 1430 pairs; clock domain verified |
+| 05 | Tolerance calibration | `done` | `artifacts/05/` | 3717/3957 AMD-derived; the 240 missing are the deferred NVFP4 |
+| 06 | Baselines (T_b) | `done` | `artifacts/06/` | 220 problems anchored, all re-timed on GPU 0 |
 | 07 | Quant / MXFP4 | `done` | `artifacts/07/`, `artifacts/deferred.json` | 15 NVFP4 deferred with evidence; 220 ship |
-| 08 | Red team | `done` | `reference/exploits/`, `artifacts/08/` | 28/28 replay cases pass |
-| 09 | Release | `not-started` | | manifest builder written; needs 03 and 06 |
+| 08 | Red team | `done` | `reference/exploits/`, `artifacts/08/` | 28/28 replay cases pass, 0 false positives on 235 references |
+| 09 | Release | `done` | `artifacts/09/` | manifest v1: **220/235 problems, 3717 workloads scoreable** |
 
 Status vocabulary: `not-started` · `in-progress` · `blocked` · `done` · `deferred`
 
@@ -439,6 +462,27 @@ is the only one of the four that could have caught this, and it could not run
 until task 06 finished. Checks A–C all passed throughout on a bound that was
 wrong by 13× on some problems. A roofline that is internally consistent is not
 thereby right.
+
+### D15 — one problem's T_b does not reproduce to 3%
+
+The anchor check re-times `T_b`'s own implementation and requires it to score
+0.5 ± 0.03. Over a 20-problem sample, **336 of 349 workloads pass**, no
+measured time falls below its `T_SOL`, and the reference never scores above the
+anchor. Of the 13 that fail, **12 are one problem** —
+`FlashInfer-Bench/018_mla_paged_decode` — where the re-timed latency comes back
+a median of **1.16×** the recorded `T_b`. Two independent runs of the check
+reproduced 13 and 12 failures on it, so the effect is stable and it is the
+problem, not the check.
+
+That problem's `T_b` is therefore optimistic by roughly 16%, which makes every
+score on it *lower* than it should be — the conservative direction, but wrong.
+The cause is not established: MLA paged decode is the most input-layout-
+dependent kernel in the set and loads its inputs from safetensors blobs, so
+allocation and page-table state are the obvious suspects. Recorded rather than
+smoothed away, and it is a reason to be careful about drawing conclusions from
+that one problem's scores.
+
+The remaining single failure (`L1/072`) is one workload at the tolerance edge.
 
 ---
 

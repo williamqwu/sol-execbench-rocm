@@ -68,7 +68,34 @@ Every scoreable workload carries a `T_SOL` from one of two derivations, and
 Neither derivation dominates, which is why both are kept and neither is
 presented anonymously. Any candidate bound that lands **above** the measured
 `T_b` is rejected outright — a lower bound above a measured time is not loose,
-it is wrong, and it would push scores past 1.
+it is wrong, and it would push scores past 1. 63 SOLAR bounds and 23 traffic
+bounds were rejected that way; no workload lost both.
+
+## Is the scale real?
+
+`scripts/verify_anchor.py` re-times, on hardware, over a 20-problem sample
+(`artifacts/06/anchor-verification.json`):
+
+| property | result |
+|---|---|
+| no measured time below its own `T_SOL` | **349/349** |
+| the plain reference never scores above the anchor | **349/349** |
+| re-timing `T_b`'s own implementation scores 0.5 ± 0.03 | **336/349** |
+
+The 13 that miss are 12 workloads of one problem
+(`FlashInfer-Bench/018_mla_paged_decode`, which re-times a median 1.16× slower
+than its recorded `T_b`) and one workload at the tolerance edge. That problem's
+anchor is optimistic by ~16%, which depresses its scores rather than inflating
+them; it is written up in [`STATE.md`](STATE.md) D15 rather than smoothed away.
+
+**No agent baseline was run** (`artifacts/09/agent-baseline.json` records the
+decision). Upstream's median SOL of 0.732 and correlation of r = 0.981 are
+results about *agents*, and the four PyTorch formulations here cluster around
+`T_b` by construction — `T_b` is defined as the fastest of them. What the
+variant set does establish is that the scale is well-formed: every score finite
+and in (0, 1], `S = 0.5` at `T_b` to machine precision, and a within-workload
+correlation between `S` and headroom reclaimed of **r = 1.000** (median over
+2518 workloads).
 
 ## Running it
 

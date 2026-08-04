@@ -1,6 +1,6 @@
 # Task 03 — T_SOL cross-checks
 
-<!-- {"task": "03-cross-checks", "utc": "2026-08-04T08:16:36.320811+00:00", "git_sha": "ea94b186877c340518bd8410f29bcb520b5cfca0-dirty", "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X"]}, "rocm": {"version": "7.2.0", "driver": "7.1.1.31500000", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"}, "f_lock_mhz": 1300, "visible_devices": null} -->
+<!-- {"task": "03-cross-checks", "utc": "2026-08-04T13:37:17.646661+00:00", "git_sha": "7bc4235619a05fb3cb863cb6761db9d2e656c6bd-dirty", "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X"]}, "rocm": {"version": "7.2.0", "driver": "7.1.1.31500000", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"}, "f_lock_mhz": 1300, "visible_devices": null} -->
 
 Upstream's B200 SOL times are not used as a comparison anywhere in this document. The shipped dataset carries no per-workload SOL figures, so there is nothing to compare against that was not invented here — and an invented comparison would be worse than none. The three checks below are internal to this platform and are stronger for it.
 
@@ -126,7 +126,7 @@ MISMATCHes: **0**
 
 ## D — T_SOL <= best measured time
 
-2896/2959 workloads satisfy T_SOL <= T_b — **63 VIOLATIONS**, each one a config error
+2919/2982 workloads satisfy T_SOL <= T_b — **63 VIOLATIONS**, each one a config error
 
 | problem | workload | T_SOL ms | T_b ms | variant |
 |---|---|---|---|---|
