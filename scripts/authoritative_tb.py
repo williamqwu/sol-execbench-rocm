@@ -99,7 +99,10 @@ def main() -> int:
     no_winner: list[str] = []
     for f in sorted(cand_dir.glob("*.json")):
         doc = json.loads(f.read_text())
-        key = doc.get("problem") or f.stem
+        # The filename is authoritative for the key. A timeout or crash
+        # artifact is written by the shard runner, not the problem runner, and
+        # records `problem` as the bare directory name with no category on it.
+        key = f.stem
         category, name = key.split("__", 1)
         names = variants_to_retime(doc, a.top_k, a.within)
         if not names:

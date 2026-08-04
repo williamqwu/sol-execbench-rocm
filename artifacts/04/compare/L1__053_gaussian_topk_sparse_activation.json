@@ -1,0 +1,158 @@
+{
+ "_provenance": {
+  "task": "04-methodology-compare",
+  "utc": "2026-08-04T02:10:28.338338+00:00",
+  "git_sha": "68f92bb6f4f48f69bd03b4d228a99ddbd05fb9a5-dirty",
+  "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI350X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "7.1.1.31500000",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+  },
+  "f_lock_mhz": 1300,
+  "visible_devices": "4"
+ },
+ "problem": "L1__053_gaussian_topk_sparse_activation",
+ "definition": "053_gaussian_topk_sparse_activation",
+ "per_method": {
+  "hip_events": {
+   "ok": true,
+   "recorded_methodology": [
+    "hip_events"
+   ],
+   "latency_ms": {
+    "151250c8-7c37-56d8-9d87-6edc9f5fd531": 0.39878199994564056,
+    "fcbd00bf-2089-549a-a407-28d509581b4c": 1.3159865140914917,
+    "a1ce3f4a-abf4-504f-90be-1ede0f8bd65c": 0.823824018239975,
+    "fe647339-085d-5bad-8192-50efbb5d4bef": 0.3809814900159836,
+    "eb88804d-33eb-5840-93b8-235b7f88961a": 0.6006830036640167,
+    "084f1e52-f652-5592-ab34-f6156306545e": 0.472461998462677,
+    "75640ea8-8bb2-546f-b44d-c8d51baee3e4": 1.9157690405845642,
+    "75e273d1-070a-5864-a5e2-11f455340620": 0.5008625090122223,
+    "21ae223a-fefc-5b3f-ae0d-772742797229": 0.37824200093746185,
+    "82eb0e10-41eb-50bf-a08f-7a9e3a4d0dfd": 5.956028938293457,
+    "cfc707ec-c733-5cf1-b2f3-af867b078307": 0.3738414943218231,
+    "30b3bded-7830-54c5-a242-75faeae6e052": 0.3994619995355606
+   }
+  },
+  "rocprof": {
+   "ok": true,
+   "recorded_methodology": [
+    "rocprof"
+   ],
+   "latency_ms": {
+    "151250c8-7c37-56d8-9d87-6edc9f5fd531": 0.724144,
+    "fcbd00bf-2089-549a-a407-28d509581b4c": 1.6395084999999998,
+    "a1ce3f4a-abf4-504f-90be-1ede0f8bd65c": 1.1393659999999999,
+    "fe647339-085d-5bad-8192-50efbb5d4bef": 0.705924,
+    "eb88804d-33eb-5840-93b8-235b7f88961a": 0.9198820000000001,
+    "084f1e52-f652-5592-ab34-f6156306545e": 0.8072839999999999,
+    "75640ea8-8bb2-546f-b44d-c8d51baee3e4": 2.261931,
+    "75e273d1-070a-5864-a5e2-11f455340620": 0.837484,
+    "21ae223a-fefc-5b3f-ae0d-772742797229": 0.7236035000000001,
+    "82eb0e10-41eb-50bf-a08f-7a9e3a4d0dfd": 6.2660465,
+    "cfc707ec-c733-5cf1-b2f3-af867b078307": 0.702383,
+    "30b3bded-7830-54c5-a242-75faeae6e052": 0.7275035
+   }
+  }
+ },
+ "divergences": [
+  {
+   "workload_uuid": "084f1e52-f652-5592-ab34-f6156306545e",
+   "hip_events_ms": 0.472461998462677,
+   "rocprof_ms": 0.8072839999999999,
+   "divergence_pct": -70.86749889446881,
+   "microsecond_scale": false
+  },
+  {
+   "workload_uuid": "151250c8-7c37-56d8-9d87-6edc9f5fd531",
+   "hip_events_ms": 0.39878199994564056,
+   "rocprof_ms": 0.724144,
+   "divergence_pct": -81.58893834192885,
+   "microsecond_scale": false
+  },
+  {
+   "workload_uuid": "21ae223a-fefc-5b3f-ae0d-772742797229",
+   "hip_events_ms": 0.37824200093746185,
+   "rocprof_ms": 0.7236035000000001,
+   "divergence_pct": -91.30701989905133,
+   "microsecond_scale": false
+  },
+  {
+   "workload_uuid": "30b3bded-7830-54c5-a242-75faeae6e052",
+   "hip_events_ms": 0.3994619995355606,
+   "rocprof_ms": 0.7275035,
+   "divergence_pct": -82.12082772475,
+   "microsecond_scale": false
+  },
+  {
+   "workload_uuid": "75640ea8-8bb2-546f-b44d-c8d51baee3e4",
+   "hip_events_ms": 1.9157690405845642,
+   "rocprof_ms": 2.261931,
+   "divergence_pct": -18.06908620413923,
+   "microsecond_scale": false
+  },
+  {
+   "workload_uuid": "75e273d1-070a-5864-a5e2-11f455340620",
+   "hip_events_ms": 0.5008625090122223,
+   "rocprof_ms": 0.837484,
+   "divergence_pct": -67.20836256074486,
+   "microsecond_scale": false
+  },
+  {
+   "workload_uuid": "82eb0e10-41eb-50bf-a08f-7a9e3a4d0dfd",
+   "hip_events_ms": 5.956028938293457,
+   "rocprof_ms": 6.2660465,
+   "divergence_pct": -5.205105027501263,
+   "microsecond_scale": false
+  },
+  {
+   "workload_uuid": "a1ce3f4a-abf4-504f-90be-1ede0f8bd65c",
+   "hip_events_ms": 0.823824018239975,
+   "rocprof_ms": 1.1393659999999999,
+   "divergence_pct": -38.30211001060052,
+   "microsecond_scale": false
+  },
+  {
+   "workload_uuid": "cfc707ec-c733-5cf1-b2f3-af867b078307",
+   "hip_events_ms": 0.3738414943218231,
+   "rocprof_ms": 0.702383,
+   "divergence_pct": -87.88256805846983,
+   "microsecond_scale": false
+  },
+  {
+   "workload_uuid": "eb88804d-33eb-5840-93b8-235b7f88961a",
+   "hip_events_ms": 0.6006830036640167,
+   "rocprof_ms": 0.9198820000000001,
+   "divergence_pct": -53.13934211371872,
+   "microsecond_scale": false
+  },
+  {
+   "workload_uuid": "fcbd00bf-2089-549a-a407-28d509581b4c",
+   "hip_events_ms": 1.3159865140914917,
+   "rocprof_ms": 1.6395084999999998,
+   "divergence_pct": -24.583989459181936,
+   "microsecond_scale": false
+  },
+  {
+   "workload_uuid": "fe647339-085d-5bad-8192-50efbb5d4bef",
+   "hip_events_ms": 0.3809814900159836,
+   "rocprof_ms": 0.705924,
+   "divergence_pct": -85.29089168357861,
+   "microsecond_scale": false
+  }
+ ],
+ "n_compared": 12,
+ "ok": true
+}

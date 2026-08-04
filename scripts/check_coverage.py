@@ -45,6 +45,20 @@ def covered(art: Path, pattern: str | None) -> set[str]:
     """Problems present in the artifact dir, as 'Category__problem' keys."""
     if not art.exists():
         return set()
+    if art.is_file():
+        # Aggregate layout: one JSON keyed by problem, e.g. artifacts/03's
+        # t_sol.json. A problem counts as covered only if it actually carries a
+        # result -- a key present with every workload errored is a gap wearing
+        # a coverage entry, which is the exact failure this script exists to
+        # catch.
+        doc = json.loads(art.read_text())
+        problems = doc.get("problems", doc)
+        out = set()
+        for key, entry in problems.items():
+            workloads = (entry or {}).get("workloads") or {}
+            if any(w.get("t_sol_cycles") is not None for w in workloads.values()):
+                out.add(key)
+        return out
     if pattern:
         # nested layout: <artifacts>/<Category>/<problem>/<pattern>
         return {f"{p.parent.parent.name}__{p.parent.name}"

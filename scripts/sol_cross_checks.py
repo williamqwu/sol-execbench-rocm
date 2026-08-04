@@ -99,6 +99,22 @@ HAND_MACS = {
 }
 
 
+def resolved_axes(definition: dict, workload_axes: dict) -> dict:
+    """Every axis value: the workload's own, plus the definition's constants.
+
+    A workload record carries only the axes that vary. `N` and `K` on a GEMM
+    are declared `const` in the definition and never appear in the workload, so
+    resolving from the workload alone leaves most shapes unresolvable -- it cut
+    check A from 2998 workloads to 44.
+    """
+    axes = {}
+    for name, spec in (definition.get("axes") or {}).items():
+        if isinstance(spec, dict) and spec.get("value") is not None:
+            axes[name] = spec["value"]
+    axes.update(workload_axes or {})
+    return axes
+
+
 def declared_traffic(definition: dict, axes: dict) -> int | None:
     """Bytes of the problem's own declared inputs and outputs.
 
@@ -125,6 +141,12 @@ def declared_traffic(definition: dict, axes: dict) -> int | None:
                 return None
             total += n * width
     return total
+
+
+def definition_of(data_root: str, key: str) -> dict:
+    category, name = key.split("__", 1)
+    return json.loads((Path(data_root) / category / name /
+                       "definition.json").read_text())
 
 
 def load_arch(path: Path) -> dict:
@@ -177,7 +199,7 @@ def main() -> int:
         for uuid, w in (entry.get("workloads") or {}).items():
             if w.get("t_sol_cycles") is None:
                 continue
-            axes = w.get("axes") or {}
+            axes = resolved_axes(definition, w.get("axes") or {})
             declared = declared_traffic(definition, axes)
             solar_bytes = w.get("memory_bytes")
             if declared is None or not solar_bytes:
@@ -214,7 +236,8 @@ def main() -> int:
             if w.get("t_sol_cycles") is None:
                 continue
             try:
-                expect = fn(w.get("axes") or {})
+                expect = fn(resolved_axes(definition_of(a.data, key),
+                                          w.get("axes") or {}))
             except KeyError as e:
                 c_rows.append((key, None, None, f"axis missing: {e}"))
                 break
@@ -274,10 +297,38 @@ def main() -> int:
         "",
     ]
     if a_worst:
-        L += ["| ratio | problem | declared bytes | SOLAR bytes |",
-              "|---|---|---|---|"]
-        for r, key, _u, dec, sol in sorted(a_worst)[:15]:
-            L.append(f"| {r:.3f} | {key} | {dec:,} | {sol:,} |")
+        by_problem: dict[str, list] = {}
+        for r, key, _u, dec, sol in a_worst:
+            by_problem.setdefault(key, []).append((r, dec, sol))
+        L += [
+            "The shortfall is concentrated: "
+            f"**{len(by_problem)} problems**, not a scatter across the set. "
+            "Two mechanisms produce it, and only one of them is benign.",
+            "",
+            "*Benign* — a preallocated cache or table that the kernel indexes "
+            "rather than streams. `L1/018` declares a KV cache of 131072 "
+            "positions and touches one sequence's worth of it, so the declared "
+            "total is not a floor for that kernel and the ratio near zero is "
+            "expected.",
+            "",
+            "*Not benign* — a graph SOLAR traced incompletely, which shows up "
+            "as a missing weight matrix. Where the largest declared tensor is "
+            "a weight and the ratio is ~0.001, SOLAR did not see the matmul "
+            "that consumes it.",
+            "",
+            "**Direction of the error.** A T_SOL below the true bound makes "
+            "`(T_b − T_SOL)` too large, so scores computed against it are "
+            "*understated*, not inflated. That is the safe direction — no "
+            "kernel is flattered by it — but it is still wrong, and these "
+            "problems carry the ratio into the manifest so a consumer can see "
+            "which bounds are loose.",
+            "",
+            "| worst ratio | workloads | problem | declared bytes | SOLAR bytes |",
+            "|---|---|---|---|---|",
+        ]
+        for key, rows in sorted(by_problem.items(), key=lambda kv: min(kv[1])[0]):
+            r, dec, sol = min(rows)
+            L.append(f"| {r:.4f} | {len(rows)} | {key} | {dec:,} | {sol:,} |")
         L.append("")
 
     L += [
