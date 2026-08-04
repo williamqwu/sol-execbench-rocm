@@ -989,6 +989,43 @@ observation rather than a `T_SOL` one, it is independent of the rate bug, and it
 is about the same problem my first hypothesis pointed at. So `018` remains the one
 problem both ports flag, for reasons neither has yet closed out.
 
+### D26 — the merge mixed two clocks into one T_b directory, and the manifest did not notice
+
+Resolving the master merge, `artifacts/06/candidates` and
+`artifacts/06/authoritative` conflicted on every file both ports had measured, and
+those were resolved in favour of MI355X — correctly. What was missed is that git
+does not conflict on a file present on only **one** side. Master had 221
+authoritative artifacts and this branch had 132, so the merge silently *added* the
+89 that only master had:
+
+```
+authoritative: {'MI355X/1640/mia1-p02-g10': 130,
+                'None/1300/gbt350-odcdh1-a08-1': 87,   <-- MI350X
+                'None/None/': 4}                        <-- our own no-winner records
+```
+
+`build_manifest.py` then built from the mixture without complaint, and the
+pipeline went on to run the anchor check against it. **T_b is a wall-clock time**,
+so 87 of those problems would have carried an anchor measured at 1300 MHz while
+their kernels were timed at 1640 — rescaling those problems' scores by the clock
+ratio, per problem, invisibly.
+
+Nothing was wrong with the files. The directory was wrong, and a directory has no
+provenance of its own — which is exactly why every *artifact* in this repo carries
+one.
+
+Fixed at the source rather than by tidying up: `collect_t_b()` now takes the
+expected F_LOCK, read from the same `CLOCK_LOCK_PRESETS` table `lock_clocks`
+applies from, and rejects any artifact measured at a different clock with a loud
+count. Verified by planting one MI350X file and watching it be refused. The 87
+were deleted only after asserting each had a mirror under `artifacts/06-MI350X/`.
+
+The general lesson is about merges rather than about clocks: **a three-way merge
+reasons about files, and a measurement's validity is a property of the set it
+belongs to.** Any directory that accumulates per-problem artifacts across two
+machines has this hazard, and the only durable defence is for the consumer to
+check provenance rather than for the merger to be careful.
+
 ### D24 — the scorer trusted the packet's copy of the problem, and an agent edited it
 
 The most serious defect found in session 3, and it was mine, not an agent's.
