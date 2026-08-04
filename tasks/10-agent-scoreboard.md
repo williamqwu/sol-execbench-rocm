@@ -38,16 +38,30 @@ tmux send-keys -t solb 'SOLB_RUN_ID=full-01 SOLB_BUDGET_USD=1500 \
 tmux attach -t solb        # detach again with Ctrl-b d
 ```
 
-`scripts/run_pipeline.sh` runs stages 1–7 below in order. Every stage is
-idempotent — a completed one leaves a marker in `artifacts/10/pipeline/` and is
-skipped on restart — so the session can be killed and relaunched at any point
-without losing work or repeating GPU time. It also **waits for** an authoritative
-T_b pass already in flight rather than starting a second one on the same GPU.
+`scripts/run_pipeline.sh` runs these stages in order. Every stage is idempotent —
+a completed one leaves a marker in `artifacts/10/pipeline/` and is skipped on
+restart — so the session can be killed and relaunched at any point without losing
+work or repeating GPU time. It also **waits for** a T_SOL or T_b pass already in
+flight rather than starting a second one.
 
-The ordering is not cosmetic. Stages 1–3 measure timings and need the node to
-themselves; stage 4 saturates seven GPUs and 120 CPUs with agents. Running them
+| stage | what | needs |
+|---|---|---|
+| 0 | `T_SOL` for this part | CPU only, meta device |
+| 1 | authoritative `T_b`, re-timed on one GPU | **an idle node** |
+| 2 | the traffic-floor bound tier | CPU, and `T_b` as its gate |
+| 3 | freeze the manifest | both tiers plus `T_b` |
+| 4 | `verify_anchor` — may `S` be published at all | **an idle node** |
+| 5 | the agent sweep | seven GPUs, hours |
+| 6 | scoring | the authoritative GPU, serial |
+| 7 | backfill `S` from the manifest | nothing; pure arithmetic |
+| 8 | scoreboard, coverage, acceptance | nothing |
+
+The ordering is not cosmetic. Stages 1 and 4 measure timings and need the node to
+themselves; stage 5 saturates seven GPUs and 120 CPUs with agents. Running them
 together is what voided the first T_b measurement, so `require_idle` refuses to
-start a timing stage while any agent or eval process is alive.
+start a timing stage while any agent or eval process is alive. Stage 2 comes after
+stage 1 rather than before because the traffic tier takes `T_b` as a gate: a
+derived bound above the measured time is rejected rather than shipped.
 
 tmux rather than `nohup` because these stages span more than a day between them,
 and a detached session keeps the scrollback, lets the run be watched live, and

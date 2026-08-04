@@ -10,8 +10,8 @@
 # artifacts/10/pipeline/ and is skipped on restart, so this can be killed and
 # relaunched at any point without losing work or repeating GPU time.
 #
-# THE ORDERING IS THE POINT. Stages 1-3 measure timings on the authoritative GPU
-# and must have the node to themselves; stage 4 saturates seven GPUs and 120 CPUs
+# THE ORDERING IS THE POINT. Stages 1 and 4 measure timings on the authoritative
+# GPU and must have the node to themselves; stage 5 saturates seven GPUs and 120 CPUs
 # with agents. Running them concurrently is what voided the first T_b measurement:
 # re-running the identical variant came out 5x slower than the recorded anchor,
 # because Triton autotuning is CPU-bound and seven compile-heavy agents starve it.
@@ -112,6 +112,29 @@ from provenance import stamp
 p = stamp('10-pipeline')['_provenance']
 print(f\"part={p['part']} f_lock={p['f_lock_mhz']} torch={p['torch']['version']}\")"
 
+# ---------------------------------------------------------------- stage 0
+# T_SOL for this part. CPU and meta-device only, so it can overlap anything --
+# but it must land before the manifest, and it must be derived with the CURRENT
+# sol_bounds.py. The version before master's fp32-rate fix priced 160 of 235
+# problems at the vector rate, 16x low, and put bounds above measured times.
+if is_done t_sol; then
+  say "stage 0 T_SOL — already done, skipping"
+else
+  wait_for "sol_bounds.py" "a T_SOL derivation"
+  say "stage 0 T_SOL for MI355X at the measured F_LOCK"
+  # Deliberately NOT --resume. The scratch directory is keyed by problem, not by
+  # (problem, code version) -- deviation D10 -- so resuming after a change to how
+  # the bound is computed silently mixes bounds from both versions, and the
+  # mixture is indistinguishable from a clean run. An interrupted stage 0 leaves
+  # no marker and re-derives all 235 from scratch, which costs ~30 CPU-minutes
+  # and is the cheap side of that trade.
+  env/solb-native python -u scripts/sol_bounds.py \
+      --part MI355X --freq-mhz 1640 \
+      --out artifacts/03/t_sol-MI355X.json --jobs 16 --timeout 900 \
+      2>&1 | tee -a "${LOGS}/00-t-sol.log" | tail -20
+  mark_done t_sol
+fi
+
 # ---------------------------------------------------------------- stage 1
 # Authoritative T_b. One GPU, serially, on an otherwise idle node.
 if is_done tb_authoritative; then
@@ -135,25 +158,41 @@ of $(ls artifacts/06/candidates/*.json 2>/dev/null | wc -l) candidates already r
 fi
 
 # ---------------------------------------------------------------- stage 2
+# The second bound tier: traffic the definition itself declares, over DRAM
+# bandwidth. It takes T_b as a GATE -- a derived bound above the measured time is
+# rejected rather than shipped -- so it has to run after stage 1, not before.
+say "stage 2 traffic-floor bound tier"
+env/solb-native python scripts/sol_traffic_floor.py \
+    --t-sol artifacts/03/t_sol-MI355X.json \
+    --arch SOLAR/configs/arch/MI355X.yaml \
+    --t-b artifacts/06/authoritative \
+    --out artifacts/03/t_sol_traffic-MI355X.json \
+    2>&1 | tee "${LOGS}/02-traffic-floor.log" | tail -12
+
+# ---------------------------------------------------------------- stage 3
 # Freeze the manifest. Scores are only meaningful inside one manifest version.
-say "stage 2 manifest"
+# Both tiers go in; build_manifest takes the max of the two that survive being
+# checked against the measurement, symmetrically, and counts a workload as not
+# scoreable where neither does.
+say "stage 3 manifest"
 env/solb-native python scripts/build_manifest.py \
     --out "${MANIFEST}" --version MI355X-v1 \
     --t-sol artifacts/03/t_sol-MI355X.json \
+    --t-sol-traffic artifacts/03/t_sol_traffic-MI355X.json \
     --t-b artifacts/06/authoritative --force \
-    2>&1 | tee "${LOGS}/02-manifest.log" | head -8
+    2>&1 | tee "${LOGS}/03-manifest.log" | head -10
 
-# ---------------------------------------------------------------- stage 3
+# ---------------------------------------------------------------- stage 4
 # The check that decides whether S may be published at all. Task 06 step 4.
 if is_done anchor; then
-  say "stage 3 anchor — already done, skipping"
+  say "stage 4 anchor — already done, skipping"
 else
-  say "stage 3 anchor verification (needs an idle node)"
+  say "stage 4 anchor verification (needs an idle node)"
   require_idle || exit 1
   HIP_VISIBLE_DEVICES=0 env/solb-native python -u scripts/verify_anchor.py \
       --manifest "${MANIFEST}" \
       --out artifacts/06/anchor-verification.md --sample 12 \
-      2>&1 | tee "${LOGS}/03-anchor.log"
+      2>&1 | tee "${LOGS}/04-anchor.log"
   # A failing report must not be mistaken for a passing one by a later session,
   # and must not be mistaken for a clean measurement either.
   if env/solb-native python -c "
@@ -171,14 +210,14 @@ sys.exit(0 if p.get('total') and p['passing'] == p['total'] else 1)"; then
   fi
 fi
 
-# ---------------------------------------------------------------- stage 4
+# ---------------------------------------------------------------- stage 5
 # The agent sweep. Seven GPUs, hours. Resumable: a unit with a session.json is
 # done, and --retry-transient re-runs only the ones that failed on infrastructure
 # rather than on the model's answer.
 if is_done sweep; then
-  say "stage 4 agent sweep — already done, skipping"
+  say "stage 5 agent sweep — already done, skipping"
 else
-  say "stage 4 agent sweep (${RUN_ID})"
+  say "stage 5 agent sweep (${RUN_ID})"
   reap
   env/solb-native python -u scripts/run_agents.py \
       --run-id "${RUN_ID}" \
@@ -186,39 +225,39 @@ else
       --max-attempts 5 --timeout-min 30 \
       --budget-usd "${SOLB_BUDGET_USD:-1500}" \
       --retry-transient \
-      2>&1 | tee -a "${LOGS}/04-sweep.log"
+      2>&1 | tee -a "${LOGS}/05-sweep.log"
   mark_done sweep
 fi
 
-# ---------------------------------------------------------------- stage 5
+# ---------------------------------------------------------------- stage 6
 # Scoring. Serial, authoritative GPU, and only once the sweep is finished --
 # two evaluations sharing a GPU inflate each other and the artifact cannot tell
 # you it happened (D11).
-say "stage 5 scoring ${RUN_ID} on the authoritative GPU"
+say "stage 6 scoring ${RUN_ID} on the authoritative GPU"
 require_idle || exit 1
 env/solb-native python -u scripts/score_solutions.py \
     --run-id "${RUN_ID}" --manifest "${MANIFEST}" --timeout 2400 \
-    2>&1 | tee -a "${LOGS}/05-score.log"
+    2>&1 | tee -a "${LOGS}/06-score.log"
 
-# ---------------------------------------------------------------- stage 6
-say "stage 6 backfill scores from the manifest"
+# ---------------------------------------------------------------- stage 8
+say "stage 7 backfill scores from the manifest"
 env/solb-native python scripts/backfill_scores.py \
     --run-id "${RUN_ID}" --manifest "${MANIFEST}" \
-    2>&1 | tee "${LOGS}/06-backfill.log"
+    2>&1 | tee "${LOGS}/07-backfill.log"
 
 # ---------------------------------------------------------------- stage 7
-say "stage 7 scoreboard + coverage + acceptance"
+say "stage 8 scoreboard + coverage + acceptance"
 env/solb-native python scripts/build_scoreboard.py --all-runs \
-    2>&1 | tee "${LOGS}/07-scoreboard.log"
+    2>&1 | tee "${LOGS}/08-scoreboard.log"
 
 for h in claude-code codex; do
   env/solb-native python scripts/check_coverage.py \
       --artifacts "artifacts/10/scores/${RUN_ID}/${h}" \
-      2>&1 | tee -a "${LOGS}/07-coverage.log"
+      2>&1 | tee -a "${LOGS}/08-coverage.log"
 done
 
 env/solb-native python scripts/verify_artifacts.py --task 10 \
-    2>&1 | tee "${LOGS}/07-acceptance.log"
+    2>&1 | tee "${LOGS}/08-acceptance.log"
 
 say "pipeline complete"
 echo

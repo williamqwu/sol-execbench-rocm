@@ -112,7 +112,7 @@ Concretely observed while the first floor ran: `--gpu 0` put the load on
 | 00 | Node acceptance | `done` | `done` | `artifacts/00/`, `00-MI350X/` | 13 checks, 0 failed on both; MI355X rooflines reproduce session 1 to within 1% |
 | 01 | Clock calibration (F_LOCK) | `done` 1300 | `done` **1640** | `artifacts/01/`, `01-MI350X/` | achieved, not requested. D16: on MI355X only two of eight GPUs obey the request |
 | 02 | Harness port validation | `done` | `done` | `artifacts/02/` | 3717/3717 non-deferred workloads pass under AMD tolerances. Port is part-independent |
-| 03 | SOL bounds (T_SOL) | `done` | `in-progress` | `artifacts/03/` | MI350X: 235/235, two derivations, source recorded. MI355X: `t_sol-MI355X.json` must be **re-derived** — it was generated before the fp32-rate fix (`9a0f98a`) |
+| 03 | SOL bounds (T_SOL) | `done` | `in-progress` | `artifacts/03/` | MI350X: 235/235, two derivations, source recorded. MI355X: **re-derived after the fp32-rate fix** — 166/235 problems from SOLAR, and all 90 bound violations went to 0 (D25). The traffic tier still owes the other 69 |
 | 04 | rocprofiler shim | `done` | `n/a` | `artifacts/04/` | median divergence −0.61% over 1430 pairs; clock domain verified. Not part-specific |
 | 05 | Tolerance calibration | `done` | `inherited` | `artifacts/05/` | 3717/3957 AMD-derived. Numerics of the same gfx950 ISA; not re-derived here |
 | 06 | Baselines (T_b) | `done` | `blocked` | `artifacts/06/`, `06-MI350X/` | MI350X: 220 anchored, 336/349 anchor checks pass. MI355X: selection 223/235 and 132 re-timed, but **not anchor-verified** — blocker B2 |
@@ -928,82 +928,66 @@ The probe uses `importlib.util.find_spec` rather than importing: importing
 `aiter` loads a compiled extension, and a provenance stamp taken mid-measurement
 must not create a HIP context on the device it is describing.
 
-### D25 — 19% of bounded workloads came in faster than their Speed-of-Light bound
+### D25 — 19% of bounded workloads beat their own bound, and the mechanism I proposed was wrong
 
-**Superseded in cause by D14, which was already fixed on master when this was
-written.** Session 3 branched from `ea94b18` and re-derived `T_SOL` for MI355X
-with the *pre-fix* `sol_bounds.py`, in which `_precision_for()` took the widest
-dtype among a problem's inputs and so priced a bf16 kernel with one float32 `eps`
-argument at the fp32 **vector** rate — 16× below the bf16 matrix rate. That is
-the same defect D14 records as producing 437 violations on MI350X, reduced to 63
-by excluding scalars and taking the narrowest tensor dtype.
+**Cause: master's D14, in full. Resolved by merging it. Both explanations offered
+below when this was first written were incorrect, and that is the useful part.**
 
-So the numbers below describe a bound that is known to be mis-derived, and
-`artifacts/03/t_sol-MI355X.json` **must be re-derived** with the merged
-`sol_bounds.py` before any of this is read as a property of the hardware. Kept
-rather than deleted for two reasons: the shape of the violations is what makes
-D14's fix legible on this part, and the second mechanism below is *not* explained
-by D14 at all.
+Session 3 branched from `ea94b18` and re-derived `T_SOL` for MI355X with the
+pre-fix `sol_bounds.py`, in which `_precision_for()` took the widest dtype among
+a problem's inputs. A bf16 kernel with one float32 `eps` argument was therefore
+priced at the fp32 **vector** rate, 32768 MAC/cycle, 16x below the bf16 matrix
+rate. Across the pilot, **90 of 474** correct-and-bounded workloads came in faster
+than their own lower bound.
 
-Measured across the pilot: **90 of 474** correct-and-bounded workloads have
-`t_k < t_sol`. A kernel cannot beat an analytic lower bound, so those bounds are
-wrong, and `S` computed from them would exceed 1.
-
-They are not spread thin. **Three problems account for all 90**, and the two
-mechanisms are different and both instructive:
-
-**Paged KV decode — the bound counts memory the kernel never touches.**
-`FlashInfer-Bench__018_mla_paged_decode` contributes 69 of the 90, with bounds
-15–29× too loose:
+After merging the fix and re-deriving:
 
 ```
-t_k = 0.00986 ms   t_sol = 0.285037 ms      (28.9x)
-memory_bytes = 2_280_267_108   bottleneck = memory
+violations with the PRE-FIX bounds:   90
+violations with the POST-FIX bounds:   0  of 380 re-checkable workloads
+precision resolution   fp32 157 -> 81     bf16 48 -> 100     (+ fp8 5, nvfp4 14)
 ```
 
-2.28 GB of traffic for a *single decode step*. SOLAR derives traffic by tracing
-the reference, and the trace sees the whole paged KV cache tensor as an input, so
-it charges the kernel for reading all of it. A real paged-decode kernel reads the
-handful of pages the sequence actually occupies. The bound is therefore modelling
-the tensor, not the access pattern.
+Two problems make the size of it concrete:
 
-**Redundant work in the reference — the bound counts MACs a fused kernel skips.**
-`L2__028_gqa_rotary_attention_core_backward` contributes 16, compute-bound at
-150 GMAC. The reference materializes `repeat_kv` before the matmuls; a fused
-kernel does not, so the traced MAC count includes arithmetic that is
-algebraically unnecessary. `L1__001` contributes the remaining 5 similarly.
+| | pre-fix T_SOL | post-fix | ratio | bottleneck |
+|---|---|---|---|---|
+| `L2__028_gqa_rotary_attention_core_backward` | 4.152 ms | 0.2595 ms | **0.063x** | compute -> compute |
+| `L1__001_attention_softmax_dropout_value_matmul_backward` | 3.197 ms | 0.5180 ms | 0.162x | **compute -> memory** |
 
-**The general statement, which is a property of the method rather than a bug in
-this port:** a T_SOL obtained by tracing a reference bounds *the work that
-reference does*, not the work the problem requires. Where the reference does more
-than necessary — redundant arithmetic, or holding a tensor it only partly reads —
-the resulting "lower bound" is above what a good kernel achieves, and the
-violation is the only visible symptom.
+`L2__028` moves by almost exactly 1/16, which is the bf16-to-fp32-vector ratio
+and is the fingerprint of the defect. `L1__001` additionally *reclassifies* from
+compute-bound to memory-bound, because once the arithmetic is priced correctly it
+is no longer the binding term.
 
-Consequences, applied:
+**What I got wrong, and why it is worth recording rather than quietly deleting.**
+The first version of this entry proposed two mechanisms, neither of which was the
+cause:
 
-- Violations are surfaced per record as `bound_violation` and never clamped.
-  Clamping would have hidden all three of these, and D12 is the precedent: eight
-  workloads once had `T_SOL` truncated to zero cycles and it was only found by
-  a number that could not be true.
-- The dashboard prints a warning naming the affected problems.
-- **`S` must not be published for these three problems** even after `T_b` lands.
-  `verify_artifacts --task 10` already refuses to accept a populated `S` column
-  without `artifacts/06/anchor-verification.md`.
-- Not investigated further: whether SOLAR can be told the real access pattern for
-  paged layouts, and whether the `unfused` model would bound `L2__028` better than
-  `fused` does. Both are task 03 work, recorded here because the pilot is what
-  surfaced them.
+1. *"Paged KV decode: the bound counts memory the kernel never touches."* Offered
+   for `FlashInfer-Bench__018`, on the evidence that SOLAR charged 2.28 GB of
+   traffic for a single decode step. Plausible, and it fit the numbers -- but it
+   was never tested, and `018` is not even in the post-fix set, because SOLAR
+   fails on it and the traffic tier bounds it instead.
+2. *"The reference does redundant work, so the traced MAC count overstates it."*
+   Offered for `L2__028`. Simply wrong: the MAC count was fine, the price per MAC
+   was not.
 
-**What survives the D14 fix, and what the merge says about it.** The paged-KV
-mechanism is independent of the compute rate — `FlashInfer-Bench__018` is
-`bottleneck: memory`, charged for 2.28 GB of traffic, so repricing the arithmetic
-cannot move it. Master reaches the same problem from the other side and records it
-as **D15**: on MI350X, `018` re-times a median 1.16× slower than its own recorded
-`T_b`, reproduced across two independent runs, and its anchor is called optimistic
-by ~16%. Two ports, two derivations, one problem — which is worth more than either
-observation alone, and is the reason `018` should not ship a score on either part
-until the paged case is modelled rather than traced.
+Both were reasoned from a real observation and both were confident. The
+observation was worth surfacing; the explanations should have been marked as
+hypotheses rather than written as findings, and prime directive 8 asks for exactly
+that distinction -- surface the uncertainty, especially when you cannot explain it.
+
+Master had already found and fixed this on MI350X, where it produced 437
+violations reduced to 63. Reading the mainline before theorising about a shared
+code path would have cost nothing.
+
+**What still stands.** Master's own **D15** records `FlashInfer-Bench__018`
+re-timing a median 1.16x slower than its recorded `T_b` on MI350X, reproduced over
+two independent runs, with its anchor called optimistic by ~16%. That is a `T_b`
+observation rather than a `T_SOL` one, it is independent of the rate bug, and it
+is about the same problem my first hypothesis pointed at. So `018` remains the one
+problem both ports flag, for reasons neither has yet closed out.
 
 ### D24 — the scorer trusted the packet's copy of the problem, and an agent edited it
 
