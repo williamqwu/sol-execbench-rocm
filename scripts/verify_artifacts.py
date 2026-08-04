@@ -532,13 +532,25 @@ def check_10(c: Checks):
                 f"{cost.get('unpriced_sessions')} unpriced",
             )
             # A populated S column requires the manifest's anchor property to
-            # hold. Publishing S from an unverified anchor is task 09's guard
-            # rail and would be undetectable downstream.
+            # actually HOLD, not merely to have been checked. An earlier version
+            # of this check tested only that the report file existed, which a
+            # failing report satisfies just as well as a passing one -- and the
+            # first anchor verification run in this project failed 191 of 204
+            # workloads. Publishing S from a broken scale is task 09's guard rail
+            # and is undetectable downstream.
             if (h.get("timing", {}).get("sol_score", {}).get("n") or 0) > 0:
-                c.require((ART / "06" / "anchor-verification.md").exists(),
-                          f"{run_id}/{name}: S published only with a verified anchor",
-                          detail_bad="artifacts/06/anchor-verification.md absent — "
-                                     "do not publish S (task 06 step 4)")
+                anchor = load_json(ART / "06" / "anchor-verification.md")
+                prop = (anchor or {}).get("anchor_property") or {}
+                passing, total = prop.get("passing"), prop.get("total")
+                ok = bool(total) and passing == total
+                c.require(
+                    ok, f"{run_id}/{name}: S published only with a PASSING anchor",
+                    f"{passing}/{total} workloads anchored",
+                    (f"anchor property holds for only {passing}/{total} workloads"
+                     if total else
+                     "no passing artifacts/06/anchor-verification.md — "
+                     "do not publish S (task 06 step 4)"),
+                )
 
         scoring = run.get("scoring") or {}
         integrity = scoring.get("harness_integrity") or {}

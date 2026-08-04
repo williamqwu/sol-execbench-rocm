@@ -76,14 +76,14 @@ Concretely observed while the first floor ran: `--gpu 0` put the load on
 | 00 | Node acceptance | `done` | **MI355X** | `artifacts/00/` | 13 checks, 0 failed; rooflines reproduce session 1 to within 1% |
 | 01 | Clock calibration (F_LOCK) | `in-progress` | **MI355X** | `artifacts/01/` | re-measuring on this part; session-1 preset is `1650` **requested** with no achieved value recorded — see below |
 | 02 | Harness port validation | `done` | MI350X | `artifacts/02/` | 235/235 problems swept; references run on ROCm. Port is part-independent |
-| 03 | SOL bounds (T_SOL) | `in-progress` | MI350X | `artifacts/03/` | 185/235 problems bounded **at F_LOCK 1300 on MI350X** — not valid for this node until re-derived |
+| 03 | SOL bounds (T_SOL) | `in-progress` | **MI355X** | `artifacts/03/t_sol-MI355X.json` | **222/235 problems bounded at F_LOCK 1640 on MI355X.** The MI350X file is kept beside it and is rejected by the scorer on this node. D23: 3 problems have bounds a good kernel beats |
 | 04 | rocprofiler shim | `in-progress` | MI350X | `src/solexbench_rocm/shim/` | shim built and verified; L1 comparison sweep pending |
 | 05 | Tolerance calibration | `done` | MI350X | `artifacts/05/` | 3717/3957 workloads AMD-derived; missing 240 are exactly the 15 deferred NVFP4 × 16 |
-| 06 | Baselines (T_b) | `not-started` | — | none | **`artifacts/06/` does not exist.** Session 2 reported a sweep running; nothing was committed. Without T_b there is no SOL score |
+| 06 | Baselines (T_b) | `blocked` | MI355X | `artifacts/06/` | **selection done, 223/235.** The authoritative re-time and the anchor check were both run under CPU contention and are void — blocker B2. Needs a quiet node, nothing else |
 | 07 | Quant / MXFP4 | `done` | MI350X | `artifacts/07/`, `artifacts/deferred.json` | 15 NVFP4 deferred with evidence; 220 ship |
-| 08 | Red team | `done` | — | `reference/exploits/`, `artifacts/08/` | 28/28 replay cases pass |
-| 09 | Release | `not-started` | — | | manifest builder written; needs 03 and 06 |
-| 10 | Agent scoreboard | `in-progress` | **MI355X** | `artifacts/10/` | harness + scorer + dashboard built and unit-tested; pilot next |
+| 08 | Red team | `done` | — | `reference/exploits/`, `artifacts/08/` | 28/28 replay cases pass. Extended in session 3: the static screen now screens filenames, after D21 |
+| 09 | Release | `in-progress` | MI355X | `artifacts/09/manifest-MI355X-v1.json` | manifest builds and reports its own gaps honestly; 0/235 scoreable while B2 holds |
+| 10 | Agent scoreboard | `in-progress` | **MI355X** | `artifacts/10/` | **pilot done and scored, 24 problems × 2 harnesses.** Acceptance passes: 24 checks, 0 failed. Full 404-session sweep running |
 
 Status vocabulary: `not-started` · `in-progress` · `blocked` · `done` · `deferred`
 
@@ -462,6 +462,68 @@ unscoreable until B1 is fixed, which would reduce it to 187 in practice.
 ---
 
 ## Blockers
+
+### B2 — T_b was measured under CPU contention and fails the anchor property; S is not published
+
+T_b was carried further than it has ever been in this project: candidate
+selection completed for **223 of 235 problems** (`artifacts/06/candidates/`,
+223 ok / 3 failed / 107 min sharded across GPUs 1–7), and the authoritative
+re-time on GPU 0 covered the first 12 before this was found.
+
+`scripts/verify_anchor.py` then rejected the scale outright:
+
+```
+anchor property   13/204        (rule: submitting T_b's own implementation scores 0.5 +- 0.03)
+reference < 0.5   203/204
+T_SOL violations  0
+```
+
+The mechanism is visible in a single check:
+
+```
+variant v1_eager    t_b_ms 0.01372   (recorded anchor)
+                    t_k_ms 0.06876   (the same code, re-measured)
+score_of_anchor 0.144            (should be 0.5)
+```
+
+Re-running the *identical* variant takes 5× longer than the recorded anchor. So
+`T_b` is not reproducible, and `S` built on it would be wrong by that factor
+while looking entirely plausible.
+
+**The cause is a scheduling mistake, and it was mine.** Both the authoritative
+re-time and the anchor verification were run on GPU 0 *while the 404-session
+agent sweep saturated the node's 120 CPUs*. Task 01 measured GPU-to-GPU
+interference at +0.02% and the D20 addendum already recorded that the CPUs are
+the resource that actually contends — and then this violated that rule anyway.
+Triton autotuning and `torch.compile` are CPU-bound, so a compile-heavy timing
+run next to seven compile-heavy agents measures the CPU scheduler.
+
+Actions taken rather than deferred:
+
+- `artifacts/06/anchor-verification.md` renamed to
+  **`anchor-verification-VOID-contended.md`**, so a future session cannot mistake
+  a failing report for a passing one, and cannot mistake either for a clean
+  measurement.
+- The manifest was rebuilt **without** `T_b`, and `scripts/backfill_scores.py`
+  rolled the 98 `sol_score_v1` records back to `sol_headroom`. Each keeps
+  `score_basis_history: ["sol_score_v1"]`, so the retraction is on the record
+  instead of being invisible.
+- `verify_artifacts --task 10` now reads the anchor report's **verdict** rather
+  than its existence. The earlier version tested only that the file was there,
+  which a failing report satisfies exactly as well as a passing one.
+
+**What it takes to finish:** re-run `authoritative_tb.py` on an otherwise idle
+node, then `verify_anchor.py`, then `backfill_scores.py`. No agent work needs
+repeating — `T_k`, `T_ref` and every pass/fail verdict were measured on GPU 0 at
+F_LOCK before the sweep started and remain valid. That is the whole reason the
+backfill exists as a separate step from scoring.
+
+For the record, the S values that were briefly computed had median **0.500**
+(claude-code 0.503, codex 0.499, n=49 each) over just three problems —
+`FlashInfer-Bench__001`, `005`, `009`, all rmsnorm or GEMM, i.e. exactly the
+shapes where `torch.compile` and hipBLASLt are already near-optimal and S≈0.5 is
+the expected answer. Even had the anchor held, three problems would not have
+supported a headline.
 
 ### B1 — this node runs Python 3.10; the project requires 3.12, and all 33 Quant references need ≥3.11
 
@@ -1240,6 +1302,34 @@ is resolved once per run and passed to both the timer and the trace, so
 ### 2026-08-03 — session 1  (node: mia1-p02-g10, 8x MI355X)
 Worked: task 00 (done), 01 (done, F_LOCK 1650), 02 (port written, sweep not run)
 Ended because: work moved to an MI350X node.
+
+### 2026-08-04 — session 3  (node: mia1-p02-g10, 8x MI355X)
+Worked: environment bring-up without docker (D15), task 00 (done), task 01
+        (done, F_LOCK 1640 on GPU 0), task 03 re-derived for MI355X (222/235),
+        task 06 selection (223/235, authoritative pass VOID — B2),
+        task 10 built end to end and piloted.
+Produced: env/solb-native + env/check_stack.py — the pinned stack asserted, not assumed
+          artifacts/00/, artifacts/01/ — MI355X node record; MI350X archived beside
+          artifacts/03/t_sol-MI355X.json — bounds at the measured F_LOCK
+          artifacts/06/candidates/ — T_b selection for 223 problems
+          artifacts/09/manifest-MI355X-v1.json — builds, reports its own gaps
+          artifacts/10/ — agent harness, 48 scored pilot sessions, dashboard
+          src/solexbench_agents/ — packets, harness adapters, GPU pool, scoring
+          scripts/{run_agents,agent_verify,score_solutions,build_scoreboard,
+                   backfill_scores}.py
+          tasks/10-agent-scoreboard.md
+          tests/solexbench_agents/ — 93 tests, all CPU-only
+Found: six defects in the benchmark, four of them only because an agent walked
+       into them — D16 (two of eight GPUs obey the clock lock), D17 (agent read
+       the harness), D18 (gateway 403 scored as a model failure), D20 (agent's
+       autotuner outlived its session by an hour), D21 (agent patched the
+       interpreter via sitecustomize.py), D22 (the scorer trusted the agent's
+       copy of the problem, and one had edited the reference), D23 (19% of
+       bounded workloads beat their own bound), F17 (an acceptance check that
+       could not fail), B1 (Python 3.10 where 3.12 is required), B2 (T_b void).
+Left running: the 404-session full sweep, resumable.
+Next session: re-run authoritative_tb + verify_anchor on an IDLE node, then
+        backfill_scores. No agent work needs repeating.
 
 ### 2026-08-03 — session 2  (node: gbt350-odcdh1-a08-1, 8x MI350X)
 Worked: environment rebuild, task 00 (done), task 01 (done, F_LOCK 1300)

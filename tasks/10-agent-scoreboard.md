@@ -62,11 +62,38 @@ authoritative GPU. Nothing an agent produced is trusted to score itself:
 - Attempts are capped, so the last thing an agent ran is often not the last
   thing it wrote.
 
-### 3. Publish
+### 3. Strengthen the basis when the bounds land
+
+```bash
+python scripts/backfill_scores.py --run-id pilot-01 \
+    --manifest artifacts/09/manifest-MI355X-v1.json
+```
+
+Recomputes `S`, the headroom and the basis from a newer manifest **without
+re-running anything on a GPU**. `T_k`, `T_ref` and the pass/fail verdicts were
+measured on the authoritative GPU at F_LOCK and stay valid; only the bounds
+changed. Re-scoring instead would spend hours reproducing the same latencies, and
+would produce them on a different day under different node conditions — so a
+record's basis and its timing would come from different runs.
+
+Each record keeps its previous basis in `score_basis_history`, so a strengthened
+score is visibly strengthened, and a **retracted** one is visibly retracted.
+That matters: session 3 published 98 `sol_score_v1` records and then rolled them
+back when the anchor check failed (blocker B2), and the history is the only reason
+that is legible after the fact.
+
+### 4. Publish
 
 ```bash
 python scripts/build_scoreboard.py --all-runs
 ```
+
+**Do not run a sweep, a shard sweep, or an agent run while measuring `T_b` or
+verifying the anchor.** The GPUs do not interfere — task 01 measured +0.02% — but
+Triton autotuning and `torch.compile` are CPU-bound, and seven concurrent agents
+will starve a timing run on the authoritative GPU. Session 3 lost a `T_b`
+measurement exactly this way: re-running the identical variant came out 5×
+slower than the recorded anchor, and the whole score scale had to be voided.
 
 Writes `artifacts/10/scoreboard.json` and a self-contained
 `artifacts/10/dashboard.html` — no CDN, because the likely reader opens it over a

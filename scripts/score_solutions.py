@@ -51,6 +51,48 @@ from solexbench_agents.scoring import (  # noqa: E402
 )
 
 
+def load_manifest_bounds(path: Path) -> tuple[dict, dict, dict]:
+    """(t_sol, t_b, meta) from a frozen scoring manifest.
+
+    Preferred over the raw artifacts, because a score is only meaningful inside
+    one manifest version: the README says so, and the manifest is the thing that
+    pins `T_SOL`, `T_b` and the tolerances together with the stack that produced
+    them. Reading the raw artifacts instead lets a score be assembled from a
+    `T_SOL` measured at one clock and a `T_b` measured at another, with nothing
+    recording that it happened.
+
+    Returned in the shape ``workload_bound`` already expects, so the caller does
+    not care which source it got.
+    """
+    if not path.exists():
+        return {}, {}, {}
+    doc = json.loads(path.read_text())
+    problems = doc.get("problems") or {}
+    t_sol: dict = {}
+    t_b: dict = {}
+    for key, entry in problems.items():
+        sol_wl, b_wl = {}, {}
+        for uuid, w in (entry.get("workloads") or {}).items():
+            if w.get("t_sol_ms") is not None:
+                sol_wl[uuid] = {"t_sol_ms": w["t_sol_ms"],
+                                "t_sol_cycles": w.get("t_sol_cycles")}
+            if w.get("t_b_ms") is not None:
+                b_wl[uuid] = {"t_b_ms": w["t_b_ms"],
+                              "t_b_variant": w.get("t_b_variant")}
+        if sol_wl:
+            t_sol[key] = {"workloads": sol_wl}
+        if b_wl:
+            t_b[key] = {"workloads": b_wl}
+    meta = {
+        "manifest_version": doc.get("manifest_version"),
+        "path": str(path),
+        "stats": doc.get("stats"),
+        "problems_with_t_sol": len(t_sol),
+        "problems_with_t_b": len(t_b),
+    }
+    return t_sol, t_b, meta
+
+
 def load_bounds(path: Path, part: str | None) -> tuple[dict, dict]:
     """(problems-by-key, meta) from a T_SOL or T_b artifact, or ({}, {}).
 
@@ -310,6 +352,10 @@ def main() -> int:
                     type=Path)
     ap.add_argument("--t-b", default=str(ROOT / "artifacts" / "06" / "t_b.json"),
                     type=Path)
+    ap.add_argument("--manifest",
+                    help="frozen scoring manifest; supersedes --t-sol/--t-b. "
+                         "Preferred, because a score is only meaningful inside "
+                         "one manifest version")
     ap.add_argument("--workloads-root",
                     default=str(ROOT / "artifacts" / "05" / "workloads"), type=Path,
                     help="AMD-derived tolerances; the authoritative workload "
@@ -345,8 +391,16 @@ def main() -> int:
               "operator edit looks the same -- but a score whose harness moved "
               "mid-run is not comparable with one whose did not.", file=sys.stderr)
 
-    t_sol, t_sol_meta = load_bounds(args.t_sol, part)
-    t_b, t_b_meta = load_bounds(args.t_b, part)
+    manifest_meta: dict = {}
+    if args.manifest and Path(args.manifest).exists():
+        t_sol, t_b, manifest_meta = load_manifest_bounds(Path(args.manifest))
+        t_sol_meta = t_b_meta = {"from_manifest": manifest_meta.get("manifest_version")}
+        print(f"  bounds from manifest {manifest_meta.get('manifest_version')}: "
+              f"T_SOL for {manifest_meta['problems_with_t_sol']} problems, "
+              f"T_b for {manifest_meta['problems_with_t_b']}", file=sys.stderr)
+    else:
+        t_sol, t_sol_meta = load_bounds(args.t_sol, part)
+        t_b, t_b_meta = load_bounds(args.t_b, part)
     for label, meta in (("T_SOL", t_sol_meta), ("T_b", t_b_meta)):
         if meta.get("rejected"):
             print(f"  {label}: {meta['rejected']}", file=sys.stderr)
@@ -416,6 +470,7 @@ def main() -> int:
         "clock_lock": lock,
         "f_lock_mhz": prov.get("f_lock_mhz"),
         "sessions_scored": len(results),
+        "manifest": manifest_meta or None,
         "t_sol": {"path": str(args.t_sol), "used": bool(t_sol), **t_sol_meta},
         "t_b": {"path": str(args.t_b), "used": bool(t_b), **t_b_meta},
         "harness_integrity": integrity,
