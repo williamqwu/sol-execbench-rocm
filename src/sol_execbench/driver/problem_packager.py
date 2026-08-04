@@ -214,6 +214,17 @@ class ProblemPackager:
                 compile_options["cuda_cflags"] = [
                     _gfx_to_offload_arch(g) for g in unique_gfx
                 ] + cuda_cflags
+            # AMD: `CompileOptions.ld_flags` defaults to `["-lcuda"]`, which
+            # does not exist on ROCm. The default only bites once
+            # compile_options is materialized at all -- which the block above
+            # does, for every LOCAL submission -- so before this, EVERY C++
+            # submission on ROCm failed at the link step with
+            # "/usr/bin/ld: cannot find -lcuda", on a kernel that had compiled
+            # cleanly. torch adds -lamdhip64 itself; naming it here keeps the
+            # field meaning the same thing it means upstream.
+            if compile_options and not compile_options.get("ld_flags"):
+                compile_options["ld_flags"] = ["-lamdhip64"]
+            if compile_options:
                 spec["compile_options"] = compile_options
                 sol_dict["spec"] = spec
             return sol_dict

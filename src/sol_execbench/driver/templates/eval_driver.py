@@ -252,11 +252,21 @@ if "::" in _entry_point:
 else:
     _entry_module_or_file, _entry_func_name = _entry_point, "run"
 
+# AMD: the ROCm C++ languages belong here too. They were added to the schema's
+# own cpp_languages list but not to this one, so a hip_cpp submission fell into
+# the Python branch and died on `ModuleNotFoundError: No module named 'kernel'`
+# -- after compiling and linking perfectly well. The compiled artifact is
+# always benchmark_kernel.so regardless of language.
 _CPP_LANGUAGES = {
     SupportedLanguages.CUDA_CPP,
     SupportedLanguages.CUTLASS,
     SupportedLanguages.CUDNN,
     SupportedLanguages.CUBLAS,
+    SupportedLanguages.HIP_CPP,
+    SupportedLanguages.CK,
+    SupportedLanguages.CK_TILE,
+    SupportedLanguages.HIPBLASLT,
+    SupportedLanguages.MIOPEN,
 }
 if any(lang in _CPP_LANGUAGES for lang in _solution.spec.languages):
     _so_path = STAGING_DIR / "benchmark_kernel.so"

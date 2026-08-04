@@ -10,8 +10,10 @@ chassis (air-cooled 1000 W at 2.2 GHz vs liquid-cooled 1400 W at 2.4 GHz), so
 they share the build path and the architectural constants and share nothing
 that was measured. Every measured quantity is keyed by part.
 
-**Status:** measured on 8× MI350X. See [`STATE.md`](STATE.md) for the live
-ledger and [`docs/methodology.md`](docs/methodology.md) for how each number was
+**Status:** fully measured on 8× MI350X — every number below came off this
+hardware. MI355X has a placeholder clock lock and no measurements; see
+[MI355X](#running-on-mi355x). See [`STATE.md`](STATE.md) for the live ledger
+and [`docs/methodology.md`](docs/methodology.md) for how each number was
 derived.
 
 ## The one thing to get right before comparing anything
@@ -21,12 +23,13 @@ derived.
 > but are **not** a cross-vendor performance comparison, because analytic peaks
 > are reachable to different degrees on different microarchitectures.
 
-On this hardware, BF16 GEMM reaches 50.6% of its analytic peak and HBM copy
-56.7% of 8 TB/s. Two kernels at `S = 0.8` on different vendors have each
-reclaimed 80% of the distance from their own platform's anchor to their own
-platform's bound. They have not been shown to be equally fast. Measured
-ceilings are published beside the analytic peaks so the difference is visible
-rather than inferred.
+On this hardware, BF16 GEMM reaches 50.6% of its analytic peak
+(1168 of 2307 TFLOPS) and HBM copy 56.7% of 8 TB/s (4.53 TB/s). Two kernels at
+`S = 0.8` on different vendors have each reclaimed 80% of the distance from
+their own platform's anchor to their own platform's bound. They have not been
+shown to be equally fast. Measured ceilings are published beside the analytic
+peaks (`artifacts/00/roofline-gpu0.json`) so the difference is visible rather
+than inferred.
 
 ## Scoring
 
@@ -43,6 +46,29 @@ by a constant nobody can see.
 Scores are valid only *within* a manifest version
 (`artifacts/09/manifest-v1.json`). Any stack change that moves `T_b` requires a
 new version.
+
+## What is in the manifest
+
+| | count |
+|---|---|
+| problems in the dataset | 235 |
+| **scoreable** (T_SOL + T_b + AMD tolerance) | **220** |
+| deferred, with reason | 15 (all NVFP4 — see [Deferrals](#deferrals)) |
+| scoreable workload instances | 3717 |
+
+Every scoreable workload carries a `T_SOL` from one of two derivations, and
+**says which**:
+
+| `t_sol_source` | what it is |
+|---|---|
+| `solar_fused` | SOLAR's roofline over the traced graph — accounts for the arithmetic |
+| `declared_traffic` | every declared input read once and output written once, over DRAM bandwidth — accounts for all the traffic and no arithmetic |
+| `max_of_both` | both were valid; the larger lower bound wins |
+
+Neither derivation dominates, which is why both are kept and neither is
+presented anonymously. Any candidate bound that lands **above** the measured
+`T_b` is rejected outright — a lower bound above a measured time is not loose,
+it is wrong, and it would push scores past 1.
 
 ## Running it
 
@@ -79,9 +105,69 @@ env/solb sol-execbench data/SOL-ExecBench/benchmark/L1/<problem> \
     --solution my_solution.json
 ```
 
+**Correctness runs against the AMD-derived tolerances**, which live in
+`artifacts/05/workloads/` rather than in the dataset:
+
+```bash
+SOLEXBENCH_WORKLOADS_ROOT=$PWD/artifacts/05/workloads env/solb ...
+```
+
+This is opt-in rather than defaulted, so that running against the dataset's
+B200 tolerances is a thing someone chose. It matters: the same references fail
+8 workloads of `L2/033` under upstream's tolerances and 0 under these.
+
 `env/solb` runs unprivileged as the invoking user. `env/solb-root` is
 privileged and exists *only* to apply the clock lock, because `/sys` is
 read-only in a stock container.
+
+## Reproducing the measurements
+
+Ordered; each is resumable and each writes failures as artifacts rather than
+losing them.
+
+```bash
+bash scripts/node_acceptance.sh                       # 00  node census, roofline
+python scripts/clock_calibrate.py determinism-sweep   # 01  F_LOCK  (BLOCKS 03/05/06)
+python scripts/sol_bounds.py --part MI350X --freq-mhz 1300 --jobs 24 \
+       --out artifacts/03/t_sol.json                  # 03  analytic bound, CPU only
+python scripts/shard_sweep.py --task tolerances --gpus 0-7 \
+       --out artifacts/05/                            # 05  tolerances
+python scripts/apply_tolerances.py                    # 05  -> artifacts/05/workloads
+python scripts/shard_sweep.py --task tb-candidates --gpus 0-7 \
+       --out artifacts/06/candidates/                 # 06  T_b selection, 8 GPUs
+python scripts/authoritative_tb.py --gpu 0            # 06  T_b measurement, ONE GPU
+python scripts/sol_traffic_floor.py                   # 03  second bound tier
+python scripts/sol_cross_checks.py --t-b artifacts/06/authoritative
+python scripts/build_manifest.py                      # 09  freeze the manifest
+python scripts/check_coverage.py --artifacts artifacts/05
+python scripts/verify_artifacts.py --task 09 --full
+```
+
+Selection shards across all eight GPUs; **measurement does not**. The eight
+GPUs hold clocks spanning 1242–1307 MHz at the same determinism setting, which
+is wider than most of the differences this benchmark exists to measure, so
+every `T_b` in the manifest is re-timed on GPU 0 alone.
+
+## Running on MI355X
+
+Nothing here needs porting for MI355X — it is the same die — but everything
+measured needs re-measuring. In order:
+
+1. `tasks/01` — **re-measure F_LOCK.** `CLOCK_LOCK_PRESETS` carries an MI355X
+   entry at 1650 MHz from an earlier session on a different node; it is kept
+   and labelled, not trusted. On MI350X `rocm-smi --setperfdeterminism X`
+   yields roughly `0.83·X`, and whether that holds on the 1400 W part was never
+   asked.
+2. Regenerate the arch config at the new F_LOCK
+   (`gen_arch_yaml.py --part MI355X`). **T_SOL in cycles does not change** —
+   it is clock-invariant by construction — so the millisecond column is one
+   scalar division, not a re-run.
+3. Re-run tasks 05 and 06. Tolerances and `T_b` are measurements and do not
+   transfer.
+
+`src/solexbench_rocm/parts.py` separates ARCHITECTURAL (shared by both parts),
+PART (never shared) and MEASURED (never shared, never guessed) so that this
+stays hard to get wrong.
 
 ## Layout
 
@@ -95,8 +181,12 @@ scripts/
   runners/                 per-problem sweep runners (references, tolerances,
                            T_b candidates, methodology comparison)
   sol_bounds.py            SOLAR bridge — T_SOL for every problem/workload
+  sol_traffic_floor.py     the second bound tier, gated against measurement
+  sol_cross_checks.py      is T_SOL a bound, and is it the right one?
+  authoritative_tb.py      re-time the selected T_b variants on one GPU
   build_manifest.py        freezes the scoring manifest
   verify_anchor.py         the check that proves the score scale is real
+  verify_artifacts.py      per-task acceptance checks
 src/sol_execbench/         vendored upstream fork; AMD deltas marked "# AMD:"
 src/solexbench_rocm/
   parts.py                 dual-SKU constants — one source of truth
@@ -115,7 +205,8 @@ artifacts/                 measurements, always with provenance
 | | upstream (B200) | here (CDNA4) |
 |---|---|---|
 | Clock lock | `nvidia-smi -lgc 1500` — requested == achieved | `--setperfdeterminism 1600` → **1300 MHz achieved**; the two differ by ~17% and only the achieved value is F_LOCK |
-| Timing | CUPTI activity tracing | `hip_events` by default, `rocprof` via a rocprofiler-sdk shim; **recorded per trace** |
+| Timing | CUPTI activity tracing | `hip_events` by default, `rocprof` via a rocprofiler-sdk shim; **recorded per trace**, and the two agree to −0.61% at the median |
+| Analytic bound | SOLAR over the traced graph | that, **plus** a declared-traffic tier where the traced graph is partial or absent, with the source recorded per workload |
 | Cache flush | `2 × L2_cache_size` | explicit `LLC_BYTES` table — ROCm reports the 4 MiB per-XCD L2, so the upstream sizing would be 64× too small against a 256 MiB Infinity Cache |
 | L2 persistence | `cudaCtxResetPersistingL2Cache` | vendor no-op; CDNA has no such API |
 | Build | `-gencode arch=…,code=sm_100a` | `--offload-arch=gfx950`; `.hip` accepted as a first-class source |
@@ -130,7 +221,8 @@ assert NVIDIA behaviour are not skipped — they pin the vendor instead.
 ## Deferrals
 
 Counted honestly and identically in every document; see
-[`artifacts/deferred.json`](artifacts/deferred.json).
+[`artifacts/deferred.json`](artifacts/deferred.json), which is the one file
+every count quotes.
 
 **15 NVFP4 Quant problems.** Their references fail on ROCm at
 `torch._scaled_mm`: block-16 FP8-E4M3-scaled GEMM is CUDA-only. MXFP4 (block
@@ -140,6 +232,12 @@ the two formats have different block granularity and different scale formats,
 so they have different quantization error: an MXFP4 twin is a
 re-specification, not a translation, and must never be presented as the NVFP4
 problem.
+
+**Not run: the agent baseline.** Upstream reports a median SOL of 0.732 over a
+kernel-optimizing agent's submissions, and a headroom correlation of r = 0.981.
+No agent was run here. `artifacts/09/score-distribution.json` scores the T_b
+variant set against the manifest instead, which validates the scale but is not
+that experiment and is labelled as not being it.
 
 ## Licence
 

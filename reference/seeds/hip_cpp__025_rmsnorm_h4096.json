@@ -1,0 +1,24 @@
+{
+ "name": "seed_hip_cpp__025_rmsnorm_h4096",
+ "definition": "025_rmsnorm_h4096",
+ "author": "sol-execbench-amd",
+ "description": "hip_cpp seed: proves the ROCm C++ compile-and-bind path. Deliberately unoptimized; it is a path test, not a baseline.",
+ "spec": {
+  "languages": [
+   "hip_cpp"
+  ],
+  "target_hardware": [
+   "LOCAL"
+  ],
+  "entry_point": "kernel.hip::run",
+  "dependencies": [],
+  "destination_passing_style": false,
+  "binding": "torch"
+ },
+ "sources": [
+  {
+   "path": "kernel.hip",
+   "content": "// SPDX-License-Identifier: Apache-2.0\n// hip_cpp seed for FlashInfer-Bench/025_rmsnorm_h4096.\n//\n// Exists to prove the ROCm C++ path end to end -- the packager compiling a\n// .hip source with --offload-arch=gfx950, binding it through torch, and the\n// result passing the AMD-derived tolerance -- NOT to be fast. It is a\n// wavefront-per-row reduction with no tiling and no vectorization, and it is\n// expected to score BELOW the PyTorch anchor.\n#include <torch/extension.h>\n#include <hip/hip_runtime.h>\n#include <hip/hip_bf16.h>\n// getCurrentHIPStream lives here, not in HIPContext.h.\n#include <c10/hip/HIPStream.h>\n\nnamespace {\n\nconstexpr int kHidden = 4096;\nconstexpr int kBlock = 256;          // threads per row\n\n__global__ void rmsnorm_kernel(const __hip_bfloat16* __restrict__ x,\n                               const __hip_bfloat16* __restrict__ w,\n                               __hip_bfloat16* __restrict__ y,\n                               int hidden, float eps) {\n  const int row = blockIdx.x;\n  const int tid = threadIdx.x;\n  const __hip_bfloat16* xr = x + static_cast<long long>(row) * hidden;\n  __hip_bfloat16* yr = y + static_cast<long long>(row) * hidden;\n\n  float acc = 0.f;\n  for (int i = tid; i < hidden; i += kBlock) {\n    const float v = __bfloat162float(xr[i]);\n    acc += v * v;\n  }\n\n  __shared__ float partial[kBlock];\n  partial[tid] = acc;\n  __syncthreads();\n  for (int s = kBlock / 2; s > 0; s >>= 1) {\n    if (tid < s) partial[tid] += partial[tid + s];\n    __syncthreads();\n  }\n\n  // rsqrt of the MEAN of squares, matching the reference exactly: a kernel\n  // that reduces the sum instead is off by sqrt(hidden) and would be caught\n  // by the tolerance rather than by the compiler.\n  const float inv_rms = rsqrtf(partial[0] / static_cast<float>(hidden) + eps);\n  for (int i = tid; i < hidden; i += kBlock) {\n    const float v = __bfloat162float(xr[i]) * inv_rms * __bfloat162float(w[i]);\n    yr[i] = __float2bfloat16(v);\n  }\n}\n\n}  // namespace\n\ntorch::Tensor run(const torch::Tensor& hidden_states,\n                  const torch::Tensor& weight) {\n  TORCH_CHECK(hidden_states.dim() == 2, \"hidden_states must be 2D\");\n  TORCH_CHECK(hidden_states.size(1) == kHidden, \"hidden_size must be 4096\");\n  TORCH_CHECK(hidden_states.scalar_type() == torch::kBFloat16, \"bf16 only\");\n  TORCH_CHECK(weight.scalar_type() == torch::kBFloat16, \"bf16 only\");\n  auto x = hidden_states.contiguous();\n  auto w = weight.contiguous();\n  auto y = torch::empty_like(x);\n\n  const int rows = static_cast<int>(x.size(0));\n  hipLaunchKernelGGL(rmsnorm_kernel, dim3(rows), dim3(kBlock), 0,\n                     c10::hip::getCurrentHIPStream(),\n                     reinterpret_cast<const __hip_bfloat16*>(x.data_ptr()),\n                     reinterpret_cast<const __hip_bfloat16*>(w.data_ptr()),\n                     reinterpret_cast<__hip_bfloat16*>(y.data_ptr()),\n                     kHidden, 1e-5f);\n  return y;\n}\n\nPYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {\n  m.def(\"run\", &run, \"RMSNorm h4096, bf16, gfx950 (hip_cpp seed)\");\n}\n"
+  }
+ ]
+}
