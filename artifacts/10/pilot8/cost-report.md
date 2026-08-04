@@ -2,7 +2,7 @@
 
 `Claude-Opus-5` via the AMD LLM gateway, driven by the Claude Code CLI, on 8 problems sampled across category and headroom.
 
-Run `pilot8` &middot; 2026-08-04T20:36:21.357004+00:00
+Run `pilot8` &middot; 2026-08-04T22:18:29.671524+00:00
 
 ## Headline
 
@@ -81,6 +81,22 @@ Per problem, the first evaluation is the untouched reference; the last is what t
 | `Quant__004_fp8_moe_expert_linear` | 3 | 0.500 | 0.940 | +0.440 | yes |
 
 Median gain over the reference: **+0.133**.
+
+
+### Where the score stopped moving
+
+| problem | evals | reached 99% of best at | evals after that |
+|---|--:|--:|--:|
+| `FlashInfer-Bench__019_mla_paged_prefill_caus` | 2 | 2 | 0 |
+| `L1__030_attention_output_projection_with_res` | 5 | 1 | 4 |
+| `L1__046_attention_softmax_with_softcapping_a` | 8 | 8 | 0 |
+| `L1__053_gaussian_topk_sparse_activation` | 2 | 2 | 0 |
+| `L2__015_audio_sinusoidal_position_embedding_` | 2 | 1 | 1 |
+| `L2__050_vae_decoder_mid_block_attention_resn` | 1 | 1 | 0 |
+| `L2__069_joint_transformer_block_residual_pat` | 2 | 1 | 1 |
+| `Quant__004_fp8_moe_expert_linear` | 3 | 3 | 0 |
+
+**6 of 25 evaluations came after the score had stopped improving.** A session that runs to natural completion keeps polishing well past its last measurable gain, so the budget worth paying for is the one that reaches the plateau, not the one the agent stops at. Eval index is a proxy for spend here, not a linear one.
 
 A cross-problem average at eval N would be survivorship: the problems that reach a high N are the ones the agent was struggling with, so the mean falls as N rises for reasons that have nothing to do with budget.
 
