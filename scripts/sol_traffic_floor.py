@@ -72,7 +72,32 @@ def main() -> int:
     dram_bpc = arch["DRAM_byte_per_cycle"]
 
     doc = json.loads(Path(a.t_sol).read_text())
-    problems = doc.get("problems", doc)
+    solar = doc.get("problems", doc)
+
+    # Enumerate from the DATASET, not from SOLAR's output. Five problems failed
+    # SOLAR at definition-load time and so have no workloads recorded at all;
+    # keying off SOLAR's list would silently skip exactly the problems that
+    # need this tier most.
+    problems: dict[str, dict] = {}
+    for cat_dir in sorted(Path(a.data).glob("*")):
+        if not cat_dir.is_dir():
+            continue
+        for prob in sorted(cat_dir.glob("*")):
+            wl_file = prob / "workload.jsonl"
+            if not (prob / "definition.json").exists() or not wl_file.exists():
+                continue
+            key = f"{cat_dir.name}__{prob.name}"
+            entry = dict(solar.get(key) or {})
+            recorded = entry.get("workloads") or {}
+            workloads = {}
+            for line in wl_file.read_text().splitlines():
+                if not line.strip():
+                    continue
+                w = json.loads(line)
+                workloads[w["uuid"]] = {**(recorded.get(w["uuid"]) or {}),
+                                        "axes": w.get("axes") or {}}
+            entry["workloads"] = workloads
+            problems[key] = entry
 
     # measured T_b, per workload
     t_b: dict[str, dict[str, float]] = {}

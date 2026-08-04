@@ -399,6 +399,47 @@ allocator under pressure does not do that.
 Every non-NVFP4 workload now has an AMD-derived tolerance — 3717 of 3957, with
 the missing 240 exactly the 15 deferred NVFP4 problems × 16 workloads.
 
+### D14 — the bound was priced at the vector-FP32 rate on 160 of 235 problems
+
+The single largest error found in this session, and it was invisible until
+`T_SOL ≤ T_b` could be checked against real measurements: **437 workloads had
+a T_SOL above their own measured time**, by up to 13.4×.
+
+`_precision_for()` chose the *widest* dtype among a problem's inputs, on the
+reasoning that the widest drives both the compute peak and the byte count.
+That is right for bytes and exactly wrong for the rate. In SOLAR's config
+`fp32` is `MAC_per_cycle_fp32_sm` — the **vector** rate, 32768 MAC/cycle,
+16× below the bf16 matrix rate — so a bf16 kernel with one `float32` epsilon
+argument was priced at 0.085 PFLOPS instead of 1.36. 160 of the 235 problems
+resolved to `fp32` that way, most of them mixed-precision kernels whose scalar
+`eps` decided the answer.
+
+T_SOL is a **lower** bound, so every term in it must be a lower bound: the
+fastest rate the arithmetic could plausibly run at, and the least traffic it
+could plausibly move. The fix is therefore two changes in the same direction:
+
+* scalars (`shape: null`) are excluded — an `eps` rides in a kernel argument
+  and is not a compute precision;
+* among the tensor inputs the **narrowest** floating type wins, not the widest.
+
+After the fix: `fp32` 108, `bf16` 104, `fp16` 12, `fp8` 4, `nvfp4` 1, and the
+violations fall from 437 to **63**.
+
+The 63 that remain are two kinds, both recorded rather than smoothed over:
+depthwise-convolution problems where SOLAR appears to count a grouped
+convolution as dense (`L1/006`, `L1/029`, `L2/035`, ratios 2–5.8×), and eight
+workloads within 1–6% where the model and the measurement are simply that
+close. Neither is shipped: `build_manifest` rejects **any** candidate bound
+above the measured time, from either derivation, and falls back to the other —
+a bound above a measured time makes `(T_b − T_SOL)` negative and pushes scores
+past 1.
+
+What this says about the method, and it is worth saying plainly: cross-check D
+is the only one of the four that could have caught this, and it could not run
+until task 06 finished. Checks A–C all passed throughout on a bound that was
+wrong by 13× on some problems. A roofline that is internally consistent is not
+thereby right.
+
 ---
 
 ## Fixes to scripts on first contact

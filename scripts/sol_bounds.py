@@ -66,9 +66,22 @@ DTYPE_TO_PRECISION = {
     "torch.float4_e2m1fn_x2": "nvfp4",
 }
 
-# Precision ranking for picking a problem's dominant precision: the widest
-# floating type present drives both the compute peak and the byte count, and
-# choosing the narrowest would understate the bound.
+# Precision ranking, narrowest first. The choice of END matters and the
+# original one was wrong in the direction that breaks the bound.
+#
+# T_SOL is a LOWER bound, so every term in it must be a lower bound: the
+# fastest rate the hardware could plausibly run this arithmetic at, and the
+# least traffic it could plausibly move. Picking the WIDEST dtype present did
+# the opposite for compute. In SOLAR's config `fp32` is
+# `MAC_per_cycle_fp32_sm` -- the VECTOR rate, 32768 MAC/cycle, 16x below the
+# bf16 matrix rate -- so a bf16 kernel with one float32 scalar argument was
+# priced at 0.085 PFLOPS instead of 1.36. That is not a conservative bound, it
+# is an impossible one: 437 workloads came out with T_SOL ABOVE their measured
+# time, up to 13.4x, and 160 of the 235 problems resolved to fp32 this way.
+#
+# The narrowest floating type present is the rate the matmuls actually run at
+# on a mixed-precision kernel, and it is the correct end of the ranking for a
+# lower bound.
 _PRECISION_RANK = ["nvfp4", "fp8", "int8", "fp16", "bf16", "tf32", "fp32", "fp64"]
 
 MODEL_TEMPLATE = '''\
@@ -105,9 +118,17 @@ def _torch_dtype_str(dtype) -> str:
 
 
 def _precision_for(definition) -> tuple[str, list[str]]:
-    """(precision key, unmapped dtypes) for a problem's inputs."""
+    """(precision key, unmapped dtypes) for a problem's TENSOR inputs.
+
+    Scalars are excluded. A `float32` epsilon or dropout probability rides in a
+    kernel argument; it is not the precision the arithmetic runs in, and
+    letting it decide the rate priced most of the benchmark at the vector-FP32
+    peak.
+    """
     seen, unmapped = [], []
     for spec in definition.inputs.values():
+        if getattr(spec, "shape", None) is None:
+            continue                       # scalar: not a compute precision
         ds = _torch_dtype_str(spec.dtype)
         p = DTYPE_TO_PRECISION.get(ds)
         if p is None:
@@ -116,7 +137,11 @@ def _precision_for(definition) -> tuple[str, list[str]]:
             seen.append(p)
     if not seen:
         return "fp32", unmapped
-    return max(seen, key=lambda p: _PRECISION_RANK.index(p)), unmapped
+    # Narrowest, not widest -- see the note on _PRECISION_RANK. Integer inputs
+    # (indices, offsets) are not a compute precision either, so they only
+    # decide the answer when nothing else is present.
+    floats = [p for p in seen if p != "int8"] or seen
+    return min(floats, key=lambda p: _PRECISION_RANK.index(p)), unmapped
 
 
 def _signature(definition, workload) -> str:
