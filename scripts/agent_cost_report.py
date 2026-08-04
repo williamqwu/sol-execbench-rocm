@@ -112,6 +112,116 @@ def gpu_utilization(samples: list[dict], card_to_torch: dict[str, int] | None = 
     }
 
 
+def bounds() -> dict:
+    m = json.loads(MANIFEST.read_text())
+    out = {}
+    for key, p in m["problems"].items():
+        for uuid, w in p.get("workloads", {}).items():
+            if w.get("scoreable") and w.get("t_sol_ms") and w.get("t_b_ms"):
+                out[(key, uuid)] = (w["t_sol_ms"], w["t_b_ms"])
+    return out
+
+
+def archive_trajectory(run: dict, dest: Path) -> dict:
+    """Copy each sandbox's evaluation record into the run directory.
+
+    The sandboxes live in the container-visible scratch and will be swept.
+    Everything needed to reconstruct how a session spent its budget -- the
+    per-evaluation results and the snapshot of `kernel.py` that produced each
+    one -- is copied next to the artifacts so the analysis outlives the run.
+    """
+    import shutil
+    counts = {}
+    for key, s in sorted(run["sessions"].items()):
+        sandbox = Path(s.get("sandbox", ""))
+        evals = sandbox / "evals"
+        if not evals.is_dir():
+            continue
+        out = dest / key
+        out.mkdir(parents=True, exist_ok=True)
+        n = 0
+        for f in sorted(evals.iterdir()):
+            if f.is_file():
+                shutil.copy2(f, out / f.name)
+                n += 1
+        # The final submission, and anything it compiles.
+        for extra in ("kernel.py", "reference.py", "TASK.md"):
+            if (sandbox / extra).is_file():
+                shutil.copy2(sandbox / extra, out / extra)
+        for f in sandbox.glob("*"):
+            if f.is_file() and f.suffix in (".hip", ".cu", ".cpp", ".h", ".py") \
+                    and f.name not in ("kernel.py", "reference.py"):
+                shutil.copy2(f, out / f.name)
+        counts[key] = n
+    return counts
+
+
+def trajectory(run: dict) -> dict:
+    """Score every intermediate `./evaluate` the agents ran, in order.
+
+    This answers the question the headline number cannot: sessions saturate
+    whatever spend cap they are given, so "cost per problem" is really "the cap
+    you chose". What matters is what the marginal dollar buys — and the agents
+    already measured that, once per evaluation, for free.
+
+    These evaluations ran on GPUs 1-7 with six other agents loading the node,
+    so they are a **trajectory, not a score**. The authoritative numbers are
+    the GPU-0 re-times in `scored.json`.
+    """
+    import importlib.util as ilu
+    spec = ilu.spec_from_file_location(
+        "_sol_score", ROOT / "src" / "sol_execbench" / "sol_score.py")
+    mod = ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    b = bounds()
+
+    per_problem: dict[str, list] = {}
+    for key, s in sorted(run["sessions"].items()):
+        sandbox = Path(s.get("sandbox", ""))
+        evals = sorted((sandbox / "evals").glob("*.json")) if sandbox else []
+        steps = []
+        for i, f in enumerate(evals, 1):
+            try:
+                d = json.loads(f.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            scores = []
+            for w in d.get("per_workload", []):
+                bd = b.get((key, w.get("workload_uuid")))
+                if w.get("status") == "PASSED" and bd and w.get("latency_ms"):
+                    scores.append(mod.sol_score(w["latency_ms"], bd[1], bd[0]))
+            steps.append({
+                "n": i,
+                "passed": d.get("passed", 0),
+                "workloads": d.get("workloads", 0),
+                "all_passed": bool(d.get("all_passed")),
+                "mean_score": (sum(scores) / len(scores)) if scores else None,
+                "geomean_speedup": d.get("geomean_speedup"),
+            })
+        if steps:
+            per_problem[key] = steps
+
+    # Best score reached by evaluation N, averaged over problems that got there.
+    by_step: dict[int, list[float]] = {}
+    for steps in per_problem.values():
+        best = None
+        for st in steps:
+            if st["all_passed"] and st["mean_score"] is not None:
+                best = st["mean_score"] if best is None else max(best, st["mean_score"])
+            if best is not None:
+                by_step.setdefault(st["n"], []).append(best)
+
+    return {
+        "per_problem": per_problem,
+        "best_by_eval_index": {
+            str(n): {"n_problems": len(v), "mean_best_score": statistics.fmean(v)}
+            for n, v in sorted(by_step.items())},
+        "_note": ("Measured on GPUs 1-7 under seven-way agent load, so these are "
+                  "trajectory values, not scores. The authoritative numbers are "
+                  "the idle-GPU-0 re-times in scored.json."),
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", required=True, type=Path)
@@ -204,7 +314,14 @@ def main() -> int:
         },
         "outcome": scored.get("summary"),
         "per_problem": per,
+        "trajectory": trajectory(run),
+        "trajectory_archived": archive_trajectory(run, a.run / "trajectory"),
     }
+    # Burn rate is the number that generalizes. Cost per problem is set by the
+    # cap; dollars per minute of session is a property of the model and the
+    # task, and it is what lets someone price a budget they have not tried.
+    mins = sum(walls) / 60.0
+    summary["burn_rate_usd_per_session_minute"] = (sum(costs) / mins) if mins else 0.0
 
     # ---- extrapolation to the full benchmark -----------------------------
     #
@@ -321,6 +438,22 @@ def render_md(s: dict) -> str:
         for card, st in u["per_card"].items():
             A(f"| {card} | {st['mean']:.1f} | {st['max']:.0f} |")
         A(f"\n{u.get('note','')}\n")
+
+    tr = s.get("trajectory") or {}
+    if tr.get("best_by_eval_index"):
+        A("## What the marginal dollar buys\n")
+        A(f"Every session in this run ended at `budget_exhausted`, which means "
+          f"**cost per problem is the cap, not the problem**. The agents burn "
+          f"${s.get('burn_rate_usd_per_session_minute', 0):.2f} per minute of session "
+          f"and will use whatever they are given. So the useful question is not "
+          f"what a problem costs but what more budget buys.\n")
+        A("Best mean score reached by the Nth evaluation, over the problems that "
+          "got that far:\n")
+        A("| evaluations | problems still going | best mean S so far |")
+        A("|--:|--:|--:|")
+        for n, v in list(tr["best_by_eval_index"].items()):
+            A(f"| {n} | {v['n_problems']} | {v['mean_best_score']:.3f} |")
+        A(f"\n{tr.get('_note','')}\n")
 
     A("## Extrapolating to the full benchmark\n")
     A(f"| | |")

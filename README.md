@@ -147,6 +147,25 @@ B200 tolerances is a thing someone chose. It matters: the same references fail
 privileged and exists *only* to apply the clock lock, because `/sys` is
 read-only in a stock container.
 
+## Seeing the results
+
+```bash
+leaderboard/run.sh            # http://127.0.0.1:8088
+```
+
+A local leaderboard over the frozen manifest: rankings, a searchable problem
+index, and a **per-problem subpage** with the scoring bounds, the tolerance and
+its derivation, and every submission's result on every workload. The database
+is a rebuildable SQLite view of `artifacts/` — never a source of truth — and
+scores are computed by importing the repo's own `sol_score`, so the board
+cannot drift from the harness. See [`leaderboard/README.md`](leaderboard/README.md).
+
+It ranks on a benchmark score that sums per-workload scores across the *whole*
+benchmark and counts anything not passed as zero. That ordering is the point:
+`torch.compile` has the best mean score of any variant and ranks third, because
+it only passes 69.6% of workloads. Mean-attempted is never shown without
+coverage beside it.
+
 ## Reproducing the measurements
 
 Ordered; each is resumable and each writes failures as artifacts rather than
@@ -214,6 +233,11 @@ scripts/
   build_manifest.py        freezes the scoring manifest
   verify_anchor.py         the check that proves the score scale is real
   verify_artifacts.py      per-task acceptance checks
+  agent_baseline.py        run kernel-optimizing agents in sandboxes, GPUs 1-7
+  agent_eval.py            the agent's feedback loop — the real harness, no bounds shown
+  agent_score.py           re-time the agents' kernels on an idle GPU 0 and score
+  agent_cost_report.py     dollars, wall time, GPU occupancy, and what a full run costs
+leaderboard/               local leaderboard: SQLite view + FastAPI + problem subpages
 src/sol_execbench/         vendored upstream fork; AMD deltas marked "# AMD:"
 src/solexbench_rocm/
   parts.py                 dual-SKU constants — one source of truth

@@ -143,12 +143,18 @@ EVALUATE_SH = """\
 # Evaluate kernel.py. Correctness first, then latency vs the reference.
 set -uo pipefail
 cd "$(dirname "$0")"
+STAMP=$(date +%s%N)
+# Snapshot the exact source being measured, next to the measurement. Without
+# this the trajectory is a list of latencies with no way to say what produced
+# them -- the agent overwrites kernel.py in place, so only the last version
+# survives the session.
+cp kernel.py {sandbox}/evals/kernel-${{STAMP}}.py 2>/dev/null || true
 exec env HIP_VISIBLE_DEVICES={gpu} \\
      SOLEXBENCH_WORKLOADS_ROOT={workloads_root} \\
      {repo}/env/solb python /work/scripts/agent_eval.py \\
         --problem {problem_rel} \\
         --kernel {sandbox}/kernel.py \\
-        --out {sandbox}/evals/eval-$(date +%s%N).json \\
+        --out {sandbox}/evals/eval-${{STAMP}}.json \\
         --iterations {iterations} --warmup {warmup}
 """
 
@@ -223,9 +229,45 @@ def build_sandbox(problem_dir: Path, sandbox: Path, gpu: int,
             "task_chars": len(task), "reference_chars": len(reference)}
 
 
-def run_agent(sandbox: Path, model: str, budget_usd: float,
-              timeout: int) -> dict:
-    """One `claude -p` session. Returns the CLI's own result JSON plus timing."""
+def write_settings(path: Path, model: str) -> Path:
+    """Pin the gateway credentials via `--settings`, which is the only way.
+
+    `~/.claude.json` carries an `env` block, and it **overrides the process
+    environment** for a Claude Code session. On this host that block sets
+    ANTHROPIC_CUSTOM_HEADERS to a different AMD gateway subscription key, so
+    every header this script exported was silently discarded -- calls
+    authenticated with the settings-file key instead. The failure is invisible:
+    the run succeeds, just billed to the wrong key. It was caught by passing a
+    deliberately invalid key and watching the session succeed anyway.
+
+    `--settings` takes precedence over `~/.claude.json`, verified the same way:
+    an invalid key passed here does make the session fail.
+
+    Written outside the repo with 0600 permissions, because it contains a
+    credential.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({
+        "env": {
+            "ANTHROPIC_BASE_URL": GATEWAY_URL,
+            "ANTHROPIC_CUSTOM_HEADERS":
+                f"Ocp-Apim-Subscription-Key: {GATEWAY_KEY}\nuser: {NTID}",
+            "ANTHROPIC_API_KEY": "dummy",
+            "ANTHROPIC_MODEL": model,
+        }
+    }, indent=1))
+    path.chmod(0o600)
+    return path
+
+
+def run_agent(sandbox: Path, model: str, budget_usd: float, timeout: int,
+              settings: Path, transcript: Path | None = None) -> dict:
+    """One `claude -p` session.
+
+    Streamed rather than buffered: a three-hour session at a $100 cap must not
+    lose its whole transcript if the process is killed, and the turn-by-turn
+    record is the input to any post-hoc analysis of *how* the budget was spent.
+    """
     env = {
         **os.environ,
         "ANTHROPIC_BASE_URL": GATEWAY_URL,
@@ -244,29 +286,54 @@ def run_agent(sandbox: Path, model: str, budget_usd: float,
 
     cmd = [
         "claude", "-p", (sandbox / "TASK.md").read_text(),
-        "--output-format", "json",
+        "--settings", str(settings),
+        "--model", model,
+        "--output-format", "stream-json", "--verbose",
         "--permission-mode", "bypassPermissions",
         "--max-budget-usd", str(budget_usd),
         "--no-session-persistence",
         "--disable-slash-commands",
     ]
     t0 = time.time()
+    result: dict = {}
+    n_events = 0
+    tf = open(transcript, "w") if transcript else None
     try:
-        proc = subprocess.run(cmd, cwd=sandbox, env=env, capture_output=True,
-                              text=True, timeout=timeout)
-        wall = time.time() - t0
+        proc = subprocess.Popen(cmd, cwd=sandbox, env=env, text=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         try:
-            result = json.loads(proc.stdout)
-        except json.JSONDecodeError:
+            for line in proc.stdout:
+                if tf:
+                    tf.write(line)
+                    tf.flush()
+                line = line.strip()
+                if not line:
+                    continue
+                n_events += 1
+                try:
+                    ev = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if ev.get("type") == "result":
+                    result = ev
+            proc.wait(timeout=max(60, timeout))
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            result = result or {"is_error": True, "timed_out": True,
+                                "result": f"session timed out after {timeout}s"}
+        if not result:
             result = {"is_error": True,
-                      "result": f"unparseable CLI output (rc={proc.returncode})",
-                      "stdout_tail": proc.stdout[-2000:],
-                      "stderr_tail": proc.stderr[-2000:]}
-    except subprocess.TimeoutExpired:
-        wall = time.time() - t0
-        result = {"is_error": True, "result": f"session timed out after {timeout}s",
-                  "timed_out": True}
-    result["wall_seconds"] = wall
+                      "result": f"no result event (rc={proc.returncode})",
+                      "stderr_tail": (proc.stderr.read() or "")[-2000:]}
+    except BaseException as e:  # noqa: BLE001
+        result = {"is_error": True, "result": f"{type(e).__name__}: {e}"}
+    finally:
+        if tf:
+            tf.close()
+    result["wall_seconds"] = time.time() - t0
+    result["transcript_events"] = n_events
+    if transcript:
+        result["transcript"] = str(transcript)
     return result
 
 
@@ -389,6 +456,14 @@ def main() -> int:
     for g in gpus:
         pool.put(g)
 
+    # The credential file lives with the sandboxes, never in the repo or the
+    # artifact tree, because it carries a key.
+    settings = write_settings(a.sandbox_root / run_id / "gateway-settings.json",
+                              a.model)
+    transcripts = outdir / "transcripts"
+    print(f"gateway: {GATEWAY_URL}  key {GATEWAY_KEY[:8]}…  ntid {NTID}  "
+          f"(pinned via --settings)")
+
     stop = threading.Event()
     util_samples: list = []
     sampler = threading.Thread(target=gpu_util_sampler, args=(stop, util_samples),
@@ -407,7 +482,9 @@ def main() -> int:
             t0 = time.time()
             meta = build_sandbox(problem_dir, sandbox, gpu, a.iterations, a.warmup)
             print(f"[{key}] gpu {gpu}: starting", flush=True)
-            session = run_agent(sandbox, a.model, a.budget_usd, a.timeout)
+            transcripts.mkdir(parents=True, exist_ok=True)
+            session = run_agent(sandbox, a.model, a.budget_usd, a.timeout,
+                                settings, transcripts / f"{key}.jsonl")
             rec = {
                 "problem": key, "gpu": gpu, "sandbox": str(sandbox),
                 **meta,
@@ -452,6 +529,10 @@ def main() -> int:
         "gpus_used_by_agents": gpus,
         "n_problems": len(keys),
         "problems": keys,
+        "gateway_key_prefix": GATEWAY_KEY[:8],
+        "gateway_ntid": NTID,
+        "credentials_pinned_via": "--settings (overrides ~/.claude.json env)",
+        "transcripts_dir": str(transcripts),
         "wall_seconds_total": time.time() - t_start,
         "sessions": results,
         "gpu_util_samples": util_samples,

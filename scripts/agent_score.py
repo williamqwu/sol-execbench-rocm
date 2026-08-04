@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -58,15 +59,32 @@ def bounds() -> dict:
     return out
 
 
+SCRATCH = Path(os.environ.get("SOLEXBENCH_SCRATCH", "/var/tmp/solbench"))
+
+
 def retime(problem_key: str, kernel: Path, out: Path, gpu: int,
            iterations: int, warmup: int, timeout: int) -> dict:
-    """One kernel, through env/solb, pinned to `gpu`. Returns the eval payload."""
+    """One kernel, through env/solb, pinned to `gpu`. Returns the eval payload.
+
+    `--out` must name a path the *container* can write. Only two trees are
+    bind-mounted: the repo at /work, and SOLEXBENCH_SCRATCH at its own
+    absolute path. A host path outside those (a run directory under $HOME, say)
+    resolves inside the container to a directory the unprivileged user cannot
+    create, and the runner dies before writing anything. So the artifact is
+    written to scratch and copied out afterwards, which works wherever the run
+    directory lives.
+    """
     cat, name = problem_key.split("__", 1)
+    staged = SCRATCH / "retime" / f"{problem_key}.json"
+    staged.parent.mkdir(parents=True, exist_ok=True)
+    if staged.exists():
+        staged.unlink()
+
     cmd = [
         str(ROOT / "env" / "solb"), "python", "/work/scripts/agent_eval.py",
         "--problem", f"/work/data/SOL-ExecBench/benchmark/{cat}/{name}",
         "--kernel", str(kernel),
-        "--out", str(out),
+        "--out", str(staged),
         "--iterations", str(iterations), "--warmup", str(warmup),
         "--quiet",
     ]
@@ -76,16 +94,29 @@ def retime(problem_key: str, kernel: Path, out: Path, gpu: int,
         "HIP_VISIBLE_DEVICES": str(gpu),
         "SOLEXBENCH_WORKLOADS_ROOT": "/work/artifacts/05/workloads",
     }
-    subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=timeout)
-    if out.exists():
-        return json.loads(out.read_text())
-    return {"ok": False, "error": "runner produced no artifact",
+    try:
+        proc = subprocess.run(cmd, env=env, capture_output=True, text=True,
+                              timeout=timeout)
+        rc, err = proc.returncode, proc.stderr
+    except subprocess.TimeoutExpired:
+        rc, err = -1, f"timed out after {timeout}s"
+
+    if staged.exists():
+        payload = json.loads(staged.read_text())
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(staged.read_text())
+        return payload
+    # A silent empty result reads exactly like "the kernel failed", which is a
+    # different and much less alarming statement than "the runner never ran".
+    return {"ok": False,
+            "error": f"runner produced no artifact (rc={rc})",
+            "stderr_tail": (err or "")[-3000:],
             "per_workload": [], "workloads": 0, "passed": 0}
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--run", required=True, type=Path,
+    ap.add_argument("--run", required=True, type=lambda p: Path(p).resolve(),
                     help="artifacts/10/<run-id> (must contain run.json)")
     ap.add_argument("--gpu", type=int, default=0)
     ap.add_argument("--iterations", type=int, default=50)
@@ -125,8 +156,15 @@ def main() -> int:
 
         unchanged = reference.exists() and kernel.read_text() == reference.read_text()
         rec["kernel_unchanged_from_reference"] = unchanged
-        (kernels_dir / f"{key}.py").write_text(kernel.read_text())
-        rec["kernel_saved"] = str((kernels_dir / f"{key}.py").relative_to(ROOT))
+        saved = kernels_dir / f"{key}.py"
+        saved.write_text(kernel.read_text())
+        # Repo-relative when it is in the repo, absolute otherwise: a run
+        # directory may legitimately live outside the tree (a scratch
+        # experiment), and `relative_to` raises rather than falling back.
+        try:
+            rec["kernel_saved"] = str(saved.relative_to(ROOT))
+        except ValueError:
+            rec["kernel_saved"] = str(saved)
         # Anything else the agent left behind that the kernel might import.
         extra = sorted(p.name for p in sandbox.glob("*")
                        if p.is_file() and p.suffix in (".hip", ".cu", ".cpp", ".h")
@@ -166,11 +204,19 @@ def main() -> int:
 
         rec.update({"workloads": ev.get("workloads", 0), "passed": passed,
                     "scored": scored, "flagged": flagged,
-                    "geomean_speedup": ev.get("geomean_speedup")})
+                    "geomean_speedup": ev.get("geomean_speedup"),
+                    "stderr_tail": ev.get("stderr_tail")})
         per_problem[key] = rec
-        print(f"[{key}] {passed}/{ev.get('workloads', 0)} passed, "
-              f"{scored} scored, {flagged} flagged, "
-              f"speedup={ev.get('geomean_speedup') or float('nan'):.2f}x", flush=True)
+        if not ev.get("ok") and ev.get("workloads", 0) == 0:
+            # Distinguish "this kernel scored nothing" from "nothing ran".
+            print(f"[{key}] RUNNER FAILED: {ev.get('error')}", flush=True)
+            for ln in (ev.get("stderr_tail") or "").strip().splitlines()[-6:]:
+                print(f"    | {ln}", flush=True)
+        else:
+            print(f"[{key}] {passed}/{ev.get('workloads', 0)} passed, "
+                  f"{scored} scored, {flagged} flagged, "
+                  f"speedup={ev.get('geomean_speedup') or float('nan'):.2f}x",
+                  flush=True)
 
     scores = [r["score"] for r in results if r["score"] is not None]
     sessions = run.get("sessions", {})
