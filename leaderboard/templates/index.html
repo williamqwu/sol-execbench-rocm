@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Speed&#8209;of&#8209;Light leaderboard</h1>
+<p class="lede">
+  Every kernel is scored against a physical bound, not against another kernel.
+  <code>S(T<sub>k</sub>) = 1 / (1 + (T<sub>k</sub> &minus; T<sub>SOL</sub>) / (T<sub>b</sub> &minus; T<sub>SOL</sub>))</code>
+  &mdash; <b>0.5</b> at the optimized&#8209;PyTorch anchor T<sub>b</sub>, <b>1.0</b> at the
+  roofline T<sub>SOL</sub>. Bounds are derived on this AMD part; none are carried over from NVIDIA silicon.
+</p>
+
+<div class="cards">
+  <div class="card"><div class="num">{{ meta.scoreable_problems }}<span class="of">/{{ meta.total_problems }}</span></div><div class="lbl">problems scoreable</div></div>
+  <div class="card"><div class="num">{{ meta.scoreable_workloads }}</div><div class="lbl">workload instances</div></div>
+  <div class="card"><div class="num">{{ meta.f_lock_mhz }}<span class="of">MHz</span></div><div class="lbl">locked clock</div></div>
+  <div class="card"><div class="num">{{ meta.methodology }}</div><div class="lbl">timing methodology</div></div>
+</div>
+
+<div class="filters">
+  <a class="chip {% if not category %}on{% endif %}" href="/">all categories</a>
+  {% for c in categories %}
+    <a class="chip {% if category == c.category %}on{% endif %}"
+       href="/?category={{ c.category }}">{{ c.category }}
+       <span class="chip-n">{{ c.n - c.deferred }}</span></a>
+  {% endfor %}
+</div>
+
+<table class="board">
+  <thead>
+    <tr>
+      <th class="r">#</th>
+      <th>submission</th>
+      <th>kind</th>
+      <th class="r" title="Sum of per-workload scores over EVERY scoreable workload; anything not passed counts as zero.">benchmark&nbsp;score</th>
+      <th class="r" title="Mean over the workloads this submission actually passed. Read it together with coverage.">mean&nbsp;(attempted)</th>
+      <th class="r">coverage</th>
+      <th class="r">problems</th>
+      <th class="r">flagged</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for s in board %}
+    <tr class="kind-{{ s.kind }}">
+      <td class="r rank">{{ s.rank }}</td>
+      <td><a href="/submissions/{{ s.slug }}">{{ s.name }}</a>
+          {% if s.model %}<span class="model">{{ s.model }}</span>{% endif %}</td>
+      <td><span class="tag tag-{{ s.kind }}">{{ s.kind.replace('_',' ') }}</span></td>
+      <td class="r big">{{ '%.4f'|format(s.benchmark_score) }}</td>
+      <td class="r">{{ '%.4f'|format(s.mean_score_attempted) }}</td>
+      <td class="r">
+        <span class="bar"><span style="width:{{ (s.coverage*100)|round(1) }}%"></span></span>
+        {{ '%.1f'|format(s.coverage*100) }}%
+        <span class="sub">{{ s.workloads_passed }}/{{ s.workloads_total }}</span>
+      </td>
+      <td class="r">{{ s.problems_complete }}<span class="sub">/{{ s.problems_total }}</span></td>
+      <td class="r">{% if s.n_flagged %}<span class="flag">{{ s.n_flagged }}</span>{% else %}&mdash;{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<p class="note">
+  <b>Reference variants are not agent results.</b> The four PyTorch formulations
+  are what T<sub>b</sub> is derived from &mdash; T<sub>b</sub> is the fastest of
+  them per workload &mdash; so whichever one wins a workload scores exactly
+  0.5 there by construction. They calibrate the scale; they do not compete on it.
+</p>
+
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Methodology &middot; SOL-ExecBench-AMD{% endblock %}
+{% block content %}
+
+<h1>Methodology</h1>
+
+<h2>The score</h2>
+<p class="lede"><code>{{ meta.score_formula }}</code></p>
+<p>Two anchors, both measured on this part:</p>
+<ul>
+  <li><b>T<sub>SOL</sub></b> &mdash; the roofline: the time this workload would take
+    if it were limited only by the arithmetic it must do and the bytes it must move.
+    Nothing can beat it, so <code>S = 1</code> is unreachable in practice.</li>
+  <li><b>T<sub>b</sub></b> &mdash; the anchor: the fastest of four PyTorch formulations
+    of the reference, measured on an idle GPU 0 under a locked clock. <code>S = 0.5</code>.</li>
+</ul>
+
+<h2>Where the bounds came from</h2>
+<p>T<sub>SOL</sub> is computed in cycles, which is architectural and therefore
+   independent of the clock, then divided by F<sub>LOCK</sub> = {{ meta.f_lock_mhz }} MHz.
+   Two derivations run independently and are combined with <code>max</code>:</p>
+<table class="grid">
+  <thead><tr><th>bound source</th><th class="r">workloads</th><th>meaning</th></tr></thead>
+  <tbody>
+    {% set explain = {
+      'solar_fused': 'SOLAR roofline over the fused operator graph — arithmetic-aware, but only over the graph SOLAR could resolve.',
+      'declared_traffic': 'Every byte the definition declares must move, at measured DRAM bandwidth. No arithmetic term.',
+      'max_of_both': 'Both derivations succeeded and agreed on a bound; the larger (slower, safer) was used.',
+      'traffic_rejected_above_t_b': 'The traffic floor came out slower than the measured T_b, which is impossible — rejected, SOLAR used.',
+      'solar_rejected_above_t_b': 'The SOLAR estimate came out slower than the measured T_b — rejected, traffic floor used.',
+      'no_valid_bound': 'Neither derivation produced a bound at or below T_b. Not scoreable.'
+    } %}
+    {% for k, v in bound_sources.items() %}
+      <tr><td class="mono sm">{{ k }}</td><td class="r">{{ v }}</td>
+          <td class="sm">{{ explain.get(k, '') }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="sub">A derivation that produced a bound <i>slower</i> than a time actually
+   measured is self-refuting, so it is rejected rather than averaged in. That
+   rejection is recorded per workload rather than smoothed away.</p>
+
+<h2>What is measured, and on what</h2>
+<table class="grid">
+  <tbody>
+    <tr><td>device</td><td class="mono">{{ meta.device }} &times; {{ meta.n_devices }}</td></tr>
+    <tr><td>locked clock (F<sub>LOCK</sub>)</td><td class="mono">{{ meta.f_lock_mhz }} MHz, measured under load — not the requested setting</td></tr>
+    <tr><td>timing methodology</td><td class="mono">{{ meta.methodology }}</td></tr>
+    <tr><td>ROCm / driver</td><td class="mono">{{ meta.rocm_version }} / {{ meta.driver_version }}</td></tr>
+    <tr><td>torch</td><td class="mono">{{ meta.torch_version }}</td></tr>
+    <tr><td>authoritative timing GPU</td><td class="mono">GPU 0, idle, nothing else on it</td></tr>
+    <tr><td>tolerances</td><td class="mono">derived on this hardware from reference-vs-reference variance; no NVIDIA constants</td></tr>
+  </tbody>
+</table>
+
+<h2>Coverage</h2>
+<p>{{ meta.scoreable_problems }} of {{ meta.total_problems }} problems are scoreable in
+   manifest {{ meta.manifest_version }}, covering {{ meta.scoreable_workloads }} workload
+   instances. Category totals: <code>{{ meta.expected_by_category }}</code>.</p>
+
+{% if deferred %}
+<h3>Deferred ({{ deferred|length }})</h3>
+<p class="sub">Deferred is a decision with a reason attached, and is counted in
+   every published figure. It is not the same as missing.</p>
+<table class="grid">
+  <thead><tr><th>problem</th><th>reason</th></tr></thead>
+  <tbody>
+  {% for d in deferred %}
+    <tr><td class="mono sm"><a href="/problems/{{ d.key }}">{{ d.key }}</a></td>
+        <td class="sm">{{ d.deferred_reason or 'see artifacts/deferred.json' }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if excluded %}
+<h3>Excluded from the leaderboard</h3>
+<table class="grid">
+  <thead><tr><th>entry</th><th>why</th></tr></thead>
+  <tbody>
+  {% for k, v in excluded.items() %}<tr><td class="mono sm">{{ k }}</td><td class="sm">{{ v }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h2>Reading the leaderboard honestly</h2>
+<ul>
+  <li><b>Benchmark score</b> sums per-workload scores over every scoreable
+      workload and counts anything not passed as zero. It is the headline
+      because it cannot be improved by attempting fewer problems.</li>
+  <li><b>Mean (attempted)</b> is never shown without <b>coverage</b>. On its own
+      it rewards a submission for skipping the hard problems.</li>
+  <li><b>Reference variants sit at 0.5 by construction.</b> They define
+      T<sub>b</sub>; they are on the board to calibrate the scale, not to compete.</li>
+  <li><b>Flagged</b> counts submissions the harness's anti-reward-hack checks
+      rejected. A flagged workload scores zero and is still displayed.</li>
+</ul>
+
+<p class="sub">The database is a view over the artifacts, rebuilt by
+   <code>leaderboard/ingest.py</code>. Scores are computed with the repository's own
+   <code>sol_score</code>, so the board cannot drift from the harness.
+   Manifest <code>{{ meta.git_sha }}</code>.</p>
+
+{% endblock %}

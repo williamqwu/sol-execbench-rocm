@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ submission.name }} &middot; SOL-ExecBench-AMD{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="/">Leaderboard</a> / {{ submission.name }}</div>
+<h1>{{ submission.name }}</h1>
+<p><span class="tag tag-{{ submission.kind }}">{{ submission.kind.replace('_',' ') }}</span>
+   {% if submission.model %}<span class="model">{{ submission.model }}</span>{% endif %}
+   {% if submission.author %}<span class="sub">by {{ submission.author }}</span>{% endif %}</p>
+
+{% if submission.notes %}<div class="banner">{{ submission.notes }}</div>{% endif %}
+
+<div class="cards">
+  <div class="card"><div class="num">{{ problems|length }}</div><div class="lbl">problems with results</div></div>
+  <div class="card"><div class="num">{{ problems|sum(attribute='passed') }}</div><div class="lbl">workloads passed</div></div>
+  {% if submission.cost_usd %}<div class="card"><div class="num">${{ '%.2f'|format(submission.cost_usd) }}</div><div class="lbl">API cost (list price)</div></div>{% endif %}
+  {% if submission.wall_seconds %}<div class="card"><div class="num">{{ '%.0f'|format(submission.wall_seconds/60) }}<span class="of">min</span></div><div class="lbl">wall time</div></div>{% endif %}
+  {% if submission.gpu %}<div class="card"><div class="num sm-num">{{ submission.gpu }}</div><div class="lbl">timed on GPU</div></div>{% endif %}
+</div>
+
+<h2>Per-problem results</h2>
+<table class="grid">
+  <thead><tr><th>problem</th><th>category</th>
+             <th class="r">passed</th><th class="r">mean score</th><th class="r">flagged</th></tr></thead>
+  <tbody>
+  {% for p in problems %}
+    <tr>
+      <td><a class="mono" href="/problems/{{ p.key }}">{{ p.name }}</a></td>
+      <td class="sm">{{ p.category }}</td>
+      <td class="r">{{ p.passed }}<span class="sub">/{{ p.n_scoreable }}</span></td>
+      <td class="r big">{{ '%.4f'|format(p.mean_score) if p.mean_score else '&mdash;'|safe }}</td>
+      <td class="r">{% if p.flagged %}<span class="flag">{{ p.flagged }}</span>{% else %}&mdash;{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% if submission.provenance %}
+<h2>Provenance</h2>
+<pre class="code sm">{{ submission.provenance | tojson(indent=2) }}</pre>
+{% endif %}
+
+{% endblock %}

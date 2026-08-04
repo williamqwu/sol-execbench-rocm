@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Problems &middot; SOL-ExecBench-AMD{% endblock %}
+{% block content %}
+
+<h1>Problems</h1>
+<p class="lede">{{ problems|length }} shown.
+  Headroom is the median T<sub>b</sub>/T<sub>SOL</sub> over a problem's workloads &mdash;
+  how much room there is between the optimized&#8209;PyTorch anchor and the physical bound.
+  A problem at 1.2&times; is nearly at the roofline already; one at 40&times; is wide open.</p>
+
+<form class="filters" method="get" action="/problems">
+  <a class="chip {% if not category %}on{% endif %}" href="/problems">all</a>
+  {% for c in categories %}
+    <a class="chip {% if category == c %}on{% endif %}" href="/problems?category={{ c }}">{{ c }}</a>
+  {% endfor %}
+  <input type="search" name="q" value="{{ q }}" placeholder="search name or description">
+  {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+  <button type="submit">search</button>
+</form>
+
+<table class="grid sortable">
+  <thead><tr>
+    <th>problem</th><th>category</th>
+    <th class="r">workloads</th><th class="r">headroom</th>
+    <th class="r">best score</th><th class="r">submissions</th><th></th>
+  </tr></thead>
+  <tbody>
+  {% for p in problems %}
+    <tr class="{% if p.deferred %}dim{% endif %}">
+      <td><a class="mono" href="/problems/{{ p.key }}">{{ p.name }}</a>
+          <div class="sub trunc">{{ p.description }}</div></td>
+      <td class="sm">{{ p.category }}</td>
+      <td class="r">{{ p.n_scoreable }}<span class="sub">/{{ p.n_workloads }}</span></td>
+      <td class="r mono">{% if p.median_headroom %}{{ '%.1f'|format(p.median_headroom) }}&times;{% else %}&mdash;{% endif %}</td>
+      <td class="r mono">{% if p.best_score %}{{ '%.3f'|format(p.best_score) }}{% else %}&mdash;{% endif %}</td>
+      <td class="r">{{ p.n_submissions }}</td>
+      <td>{% if p.deferred %}<span class="tag tag-deferred">deferred</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}{{ problem.key }} &middot; SOL-ExecBench-AMD{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="/problems">Problems</a> / <a href="/problems?category={{ problem.category }}">{{ problem.category }}</a> / {{ problem.name }}</div>
+
+<h1 class="mono">{{ problem.name }}</h1>
+{% if problem.deferred %}
+  <div class="banner warn">
+    <b>Deferred from v1.</b>
+    {{ problem.deferred_reason or 'This problem is accepted by the schema but is not scoreable in manifest v1.' }}
+  </div>
+{% endif %}
+<p class="lede">{{ problem.description }}</p>
+{% if problem.hf_id %}<p class="sub">model of origin: <code>{{ problem.hf_id }}</code></p>{% endif %}
+
+<div class="cards">
+  <div class="card"><div class="num">{{ problem.n_scoreable }}<span class="of">/{{ problem.n_workloads }}</span></div><div class="lbl">scoreable workloads</div></div>
+  <div class="card"><div class="num">{% if problem.median_headroom %}{{ '%.1f'|format(problem.median_headroom) }}&times;{% else %}&mdash;{% endif %}</div><div class="lbl">median headroom T<sub>b</sub>/T<sub>SOL</sub></div></div>
+  <div class="card"><div class="num">{% if problem.best_score %}{{ '%.3f'|format(problem.best_score) }}{% else %}&mdash;{% endif %}</div><div class="lbl">best score recorded</div></div>
+  <div class="card"><div class="num">{{ submissions|length }}</div><div class="lbl">submissions</div></div>
+</div>
+
+<h2>Scoring bounds, per workload</h2>
+<p class="sub">
+  T<sub>SOL</sub> is computed in <i>cycles</i> (architectural, so it is invariant to the clock)
+  and converted to milliseconds at F<sub>LOCK</sub> = {{ meta.f_lock_mhz }} MHz.
+  Two derivations are computed independently and combined with <code>max</code>;
+  <code>t_sol_source</code> records which one bound each workload, and any candidate
+  that came out <i>faster</i> than the measured T<sub>b</sub> was rejected rather than used.
+</p>
+<div class="scroll">
+<table class="grid">
+  <thead>
+    <tr>
+      <th>workload</th><th>axes</th>
+      <th class="r">T<sub>SOL</sub> (cyc)</th>
+      <th class="r">T<sub>SOL</sub> (ms)</th>
+      <th>bound source</th><th>bottleneck</th>
+      <th class="r">T<sub>b</sub> (ms)</th><th>T<sub>b</sub> variant</th>
+      <th class="r">headroom</th>
+      <th class="r">atol</th><th class="r">rtol</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for w in workloads %}
+    <tr class="{% if not w.scoreable %}dim{% endif %}">
+      <td class="mono sm">{{ w.uuid[:8] }}</td>
+      <td class="sm">{% for k,v in w.axes.items() %}<span class="ax">{{ k }}={{ v }}</span>{% endfor %}</td>
+      <td class="r mono">{{ '{:,}'.format(w.t_sol_cycles) if w.t_sol_cycles else '&mdash;'|safe }}</td>
+      <td class="r mono">{{ '%.5f'|format(w.t_sol_ms) if w.t_sol_ms else '&mdash;'|safe }}</td>
+      <td class="sm">{{ w.t_sol_source or '—' }}</td>
+      <td class="sm">{% if w.sol_bottleneck %}<span class="tag tag-{{ w.sol_bottleneck }}">{{ w.sol_bottleneck }}</span>{% endif %}</td>
+      <td class="r mono">{{ '%.5f'|format(w.t_b_ms) if w.t_b_ms else '&mdash;'|safe }}</td>
+      <td class="sm">{{ w.t_b_variant or '—' }}</td>
+      <td class="r mono">{{ '%.1f'|format(w.headroom) + '×' if w.headroom else '—' }}</td>
+      <td class="r mono sm">{{ '%.2e'|format(w.tol_atol) if w.tol_atol else '&mdash;'|safe }}</td>
+      <td class="r mono sm">{{ '%.2e'|format(w.tol_rtol) if w.tol_rtol else '&mdash;'|safe }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if workloads and workloads[0].tol_derivation %}
+<p class="sub">Tolerance derivation: {{ workloads[0].tol_derivation }}.</p>
+{% endif %}
+
+<h2>Submissions on this problem</h2>
+{% if submissions %}
+<table class="grid">
+  <thead><tr><th>submission</th><th>kind</th><th class="r">workloads passed</th>
+             <th class="r">mean score</th><th class="r">best latency (ms)</th><th class="r">flagged</th></tr></thead>
+  <tbody>
+  {% for s in submissions %}
+    <tr>
+      <td><a href="/submissions/{{ s.slug }}">{{ s.name }}</a>
+          {% if s.model %}<span class="model">{{ s.model }}</span>{% endif %}</td>
+      <td><span class="tag tag-{{ s.kind }}">{{ s.kind.replace('_',' ') }}</span></td>
+      <td class="r">{{ s.passed }}<span class="sub">/{{ problem.n_scoreable }}</span></td>
+      <td class="r big">{{ '%.4f'|format(s.mean_score) if s.mean_score else '&mdash;'|safe }}</td>
+      <td class="r mono">{{ '%.5f'|format(s.best_latency) if s.best_latency else '&mdash;'|safe }}</td>
+      <td class="r">{% if s.flagged %}<span class="flag">{{ s.flagged }}</span>{% else %}&mdash;{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="sub">No submissions recorded for this problem yet.</p>
+{% endif %}
+
+<h2>Per-workload results</h2>
+<div class="scroll">
+<table class="grid">
+  <thead><tr><th>workload</th><th>submission</th><th>status</th>
+             <th class="r">T<sub>k</sub> (ms)</th><th class="r">score</th><th class="sm">timed on</th></tr></thead>
+  <tbody>
+  {% for w in workloads %}{% for r in w.results %}
+    <tr>
+      <td class="mono sm">{{ w.uuid[:8] }}</td>
+      <td class="sm"><a href="/submissions/{{ r.slug }}">{{ r.submission_name }}</a></td>
+      <td class="sm">{% if r.status == 'PASSED' %}<span class="ok">PASSED</span>{% else %}<span class="bad">{{ r.status }}</span>{% endif %}
+          {% if r.flagged %}<span class="flag">flagged</span>{% endif %}</td>
+      <td class="r mono">{{ '%.5f'|format(r.latency_ms) if r.latency_ms else '&mdash;'|safe }}</td>
+      <td class="r mono">{{ '%.4f'|format(r.score) if r.score is not none else '&mdash;'|safe }}</td>
+      <td class="sm sub">{{ r.note or '' }}</td>
+    </tr>
+  {% endfor %}{% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Axes</h2>
+<table class="grid">
+  <thead><tr><th>axis</th><th>kind</th><th>value</th><th>description</th></tr></thead>
+  <tbody>
+  {% for k, v in problem.axes.items() %}
+    <tr><td class="mono">{{ k }}</td><td class="sm">{{ v.type }}</td>
+        <td class="mono sm">{{ v.value if v.value is defined else (v.expr if v.expr is defined else 'varies') }}</td>
+        <td class="sm">{{ v.description }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="two">
+<div>
+<h2>Inputs</h2>
+<table class="grid">
+  <thead><tr><th>name</th><th>shape</th><th>dtype</th></tr></thead>
+  <tbody>
+  {% for k, v in problem.inputs.items() %}
+    <tr><td class="mono">{{ k }}</td>
+        <td class="mono sm">{{ '[' ~ v.shape|join(', ') ~ ']' if v.shape else 'scalar' }}</td>
+        <td class="sm">{{ v.dtype }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<div>
+<h2>Outputs</h2>
+<table class="grid">
+  <thead><tr><th>name</th><th>shape</th><th>dtype</th></tr></thead>
+  <tbody>
+  {% for k, v in problem.outputs.items() %}
+    <tr><td class="mono">{{ k }}</td>
+        <td class="mono sm">{{ '[' ~ v.shape|join(', ') ~ ']' if v.shape else 'scalar' }}</td>
+        <td class="sm">{{ v.dtype }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+</div>
+
+<h2>Reference implementation</h2>
+<p class="sub">This is what a submission must match numerically, and what the
+  T<sub>b</sub> variants are formulations of.</p>
+<pre class="code">{{ problem.reference }}</pre>
+
+{% endblock %}

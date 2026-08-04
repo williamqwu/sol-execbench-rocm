@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}SOL-ExecBench-AMD{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="/">SOL&#8209;ExecBench<span class="amd">&#8209;AMD</span></a>
+    <nav>
+      <a href="/">Leaderboard</a>
+      <a href="/problems">Problems</a>
+      <a href="/methodology">Methodology</a>
+      <a href="/api/docs">API</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap main">
+{% block content %}{% endblock %}
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>{{ meta.device or 'AMD Instinct' }} &middot; {{ meta.n_devices }}&times; &middot;
+      F<sub>LOCK</sub> {{ meta.f_lock_mhz }} MHz &middot;
+      ROCm {{ meta.rocm_version }} &middot; torch {{ meta.torch_version }}</span>
+    <span class="right">manifest {{ meta.manifest_version }} &middot;
+      <code>{{ (meta.git_sha or '')[:12] }}</code> &middot;
+      {{ (meta.manifest_utc or '')[:19] }}Z</span>
+  </div>
+</footer>
+</body>
+</html>

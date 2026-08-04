@@ -37,8 +37,15 @@ fi
 WANT_IMAGE_ID="$(docker image inspect -f '{{.Id}}' "${IMAGE}" 2>/dev/null || true)"
 HAVE_IMAGE_ID="$(docker inspect -f '{{.Image}}' "${NAME}" 2>/dev/null || true)"
 if [ -n "${HAVE_IMAGE_ID}" ] && [ "${HAVE_IMAGE_ID}" != "${WANT_IMAGE_ID}" ]; then
+  # The bracket classes are load-bearing. `pgrep -f` matches against full
+  # command lines, and `|| true` makes this a compound command, so bash does
+  # NOT exec pgrep in place -- it stays alive with the pattern in its own
+  # cmdline and pgrep counts it. Written plainly, BUSY is always >= 1 and this
+  # guard never fires, which silently re-enables the stale-image failure the
+  # comment above describes. `[s]hard_sweep` matches "shard_sweep" but not the
+  # literal "[s]hard_sweep" sitting in bash's argv.
   BUSY="$(docker exec "${NAME}" bash -lc \
-      'pgrep -fc "shard_sweep|runners/|sol_bounds" 2>/dev/null || true' 2>/dev/null || echo 0)"
+      'pgrep -fc "[s]hard_sweep|[r]unners/|[s]ol_bounds" 2>/dev/null || true' 2>/dev/null || echo 0)"
   if [ "${SOLB_KEEP_CONTAINER:-0}" = "1" ] || [ "${BUSY:-0}" -gt 0 ]; then
     echo "WARNING: container '${NAME}' predates the current ${IMAGE}, but" >&2
     echo "         ${BUSY} sweep process(es) are running inside it, so it was" >&2
