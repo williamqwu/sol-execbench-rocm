@@ -484,6 +484,57 @@ that one problem's scores.
 
 The remaining single failure (`L1/072`) is one workload at the tolerance edge.
 
+### D16 — the agent pilot billed the wrong gateway key, and looked fine doing it
+
+`~/.claude.json` carries an `env` block, and Claude Code applies it **over** the
+process environment. On this host it sets
+
+```
+ANTHROPIC_CUSTOM_HEADERS = Ocp-Apim-Subscription-Key: 6838c76b…
+```
+
+so every header `agent_baseline.py` exported — including the
+`fb97d25…` key it was told to use — was discarded. The `pilot8` run
+($65.08 over 8 problems) therefore authenticated with the wrong AMD gateway
+subscription key.
+
+Nothing about the run looked wrong. It completed, produced kernels, reported
+costs. It surfaced only from a falsification test: a session was run with a
+deliberately invalid subscription key and **succeeded anyway**, which is
+impossible if the exported header were being used. Directly against the
+gateway, `fb97d25…` → 200, `6838c76b…` → 200, `0000…` → **401**, so the
+gateway does validate the key and the earlier success proves the override.
+
+No personal Anthropic credential was ever involved: `ANTHROPIC_API_KEY` on this
+host is the literal string `dummy` and there are no stored OAuth credentials.
+Both keys are AMD gateway keys reaching `llm-api.amd.com/Anthropic`.
+
+Fixed by passing `--settings` with an explicit `env` block, which does take
+precedence — verified the same way round: an invalid key passed through
+`--settings` makes the session fail. The run record now carries
+`gateway_key_prefix` so which key paid for a run is an artifact, not a
+recollection.
+
+### D17 — the scorer wrote into the container and scored every kernel zero
+
+`agent_score.py` passed the container a **host** path for `--out`. Only two
+trees are bind-mounted — the repo at `/work`, and `SOLEXBENCH_SCRATCH` at its
+own absolute path — so a run directory anywhere else (`artifacts/…` given as an
+absolute path, or a scratch experiment under `$HOME`) resolves inside the
+container to a directory the unprivileged user cannot create. The runner died
+before writing anything, `retime()` discarded its stderr, and all eight
+problems reported `0/0 passed, 0 scored`.
+
+That output is indistinguishable from eight kernels that genuinely failed,
+which is what makes it dangerous: a real result of "the agent achieved
+nothing" was available for the taking. The artifact is now staged through
+scratch and copied out, and a runner that never ran reports `RUNNER FAILED`
+with its stderr instead of a zero score.
+
+The earlier one-problem validation run passed only because `--run` was given as
+a *relative* path, which happened to resolve against the container's `/work`
+working directory.
+
 ---
 
 ## Fixes to scripts on first contact
