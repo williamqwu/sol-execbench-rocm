@@ -1085,12 +1085,28 @@ GPUs differ: GPU 0 cannot produce any clock between ~1214 (setpoint 1500) and
 ~1593 (setpoint 1600). That gap is a DPM state boundary, and a common target has
 to fall outside it.
 
-Consequences taken: authoritative timing stays pinned to GPU 0 on an idle node,
+Consequences taken. Authoritative timing stays pinned to GPU 0 on an idle node,
 which is the one condition measured to give 1647 reproducibly, and stage 1 now
-verifies the setpoint before it starts. Consequence *not* yet taken: F_LOCK is
-still a single constant in `CLOCK_LOCK_PRESETS`, and the honest version of this
-part would sample the clock during each timing run and record the measured value
-per artifact. That is a larger change than this session should make silently.
+verifies the setpoint before it starts. And because the setpoint being right
+does not make the achieved clock right, **every timing artifact now carries the
+clock it actually ran at**: `provenance.ClockMonitor` samples GFX clock through
+`run_guarded` and records `measured_clock` — median, min, max, p5, power, sample
+count, and which GPUs were busy. Outside 3% the runner marks the artifact
+`clock_violation` and exits 3, and `authoritative_tb.py` moves it aside and stops
+the pass, so the problem is pending again rather than recorded as failed.
+
+`F_LOCK` remains a constant in `CLOCK_LOCK_PRESETS` and is still what T_SOL is
+expressed at. What changed is that it is now a claim an artifact can be checked
+against rather than one it asserts about itself.
+
+Two details of the monitor are measurements, not choices. Busy is decided by GFX
+activity, not power: a GPU running kernels between compilations reads 100% busy
+at 274 W against a ~240 W idle floor, and a power threshold high enough to mean
+"working" discarded every sample (25 s of a `max_autotune` compile yielded zero).
+And it scans all eight GPUs for the busiest rather than resolving
+`HIP_VISIBLE_DEVICES`, so it needs neither torch nor the PCI mapping and cannot
+create a HIP context on the device it is describing before the measurement does.
+`busy_gpus` then also catches the non-idle node that produces the slow branch.
 
 **`artifacts/01/interference.json`'s verdict does not transfer.** It was measured
 at 08:51, i.e. at the 1900 setpoint, and its probe is a 50-iteration burst — a

@@ -357,6 +357,13 @@ class ClockMonitor:
     drag the median toward the idle floor and flag every problem. Measured on
     this node: 25 s of a `max_autotune` compile yielded zero busy samples, which
     is why ``n_busy_samples`` is reported and a count of zero is not a pass.
+
+    Known limitation, stated rather than papered over: this covers GPU work
+    across the whole runner, which includes autotuning, not only the timed
+    iterations. Isolating those needs a hook inside the harness's timing loop.
+    It is enough for what went wrong -- a node at the wrong setpoint, or a node
+    that was not idle, is wrong for the entire run -- and ``min_mhz``/``max_mhz``
+    are recorded so a run whose phases used different clocks shows it.
     """
 
     def __init__(self, hz: float = 5.0, tolerance: float | None = None):
