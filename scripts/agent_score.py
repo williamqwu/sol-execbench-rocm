@@ -122,6 +122,9 @@ def main() -> int:
     ap.add_argument("--iterations", type=int, default=50)
     ap.add_argument("--warmup", type=int, default=10)
     ap.add_argument("--timeout", type=int, default=2400)
+    ap.add_argument("--reuse-retimed", action="store_true",
+                    help="re-derive scores from existing retimed/*.json "
+                         "without touching the GPU")
     ap.add_argument("--exclude-from-leaderboard", action="store_true",
                     help="score and record, but do not list on the board "
                          "(for validation runs)")
@@ -176,32 +179,58 @@ def main() -> int:
                 (side / nm).write_text((sandbox / nm).read_text())
             rec["kernel_side_files"] = extra
 
-        print(f"[{key}] re-timing on GPU {a.gpu} ...", flush=True)
-        ev = retime(key, kernel, retimed_dir / f"{key}.json", a.gpu,
-                    a.iterations, a.warmup, a.timeout)
+        existing = retimed_dir / f"{key}.json"
+        if a.reuse_retimed and existing.exists():
+            # Re-deriving scores from a completed re-time must not need the GPU
+            # again: the timing is the expensive part and it does not change.
+            ev = json.loads(existing.read_text())
+            print(f"[{key}] reusing re-time from {existing.name}", flush=True)
+        else:
+            print(f"[{key}] re-timing on GPU {a.gpu} ...", flush=True)
+            ev = retime(key, kernel, existing, a.gpu,
+                        a.iterations, a.warmup, a.timeout)
         rec["ok"] = ev.get("ok")
         rec["error"] = ev.get("error")
 
-        scored = flagged = passed = 0
+        scored = flagged = passed = violations = 0
         for w in ev.get("per_workload", []):
             uuid = w.get("workload_uuid")
             status = w.get("status")
             bound = b.get((key, uuid))
             is_flag = status == "REWARD_HACK"
             score = None
+            violated = False
             if status == "PASSED" and bound and w.get("latency_ms"):
                 t_sol, t_b = bound
                 score = sol_score(w["latency_ms"], t_b, t_sol)
                 scored += 1
                 passed += 1
+                # A hard invariant, not a threshold. T_SOL is the time this
+                # workload would take if it were limited only by the arithmetic
+                # it must do and the bytes it must move, so nothing can beat
+                # it: S > 1 means the BOUND is wrong, never that the kernel is
+                # superhuman. The T_SOL <= T_b gate cannot catch this, because
+                # a bound that over-counts traffic is under-cut by the
+                # reference too -- only a kernel that avoids the traffic
+                # exposes it.
+                violated = w["latency_ms"] < t_sol
+                violations += int(violated)
             results.append({
                 "problem": key, "workload_uuid": uuid, "status": status,
                 "latency_ms": w.get("latency_ms"), "score": score,
                 "flagged": is_flag,
-                "note": f"authoritative gpu{a.gpu}, {a.iterations} iters",
+                "bound_violation": violated,
+                "note": f"authoritative gpu{a.gpu}, {a.iterations} iters"
+                        + (" -- FASTER THAN T_SOL: bound is invalid" if violated else ""),
             })
             flagged += int(is_flag)
 
+        if violations:
+            print(f"[{key}] !! {violations}/{scored} workloads came in FASTER than "
+                  f"T_SOL. The bound for this problem is wrong; its scores are "
+                  f"not usable.", flush=True)
+
+        rec["bound_violations"] = violations
         rec.update({"workloads": ev.get("workloads", 0), "passed": passed,
                     "scored": scored, "flagged": flagged,
                     "geomean_speedup": ev.get("geomean_speedup"),
@@ -219,6 +248,12 @@ def main() -> int:
                   flush=True)
 
     scores = [r["score"] for r in results if r["score"] is not None]
+    # Headline mean excludes workloads whose bound is provably wrong. Averaging
+    # them in would let a defective bound raise the score of a whole run.
+    clean = [r["score"] for r in results
+             if r["score"] is not None and not r.get("bound_violation")]
+    violated_problems = sorted({r["problem"] for r in results
+                                if r.get("bound_violation")})
     sessions = run.get("sessions", {})
     total_cost = sum((s.get("session", {}) or {}).get("total_cost_usd") or 0
                      for s in sessions.values())
@@ -248,16 +283,27 @@ def main() -> int:
             "problems": len(per_problem),
             "workloads_scored": len(scores),
             "workloads_flagged": sum(1 for r in results if r["flagged"]),
-            "mean_score": (sum(scores) / len(scores)) if scores else 0.0,
-            "min_score": min(scores) if scores else None,
-            "max_score": max(scores) if scores else None,
+            "workloads_bound_violated": len(scores) - len(clean),
+            "problems_with_invalid_bound": violated_problems,
+            "mean_score": (sum(clean) / len(clean)) if clean else 0.0,
+            "mean_score_including_invalid_bounds":
+                (sum(scores) / len(scores)) if scores else 0.0,
+            "min_score": min(clean) if clean else None,
+            "max_score": max(clean) if clean else None,
         },
     }
     (a.run / "scored.json").write_text(json.dumps(payload, indent=1, default=str))
+    s = payload["summary"]
     print(f"\nwrote {a.run / 'scored.json'}")
-    print(f"  {payload['summary']['workloads_scored']} workloads scored, "
-          f"mean S = {payload['summary']['mean_score']:.4f}, "
-          f"{payload['summary']['workloads_flagged']} flagged")
+    print(f"  {s['workloads_scored']} workloads scored, "
+          f"mean S = {s['mean_score']:.4f}, {s['workloads_flagged']} flagged")
+    if s["workloads_bound_violated"]:
+        print(f"  EXCLUDED {s['workloads_bound_violated']} workloads with an "
+              f"invalid bound (faster than T_SOL) across "
+              f"{len(s['problems_with_invalid_bound'])} problem(s): "
+              f"{', '.join(s['problems_with_invalid_bound'])}")
+        print(f"  including them would report mean S = "
+              f"{s['mean_score_including_invalid_bounds']:.4f}")
     return 0
 
 

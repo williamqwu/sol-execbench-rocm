@@ -248,14 +248,28 @@ def ingest_agent_runs(conn) -> None:
             gpu="0 (authoritative re-time)")
         rows = []
         for r in doc.get("results", []):
+            # A workload measured faster than its own speed-of-light bound is
+            # evidence the bound is wrong, not that the kernel is exceptional.
+            # It is stored with score NULL so it cannot lift any ranking, and
+            # the note says why rather than the row silently vanishing.
+            violated = bool(r.get("bound_violation"))
             rows.append((sub_id, r["problem"], r["workload_uuid"], r.get("status"),
-                         r.get("latency_ms"), r.get("score"),
+                         r.get("latency_ms"),
+                         None if violated else r.get("score"),
                          1 if r.get("flagged") else 0, r.get("note")))
         conn.executemany(
             """INSERT OR REPLACE INTO result
                (submission_id,problem_key,workload_uuid,status,latency_ms,
                 score,flagged,note) VALUES (?,?,?,?,?,?,?,?)""", rows)
-        print(f"  agent {run_id}: {len(rows)} scored workloads")
+        bad = sorted({r["problem"] for r in doc.get("results", [])
+                      if r.get("bound_violation")})
+        if bad:
+            conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)",
+                         ("problems_with_invalid_bound", json.dumps(bad)))
+            print(f"  agent {run_id}: {len(rows)} workloads; "
+                  f"{len(bad)} problem(s) have a bound a real kernel beat: {bad}")
+        else:
+            print(f"  agent {run_id}: {len(rows)} scored workloads")
 
 
 def main() -> int:

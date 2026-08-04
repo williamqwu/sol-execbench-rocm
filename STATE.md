@@ -535,6 +535,64 @@ The earlier one-problem validation run passed only because `--run` was given as
 a *relative* path, which happened to resolve against the container's `/work`
 working directory.
 
+### D18 — T_SOL is wrong on the paged FlashInfer problems, and an agent proved it
+
+The first agent kernel to beat the reference by a large margin on
+`FlashInfer-Bench__019_mla_paged_prefill` came in **faster than T_SOL on 25 of
+its 38 workloads**, scoring up to 1.115. Nothing can be faster than the
+speed-of-light bound, so this is a defect in the bound, not a result.
+
+The kernel is legitimate — a fused Triton MLA prefill that passes 38/38 against
+the AMD-derived tolerances and is not flagged by any anti-reward-hack check.
+What it does differently is read only the pages `kv_indices` names.
+
+The declared-traffic bound counts the whole declared tensor:
+
+```
+ckv_cache: [num_pages, page_size, head_dim_ckv]   num_pages = 989,669
+kpe_cache: [num_pages, page_size, head_dim_kpe]
+  full cache = 1.140 GB -> at 8 TB/s = 0.14251 ms   (manifest T_SOL = 0.14266 ms)
+  pages actually gathered = 34 of 989,669 -> 39.2 KB, a factor of 29,108 less
+```
+
+The bound matches "read the entire cache" to 0.1%. It is not a bound on the
+work; it is a bound on the allocation.
+
+**Why no existing check caught it.** The gate is `T_SOL <= T_b`, and T_b is
+measured from the PyTorch reference — which *also* reads the whole cache. Both
+numbers are wrong in the same direction, so they agree. Only a gather-aware
+kernel separates them, and until this run nothing on this benchmark was
+gather-aware.
+
+**Exposure — 6 problems, 249 scoreable workloads:**
+
+| problem | scoreable wl | median over-count | worst |
+|---|---:|---:|---:|
+| `FlashInfer-Bench__014_gqa_paged_prefill…kv4` | 30 | 4,612× | 176,707× |
+| `FlashInfer-Bench__015_gqa_paged_prefill…kv8` | 38 | 4,531× | 276,155× |
+| `FlashInfer-Bench__019_mla_paged_prefill` | 38 | 7,367× | 197,934× |
+| `FlashInfer-Bench__018_mla_paged_decode` | 47 | 136× | 123,709× |
+| `FlashInfer-Bench__012_gqa_paged_decode…kv4` | 48 | 1× | 129× |
+| `FlashInfer-Bench__013_gqa_paged_decode…kv8` | 48 | 1× | 128× |
+
+Over-count is `num_pages / num_kv_indices` per workload. The two decode
+problems are mostly sound at the median and wrong only in the tail; the three
+prefill problems and `018` are wrong at the median by three to four orders of
+magnitude. This is very likely also what makes `018`'s anchor irreproducible
+(D15) — same family, same layout dependence.
+
+**What was done.** `agent_score.py` now enforces the invariant directly: a
+workload whose measured time falls below its T_SOL is marked
+`bound_violation`, excluded from the headline mean, and reported. On the pilot
+that is the difference between a reported mean S of 0.8401 and the honest
+0.7757.
+
+**What was not done.** Manifest v1 is frozen and has been published, so the
+bound is not being silently recomputed. The fix for v1.1 is to derive paged
+traffic from `num_kv_indices × page_size`, the pages the workload actually
+names, rather than from `num_pages`. Until then, scores on those six problems
+are not usable and are marked as such wherever they appear.
+
 ---
 
 ## Fixes to scripts on first contact
