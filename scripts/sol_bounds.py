@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 import traceback
 
@@ -325,7 +326,28 @@ def do_problem(args) -> tuple[str, dict]:
                 perf, input_mode = cache[sig]
                 fused = perf["fused"]
                 unfused = perf["unfused"]
-                cycles = int(fused["total_cycles"])
+                # ceil, not truncate, and keep the exact figure beside it.
+                # Truncating gave EIGHT workloads a T_SOL of zero cycles --
+                # a "bound" of zero time, which no kernel can approach and
+                # which puts a division by (T_b - 0) into the score. The
+                # smallest workloads here are genuinely sub-cycle at 1.3 GHz
+                # (12 KB at 8 TB/s is about 2 cycles), so the rounding is not
+                # a rare edge: it is the normal case at the small end.
+                #
+                # SOLAR's own `total_cycles` is already `int(...)`-truncated,
+                # so it cannot be un-rounded -- the roofline is recomputed here
+                # from the same quantities SOLAR used (its arch block is
+                # emitted alongside the result), which is its formula exactly:
+                # max(MACs/MAC_per_cycle, bytes/DRAM_byte_per_cycle).
+                _arch = perf["arch"]
+                _mac_pc = float(_arch.get("MAC_per_cycle") or 0.0)
+                _dram_bw = float(_arch.get("DRAM_byte_per_cycle") or 0.0)
+                _macs = float(perf["workload"]["total_macs"])
+                exact_cycles = max(
+                    _macs / _mac_pc if _mac_pc > 0 else 0.0,
+                    float(fused["memory_bytes"]) / _dram_bw if _dram_bw > 0 else 0.0,
+                )
+                cycles = max(1, math.ceil(exact_cycles))
                 out["workloads"][wl.uuid] = {
                     # THE bound. `fused` is the model that matches what a good
                     # kernel actually does -- intermediates stay on chip. The
@@ -333,9 +355,12 @@ def do_problem(args) -> tuple[str, dict]:
                     # T_SOL <= measured violation can be diagnosed rather than
                     # just observed.
                     "t_sol_cycles": cycles,
+                    # The un-rounded figure, so that a future consumer can see
+                    # how much of a small bound is rounding.
+                    "t_sol_cycles_exact": exact_cycles,
                     "t_sol_ms": cycles / (freq_ghz * 1e6),
                     "bottleneck": fused["bottleneck"],
-                    "unfused_cycles": int(unfused["total_cycles"]),
+                    "unfused_cycles": max(1, math.ceil(float(unfused["total_cycles"]))),
                     "macs": int(perf["workload"]["total_macs"]),
                     "memory_bytes": int(fused["memory_bytes"]),
                     "arithmetic_intensity": fused["arithmetic_intensity"],
@@ -361,7 +386,8 @@ def do_problem(args) -> tuple[str, dict]:
         return key, out
 
 
-def _fanout(problems, arch_yaml, scratch, freq_ghz, jobs, timeout, resume=False):
+def _fanout(problems, arch_yaml, scratch, freq_ghz, jobs, timeout, resume=False,
+            only_status=None):
     """One subprocess per problem, with a hard timeout.
 
     Not a process pool: SOLAR's stage 1 traces arbitrary reference code, and
@@ -390,6 +416,19 @@ def _fanout(problems, arch_yaml, scratch, freq_ghz, jobs, timeout, resume=False)
                     return key, prior
             except Exception:                          # noqa: BLE001
                 pass
+        if only_status is not None:
+            # Re-run exactly one class of prior result and leave the rest
+            # alone. `--only-status ok` refreshes every bound that succeeded
+            # after a change to how the bound is computed, without paying
+            # again for the failures -- which are the slow ones, because a
+            # failure usually means SOLAR ran to the timeout.
+            try:
+                prior = json.loads(out_file.read_text())
+            except Exception:                          # noqa: BLE001
+                return key, {"problem": key, "status": "failed",
+                             "error": "no prior result to refresh"}
+            if prior.get("status") != only_status:
+                return key, prior
         cmd = [
             sys.executable, str(Path(__file__).resolve()),
             "--one", str(problem), "--out", str(out_file),
@@ -420,6 +459,11 @@ def main():
     ap.add_argument("--out", default="artifacts/03/t_sol.json")
     ap.add_argument("--one", type=Path, default=None,
                     help="internal: run a single problem and write its JSON")
+    ap.add_argument("--only-status", choices=["ok", "failed"], default=None,
+                    help="re-run only problems whose recorded status is this. "
+                         "`ok` refreshes successful bounds after a change to "
+                         "how the bound is computed, without paying again for "
+                         "the failures, which are the slow ones.")
     ap.add_argument("--resume", action="store_true",
                     help="skip problems that already succeeded; re-run "
                          "failures (which is the point of resuming)")
@@ -477,7 +521,8 @@ def main():
 
     results = {}
     for key, res in _fanout(problems, arch_yaml, scratch, freq_ghz,
-                            a.jobs, a.timeout, resume=a.resume):
+                            a.jobs, a.timeout, resume=a.resume,
+                            only_status=a.only_status):
         results[key] = res
 
     n_wl = sum(r.get("n_workloads", 0) for r in results.values())

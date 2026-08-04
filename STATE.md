@@ -42,14 +42,14 @@ output.
 |---|---|---|---|---|
 | 00 | Node acceptance | `done` | `artifacts/00/` | 13 checks, 0 failed |
 | 01 | Clock calibration (F_LOCK) | `done` | `artifacts/01/` | **F_LOCK = 1300 MHz** at setting 1600; unblocks 03, 05, 06 |
-| 02 | Harness port validation | `in-progress` | `src/sol_execbench/` | port green; 235-problem sweep pending |
-| 03 | SOL bounds (T_SOL) | `in-progress` | `scripts/sol_bounds.py` | SOLAR bridge works end-to-end; L1 probe 82/94 problems |
-| 04 | rocprofiler shim | `not-started` | | |
-| 05 | Tolerance calibration | `not-started` | | runner written |
-| 06 | Baselines (T_b) | `not-started` | | runner + variant set written |
-| 07 | Quant / MXFP4 | `not-started` | | |
-| 08 | Red team | `in-progress` | `reference/exploits/` | corpus authored; source screen passing |
-| 09 | Release | `not-started` | | |
+| 02 | Harness port validation | `done` | `artifacts/02/` | 235/235 problems swept; references run on ROCm |
+| 03 | SOL bounds (T_SOL) | `in-progress` | `artifacts/03/` | 183 problems bounded; resume pass running over the rest |
+| 04 | rocprofiler shim | `in-progress` | `src/solexbench_rocm/shim/` | shim built and verified; L1 comparison sweep pending |
+| 05 | Tolerance calibration | `in-progress` | `artifacts/05/` | 3690/3957 workloads AMD-derived; 240 NVFP4 + 27 to fix |
+| 06 | Baselines (T_b) | `in-progress` | `artifacts/06/candidates/` | selection sweep running on 8 GPUs; authoritative pass after |
+| 07 | Quant / MXFP4 | `done` | `artifacts/07/`, `artifacts/deferred.json` | 15 NVFP4 deferred with evidence; 220 ship |
+| 08 | Red team | `done` | `reference/exploits/`, `artifacts/08/` | 28/28 replay cases pass |
+| 09 | Release | `not-started` | | manifest builder written; needs 03 and 06 |
 
 Status vocabulary: `not-started` · `in-progress` · `blocked` · `done` · `deferred`
 
@@ -285,6 +285,93 @@ See task 01 above. `--setperfdeterminism X` yields ~0.83·X on MI350X, and above
 likely thing for a future session on other AMD hardware to get wrong: the
 MI355X procedure (pick F_LOCK from the unlocked floor, request it, verify) is
 *correct in form* and produced a wrong answer *in fact* on this part.
+
+### D9 — the tolerance runner's memory profile, and one absurd allocation
+
+Twenty-seven workloads across five problems failed calibration with HIP OOM,
+and the two causes are unrelated:
+
+*Retention.* Relative error can only be measured once `atol` is known, and
+`atol` is only known after the last seed, so the first implementation kept
+every seed's outputs — `seeds × 2 × output_size` of device memory, 234 GiB of
+252 held at the point of failure. `--low-memory` keeps one seed's outputs and
+re-runs the seed loop instead. Same derivation, twice the executions.
+
+*Comparison width.* The comparison promoted whole tensors to float64 and
+materialized a difference, peaking near 4× the output's size — an 18 GiB
+output cannot be compared to itself on a 252 GiB GPU. Now chunked at 64 Mi
+elements. This changes no number: a maximum over chunks is the maximum.
+
+Four of the five problems calibrate after those two fixes. What is left is
+**not** an OOM and is not yet explained:
+
+```
+L1/018 (batch 8, seq 128, cache_len 0)   Tried to allocate 16781313.00 GiB
+L1/026 (batch 1, 224, 224)               Tried to allocate 16781313.00 GiB
+```
+
+16781313 GiB is 2^54 bytes. It is identical to the byte on two problems that
+share no operator, so it is one bug and not two, and the shape it is derived
+from is almost certainly garbage rather than large. Other workloads of both
+problems calibrate normally. Not investigated yet: it needs a GPU, and every
+GPU is currently producing timing numbers that concurrent load would corrupt.
+Until it is, those two workloads carry `NOT AMD-DERIVED` in their tolerance
+record.
+
+### D10 — stale artifacts read as fresh findings
+
+Half an hour was spent classifying 52 "SOLAR failures" that turned out to be
+records written before the dataset was re-materialized and before the container
+image was fixed. Re-running one of them by hand produced a *different* error,
+which is the only reason the staleness was noticed at all.
+
+The scratch directory is keyed by problem, not by (problem, code version), so a
+failure recorded by an older build looks exactly like one recorded by the
+current build. `--resume` re-runs failures precisely so they refresh — but
+anything that *reads* the scratch directory mid-sweep is reading a mixture.
+Rule for the rest of this port: triage failures from the artifact the sweep
+wrote at the end, never from scratch state while it is still running.
+
+### D11 — the shard runner could put two timing runs on one GPU
+
+`shard_sweep.py` assigned `gpus[i % len(gpus)]` at *submission* time and ran
+`len(gpus)` worker threads. Those are not the same constraint. Two tasks whose
+indices are congruent mod `len(gpus)` can be in flight simultaneously, and they
+then share a GPU while another sits idle. Caught live by reading
+`/proc/<pid>/environ` for every running runner: `L2/060` and `L2/068` were both
+on GPU 7 while GPUs 5 and 6 idled.
+
+Two timing runs on one GPU inflate each other, and **nothing in the output says
+so** — the artifact records the device it was told to use, which is the same
+either way. Now each worker takes a GPU from a queue and returns it when done,
+so concurrency is bounded by the pool and not by arithmetic on the task index.
+
+Consequence for the numbers already collected: 176 of the 235 selection-pass
+artifacts were produced before the fix, so an unknown subset of them contain
+inflated per-variant times. That affects **selection**, never the anchor —
+`authoritative_tb.py` re-times on GPU 0 alone, and every T_b in the manifest
+comes from that pass. To keep a mis-ordered variant from being dropped before
+it gets there, the authoritative pass now re-times the top two variants *plus
+anything within 25% of the fastest*, rather than the top two alone.
+
+### D12 — T_SOL was truncated to whole cycles, and eight of them truncated to 0
+
+SOLAR emits `total_cycles` already wrapped in `int()`, and the bridge wrapped it
+again. At 1.3 GHz a cycle is 0.77 ns, and the smallest workloads here are
+genuinely sub-cycle — 12 KB at 8 TB/s is about two cycles — so the rounding is
+not an edge case at the small end, it is the normal case. Eight workloads
+ended up with **T_SOL = 0 cycles**: a bound of zero time, which no kernel can
+approach and which puts a division by `(T_b − 0)` into the score.
+
+A further 204 workloads implied a DRAM bandwidth *above* the arch config's own
+peak, which is impossible for a roofline and was the symptom that led here.
+
+The bridge now recomputes the roofline from the quantities SOLAR reports beside
+the result — `max(MACs / MAC_per_cycle, bytes / DRAM_byte_per_cycle)`, its own
+formula — and ceils, keeping the exact figure in `t_sol_cycles_exact`. All 185
+successful problems were refreshed with `--only-status ok`, which re-runs the
+successes without paying again for the failures (a failure means SOLAR ran to
+the timeout, so they are the expensive ones).
 
 ---
 

@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import queue
 import subprocess
 import sys
 import time
@@ -76,7 +77,24 @@ def already_done(out_dir: Path, problem: Path) -> bool:
         return False
 
 
-def run_one(problem: Path, gpu: int, runner: Path, out_dir: Path,
+def run_one(problem: Path, gpus: "queue.Queue[int]", runner: Path, out_dir: Path,
+            extra: list[str], timeout: int) -> tuple[Path, bool, str]:
+    # Take a GPU from the pool and put it back when done. The previous version
+    # assigned `gpus[i % len(gpus)]` at submission time, which is not the same
+    # thing: two tasks whose indices are congruent mod len(gpus) can be in
+    # flight together while another GPU sits idle, and they then SHARE a GPU.
+    # Two timing runs on one GPU inflate each other, and nothing in the output
+    # says so -- the artifact records the device it was told to use, which is
+    # the same device either way. Observed live: L2/060 and L2/068 both on
+    # GPU 7 while GPUs 5 and 6 idled.
+    gpu = gpus.get()
+    try:
+        return _run_on(problem, gpu, runner, out_dir, extra, timeout)
+    finally:
+        gpus.put(gpu)
+
+
+def _run_on(problem: Path, gpu: int, runner: Path, out_dir: Path,
             extra: list[str], timeout: int) -> tuple[Path, bool, str]:
     out_file = out_dir / f"{problem.parent.name}__{problem.name}.json"
     env = dict(os.environ, HIP_VISIBLE_DEVICES=str(gpu))
@@ -146,11 +164,14 @@ def main():
 
     start = time.time()
     ok = failed = 0
+    pool_of_gpus: "queue.Queue[int]" = queue.Queue()
+    for g in gpus:
+        pool_of_gpus.put(g)
     with ThreadPoolExecutor(max_workers=len(gpus)) as pool:
         futures = [
-            pool.submit(run_one, p, gpus[i % len(gpus)], runner, out_dir,
+            pool.submit(run_one, p, pool_of_gpus, runner, out_dir,
                         a.extra, a.timeout)
-            for i, p in enumerate(pending)
+            for p in pending
         ]
         for n, fut in enumerate(futures, 1):
             problem, success, status = fut.result()

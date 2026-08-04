@@ -42,7 +42,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 
-def variants_to_retime(doc: dict, top_k: int) -> list[str]:
+def variants_to_retime(doc: dict, top_k: int, within: float = 0.25) -> list[str]:
     """The variants worth re-timing for this problem.
 
     A variant is eligible only if it passed EVERY workload -- same rule the
@@ -59,8 +59,17 @@ def variants_to_retime(doc: dict, top_k: int) -> list[str]:
         ranked = sorted(
             ((lat[u], name) for name, lat in eligible.items() if u in lat),
         )
-        for _, name in ranked[:top_k]:
-            winners.add(name)
+        if not ranked:
+            continue
+        best = ranked[0][0]
+        for i, (ms, name) in enumerate(ranked):
+            # Always the top k; beyond that, anything close enough that
+            # selection-pass noise could have mis-ordered it. Selection ran on
+            # eight GPUs whose clocks span 5%, and for part of the sweep two
+            # problems could share one GPU (see STATE.md D11), so "close" has
+            # to mean a real band and not a rounding epsilon.
+            if i < top_k or (best > 0 and ms <= best * (1 + within)):
+                winners.add(name)
     return sorted(winners)
 
 
@@ -72,6 +81,9 @@ def main() -> int:
     ap.add_argument("--gpu", default="0",
                     help="the ONE GPU every authoritative number comes from")
     ap.add_argument("--top-k", type=int, default=2)
+    ap.add_argument("--within", type=float, default=0.25,
+                    help="also re-time any variant within this fraction of "
+                         "the fastest, beyond the top k")
     ap.add_argument("--timeout", type=int, default=5400)
     ap.add_argument("--iterations", type=int, default=50)
     ap.add_argument("--warmup", type=int, default=10)
@@ -89,7 +101,7 @@ def main() -> int:
         doc = json.loads(f.read_text())
         key = doc.get("problem") or f.stem
         category, name = key.split("__", 1)
-        names = variants_to_retime(doc, a.top_k)
+        names = variants_to_retime(doc, a.top_k, a.within)
         if not names:
             # No variant passed every workload -> this problem has no anchor.
             # It goes to triage, not to the manifest with a guessed one.
