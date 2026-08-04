@@ -274,14 +274,20 @@ def main() -> int:
               for k in ("input", "output", "cache_write", "cache_read")}
 
     # Per-problem scores, so cost can be read against what it bought.
-    by_problem_score: dict[str, float] = {}
+    by_problem_score: dict[str, list] = {}
+    invalid_bound: dict[str, int] = {}
     for r in scored.get("results", []):
+        if r.get("bound_violation"):
+            # Scoring a workload against a bound it provably beat would put a
+            # number in the per-problem column that means nothing.
+            invalid_bound[r["problem"]] = invalid_bound.get(r["problem"], 0) + 1
+            continue
         if r.get("score") is not None:
-            by_problem_score.setdefault(r["problem"], [])
-            by_problem_score[r["problem"]].append(r["score"])
+            by_problem_score.setdefault(r["problem"], []).append(r["score"])
     for p in per:
         v = by_problem_score.get(p["problem"])
         p["mean_score"] = statistics.fmean(v) if v else None
+        p["workloads_invalid_bound"] = invalid_bound.get(p["problem"], 0)
 
     summary = {
         **stamp("10-agent-cost-report"),
@@ -407,13 +413,25 @@ def render_md(s: dict) -> str:
     for p in sorted(s["per_problem"], key=lambda r: -r["cost_usd"]):
         passed = (f"{p['passed']}/{p['workloads']}"
                   if p.get("workloads") is not None else "—")
+        score = "—" if p.get("mean_score") is None else f"{p['mean_score']:.3f}"
+        if p.get("workloads_invalid_bound"):
+            score = f"{score} ⚠{p['workloads_invalid_bound']}"
+        speed = f"{p['speedup']:.2f}x" if p.get("speedup") else "—"
+        capped = "yes" if p["capped"] else ""
         A(f"| `{p['problem']}` | {p['gpu']} | ${p['cost_usd']:.2f} "
           f"| {p['wall_seconds']/60:.0f} min | {p['turns'] or '—'} "
-          f"| {p['harness_evals']} | {passed} "
-          f"| {f\"{p['mean_score']:.3f}\" if p.get('mean_score') is not None else '—'} "
-          f"| {f\"{p['speedup']:.2f}x\" if p.get('speedup') else '—'} "
-          f"| {'yes' if p['capped'] else ''} |")
+          f"| {p['harness_evals']} | {passed} | {score} | {speed} | {capped} |")
     A("")
+    if any(p.get("workloads_invalid_bound") for p in s["per_problem"]):
+        A("⚠ = workloads measured **faster than T_SOL**, excluded from the mean. "
+          "Nothing beats the roofline, so those are defective bounds rather than "
+          "results. See STATE.md D18.\n")
+    A(f"Burn rate varies from ${min(p['cost_usd']/(p['wall_seconds']/60) for p in s['per_problem'] if p['wall_seconds']):.2f} "
+      f"to ${max(p['cost_usd']/(p['wall_seconds']/60) for p in s['per_problem'] if p['wall_seconds']):.2f} "
+      f"per session-minute, averaging ${s.get('burn_rate_usd_per_session_minute', 0):.2f}. "
+      f"The spread is not model variance: an agent blocked on a slow evaluation "
+      f"spends wall time without spending tokens, so the problems with the most "
+      f"expensive evaluations have the *lowest* dollar-per-minute.\n")
 
     A("## Tokens\n")
     t = s["tokens"]
@@ -447,13 +465,37 @@ def render_md(s: dict) -> str:
           f"${s.get('burn_rate_usd_per_session_minute', 0):.2f} per minute of session "
           f"and will use whatever they are given. So the useful question is not "
           f"what a problem costs but what more budget buys.\n")
-        A("Best mean score reached by the Nth evaluation, over the problems that "
-          "got that far:\n")
-        A("| evaluations | problems still going | best mean S so far |")
-        A("|--:|--:|--:|")
-        for n, v in list(tr["best_by_eval_index"].items()):
-            A(f"| {n} | {v['n_problems']} | {v['mean_best_score']:.3f} |")
-        A(f"\n{tr.get('_note','')}\n")
+        A("Per problem, the first evaluation is the untouched reference; the "
+          "last is what the budget bought:\n")
+        # "Submitted kernel correct" must come from the authoritative re-time,
+        # not from the last in-session evaluation. An agent can edit kernel.py
+        # after its final `./evaluate` and never measure again -- which is
+        # exactly what happened on L2__050, whose last evaluation passed and
+        # whose submitted kernel fails 11/11.
+        submitted = {p["problem"]: p for p in s["per_problem"]}
+        A("| problem | evals | first S | best S | gain | submitted kernel correct |")
+        A("|---|--:|--:|--:|--:|:--:|")
+        gains = []
+        for key, steps in sorted(tr.get("per_problem", {}).items()):
+            sub = submitted.get(key, {})
+            wl, ps = sub.get("workloads"), sub.get("passed")
+            ok = ("yes" if (wl and ps == wl) else
+                  f"**no** ({ps}/{wl})" if wl is not None else "—")
+            valid = [st for st in steps if st["all_passed"] and st["mean_score"] is not None]
+            if not valid:
+                A(f"| `{key[:44]}` | {len(steps)} | — | — | — | {ok} |")
+                continue
+            first, best = valid[0]["mean_score"], max(v["mean_score"] for v in valid)
+            gains.append(best - first)
+            A(f"| `{key[:44]}` | {len(steps)} | {first:.3f} | {best:.3f} "
+              f"| {best - first:+.3f} | {ok} |")
+        if gains:
+            A(f"\nMedian gain over the reference: **{statistics.median(gains):+.3f}**.\n")
+        A("A cross-problem average at eval N would be survivorship: the problems "
+          "that reach a high N are the ones the agent was struggling with, so "
+          "the mean falls as N rises for reasons that have nothing to do with "
+          "budget.\n")
+        A(f"{tr.get('_note','')}\n")
 
     A("## Extrapolating to the full benchmark\n")
     A(f"| | |")

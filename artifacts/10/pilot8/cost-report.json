@@ -1,0 +1,614 @@
+{
+ "_provenance": {
+  "task": "10-agent-cost-report",
+  "utc": "2026-08-04T20:36:21.357004+00:00",
+  "git_sha": "05b9bccc3475efcfaf694acc259efd97424f00eb-dirty",
+  "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+  "python": "3.11.7",
+  "torch": {
+   "available": false
+  },
+  "rocm": {
+   "version": "7.15.0",
+   "driver": "7.1.1.31500000",
+   "amd_smi": "AMDSMI Tool: 26.5.0+03d8462e | AMDSMI Library version: 26.5.0 | ROCm version: 7.15.0 | amdgpu version: 7.1.1.31500000 | ionic version: N/A"
+  },
+  "f_lock_mhz": null,
+  "visible_devices": null
+ },
+ "run_id": "pilot8",
+ "model": "Claude-Opus-5",
+ "gateway": "https://llm-api.amd.com/Anthropic",
+ "budget_usd_per_session": 8.0,
+ "n_problems": 8,
+ "n_sessions_capped": 8,
+ "n_sessions_timed_out": 0,
+ "rates_usd_per_mtok": {
+  "input": 5.0,
+  "output": 25.0,
+  "cache_write": 6.25,
+  "cache_read": 0.5
+ },
+ "cost_usd": {
+  "total": 65.07980649999999,
+  "mean": 8.1349758125,
+  "median": 8.15750975,
+  "min": 8.014785,
+  "max": 8.2273595,
+  "p25": 8.0786254375,
+  "p75": 8.1903035625
+ },
+ "wall_seconds": {
+  "per_problem_mean": 1515.3301089406013,
+  "per_problem_median": 1598.2232847213745,
+  "per_problem_max": 2168.092994451523,
+  "run_total": 2789.1512353420258
+ },
+ "tokens": {
+  "input": 9067849,
+  "output": 477817,
+  "cache_write": 283589,
+  "cache_read": 6162213
+ },
+ "gpu": {
+  "agents_concurrent_max": 7,
+  "gpus_available_to_agents": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7
+  ],
+  "utilization": {
+   "per_card": {
+    "GPU 1 (card0)": {
+     "mean": 50.8,
+     "max": 100.0,
+     "n": 540,
+     "torch_index": 1
+    },
+    "GPU 3 (card1)": {
+     "mean": 0.36666666666666664,
+     "max": 48.0,
+     "n": 540,
+     "torch_index": 3
+    },
+    "GPU 2 (card2)": {
+     "mean": 0.5074074074074074,
+     "max": 94.0,
+     "n": 540,
+     "torch_index": 2
+    },
+    "GPU 0 (card3)": {
+     "mean": 0.1425925925925926,
+     "max": 8.0,
+     "n": 540,
+     "torch_index": 0
+    },
+    "GPU 5 (card4)": {
+     "mean": 2.237037037037037,
+     "max": 100.0,
+     "n": 540,
+     "torch_index": 5
+    },
+    "GPU 7 (card5)": {
+     "mean": 2.1777777777777776,
+     "max": 100.0,
+     "n": 540,
+     "torch_index": 7
+    },
+    "GPU 6 (card6)": {
+     "mean": 3.5444444444444443,
+     "max": 100.0,
+     "n": 540,
+     "torch_index": 6
+    },
+    "GPU 4 (card7)": {
+     "mean": 0.4648148148148148,
+     "max": 99.0,
+     "n": 540,
+     "torch_index": 4
+    }
+   },
+   "cards_ever_busy": [
+    "GPU 1 (card0)",
+    "GPU 3 (card1)",
+    "GPU 2 (card2)",
+    "GPU 0 (card3)",
+    "GPU 5 (card4)",
+    "GPU 7 (card5)",
+    "GPU 6 (card6)",
+    "GPU 4 (card7)"
+   ],
+   "n_cards_ever_busy": 8,
+   "node_mean_busy_pct": 7.530092592592593,
+   "samples": 540,
+   "index_mapping_resolved": true,
+   "reserved_gpu0_peak_busy_pct": 8.0,
+   "note": "Busy% is occupancy, not throughput. An agent spends most of a session reading, reasoning and editing; the GPU is idle for all of it. This is the number that says how many agents a node can actually host."
+  }
+ },
+ "outcome": {
+  "problems": 8,
+  "workloads_scored": 99,
+  "workloads_flagged": 0,
+  "workloads_bound_violated": 25,
+  "problems_with_invalid_bound": [
+   "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1"
+  ],
+  "mean_score": 0.775684463248471,
+  "mean_score_including_invalid_bounds": 0.8401349000605929,
+  "min_score": 0.4116369299319051,
+  "max_score": 0.9997653573613176
+ },
+ "per_problem": [
+  {
+   "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
+   "gpu": 1,
+   "cost_usd": 8.225118750000002,
+   "wall_seconds": 2168.092994451523,
+   "api_seconds": 980.314,
+   "turns": 46,
+   "capped": true,
+   "timed_out": false,
+   "input_tokens": 1107710,
+   "output_tokens": 70061,
+   "cache_write_tokens": 45649,
+   "cache_read_tokens": 755152,
+   "harness_evals": 2,
+   "kernel_changed": true,
+   "workloads": 38,
+   "passed": 38,
+   "scored": 38,
+   "flagged": 0,
+   "speedup": 182.49023602915355,
+   "mean_score": 0.9899072203356243,
+   "workloads_invalid_bound": 25
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "gpu": 2,
+   "cost_usd": 8.014785,
+   "wall_seconds": 1002.7323968410492,
+   "api_seconds": 818.992,
+   "turns": 51,
+   "capped": true,
+   "timed_out": false,
+   "input_tokens": 1127561,
+   "output_tokens": 51285,
+   "cache_write_tokens": 54164,
+   "cache_read_tokens": 838227,
+   "harness_evals": 5,
+   "kernel_changed": false,
+   "workloads": 16,
+   "passed": 16,
+   "scored": 16,
+   "flagged": 0,
+   "speedup": 0.9956124806395982,
+   "mean_score": 0.491288286887529,
+   "workloads_invalid_bound": 0
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "gpu": 3,
+   "cost_usd": 8.1786985,
+   "wall_seconds": 1773.0924787521362,
+   "api_seconds": 1313.061,
+   "turns": 47,
+   "capped": true,
+   "timed_out": false,
+   "input_tokens": 1021554,
+   "output_tokens": 73994,
+   "cache_write_tokens": 66463,
+   "cache_read_tokens": 818916,
+   "harness_evals": 8,
+   "kernel_changed": true,
+   "workloads": 16,
+   "passed": 16,
+   "scored": 16,
+   "flagged": 0,
+   "speedup": 3.0401604189409,
+   "mean_score": 0.6195748420476291,
+   "workloads_invalid_bound": 0
+  },
+  {
+   "problem": "L1__053_gaussian_topk_sparse_activation",
+   "gpu": 4,
+   "cost_usd": 8.097838249999999,
+   "wall_seconds": 1193.4309091567993,
+   "api_seconds": 634.897,
+   "turns": 46,
+   "capped": true,
+   "timed_out": false,
+   "input_tokens": 1183642,
+   "output_tokens": 42884,
+   "cache_write_tokens": 26886,
+   "cache_read_tokens": 733650,
+   "harness_evals": 2,
+   "kernel_changed": true,
+   "workloads": 12,
+   "passed": 12,
+   "scored": 12,
+   "flagged": 0,
+   "speedup": 17.851452009192162,
+   "mean_score": 0.9366578598362566,
+   "workloads_invalid_bound": 0
+  },
+  {
+   "problem": "L2__015_audio_sinusoidal_position_embedding_with_conv_projection",
+   "gpu": 5,
+   "cost_usd": 8.020987,
+   "wall_seconds": 1744.6612737178802,
+   "api_seconds": 860.567,
+   "turns": 46,
+   "capped": true,
+   "timed_out": false,
+   "input_tokens": 1118041,
+   "output_tokens": 55649,
+   "cache_write_tokens": 55413,
+   "cache_read_tokens": 724273,
+   "harness_evals": 2,
+   "kernel_changed": true,
+   "workloads": 16,
+   "passed": 1,
+   "scored": 1,
+   "flagged": 0,
+   "speedup": 0.9711961710622574,
+   "mean_score": 0.4816174329144555,
+   "workloads_invalid_bound": 0
+  },
+  {
+   "problem": "L2__050_vae_decoder_mid_block_attention_resnet",
+   "gpu": 6,
+   "cost_usd": 8.2273595,
+   "wall_seconds": 1451.7852957248688,
+   "api_seconds": 953.295,
+   "turns": 51,
+   "capped": true,
+   "timed_out": false,
+   "input_tokens": 1147713,
+   "output_tokens": 68689,
+   "cache_write_tokens": 10653,
+   "cache_read_tokens": 859149,
+   "harness_evals": 1,
+   "kernel_changed": true,
+   "workloads": 11,
+   "passed": 0,
+   "scored": 0,
+   "flagged": 0,
+   "speedup": null,
+   "mean_score": null,
+   "workloads_invalid_bound": 0
+  },
+  {
+   "problem": "L2__069_joint_transformer_block_residual_path",
+   "gpu": 7,
+   "cost_usd": 8.15422425,
+   "wall_seconds": 827.8978452682495,
+   "api_seconds": 741.539,
+   "turns": 44,
+   "capped": true,
+   "timed_out": false,
+   "input_tokens": 1222822,
+   "output_tokens": 50034,
+   "cache_write_tokens": 10538,
+   "cache_read_tokens": 711330,
+   "harness_evals": 2,
+   "kernel_changed": true,
+   "workloads": 16,
+   "passed": 0,
+   "scored": 0,
+   "flagged": 0,
+   "speedup": null,
+   "mean_score": null,
+   "workloads_invalid_bound": 0
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "gpu": 7,
+   "cost_usd": 8.16079525,
+   "wall_seconds": 1960.9476776123047,
+   "api_seconds": 1131.902,
+   "turns": 38,
+   "capped": true,
+   "timed_out": false,
+   "input_tokens": 1138806,
+   "output_tokens": 65221,
+   "cache_write_tokens": 13823,
+   "cache_read_tokens": 721516,
+   "harness_evals": 3,
+   "kernel_changed": true,
+   "workloads": 16,
+   "passed": 16,
+   "scored": 16,
+   "flagged": 0,
+   "speedup": 10.480503281811204,
+   "mean_score": 0.9397834126319783,
+   "workloads_invalid_bound": 0
+  }
+ ],
+ "trajectory": {
+  "per_problem": {
+   "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1": [
+    {
+     "n": 1,
+     "passed": 38,
+     "workloads": 38,
+     "all_passed": true,
+     "mean_score": 0.49766023370604845,
+     "geomean_speedup": 1.0004032565406575
+    },
+    {
+     "n": 2,
+     "passed": 38,
+     "workloads": 38,
+     "all_passed": true,
+     "mean_score": 1.0167849934737254,
+     "geomean_speedup": 174.57156961354352
+    }
+   ],
+   "L1__030_attention_output_projection_with_residual": [
+    {
+     "n": 1,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.49263797101236295,
+     "geomean_speedup": 0.9984513229325245
+    },
+    {
+     "n": 2,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.49161616602029884,
+     "geomean_speedup": 0.9964993300813784
+    },
+    {
+     "n": 3,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.4915693627846499,
+     "geomean_speedup": 0.9987440756567081
+    },
+    {
+     "n": 4,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.492001112119254,
+     "geomean_speedup": 0.9978681826463272
+    },
+    {
+     "n": 5,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.49270133650648074,
+     "geomean_speedup": 0.9960660561787122
+    }
+   ],
+   "L1__046_attention_softmax_with_softcapping_and_dropout": [
+    {
+     "n": 1,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.35559903233709966,
+     "geomean_speedup": 0.9999553579335783
+    },
+    {
+     "n": 2,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.3555384741526859,
+     "geomean_speedup": 0.9999053560501858
+    },
+    {
+     "n": 3,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.3558644708098751,
+     "geomean_speedup": 1.0008499635069448
+    },
+    {
+     "n": 4,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.3553768532278466,
+     "geomean_speedup": 0.9999737169404133
+    },
+    {
+     "n": 5,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.355881326502972,
+     "geomean_speedup": 1.000079865705174
+    },
+    {
+     "n": 6,
+     "passed": 0,
+     "workloads": 16,
+     "all_passed": false,
+     "mean_score": null,
+     "geomean_speedup": null
+    },
+    {
+     "n": 7,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.3560041573004788,
+     "geomean_speedup": 1.0002939094697343
+    },
+    {
+     "n": 8,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.6206185848505041,
+     "geomean_speedup": 3.019364782151884
+    }
+   ],
+   "L1__053_gaussian_topk_sparse_activation": [
+    {
+     "n": 1,
+     "passed": 12,
+     "workloads": 12,
+     "all_passed": true,
+     "mean_score": 0.4122507811236538,
+     "geomean_speedup": 0.9961400486406836
+    },
+    {
+     "n": 2,
+     "passed": 12,
+     "workloads": 12,
+     "all_passed": true,
+     "mean_score": 0.9372536009579981,
+     "geomean_speedup": 17.840138360889974
+    }
+   ],
+   "L2__015_audio_sinusoidal_position_embedding_with_conv_projection": [
+    {
+     "n": 1,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.49767797955171245,
+     "geomean_speedup": 0.9985506792558226
+    },
+    {
+     "n": 2,
+     "passed": 1,
+     "workloads": 16,
+     "all_passed": false,
+     "mean_score": 0.4835796592608679,
+     "geomean_speedup": 0.9777942422512141
+    }
+   ],
+   "L2__050_vae_decoder_mid_block_attention_resnet": [
+    {
+     "n": 1,
+     "passed": 11,
+     "workloads": 11,
+     "all_passed": true,
+     "mean_score": 0.48652502878951154,
+     "geomean_speedup": 0.9964671092623958
+    }
+   ],
+   "L2__069_joint_transformer_block_residual_path": [
+    {
+     "n": 1,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.49884622164528986,
+     "geomean_speedup": 0.9992857619573569
+    },
+    {
+     "n": 2,
+     "passed": 0,
+     "workloads": 16,
+     "all_passed": false,
+     "mean_score": null,
+     "geomean_speedup": null
+    }
+   ],
+   "Quant__004_fp8_moe_expert_linear": [
+    {
+     "n": 1,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.4997742748755383,
+     "geomean_speedup": 1.0001895695855714
+    },
+    {
+     "n": 2,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.9272796055066423,
+     "geomean_speedup": 9.16310466133169
+    },
+    {
+     "n": 3,
+     "passed": 16,
+     "workloads": 16,
+     "all_passed": true,
+     "mean_score": 0.9396817842742268,
+     "geomean_speedup": 10.455813967402182
+    }
+   ]
+  },
+  "best_by_eval_index": {
+   "1": {
+    "n_problems": 8,
+    "mean_best_score": 0.46762144038015213
+   },
+   "2": {
+    "n_problems": 7,
+    "mean_best_score": 0.6751542006406901
+   },
+   "3": {
+    "n_problems": 3,
+    "mean_best_score": 0.5960614086988216
+   },
+   "4": {
+    "n_problems": 2,
+    "mean_best_score": 0.424251220911119
+   },
+   "5": {
+    "n_problems": 2,
+    "mean_best_score": 0.42429133150472637
+   },
+   "6": {
+    "n_problems": 1,
+    "mean_best_score": 0.355881326502972
+   },
+   "7": {
+    "n_problems": 1,
+    "mean_best_score": 0.3560041573004788
+   },
+   "8": {
+    "n_problems": 1,
+    "mean_best_score": 0.6206185848505041
+   }
+  },
+  "_note": "Measured on GPUs 1-7 under seven-way agent load, so these are trajectory values, not scores. The authoritative numbers are the idle-GPU-0 re-times in scored.json."
+ },
+ "trajectory_archived": {
+  "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1": 2,
+  "L1__030_attention_output_projection_with_residual": 5,
+  "L1__046_attention_softmax_with_softcapping_and_dropout": 8,
+  "L1__053_gaussian_topk_sparse_activation": 2,
+  "L2__015_audio_sinusoidal_position_embedding_with_conv_projection": 2,
+  "L2__050_vae_decoder_mid_block_attention_resnet": 1,
+  "L2__069_joint_transformer_block_residual_path": 2,
+  "Quant__004_fp8_moe_expert_linear": 3
+ },
+ "burn_rate_usd_per_session_minute": 0.3221070748018329,
+ "extrapolation_to_full_benchmark": {
+  "total_problems": 220,
+  "sample_size": 8,
+  "concurrency_assumed": 7,
+  "cost_usd_low": 1794.6521449999998,
+  "cost_usd_mid": 1789.69467875,
+  "cost_usd_high": 1801.8667837500002,
+  "wall_hours_at_concurrency": 13.4696009683609,
+  "wall_hours_serial": 92.60350665748119,
+  "caveats": [
+   "8 of 8 sessions were stopped at the $8.0 spend cap, so their cost is a LOWER bound and so is any figure derived from them.",
+   "n = 8. Cost per problem spans $8.01 to $8.23 in this sample; the range above reflects that spread, not confidence in a point estimate.",
+   "Dollars are list-price equivalents computed by the Claude Code CLI. Token counts are the measurement; the AMD gateway bills separately and its contract rates may differ.",
+   "Wall time assumes one agent per GPU. Agents are GPU-idle most of the time, so oversubscribing is possible -- but it would perturb the timings each agent optimizes against."
+  ]
+ }
+}

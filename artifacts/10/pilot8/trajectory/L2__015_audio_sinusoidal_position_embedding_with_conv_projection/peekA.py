@@ -1,0 +1,6 @@
+s=open('/work/src/sol_execbench/core/bench/io.py').read()
+i=s.find('else:  # random')
+print(s[i:i+2500])
+print("=====")
+j=s.find('def _init')
+print(s[:4000])
