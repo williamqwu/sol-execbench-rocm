@@ -1,8 +1,8 @@
 # Task 05 — tolerance triage
 
-<!-- {"task": "05-tolerance-triage", "utc": "2026-08-03T23:08:27.448356+00:00", "git_sha": "91a4e813565dadcea9a192f18b788ac60f469a30-dirty", "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X"]}, "rocm": {"version": "7.2.0", "driver": "7.1.1.31500000", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"}, "f_lock_mhz": 1300, "visible_devices": null} -->
+<!-- {"task": "05-tolerance-triage", "utc": "2026-08-04T03:13:48.363590+00:00", "git_sha": "87d9e1a78a865d2757f2f158eb5cd61a492fad00-dirty", "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X", "AMD Instinct MI350X"]}, "rocm": {"version": "7.2.0", "driver": "7.1.1.31500000", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"}, "f_lock_mhz": 1300, "visible_devices": null} -->
 
-AMD-derived tolerances written for **3690 of 3957** workload instances.
+AMD-derived tolerances written for **3717 of 3957** workload instances.
 
 Every number below was derived from reference-vs-reference variance on MI350X and nothing else. No B200 value was used as a source; upstream's values appear only as a comparison column.
 
@@ -155,7 +155,7 @@ Each needs a reason. A 10x looser tolerance usually means something is wrong, no
 
 Grouped by mechanism, because a flat list of hundreds of rows is a backlog rather than a triage. Only the last group needs a person.
 
-### floor: bit-exact, atol = dtype epsilon — 882 workloads
+### floor: bit-exact, atol = dtype epsilon — 887 workloads
 
 | problem | workload | B200 atol | AMD atol | ratio |
 |---|---|---|---|---|
@@ -199,7 +199,7 @@ Grouped by mechanism, because a flat list of hundreds of rows is a backlog rathe
 | L2__044_mamba_discretization_and_segsum | `bdb0665a` | 1e-05 | 0.0744597 | 7446.0x |
 | L2__044_mamba_discretization_and_segsum | `f98871d3` | 1e-05 | 0.0744597 | 7446.0x |
 | L2__044_mamba_discretization_and_segsum | `e46fa678` | 1e-05 | 0.0740069 | 7400.7x |
-| ... and 842 more | | | | |
+| ... and 847 more | | | | |
 
 ### measured run-to-run variance — 64 workloads
 
@@ -250,7 +250,7 @@ Grouped by mechanism, because a flat list of hundreds of rows is a backlog rathe
 
 ## Tolerances TIGHTER than B200's
 
-1882 workloads. Not a problem — a tighter tolerance rejects more, not less — but worth seeing: it means the AMD reference is more reproducible than B200's calibration assumed, usually because the kernel is bit-exact here and the derived value fell to the dtype epsilon floor.
+1903 workloads. Not a problem — a tighter tolerance rejects more, not less — but worth seeing: it means the AMD reference is more reproducible than B200's calibration assumed, usually because the kernel is bit-exact here and the derived value fell to the dtype epsilon floor.
 
 ## Exact matches with B200
 

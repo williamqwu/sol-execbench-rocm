@@ -1,7 +1,7 @@
 {
  "_provenance": {
   "task": "05-tolerances",
-  "utc": "2026-08-04T02:59:23.383798+00:00",
+  "utc": "2026-08-04T02:45:11.778925+00:00",
   "git_sha": "87d9e1a78a865d2757f2f158eb5cd61a492fad00-dirty",
   "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
   "python": "3.12.3",
@@ -21,7 +21,7 @@
    "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
   },
   "f_lock_mhz": 1300,
-  "visible_devices": "3"
+  "visible_devices": "4"
  },
  "problem": "Quant__023_fp8_mamba2_ssm_discretization",
  "definition": "023_fp8_mamba2_ssm_discretization",
@@ -36,25 +36,8 @@
     "batch_size": 16,
     "seq_len": 128
    },
-   "run_to_run": {
-    "max_abs": 0.0,
-    "max_rel": 0.0
-   },
-   "seeds": 10,
-   "executions_per_seed": 2,
-   "deterministic": true,
-   "vs_golden": {
-    "max_abs": 182.3574267923832,
-    "max_rel": 3282.1978042378573,
-    "mode": "float64"
-   },
-   "tolerance": {
-    "max_atol": 0.04733217040754546,
-    "max_rtol": 0.0078125,
-    "required_matched_ratio": 0.99,
-    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon"
-   },
-   "ok": true
+   "ok": false,
+   "error": "OutOfMemoryError: HIP out of memory. Tried to allocate 16781313.00 GiB. GPU 0 has a total capacity of 251.98 GiB of which 181.80 GiB is free. Of the allocated memory 68.39 GiB is allocated by PyTorch, and 770.00 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
   },
   {
    "workload_uuid": "8a046f68-e649-5dc2-b417-2b8f1eebc243",
@@ -62,25 +45,8 @@
     "batch_size": 4,
     "seq_len": 256
    },
-   "run_to_run": {
-    "max_abs": 0.0,
-    "max_rel": 0.0
-   },
-   "seeds": 10,
-   "executions_per_seed": 2,
-   "deterministic": true,
-   "vs_golden": {
-    "max_abs": 168.52733613500556,
-    "max_rel": 3559.2876901962527,
-    "mode": "float64"
-   },
-   "tolerance": {
-    "max_atol": 0.04734861320685018,
-    "max_rtol": 0.0078125,
-    "required_matched_ratio": 0.99,
-    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon"
-   },
-   "ok": true
+   "ok": false,
+   "error": "OutOfMemoryError: HIP out of memory. Tried to allocate 16781313.00 GiB. GPU 0 has a total capacity of 251.98 GiB of which 201.86 GiB is free. Of the allocated memory 34.23 GiB is allocated by PyTorch, and 14.85 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
   },
   {
    "workload_uuid": "5f34631d-1b21-5d2c-94e5-4c00be323ce7",
@@ -88,25 +54,8 @@
     "batch_size": 2,
     "seq_len": 512
    },
-   "run_to_run": {
-    "max_abs": 0.0,
-    "max_rel": 0.0
-   },
-   "seeds": 10,
-   "executions_per_seed": 2,
-   "deterministic": true,
-   "vs_golden": {
-    "max_abs": 168.52733613500556,
-    "max_rel": 3559.2876901962527,
-    "mode": "float64"
-   },
-   "tolerance": {
-    "max_atol": 0.04734861320685018,
-    "max_rtol": 0.0078125,
-    "required_matched_ratio": 0.99,
-    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon"
-   },
-   "ok": true
+   "ok": false,
+   "error": "OutOfMemoryError: HIP out of memory. Tried to allocate 16781313.00 GiB. GPU 0 has a total capacity of 251.98 GiB of which 209.86 GiB is free. Of the allocated memory 34.23 GiB is allocated by PyTorch, and 6.85 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
   },
   {
    "workload_uuid": "4bd29372-bbb2-5247-9219-bf32453d92cf",
@@ -149,11 +98,11 @@
    "deterministic": true,
    "vs_golden": {
     "max_abs": 168.75237307569478,
-    "max_rel": 2916.206663777722,
+    "max_rel": 2916.2066637777225,
     "mode": "float64"
    },
    "tolerance": {
-    "max_atol": 0.0475532318146367,
+    "max_atol": 0.04755323181463669,
     "max_rtol": 0.0078125,
     "required_matched_ratio": 0.99,
     "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon"
@@ -166,28 +115,11 @@
     "batch_size": 8,
     "seq_len": 128
    },
-   "run_to_run": {
-    "max_abs": 0.0,
-    "max_rel": 0.0
-   },
-   "seeds": 10,
-   "executions_per_seed": 2,
-   "deterministic": true,
-   "vs_golden": {
-    "max_abs": 168.52733613500556,
-    "max_rel": 3559.2876901962527,
-    "mode": "float64"
-   },
-   "tolerance": {
-    "max_atol": 0.04734861320685018,
-    "max_rtol": 0.0078125,
-    "required_matched_ratio": 0.99,
-    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon"
-   },
-   "ok": true
+   "ok": false,
+   "error": "OutOfMemoryError: HIP out of memory. Tried to allocate 16781313.00 GiB. GPU 0 has a total capacity of 251.98 GiB of which 215.86 GiB is free. Of the allocated memory 34.23 GiB is allocated by PyTorch, and 866.00 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)"
   }
  ],
- "n_ok": 6,
+ "n_ok": 2,
  "n_workloads": 6,
  "ok": true
 }

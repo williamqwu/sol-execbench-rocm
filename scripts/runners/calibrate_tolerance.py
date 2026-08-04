@@ -334,12 +334,25 @@ def _dtype_floor(tensors) -> dict:
     except TypeError:                                # integer outputs
         return {"atol": 0.0, "rtol": 0.0}
 
+    # Deliberately NOT `t[torch.isfinite(t)]`. Boolean indexing is
+    # masked_select, and on ROCm 7.2 / torch 2.9.1 masked_select computes a
+    # garbage allocation size once the tensor has more than 2**32 elements: it
+    # asks for 16781313 GiB (2**54 + 2**42 + 2**30 bytes) and raises OOM on a
+    # GPU with 200 GiB free. Reproduced in isolation on a flat
+    # (2**32 + 1000)-element tensor. That is the whole of STATE.md D13, and it
+    # cost eight workloads their tolerance before it was found.
+    #
+    # `torch.where` over a bounded chunk computes the same sum of squares and
+    # never allocates a mask-sized output.
     total_sq, total_n = 0.0, 0
     for t in tensors:
-        finite = t[torch.isfinite(t)].to(torch.float64)
-        if finite.numel():
-            total_sq += float((finite * finite).sum())
-            total_n += finite.numel()
+        flat = t.detach().reshape(-1)
+        for i in range(0, flat.numel(), _CHUNK):
+            c = flat[i:i + _CHUNK].to(torch.float64)
+            finite = torch.isfinite(c)
+            c = torch.where(finite, c, torch.zeros_like(c))
+            total_sq += float((c * c).sum())
+            total_n += int(finite.sum())
     scale = math.sqrt(total_sq / total_n) if total_n else 0.0
     return {"atol": eps * scale, "rtol": eps}
 
