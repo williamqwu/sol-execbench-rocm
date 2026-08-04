@@ -108,13 +108,27 @@ benchmark exists to measure. Consequence, applied throughout:
 
 * **authoritative timing runs on GPU 0**, and every timing artifact records its
   GPU;
-* sharded sweeps across GPUs 1–7 are used for correctness and for *selecting* a
-  T_b variant, never for the final anchor;
-* the winning variant is re-timed on GPU 0.
+* sharded sweeps across all eight GPUs are used for correctness and for
+  *selecting* a T_b variant, never for the final anchor;
+* the winning variant is re-timed on GPU 0 — and so is the runner-up, plus
+  anything within 25% of the fastest, because selection noise can only
+  mis-order variants that are close and an anchor 3% too slow inflates every
+  score measured against it, permanently and invisibly.
 
 Reproducibility at F_LOCK: **CV = 0.0034** over 30 trials in separate processes
 (gate 0.02). Sibling interference: **−0.11%** with seven siblings drawing
 ~6.2 kW between them, so sweeps and authoritative timing may share the node.
+
+**Different GPUs, not the same GPU.** Sibling interference across the node is
+negligible; two timing runs *on one GPU* are not. The shard runner originally
+assigned `gpus[i % len(gpus)]` at submission time while running one worker per
+GPU, which lets two tasks whose indices are congruent mod `len(gpus)` run
+together on one device while another idles — observed live, with `L2/060` and
+`L2/068` both on GPU 7. Nothing in the output showed it: the artifact records
+the device it was told to use, which is identical either way. Workers now take
+a GPU from a queue and return it. 176 of the selection-pass artifacts predate
+the fix, which is a reason the authoritative pass re-times a band of variants
+rather than only the fastest.
 
 ### MI355X
 
@@ -173,6 +187,52 @@ Real inputs, deliberately, not zeros: a zero-filled `cu_seqlens` traces an
 attention over nothing and yields a confident, wrong, much smaller bound. A
 missing bound is recoverable; a wrong one is not.
 
+### Two derivations of the bound, never merged silently
+
+SOLAR's graph is not always the whole kernel, and two separate cross-checks say
+so. Fifty problems produce `einsum_graph has no layers` — SOLAR models einsum
+layers and a kernel of pure elementwise arithmetic and indexing has none.
+Forty-eight more produce a bound *below the traffic the problem's own
+definition declares*, which means the traced graph is missing tensors the
+problem states it reads.
+
+So there is a second derivation, and it is the simplest bound in the roofline:
+
+```
+T ≥ (declared input bytes + declared output bytes) / DRAM bandwidth
+```
+
+computed against the same arch config at the same locked clock
+(`scripts/sol_traffic_floor.py`). It accounts for *all* the traffic and *none*
+of the arithmetic, where SOLAR's accounts for the arithmetic over a graph that
+may be partial. Neither dominates, both are valid lower bounds, and the larger
+of two valid lower bounds is the better one — so the manifest takes the `max`
+and **records which derivation won and what the other one said**
+(`t_sol_source` ∈ `solar_fused`, `declared_traffic`, `max_of_both`). They are
+never presented as one anonymous column.
+
+One exception is not optional. Where a problem declares a tensor it *indexes*
+rather than streams — `L1/018` declares a 131072-position KV cache and touches
+one sequence's worth — the declared total exceeds any real kernel's traffic,
+and the derived "bound" lands above the measured time. A lower bound above a
+measured time is not loose, it is wrong, and it would push scores past 1. Every
+traffic bound is therefore gated against the measured `T_b` and falls back to
+SOLAR's value when it fails the gate, with the fallback counted.
+
+### Rounding, and the eight bounds that were zero
+
+SOLAR emits `total_cycles` already wrapped in `int()`. At 1.3 GHz a cycle is
+0.77 ns and 12 KB at 8 TB/s is two cycles, so sub-cycle bounds are the normal
+case at the small end rather than an edge case — eight workloads truncated to
+**T_SOL = 0 cycles**, a bound no kernel can approach and a `(T_b − 0)` in the
+denominator of the score. A further 204 implied a DRAM bandwidth *above* the
+config's own peak, which a roofline cannot do and which is what led here.
+
+The bridge now recomputes SOLAR's own formula —
+`max(MACs / MAC_per_cycle, bytes / DRAM_byte_per_cycle)` — from the figures
+SOLAR reports beside the result, and ceils, keeping the exact value in
+`t_sol_cycles_exact`.
+
 ### V1 / V2 / V3, the three flagged unknowns
 
 * **V1 — TF32 on CDNA4.** Deliberately absent from the MAC/cycle table rather
@@ -222,6 +282,35 @@ the same dtypes on CPU kernels (an independent implementation with a different
 accumulation order, so still evidence, but a disagreement can also be ordinary
 low-precision noise).
 
+**Coverage, and what the tolerances are worth.** 3717 of 3957 workloads carry
+an AMD-derived tolerance; the missing 240 are exactly the 15 deferred NVFP4
+problems × 16 workloads. A workload without one keeps the dataset's value and
+says so in its own record (`_provenance: "NOT AMD-DERIVED"`) — dropping it
+would shrink the benchmark, and inheriting B200's silently is the thing this
+task exists to prevent.
+
+The check that gives them meaning: re-running every reference against these
+tolerances, **3717 of 3717 non-deferred workloads pass**. Against the dataset's
+B200 tolerances the same references fail 8 workloads of `L2/033`, where
+upstream's `atol = 0.08` is applied to a tensor of magnitude 10¹¹. Both sweeps
+are kept (`artifacts/02/references/` and `artifacts/02/references-amd/`).
+
+Two ROCm-specific obstacles had to be cleared to get the last 27 workloads,
+and one of them is a platform bug worth knowing about:
+
+* **`masked_select` above 2³² elements.** `t[torch.isfinite(t)]` computes a
+  garbage allocation size on ROCm 7.2 / torch 2.9.1 once the tensor exceeds
+  2³² elements: it asks for **16781313 GiB** (2⁵⁴ + 2⁴² + 2³⁰ bytes) and raises
+  OOM with 200 GiB free. Reproduced in isolation on a flat
+  `(2³² + 1000)`-element tensor; promoting the same tensor to float64 and
+  reducing it is fine, so it is the mask path, not the size. What made it worth
+  chasing rather than filing as an OOM: the same absurd figure appeared *to the
+  byte* on three problems sharing no operator.
+* **Comparison width.** Promoting a whole 18 GiB output to float64 and
+  materializing a difference peaks near 4× its size. Comparisons are chunked at
+  64 Mi elements, which changes no result — a maximum over chunks is the
+  maximum.
+
 ## 7. Timing methodology
 
 Upstream's default is **CUPTI activity tracing**, not CUDA events: it
@@ -246,12 +335,45 @@ Two traps were live and are worth restating:
 * **Clock domain.** rocprofiler-sdk stamps records with the HSA clock. The
   host bracket must come from rocprofiler's own timestamp entry point, not
   `CLOCK_MONOTONIC`. Mixing domains does not raise — it silently bisects the
-  wrong activities into each window. Verified on a real capture: 8/8 records
-  fall inside their host window.
+  wrong activities into each window. Verified on a real capture
+  (`artifacts/04/clock-domain-verification.log`): 8/8 records fall inside their
+  host window, and the negative control — the same records shifted by a full
+  span — is rejected, so the guard discriminates.
+
+  **On this driver the two clocks coincide: `CLOCK_MONOTONIC − HSA = −730 ns`.**
+  That is a measurement, not a reprieve. It means a wrong implementation would
+  have passed here by luck, and the trap is a property of the driver rather
+  than of the code, so the guard stays.
 * **Registration order.** rocprofiler locks its configuration once a ROCm
   runtime initializes, and a session configured after that point produces zero
   records rather than an error. The eval driver therefore registers the shim
   *before* `import torch`, conditional on the methodology.
+
+### How far apart the two methodologies actually are
+
+Measured over **1430 workload pairs**, both timing the same solution on the
+same inputs back to back in one process
+(`artifacts/04/methodology-comparison.md`):
+
+| group | n | median | p10 | p90 |
+|---|---|---|---|---|
+| kernels ≥ 100 µs | 1044 | −0.61% | −44.8% | +1.4% |
+| kernels < 100 µs | 386 | −4.71% | −43.5% | +9.6% |
+
+Positive means `hip_events` read slower, which was the prediction. The median
+came out on the *other* side of zero, and at well under a percent that is
+inside the node's own reproducibility (CV 0.0034) — so the claim the
+measurement supports is the narrow one: **the two agree to under 1% at the
+median**, not that the expected asymmetry was observed.
+
+The tails do not agree. 330 of 1430 pairs differ by more than 20%, in both
+directions, concentrated in 22 problems. `hip_events` reads up to 90% slower
+where one iteration is many tiny kernels — the event pair contains the host
+work between them and the activity sum does not, which is understood.
+`rocprof` reads up to 3× slower on some multi-dispatch iterations, which is
+not: summing per-dispatch durations exceeds wall time whenever dispatches
+overlap. That is written down as a hypothesis, unconfirmed against a dispatch
+timeline, and nothing in this port depends on it.
 
 A trace taken under `hip_events` and one under `rocprof` are not
 interchangeable, which is exactly why the field exists.
