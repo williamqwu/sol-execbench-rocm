@@ -218,13 +218,52 @@ def check_03(c: Checks):
     c.require(has_provenance(t), "t_sol has provenance")
     entries = t.get("problems", {})
     c.require(len(entries) > 0, "t_sol covers problems", f"{len(entries)}")
-    have_cycles = all("t_sol_cycles" in v for v in entries.values())
-    c.require(have_cycles, "t_sol recorded in cycles as well as ms",
-              detail_bad="cycles column makes F_LOCK changes a division, "
-                         "not a re-run")
+
+    # Per WORKLOAD, not per problem: the bound is defined per workload
+    # instance, and a problem-level check passes while most of its workloads
+    # carry nothing.
+    bounded = [w for e in entries.values()
+               for w in (e.get("workloads") or {}).values()
+               if w.get("t_sol_cycles") is not None]
+    both = [w for w in bounded if w.get("t_sol_ms") is not None]
+    c.require(bounded and len(both) == len(bounded),
+              "every bound recorded in cycles AND ms",
+              f"{len(both)} workloads",
+              "the cycles column is what makes an F_LOCK change a division "
+              "rather than a re-run")
+    c.require(all(w["t_sol_cycles"] > 0 for w in bounded),
+              "no bound is zero cycles",
+              detail_bad="a zero bound divides by (T_b - 0) in the score")
+
+    problems_with_bounds = sum(
+        1 for e in entries.values()
+        if any(w.get("t_sol_cycles") is not None
+               for w in (e.get("workloads") or {}).values()))
+    c.add(PASS if problems_with_bounds else FAIL,
+          "problems with at least one bound",
+          f"{problems_with_bounds}/{len(entries)}; the rest are SOLAR "
+          f"limitations, recorded per workload with the error that caused them")
+
+    # Upstream ships no per-workload SOL times, so the cross-checks are
+    # internal. Read their own report rather than restating their logic here.
+    xc = (ART / "03" / "cross-checks.md")
+    if c.require(xc.exists(), "cross-checks report exists",
+                 detail_bad="run scripts/sol_cross_checks.py"):
+        text = xc.read_text()
+        m = re.search(r"implied bandwidth above DRAM peak: \*\*(\d+)\*\*", text)
+        n = re.search(r"implied FLOPS above the precision's peak: \*\*(\d+)\*\*",
+                      text)
+        k = re.search(r"MISMATCHes: \*\*(\d+)\*\*", text)
+        c.require(m and n and int(m.group(1)) == 0 and int(n.group(1)) == 0,
+                  "check B: no bound implies an impossible rate")
+        c.require(k and int(k.group(1)) == 0,
+                  "check C: hand-derived MAC counts agree")
+        c.add(JUDGE, "check A: 13 problems below declared traffic",
+              "mechanism stated per problem in cross-checks.md")
+        c.add(JUDGE if "PENDING" in text else PASS,
+              "check D: T_SOL <= best measured", "needs task 06")
     c.add(JUDGE, "V1/V2/V3 resolved (TF32, LLC bandwidth, MXFP4 dense)",
           "see STATE.md decisions")
-    c.add(JUDGE, "cross-checks vs B200 memory-bound parity")
 
 
 def check_05(c: Checks):

@@ -112,6 +112,32 @@ def resolved_axes(definition: dict, workload_axes: dict) -> dict:
         if isinstance(spec, dict) and spec.get("value") is not None:
             axes[name] = spec["value"]
     axes.update(workload_axes or {})
+
+    # `expr` axes are derived from the others -- `q_out_features` is
+    # `num_attention_heads * head_dim`, and shapes reference the derived name,
+    # not the expression. Resolving iteratively because an expression may
+    # depend on another expression. Anything still unresolved after a full
+    # pass with no progress is left out, and the caller declines to make a
+    # claim about that workload rather than guessing a dimension.
+    pending = {name: spec["expression"]
+               for name, spec in (definition.get("axes") or {}).items()
+               if isinstance(spec, dict) and spec.get("type") == "expr"
+               and spec.get("expression") and name not in axes}
+    while pending:
+        progressed = False
+        for name, expr in list(pending.items()):
+            try:
+                # Arithmetic over already-resolved axis names only: no
+                # builtins, no attribute access, nothing the dataset could use
+                # to run code here.
+                value = eval(expr, {"__builtins__": {}}, dict(axes))  # noqa: S307
+            except Exception:                              # noqa: BLE001
+                continue
+            axes[name] = value
+            del pending[name]
+            progressed = True
+        if not progressed:
+            break
     return axes
 
 
@@ -134,6 +160,9 @@ def declared_traffic(definition: dict, axes: dict) -> int | None:
                     n *= dim
                 elif dim in axes:
                     n *= axes[dim]
+                elif str(dim).isdigit():
+                    # Some shapes carry a literal as a string: ['1', 'seq'].
+                    n *= int(dim)
                 else:
                     return None            # unresolved symbol: no claim made
             width = DTYPE_BYTES.get(spec.get("dtype"))

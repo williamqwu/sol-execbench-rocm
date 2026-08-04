@@ -373,6 +373,32 @@ successful problems were refreshed with `--only-status ok`, which re-runs the
 successes without paying again for the failures (a failure means SOLAR ran to
 the timeout, so they are the expensive ones).
 
+### D13 — `masked_select` asks for 16781313 GiB above 2³² elements
+
+The eight workloads D9 could not explain were not an OOM. Boolean indexing on
+ROCm 7.2 / torch 2.9.1 computes a garbage allocation size once the tensor has
+more than 2³² elements. Reproduced in isolation, on a flat tensor with nothing
+else on the GPU:
+
+```python
+n = (1 << 32) + 1000
+t = torch.ones(n, dtype=torch.float16, device="cuda")
+t[torch.isfinite(t)]
+# OutOfMemoryError: Tried to allocate 16781313.00 GiB
+#                   (2**54 + 2**42 + 2**30 bytes), 70 GiB free
+```
+
+Promoting the same tensor to float64 and reducing it is fine, so it is the
+mask path and not the size. The tolerance floor now accumulates over bounded
+chunks with `torch.where`.
+
+What made it worth chasing rather than filing as an OOM: the *same* absurd
+number appeared to the byte on three problems that share no operator. An
+allocator under pressure does not do that.
+
+Every non-NVFP4 workload now has an AMD-derived tolerance — 3717 of 3957, with
+the missing 240 exactly the 15 deferred NVFP4 problems × 16 workloads.
+
 ---
 
 ## Fixes to scripts on first contact

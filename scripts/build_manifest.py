@@ -51,6 +51,58 @@ def collect_t_sol(path: Path) -> dict[str, dict]:
     return {k: (v.get("workloads") or {}) for k, v in doc.get("problems", {}).items()}
 
 
+def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
+    """One T_SOL per workload, from two derivations, with the source recorded.
+
+    Both are lower bounds on the same quantity and neither dominates:
+
+      solar_fused       accounts for the arithmetic, but only for the graph
+                        SOLAR managed to extract. On 48 problems that graph is
+                        missing tensors the definition itself declares, so the
+                        bound is real but loose.
+      declared_traffic  every declared input read once and every declared
+                        output written once, over DRAM bandwidth. Accounts for
+                        no arithmetic at all, but it is complete.
+
+    The larger of two valid lower bounds is the better lower bound, so the rule
+    is `max`, with one exception that is not optional: where a problem declares
+    a tensor it *indexes* rather than streams -- a 131072-position KV cache --
+    the declared total is above any real kernel's traffic and the "bound" would
+    sit above the measured time. Those are caught by comparing against T_b and
+    fall back to SOLAR's value, with the fallback recorded.
+    """
+    out: dict[str, dict] = {}
+    stats = {"solar_fused": 0, "declared_traffic": 0, "max_of_both": 0,
+             "traffic_rejected_above_t_b": 0}
+    for key in set(solar) | set(traffic):
+        s_w, t_w = solar.get(key, {}), traffic.get(key, {})
+        merged: dict[str, dict] = {}
+        for u in set(s_w) | set(t_w):
+            s, t = s_w.get(u) or {}, t_w.get(u) or {}
+            s_cyc, t_cyc = s.get("t_sol_cycles"), t.get("t_sol_cycles")
+            measured = ((tb.get(key) or {}).get(u) or {}).get("t_b_ms")
+            if t_cyc is not None and measured is not None \
+                    and t.get("t_sol_ms", 0) > measured:
+                stats["traffic_rejected_above_t_b"] += 1
+                t_cyc = None
+            if s_cyc is not None and t_cyc is not None:
+                source = "max_of_both" if t_cyc > s_cyc else "solar_fused"
+                chosen = t if t_cyc > s_cyc else s
+            elif s_cyc is not None:
+                source, chosen = "solar_fused", s
+            elif t_cyc is not None:
+                source, chosen = "declared_traffic", t
+            else:
+                continue
+            stats[source] += 1
+            merged[u] = {**chosen, "t_sol_source": source,
+                         "t_sol_cycles_solar": s_cyc,
+                         "t_sol_cycles_traffic": t.get("t_sol_cycles")}
+        if merged:
+            out[key] = merged
+    return out, stats
+
+
 def collect_t_b(directory: Path) -> dict[str, dict]:
     """{problem: {workload_uuid: {variant, t_b_ms}}} from artifacts/06."""
     out: dict[str, dict] = {}
@@ -86,7 +138,8 @@ def main():
     ap.add_argument("--out", default="artifacts/09/manifest-v1.json")
     ap.add_argument("--version", default="v1")
     ap.add_argument("--t-sol", default="artifacts/03/t_sol.json")
-    ap.add_argument("--t-b", default="artifacts/06/candidates")
+    ap.add_argument("--t-sol-traffic", default="artifacts/03/t_sol_traffic.json")
+    ap.add_argument("--t-b", default="artifacts/06/authoritative")
     ap.add_argument("--tolerances", default="artifacts/05")
     ap.add_argument("--deferred", default="artifacts/deferred.json")
     ap.add_argument("--data", default="data/SOL-ExecBench/benchmark")
@@ -103,8 +156,12 @@ def main():
             f"instead, or pass --force if this one was never published."
         )
 
-    t_sol = collect_t_sol(Path(a.t_sol))
     t_b = collect_t_b(Path(a.t_b))
+    t_sol, bound_sources = combine_bounds(
+        collect_t_sol(Path(a.t_sol)),
+        collect_t_sol(Path(a.t_sol_traffic)),
+        t_b,
+    )
     tolerances = collect_tolerances(Path(a.tolerances))
     # The ledger is `{_note, dataset_total, ..., problems: {key: reason}}`.
     # Read the mapping out of it rather than iterating the whole document --
@@ -151,6 +208,12 @@ def main():
                 # invalidating the manifest's analytic half.
                 "t_sol_cycles": s.get("t_sol_cycles"),
                 "t_sol_ms": s.get("t_sol_ms"),
+                # Which derivation produced the bound, and what the other one
+                # said. Two lower bounds on the same quantity, neither of them
+                # dominating -- a consumer that cares can filter on this.
+                "t_sol_source": s.get("t_sol_source"),
+                "t_sol_cycles_solar": s.get("t_sol_cycles_solar"),
+                "t_sol_cycles_traffic": s.get("t_sol_cycles_traffic"),
                 "sol_bottleneck": s.get("bottleneck"),
                 "t_b_ms": b.get("t_b_ms"),
                 # "Optimized PyTorch" is not reproducible; a named variant is.
@@ -180,6 +243,7 @@ def main():
             "headline_count": len(scoreable_problems),
         },
         "stats": stats,
+        "bound_sources": bound_sources,
         "problems": problems,
     }
     write_artifact(out, f"09-manifest-{a.version}", payload)
