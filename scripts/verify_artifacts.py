@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -90,6 +91,51 @@ def f_lock_from_state() -> int | None:
     m = re.search(r"^\s*\*\*F_LOCK\s*=\s*(\d{3,4})\s*MHz\*\*", state_text(),
                   re.I | re.M)
     return int(m.group(1)) if m else None
+
+
+def determinism_setpoints() -> dict[int, int]:
+    """{gpu -> GFX MAX_CLK in MHz} as the *hardware* reports it.
+
+    The determinism setpoint read back off the device, not the one the preset
+    table says was requested. `amd-smi metric -c` exposes it as MAX_CLK per GFX
+    block, and it needs no load and no timed region -- an idle GPU reports the
+    ceiling it is pinned to.
+
+    This exists because `provenance.f_lock_mhz()` answers from the preset table
+    without consulting a device, so an artifact's stamp records what was *meant*
+    to be applied. If a node is left at a different setpoint by an earlier sweep,
+    every artifact is stamped with a clock it was not measured at, the manifest's
+    clock guard compares that stamp against the same table it came from, and it
+    agrees with itself. The table is not the hardware.
+    """
+    out: dict[int, int] = {}
+    for idx in range(16):
+        try:
+            p = subprocess.run(["amd-smi", "metric", "-g", str(idx), "-c"],
+                               capture_output=True, text=True, timeout=60)
+        except (OSError, subprocess.SubprocessError):
+            break
+        if p.returncode != 0:
+            break
+        m = re.search(r"MAX_CLK:\s*(\d+)\s*MHz", p.stdout)
+        if not m:
+            break
+        out[idx] = int(m.group(1))
+    return out
+
+
+def requested_clock_from_preset() -> int | None:
+    """The setpoint ``lock_clocks()`` asks the driver for, not the achieved one."""
+    try:
+        sys.path.insert(0, str(ROOT / "src"))
+        import torch
+
+        from sol_execbench.core.bench.config import get_clock_preset
+
+        preset = get_clock_preset(torch.cuda.get_device_name(0))
+        return preset.gpu_clk_mhz if preset else None
+    except Exception:
+        return None
 
 
 def f_lock_from_preset() -> tuple[int | None, str | None]:
@@ -178,6 +224,25 @@ def check_01(c: Checks):
                   f"STATE.md says {fl} MHz, code applies {preset_fl} MHz — one of "
                   f"them is wrong and every T_SOL and T_b depends on which")
 
+    # The hardware's own answer, compared against what the code asks for. This
+    # is the gap the clock guard in build_manifest cannot close on its own: it
+    # checks a stamp against the table the stamp came from, so a node left at
+    # someone else's setpoint passes by agreeing with itself. Reading MAX_CLK
+    # back off every GPU catches exactly that, with no load and no timed region.
+    setpoints = determinism_setpoints()
+    requested = requested_clock_from_preset()
+    if setpoints and requested:
+        wrong = {g: v for g, v in setpoints.items() if v != requested}
+        c.require(not wrong,
+                  "every GPU is at the preset's determinism setpoint",
+                  f"all {len(setpoints)} GPUs at {requested} MHz",
+                  f"{len(wrong)} GPU(s) at a different setpoint {wrong} while the "
+                  f"preset requests {requested} — artifacts measured now would be "
+                  f"stamped {requested} and be wrong by the ratio")
+    elif not setpoints:
+        c.add(JUDGE, "determinism setpoint read back off the GPUs",
+              "amd-smi unavailable — the stamp cannot be checked against hardware")
+
     floors = list((ART / "01").glob("floor-gpu*.json")) if (ART / "01").exists() else []
     c.require(len(floors) >= 3, "clock floor sampled on >=3 GPUs",
               f"{len(floors)} GPUs",
@@ -189,11 +254,19 @@ def check_01(c: Checks):
         ss = d.get("steady_state") or {}
         if ss.get("p5_mhz"):
             p5s.append(ss["p5_mhz"])
-    if p5s and fl:
-        c.require(fl <= min(p5s), "F_LOCK at or below lowest observed floor",
-                  f"F_LOCK {fl} <= min p5 {min(p5s)}",
-                  f"F_LOCK {fl} EXCEEDS lowest floor {min(p5s)} — the GPU "
-                  f"cannot hold this; every timing will drift")
+    # Fall back to the preset when STATE.md has no marker. Gating this on `fl`
+    # alone means that tightening the document check DELETES the physics check:
+    # a missing marker is a documentation defect, but "F_LOCK exceeds the clock
+    # the GPU can actually hold" is the failure that makes every timing drift,
+    # and it must still be evaluated. Losing a real check as a side effect of
+    # adding a stricter one is the same trade F17 was written to stop.
+    fl_eff = fl if fl is not None else preset_fl
+    if p5s and fl_eff:
+        src = "STATE.md" if fl is not None else "CLOCK_LOCK_PRESETS"
+        c.require(fl_eff <= min(p5s), "F_LOCK at or below lowest observed floor",
+                  f"F_LOCK {fl_eff} ({src}) <= min p5 {min(p5s)}",
+                  f"F_LOCK {fl_eff} ({src}) EXCEEDS lowest floor {min(p5s)} — the "
+                  f"GPU cannot hold this; every timing will drift")
         if len(p5s) > 1 and max(p5s) - min(p5s) > 50:
             c.add(WARN, "per-GPU floor spread >50MHz",
                   f"{min(p5s)}-{max(p5s)} MHz; F_LOCK must suit the worst")
@@ -351,8 +424,7 @@ def check_03(c: Checks):
                   "check C: hand-derived MAC counts agree")
         c.add(JUDGE, "check A: 13 problems below declared traffic",
               "mechanism stated per problem in cross-checks.md")
-        c.add(JUDGE if "PENDING" in text else PASS,
-              "check D: T_SOL <= best measured", "needs task 06")
+        _check_d(c)
     c.add(JUDGE, "V1/V2/V3 resolved (TF32, LLC bandwidth, MXFP4 dense)",
           "see STATE.md decisions")
 
@@ -391,22 +463,151 @@ def check_05(c: Checks):
     c.add(JUDGE, "problems needing >2x B200 tolerance individually justified")
 
 
-def check_06(c: Checks):
-    tb = load_json(ART / "06" / "t_b.json")
-    if not c.require(tb is not None, "t_b.json exists"):
+def _check_d(c: Checks):
+    """check D: no measured time may fall below its own T_SOL.
+
+    Previously this line:
+
+        c.add(JUDGE if "PENDING" in text else PASS,
+              "check D: T_SOL <= best measured", "needs task 06")
+
+    `cross-checks.md` contains no "PENDING" and no check-D section at all, so it
+    was an unconditional PASS that compared nothing. It is also the single
+    invariant that would have caught D18 -- a correct kernel measured 3x faster
+    than the roofline on 25 workloads of a paged FlashInfer problem, because the
+    bound prices a KV cache at its full allocation rather than at the pages the
+    workload names.
+
+    It now compares T_SOL against every measurement on disk. The T_b variants
+    alone cannot falsify a bound that is too slow, because the reference
+    over-reads the same way T_SOL does; agent submissions can, and do.
+    """
+    manifest = load_json(ART / "09" / "manifest-v1.json")
+    if not c.require(manifest is not None, "check D: manifest available"):
         return
-    entries = tb.get("problems", {})
-    c.require(len(entries) >= EXPECTED_TOTAL - len(
-        (load_json(ART / "deferred.json") or {}).get("problems", {})),
-        f"t_b covers all {EXPECTED_TOTAL} problems", f"{len(entries)}",
-        f"only {len(entries)} — every problem needs an anchor")
-    c.require(all(v.get("winning_variant") for v in entries.values()),
-              "winning PyTorch variant recorded per problem",
-              detail_bad="'optimized PyTorch' is not reproducible; "
-                         "a named variant is")
-    anchor = ART / "06" / "anchor-verification.md"
-    c.require(anchor.exists(), "anchor property verified",
-              detail_bad="T_b must score 0.5+-0.03; reference must score <0.5")
+
+    bounds = {}
+    for key, p in (manifest.get("problems") or {}).items():
+        for uuid, w in (p.get("workloads") or {}).items():
+            if w.get("scoreable") and w.get("t_sol_ms"):
+                bounds[(key, uuid)] = w["t_sol_ms"]
+
+    violations, n_measured, sources = [], 0, 0
+    for scored in sorted((ART / "10").glob("*/scored.json")) if (ART / "10").exists() else []:
+        doc = load_json(scored) or {}
+        sources += 1
+        for r in doc.get("results", []):
+            t_sol = bounds.get((r.get("problem"), r.get("workload_uuid")))
+            lat = r.get("latency_ms")
+            if r.get("status") != "PASSED" or not t_sol or not lat:
+                continue
+            n_measured += 1
+            if lat < t_sol:
+                violations.append((r["problem"], lat / t_sol))
+
+    if not sources:
+        c.add(JUDGE, "check D: T_SOL <= best measured",
+              "no submissions on disk — the T_b variants cannot falsify a bound "
+              "that is too slow, so this is untested, not passing")
+        return
+
+    worst = min((v for _, v in violations), default=None)
+    bad = sorted({p for p, _ in violations})
+    c.require(not violations, "check D: no measurement beats its T_SOL",
+              f"{n_measured} measured workloads, none below bound",
+              f"{len(violations)} of {n_measured} measured workloads are faster "
+              f"than T_SOL (worst {worst:.2f}x the bound) across {len(bad)} "
+              f"problem(s): {', '.join(p[:44] for p in bad[:3])} — the bound is "
+              f"wrong (STATE.md D18)" if violations else "")
+
+
+def check_06(c: Checks):
+    """T_b coverage, read from the layout task 06 actually writes.
+
+    This check asserted a schema that was never produced: a single
+    `artifacts/06/t_b.json` with a `problems` map of `winning_variant`, and an
+    `anchor-verification.md`. Task 06 writes one file per problem under
+    `authoritative/` keyed by `winner_by_workload`, and the anchor result as
+    `.json`. So `t_b.json exists` failed on every run this repo has ever had,
+    while STATE.md recorded the task as done -- the mirror image of F17: not a
+    check that could not fail, but one that could not pass. Both report
+    something other than the state of the work.
+    """
+    auth = ART / "06" / "authoritative"
+    docs = sorted(auth.glob("*.json")) if auth.exists() else []
+    if not c.require(bool(docs), "authoritative T_b artifacts exist",
+                     f"{len(docs)} problems",
+                     "artifacts/06/authoritative/ is empty — no problem has an "
+                     "anchor and nothing is scoreable"):
+        return
+
+    deferred = (load_json(ART / "deferred.json") or {}).get("problems", {})
+    expected = EXPECTED_TOTAL - len(deferred)
+    with_tb = [d for d in docs
+               if (load_json(d) or {}).get("winner_by_workload")]
+    c.require(len(with_tb) >= expected,
+              f"T_b covers all {expected} non-deferred problems",
+              f"{len(with_tb)} of {expected}",
+              f"only {len(with_tb)} — every scoreable problem needs an anchor")
+
+    # A named variant, not "optimized PyTorch": the anchor has to be
+    # reproducible by someone who has only the manifest.
+    unnamed = []
+    for d in with_tb:
+        wins = (load_json(d) or {}).get("winner_by_workload") or {}
+        if not all((w or {}).get("variant") for w in wins.values()):
+            unnamed.append(d.name)
+    c.require(not unnamed, "winning PyTorch variant recorded per workload",
+              f"all {len(with_tb)} problems",
+              f"{len(unnamed)} problem(s) name no variant, e.g. {unnamed[:3]}")
+
+    # Every T_b must have been measured at one clock. This is F18's invariant
+    # applied at acceptance time rather than only at manifest-build time.
+    clocks = {}
+    for d in with_tb:
+        mhz = ((load_json(d) or {}).get("_provenance") or {}).get("f_lock_mhz")
+        clocks[mhz] = clocks.get(mhz, 0) + 1
+    measured = {k: v for k, v in clocks.items() if k is not None}
+    c.require(len(measured) <= 1, "all T_b measured at one clock",
+              f"F_LOCK {next(iter(measured), None)} across {sum(measured.values())}",
+              f"T_b spans {len(measured)} clocks {measured} — mixing them "
+              f"rescales those problems' scores (F18)")
+
+    anchor = load_json(ART / "06" / "anchor-verification.json")
+    if c.require(anchor is not None, "anchor property verified",
+                 detail_bad="T_b must score 0.5+-0.03; reference must not "
+                            "score above the anchor"):
+        # Read the fields this artifact actually has. Written first against
+        # guessed names (`n_failed`), which resolved to None and printed
+        # "every checked workload within tolerance" over 13 real failures --
+        # the same defect being audited, reintroduced while auditing it. A
+        # check keyed on a field that does not exist always passes.
+        ap = anchor.get("anchor_property") or {}
+        rp = anchor.get("reference_not_above_anchor") or {}
+        passing, total = ap.get("passing"), ap.get("total")
+        c.require(passing is not None and total,
+                  "anchor artifact reports passing/total",
+                  f"{passing}/{total}",
+                  "schema changed — this check cannot evaluate anything")
+        if passing is not None and total:
+            # Not 100%: D15 records 12 of the 13 on one problem, understood and
+            # in the conservative direction. A WARN keeps it visible without
+            # asserting a clean result that is not clean.
+            c.add(PASS if passing == total else WARN,
+                  "T_b re-times to S = 0.5 +- 0.03",
+                  f"{passing}/{total} workloads"
+                  + ("" if passing == total else " — see STATE.md D15"))
+        c.require(rp.get("passing") == rp.get("total") and rp.get("total"),
+                  "reference never scores above the anchor",
+                  f"{rp.get('passing')}/{rp.get('total')}",
+                  f"{(rp.get('total') or 0) - (rp.get('passing') or 0)} workload(s) "
+                  f"where the reference beats T_b — the anchor is not the fastest "
+                  f"variant and the scale is wrong")
+        viol = anchor.get("t_sol_violations")
+        c.require(viol == [], "no sampled workload beat its T_SOL",
+                  "0 violations over the sample",
+                  f"{len(viol or [])} workload(s) measured faster than T_SOL — "
+                  f"the bound is wrong, not the kernel (see STATE.md D18)")
     c.add(JUDGE, "authoritative pass ran under documented node conditions",
           "quiet vs busy, per task 01 interference verdict")
 
@@ -417,8 +618,33 @@ def check_07(c: Checks):
     if spike:
         c.require(spike.get("verdict") in ("go", "no-go"),
                   "spike has an explicit verdict", str(spike.get("verdict")))
-    c.require((ART / "07" / "fp8-validation.md").exists(),
-              "FP8 (18 problems) validation recorded")
+    # Check the evidence, not a prose file. This required
+    # `artifacts/07/fp8-validation.md`, which was never written, so it failed on
+    # every run while the validation it stands for had in fact been done: all 18
+    # non-NVFP4 Quant problems pass every workload in the task 02 reference
+    # sweep. Asserting the existence of a write-up says nothing about whether
+    # FP8 works, and it reported a missing document as a missing measurement.
+    refs = ART / "02" / "references"
+    fp8 = sorted(p for p in (ROOT / "data" / "SOL-ExecBench" / "benchmark" /
+                             "Quant").glob("*") if p.is_dir()
+                 and "nvfp4" not in p.name)
+    if not fp8:
+        c.add(JUDGE, "FP8 (18 problems) validation recorded",
+              "dataset not materialized — cannot verify from here")
+    else:
+        results = [(load_json(refs / f"Quant__{p.name}.json") or {}) for p in fp8]
+        passing = [r for r in results if r.get("all_passed")]
+        c.require(len(passing) == len(fp8),
+                  f"FP8 ({len(fp8)} problems) validated on this part",
+                  f"{len(passing)}/{len(fp8)} pass every workload in the task 02 "
+                  f"reference sweep",
+                  f"only {len(passing)}/{len(fp8)} — CDNA4 is OCP FP8 and these "
+                  f"were expected to port directly")
+        doc = ART / "07" / "fp8-validation.md"
+        c.add(PASS if doc.exists() else WARN, "FP8 result written up",
+              str(doc) if doc.exists()
+              else "evidence is in artifacts/02/references/Quant__*.json; no "
+                   "summary document")
     st = state_text()
     if spike and spike.get("verdict") == "no-go":
         c.require("220" in st, "deferral documented with problem count",

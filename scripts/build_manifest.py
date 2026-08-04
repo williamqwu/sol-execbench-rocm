@@ -240,7 +240,23 @@ def main():
     # cannot disagree about it.
     from provenance import f_lock_mhz as _f_lock
 
-    t_b = collect_t_b(Path(a.t_b), _f_lock())
+    expected_f_lock = _f_lock()
+    if expected_f_lock is None:
+        # The guard below is only a guard when it has a number to compare
+        # against. `f_lock_mhz()` returns None off-GPU with no override set, and
+        # `collect_t_b(..., None)` then admits artifacts from any clock -- so
+        # building the manifest in the wrong environment would silently restore
+        # exactly the defect F18 fixed, and the output would look normal.
+        # Refusing is the only safe reading: an unknown clock is not a
+        # permissive one.
+        raise SystemExit(
+            "cannot resolve F_LOCK: no GPU preset and no SOLEXBENCH_F_LOCK_MHZ.\n"
+            "  The T_b clock guard cannot run without it, and building without "
+            "the guard is how a two-clock T_b directory got into a manifest in "
+            "the first place (STATE.md F18).\n"
+            "  Set SOLEXBENCH_F_LOCK_MHZ=<achieved MHz> to build off-GPU.")
+
+    t_b = collect_t_b(Path(a.t_b), expected_f_lock)
     t_sol, bound_sources = combine_bounds(
         collect_t_sol(Path(a.t_sol)),
         collect_t_sol(Path(a.t_sol_traffic)),
