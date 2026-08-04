@@ -549,10 +549,185 @@ def cmd_determinism_sweep(args):
     print(f"wrote {args.out}")
 
 
+def _achieved_at(gpu: int, setpoint: int, settle: int, samples: int) -> dict:
+    """Apply *setpoint* to one GPU and measure what it holds under load.
+
+    One GPU at a time and one setpoint at a time, on purpose. The original
+    node-wide sweep stepped through eleven frequencies in a single run and
+    recorded GPU 0 holding 1214 MHz at a 1500 setpoint; measured in isolation the
+    same GPU holds 1495. The low figure was the part still settling toward the new
+    operating point, not the part refusing the request — a sweep that does not
+    settle between steps measures its own step order (D28).
+    """
+    import threading
+
+    # `-d N` in rocm-smi is a ROCM-SMI index; *gpu* here is a TORCH index, and on
+    # this node torch 0 is rocm-smi 3. Passing the torch index straight through
+    # sets a different card than the one being loaded and sampled, so the
+    # measurement reads whatever setpoint that card happened to carry. Observed:
+    # GPU 0 "held" 1807 MHz at a 1480 setpoint, because 1480 went to rocm-smi 0
+    # while torch 0 was still at a 2100 setpoint from an earlier sweep and pinned
+    # to its power cap. This is the error scripts/gpu_map.py exists to prevent.
+    from gpu_map import torch_to_rocm_smi
+
+    set_perf_determinism(setpoint, torch_to_rocm_smi()[gpu])
+    halt = threading.Event()
+    loader = threading.Thread(target=_sustained_load, args=(gpu, settle + samples + 60),
+                              kwargs={"stop": halt}, daemon=True)
+    loader.start()
+    time.sleep(settle)
+    got = [read_clocks(gpu) for _ in range(samples) if not time.sleep(1)]
+    halt.set()
+    loader.join(timeout=120)
+
+    clk = [s["sclk_mhz"] for s in got if s.get("sclk_mhz")]
+    pw = [s.get("power_w") for s in got if s.get("power_w")]
+    return {
+        "setpoint_mhz": setpoint,
+        "achieved_median_mhz": statistics.median(clk) if clk else None,
+        "achieved_min_mhz": min(clk) if clk else None,
+        "median_power_w": statistics.median(pw) if pw else None,
+        "n_samples": len(clk),
+    }
+
+
+def cmd_equalize(args):
+    """Find the per-GPU setpoint that makes every GPU hold the same clock.
+
+    Why this exists. A single node-wide setpoint does not give a single clock on
+    this node: at 1650 the eight GPUs hold 1318-1644 MHz, a 25% spread, and the
+    six slow ones are not power-limited -- they draw 949-995 W of a 1400 W cap.
+    Two obey the request and six land at about 0.82x it, at every setpoint tried.
+
+    The consequence is not cosmetic. A T_b re-timed on GPU 5 is ~20% slower than
+    the same code on GPU 0, so authoritative timing has to be pinned to one GPU,
+    and one GPU means the T_b pass is serial: ~20 hours where eight GPUs would be
+    two and a half, with seven cards idle throughout.
+
+    The fix follows from the ratios being *stable*. If GPU 2 holds 0.82x its
+    setpoint, then asking it for 1900 yields the 1480 that GPU 0 yields at 1500 --
+    so a common achieved clock is reachable by giving each GPU its own setpoint.
+    This calibrates that per GPU by secant search on the measured response, which
+    is close to linear over the useful range (GPU 2: 1800 -> 1426, 1900 -> 1480,
+    2000 -> 1550, 2100 -> 1600).
+
+    What it costs, stated plainly: the common clock has to be one the *slowest*
+    GPU can reach, so it is below what GPUs 0 and 1 could hold alone. That is the
+    right trade anyway -- an F_LOCK that 8 of 8 cards hold is a better basis for a
+    benchmark than one 2 of 8 hold, because reproducibility is the entire purpose
+    of locking the clock. Absolute times get slower; SOL scores are within-platform
+    ratios and do not care.
+    """
+    target = args.target_mhz
+    tol = args.tolerance_mhz
+    results: dict[int, dict] = {}
+
+    print(f"equalizing {args.n_gpus} GPU(s) to {target} +/- {tol} MHz under load\n")
+    for gpu in range(args.n_gpus):
+        # Start from the identity guess and one scaled guess, then secant. Two
+        # measurements bracket every GPU seen here: the obedient ones need ~target
+        # and the rest ~target/0.82.
+        probes: list[tuple[int, float]] = []
+        for setpoint in (target, int(round(target / 0.82 / 10) * 10)):
+            if any(p[0] == setpoint for p in probes):
+                continue
+            row = _achieved_at(gpu, setpoint, args.settle, args.samples)
+            got = row["achieved_median_mhz"]
+            print(f"  GPU {gpu}: set {setpoint:>5} -> {got} MHz "
+                  f"({row['median_power_w']} W)")
+            if got is None:
+                continue
+            probes.append((setpoint, got))
+            if abs(got - target) <= tol:
+                break
+
+        best = min(probes, key=lambda p: abs(p[1] - target)) if probes else None
+        for _ in range(args.max_iters):
+            if best is None or abs(best[1] - target) <= tol:
+                break
+            if len(probes) >= 2:
+                (x0, y0), (x1, y1) = probes[-2], probes[-1]
+                slope = (y1 - y0) / (x1 - x0) if x1 != x0 else 0.82
+                if abs(slope) < 0.1:
+                    slope = 0.82
+            else:
+                slope = 0.82
+            nxt = int(round((best[0] + (target - best[1]) / slope) / 5) * 5)
+            nxt = max(500, min(2400, nxt))
+            if any(p[0] == nxt for p in probes):
+                break
+            row = _achieved_at(gpu, nxt, args.settle, args.samples)
+            got = row["achieved_median_mhz"]
+            print(f"  GPU {gpu}: set {nxt:>5} -> {got} MHz "
+                  f"({row['median_power_w']} W)")
+            if got is None:
+                break
+            probes.append((nxt, got))
+            best = min(probes, key=lambda p: abs(p[1] - target))
+
+        if best is None:
+            print(f"  GPU {gpu}: FAILED to measure")
+            results[gpu] = {"ok": False}
+            continue
+        row = _achieved_at(gpu, best[0], args.settle, args.samples)
+        within = abs((row["achieved_median_mhz"] or 0) - target) <= tol
+        results[gpu] = {
+            "setpoint_mhz": best[0],
+            "achieved_median_mhz": row["achieved_median_mhz"],
+            "achieved_min_mhz": row["achieved_min_mhz"],
+            "median_power_w": row["median_power_w"],
+            "within_tolerance": within,
+            "probes": [{"setpoint_mhz": s, "achieved_mhz": a} for s, a in probes],
+            "ok": within,
+        }
+        print(f"  GPU {gpu}: SETTLED at setpoint {best[0]} -> "
+              f"{row['achieved_median_mhz']} MHz "
+              f"{'OK' if within else 'OUT OF TOLERANCE'}\n")
+
+    ok = [g for g, r in results.items() if r.get("ok")]
+    achieved = [r["achieved_median_mhz"] for r in results.values()
+                if r.get("achieved_median_mhz")]
+    spread = (max(achieved) - min(achieved)) if achieved else None
+    print(f"{len(ok)}/{args.n_gpus} GPUs within {tol} MHz of {target}")
+    if spread is not None:
+        print(f"spread across GPUs: {spread:.0f} MHz "
+              f"({100 * spread / target:.2f}% of target)")
+    print("\nsetpoints:")
+    for g in sorted(results):
+        r = results[g]
+        print(f"  GPU {g}: setpoint {r.get('setpoint_mhz')} -> "
+              f"{r.get('achieved_median_mhz')} MHz")
+
+    write_artifact(args.out, "01-equalize", {
+        "target_mhz": target,
+        "tolerance_mhz": tol,
+        "n_gpus": args.n_gpus,
+        "per_gpu": {str(g): r for g, r in results.items()},
+        "all_within_tolerance": len(ok) == args.n_gpus,
+        "spread_mhz": spread,
+        "note": "per-GPU determinism setpoints chosen so every GPU HOLDS the same "
+                "clock under load. A single node-wide setpoint does not: two GPUs "
+                "obey it and six land at ~0.82x, and the six are not power-limited. "
+                "An F_LOCK 8/8 cards hold is a better basis than one 2/8 hold.",
+    })
+    print(f"\nwrote {args.out}")
+    sys.exit(0 if len(ok) == args.n_gpus else 1)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    eq = sub.add_parser("equalize", help="per-GPU setpoints for one common clock")
+    eq.add_argument("--target-mhz", type=int, required=True)
+    eq.add_argument("--tolerance-mhz", type=int, default=15)
+    eq.add_argument("--n-gpus", type=int, default=8)
+    eq.add_argument("--settle", type=int, default=25)
+    eq.add_argument("--samples", type=int, default=12)
+    eq.add_argument("--max-iters", type=int, default=4)
+    eq.add_argument("--out", default="artifacts/01/equalized-clocks.json")
+    eq.set_defaults(fn=cmd_equalize)
 
     f = sub.add_parser("floor"); f.set_defaults(fn=cmd_floor)
     f.add_argument("--gpu", type=int, default=0)
