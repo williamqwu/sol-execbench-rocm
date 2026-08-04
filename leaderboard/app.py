@@ -38,6 +38,8 @@ DB = Path(os.environ.get("SOLBENCH_DB", HERE / "solbench.db"))
 app = FastAPI(title="SOL-ExecBench-AMD leaderboard", docs_url="/api/docs")
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 templates = Jinja2Templates(directory=str(HERE / "templates"))
+# `meta` is a flat string->string table, so JSON-valued rows come back as text.
+templates.env.filters["from_json"] = lambda s: json.loads(s) if s else []
 
 
 def db() -> sqlite3.Connection:

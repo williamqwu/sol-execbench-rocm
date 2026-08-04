@@ -83,6 +83,27 @@
 </table>
 {% endif %}
 
+{% if meta.problems_with_invalid_bound %}
+<h2>Problems whose bound is known to be wrong</h2>
+<div class="banner warn">
+  A submitted kernel was measured <b>faster than T<sub>SOL</sub></b> on these
+  problems. Nothing beats the roofline, so this is a defect in the bound rather
+  than a result. Those workloads are stored with <b>no score</b> so they cannot
+  lift any ranking, and are still shown on the problem page.
+</div>
+<table class="grid">
+  <thead><tr><th>problem</th><th>cause</th></tr></thead>
+  <tbody>
+  {% for k in meta.problems_with_invalid_bound|from_json %}
+    <tr><td class="mono sm"><a href="/problems/{{ k }}">{{ k }}</a></td>
+        <td class="sm">The declared-traffic tier prices a paged KV cache at its
+            full allocation, while the kernel gathers only the pages
+            <code>kv_indices</code> names. See STATE.md D18.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
 <h2>Reading the leaderboard honestly</h2>
 <ul>
   <li><b>Benchmark score</b> sums per-workload scores over every scoreable

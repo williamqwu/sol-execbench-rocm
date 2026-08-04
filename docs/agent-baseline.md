@@ -104,6 +104,48 @@ sandbox is built, and reusing it, would roughly halve every evaluation. That is
 a change for the next run, not this one — altering it mid-flight would make the
 sessions incomparable.
 
+## What the first pilot found
+
+Eight problems, `Claude-Opus-5`, an $8-per-problem cap
+(`artifacts/10/pilot8/cost-report.md`):
+
+| | |
+|---|---|
+| cost | **$65.08**, 16.0M tokens, all eight sessions stopped at the cap |
+| wall time | 46 min at 7 concurrent agents; 27 min median per problem |
+| GPU occupancy | **mean 7.5%** across the seven cards |
+| scored | 99 workloads, mean S = **0.776** |
+
+Four of the eight improved on the reference (+0.265 to +0.525 in score);
+four gained nothing. Median gain **+0.133**.
+
+**Three of the eight submitted a kernel that fails correctness.** 0/11, 0/16
+and 1/16 on re-time. Their only clean evaluation in the whole session was the
+untouched baseline — every optimization they attempted was broken, and they
+left the last broken one in place when the budget ran out, despite `TASK.md`
+telling them to revert to the last version that passed. That is worse than a
+null result: an agent baseline that reported only its successes would be
+reporting on 5 problems and calling it 8.
+
+The GPU number is the one that changes planning. Six of seven cards averaged
+0.4–3.5% busy; the seventh sat at 50.8% only because its problem reads a
+1.14 GB paged cache on every evaluation. **A node does not need one GPU per
+agent** — it needs enough GPUs that evaluations do not queue. What it cannot
+do is let two agents share a card while either is timing.
+
+### The pilot found a defect in the benchmark, not just in itself
+
+The best kernel in the run came in **faster than T_SOL on 25 of 38 workloads**.
+Nothing beats the roofline, so that is a broken bound — the declared-traffic
+tier counts a whole paged KV cache as mandatory traffic when the kernel gathers
+34 pages out of 989,669. Six FlashInfer problems and 249 scoreable workloads are
+exposed. `STATE.md` D18 has the derivation and the v1.1 fix.
+
+The `T_SOL <= T_b` gate could not catch it, because T_b comes from a PyTorch
+reference that over-reads in exactly the same way. It took a kernel that
+avoided the traffic to separate the two numbers — which is a good argument for
+running an agent against a benchmark you intend to publish.
+
 ## What this is not
 
 It is a **pilot over a sample**, not a full-benchmark submission. Its coverage

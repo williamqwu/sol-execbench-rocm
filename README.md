@@ -284,11 +284,24 @@ so they have different quantization error: an MXFP4 twin is a
 re-specification, not a translation, and must never be presented as the NVFP4
 problem.
 
-**Not run: the agent baseline.** Upstream reports a median SOL of 0.732 over a
+**Partial: the agent baseline.** Upstream reports a median SOL of 0.732 over a
 kernel-optimizing agent's submissions, and a headroom correlation of r = 0.981.
-No agent was run here. `artifacts/09/score-distribution.json` scores the T_b
-variant set against the manifest instead, which validates the scale but is not
-that experiment and is labelled as not being it.
+A Claude-Opus-5 pilot has now been run over an 8-problem stratified sample
+(`docs/agent-baseline.md`, `artifacts/10/pilot8/`) — $65.08, 99 workloads
+scored, mean S = 0.776 — but that is a sample, not the 220-problem submission
+upstream's numbers describe, and the leaderboard shows its 2% coverage rather
+than hiding it. `artifacts/09/score-distribution.json` still carries the T_b
+variant set, which validates the scale and is labelled as not being an agent
+result.
+
+**Six problems have an invalid T_SOL.** The pilot produced a correct kernel
+that ran *faster than the speed-of-light bound* on 25 workloads, which is
+possible only if the bound is wrong. It is: the declared-traffic tier prices a
+paged KV cache at its full allocation while the kernel gathers 34 pages of
+989,669. The six paged FlashInfer problems — 249 scoreable workloads — are
+affected, badly at the median for the three prefill variants. Scores on them
+are not usable in v1 and are marked wherever they appear; the v1.1 fix is in
+`STATE.md` D18.
 
 ## Licence
 
