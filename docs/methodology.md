@@ -406,12 +406,61 @@ that actually fires was not the one assumed. Two residual gaps are asserted as
 passing tests so they stay visible: a side stream that is politely restored,
 and threads created during warmup.
 
+Verified against the largest corpus of known-good submissions available — the
+reference sweep itself: **0 of 235 problems flagged**. A detector that fires on
+the problem's own reference would fail every honest submission.
+
+## 8b. Does the scale hold up?
+
+Two checks, and they are different in kind. The first is arithmetic: score the
+variant set against the frozen manifest (`artifacts/09/score-distribution.json`,
+12248 workload–variant pairs). `S = 0.5` lands on the variant that became `T_b`
+with `max |S − 0.5| = 0`, every score is finite and in (0, 1], and the
+within-workload correlation between `S` and headroom reclaimed is **r = 1.000**
+(median over 2518 workloads).
+
+The second re-measures. `verify_anchor.py` re-times both arms on GPU 0, in
+fresh processes, over a 20-problem sample:
+
+| property | result |
+|---|---|
+| no measured time below its own `T_SOL` | 349/349 |
+| the reference never scores above the anchor | 349/349 |
+| re-timed `T_b` implementation scores 0.5 ± 0.03 | 336/349 |
+
+The gap between the two is the interesting part. The arithmetic check is exact
+by construction; the re-measurement is not, and it found one problem
+(`FlashInfer-Bench/018_mla_paged_decode`) whose latency does not reproduce to
+3% — 12 of its workloads re-time a median 1.16× slower than the `T_b` recorded
+for them, stably across two independent runs. A manifest that only ever checked
+itself would have called that problem perfect.
+
+**What was not run: the agent baseline.** Upstream's median SOL of 0.732 and
+its r = 0.981 headroom correlation are results about a kernel-optimizing
+agent's submissions. The four PyTorch formulations here cluster around `T_b` by
+construction, because `T_b` is defined as the fastest of them, so the pooled
+correlation over them (0.175) is computed over a sample that barely varies and
+is not a failed replication of upstream's number — it is not that experiment.
+`artifacts/09/agent-baseline.json` records the decision and what a replication
+would need.
+
 ## 9. Deferrals
 
 State the count honestly and identically everywhere. See
 [`artifacts/deferred.json`](../artifacts/deferred.json) for the machine-readable
 list and `artifacts/09/manifest-v1.json` for what the manifest actually
 contains.
+
+**235 in the dataset, 15 deferred, 220 scoreable, 3717 workload instances.**
+Those numbers appear in this document, the README and the manifest, and all
+three read them from the same file. `build_manifest.py` prints every problem
+that is neither scoreable nor deferred and it currently prints none.
+
+Two further limitations that are *not* deferrals but should be read alongside
+them: five backends (`ck`, `ck_tile`, `hipblaslt`, `miopen`, `aiter`) are
+accepted by the schema and have never been built through — see
+[`backend-coverage.md`](backend-coverage.md), which also lists the three
+defects the one `hip_cpp` seed found — and no agent baseline was run.
 
 **15 NVFP4 Quant problems.** These fail at the reference itself on ROCm:
 
