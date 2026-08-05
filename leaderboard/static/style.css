@@ -108,9 +108,17 @@ h3{font-size:14px;margin:24px 0 10px;color:var(--dim);text-transform:uppercase;
 /* ---------------------------------------------------------------- tables */
 table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+/* `top:58px` clears the sticky site header -- but ONLY when the table's
+   nearest scroll container is the page itself. Any ancestor whose overflow is
+   not `visible` becomes the containing scrollport, and then 58px offsets the
+   header 58px DOWN INTO that box, parking it on top of the first row. That is
+   what `.board{overflow:hidden}` (needed for the card's rounded corners) and
+   `.scroll{overflow-x:auto}` (needed for wide bound tables) both did. Sticky
+   is therefore opted out of inside them, just below. */
 th{color:var(--dim);font-weight:500;font-size:12px;text-transform:uppercase;
   letter-spacing:.4px;white-space:nowrap;position:sticky;top:58px;
   background:var(--bg);z-index:5}
+.board th,.scroll th{position:static}
 td.r,th.r{text-align:right}
 tbody tr:hover{background:var(--row-hover)}
 tr.dim td{opacity:.62}
@@ -151,6 +159,13 @@ html[data-theme="light"] .tag-memory{border-color:#2d5bbf;color:#2d5bbf}
 .bar{display:inline-block;width:64px;height:6px;background:var(--bar-bg);
   border-radius:3px;overflow:hidden;vertical-align:middle;margin-right:7px}
 .bar>span{display:block;height:100%;background:var(--accent2)}
+
+/* The passed/total count goes on its own line always. Left inline it wraps
+   only when the row happens to be wide enough, so a 99.2% row broke to two
+   lines while a 10.3% row stayed on one -- the same column reading as two
+   different layouts down the table. */
+.cov{white-space:nowrap}
+.cov .cov-n{display:block;margin-top:2px}
 
 /* --------------------------------------------------------------- banners */
 .banner{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line2);

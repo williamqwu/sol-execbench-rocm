@@ -48,10 +48,9 @@
       <td><span class="tag tag-{{ s.kind }}">{{ s.kind.replace('_',' ') }}</span></td>
       <td class="r big">{{ '%.4f'|format(s.benchmark_score) }}</td>
       <td class="r">{{ '%.4f'|format(s.mean_score_attempted) }}</td>
-      <td class="r">
-        <span class="bar"><span style="width:{{ (s.coverage*100)|round(1) }}%"></span></span>
-        {{ '%.1f'|format(s.coverage*100) }}%
-        <span class="sub">{{ s.workloads_passed }}/{{ s.workloads_total }}</span>
+      <td class="r cov">
+        <span class="bar"><span style="width:{{ (s.coverage*100)|round(1) }}%"></span></span>{{ '%.1f'|format(s.coverage*100) }}%
+        <span class="sub cov-n">{{ s.workloads_passed }}/{{ s.workloads_total }}</span>
       </td>
       <td class="r">{{ s.problems_complete }}<span class="sub">/{{ s.problems_total }}</span></td>
       <td class="r">{% if s.n_flagged %}<span class="flag">{{ s.n_flagged }}</span>{% else %}&mdash;{% endif %}</td>
