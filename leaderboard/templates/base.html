@@ -1,23 +1,61 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}SOL-ExecBench-AMD{% endblock %}</title>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v=2">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>&#9889;</text></svg>">
+<script>
+/* Applied before first paint. Reading the stored theme in <body> instead makes
+   the page render dark, then flash to light -- worse than no toggle at all. */
+(function(){
+  try{
+    var t = localStorage.getItem("theme");
+    if(!t) t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", t);
+  }catch(e){}
+})();
+</script>
 </head>
 <body>
 <header>
   <div class="wrap">
-    <a class="brand" href="/">SOL&#8209;ExecBench<span class="amd">&#8209;AMD</span></a>
+    <a class="brand" href="/">
+      <span class="spark">&#9889;</span>
+      SOL&#8209;ExecBench<span class="amd">&#8209;AMD</span>
+    </a>
+    {% if meta.part %}<span class="part-pill" title="Every T_SOL, T_b and F_LOCK on this board was measured on this part. Scores from another part are not comparable.">{{ meta.part }}</span>{% endif %}
     <nav>
-      <a href="/">Leaderboard</a>
-      <a href="/problems">Problems</a>
-      <a href="/methodology">Methodology</a>
+      <a href="/" {% if nav == 'board' %}class="on"{% endif %}>Leaderboard</a>
+      <a href="/problems" {% if nav == 'problems' %}class="on"{% endif %}>Problems</a>
+      <a href="/methodology" {% if nav == 'methodology' %}class="on"{% endif %}>Methodology</a>
       <a href="/api/docs">API</a>
     </nav>
+    <button id="theme-toggle" class="theme-toggle" type="button"
+            aria-label="Toggle light and dark theme" title="Toggle theme">
+      <svg class="i-sun" width="16" height="16" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+      </svg>
+      <svg class="i-moon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+      </svg>
+    </button>
   </div>
 </header>
+
+{% if meta.freshness and meta.freshness.stale %}
+<div class="wrap">
+  <div class="banner warn stale">
+    <b>This view may be behind the artifacts.</b>
+    {{ meta.freshness.reasons | join('; ') }}.
+    Rebuild with <code>python leaderboard/ingest.py</code> to be sure.
+  </div>
+</div>
+{% endif %}
 
 <div class="wrap main">
 {% block content %}{% endblock %}
@@ -30,8 +68,51 @@
       ROCm {{ meta.rocm_version }} &middot; torch {{ meta.torch_version }}</span>
     <span class="right">manifest {{ meta.manifest_version }} &middot;
       <code>{{ (meta.git_sha or '')[:12] }}</code> &middot;
-      {{ (meta.manifest_utc or '')[:19] }}Z</span>
+      {{ (meta.manifest_utc or '')[:19] }}Z
+      {% if meta.db_built_utc %}&middot; indexed {{ meta.db_built_utc[:19] }}Z{% endif %}</span>
   </div>
 </footer>
+
+<script>
+document.getElementById("theme-toggle").addEventListener("click", function(){
+  var el = document.documentElement;
+  var next = el.getAttribute("data-theme") === "dark" ? "light" : "dark";
+  el.setAttribute("data-theme", next);
+  try{ localStorage.setItem("theme", next); }catch(e){}
+});
+
+/* Click a column header to sort. Numeric where the cell parses as a number,
+   lexical otherwise; "--" and blanks always sort last regardless of direction,
+   because a missing measurement is not a small one. */
+document.querySelectorAll("table.sortable th").forEach(function(th, idx){
+  if(th.classList.contains("nosort")) return;
+  th.classList.add("sortable-th");
+  th.addEventListener("click", function(){
+    var tb = th.closest("table").tBodies[0];
+    var asc = th.classList.contains("sort-asc") ? false : true;
+    th.closest("tr").querySelectorAll("th").forEach(function(o){
+      o.classList.remove("sort-asc","sort-desc");
+    });
+    th.classList.add(asc ? "sort-asc" : "sort-desc");
+    var val = function(tr){
+      var c = tr.children[idx];
+      if(!c) return null;
+      var t = (c.getAttribute("data-sort") || c.innerText || "").trim();
+      if(t === "" || t === "—") return null;
+      var n = parseFloat(t.replace(/[,%$×x]/g,""));
+      return isNaN(n) ? t.toLowerCase() : n;
+    };
+    Array.from(tb.rows).sort(function(a,b){
+      var x = val(a), y = val(b);
+      if(x === null && y === null) return 0;
+      if(x === null) return 1;          /* missing always last */
+      if(y === null) return -1;
+      if(x < y) return asc ? -1 : 1;
+      if(x > y) return asc ? 1 : -1;
+      return 0;
+    }).forEach(function(tr){ tb.appendChild(tr); });
+  });
+});
+</script>
 </body>
 </html>

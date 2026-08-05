@@ -12,7 +12,8 @@
 <div class="cards">
   <div class="card"><div class="num">{{ meta.scoreable_problems }}<span class="of">/{{ meta.total_problems }}</span></div><div class="lbl">problems scoreable</div></div>
   <div class="card"><div class="num">{{ meta.scoreable_workloads }}</div><div class="lbl">workload instances</div></div>
-  <div class="card"><div class="num">{{ meta.f_lock_mhz }}<span class="of">MHz</span></div><div class="lbl">locked clock</div></div>
+  <div class="card"><div class="num">{{ meta.part or '&mdash;' }}</div><div class="lbl">measured on</div></div>
+  <div class="card"><div class="num">{{ meta.f_lock_mhz }}<span class="of">MHz</span></div><div class="lbl">locked clock (achieved)</div></div>
   <div class="card"><div class="num">{{ meta.methodology }}</div><div class="lbl">timing methodology</div></div>
 </div>
 
@@ -64,6 +65,17 @@
   are what T<sub>b</sub> is derived from &mdash; T<sub>b</sub> is the fastest of
   them per workload &mdash; so whichever one wins a workload scores exactly
   0.5 there by construction. They calibrate the scale; they do not compete on it.
+</p>
+
+<p class="note">
+  <b>Every number here is {{ meta.part or 'this part' }}, at F<sub>LOCK</sub>
+  {{ meta.f_lock_mhz }} MHz.</b> T<sub>SOL</sub> in milliseconds, T<sub>b</sub> and
+  F<sub>LOCK</sub> all differ between parts, so a score measured on one cannot be
+  ranked against a score measured on another &mdash; the scorer refuses that
+  comparison rather than rescaling it. A second port
+  (MI355X, F<sub>LOCK</sub> 1640) is in progress on <code>feat/agent-scoreboard</code>
+  and is <em>not</em> shown: its T<sub>b</sub> is not yet anchor-verified, so it has
+  no S to publish.
 </p>
 
 {% endblock %}

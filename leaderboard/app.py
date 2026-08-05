@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import subprocess
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -33,6 +34,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent
 DB = Path(os.environ.get("SOLBENCH_DB", HERE / "solbench.db"))
 
 app = FastAPI(title="SOL-ExecBench-AMD leaderboard", docs_url="/api/docs")
@@ -52,7 +54,46 @@ def db() -> sqlite3.Connection:
 
 def meta() -> dict:
     with db() as conn:
-        return {r["key"]: r["value"] for r in conn.execute("SELECT key,value FROM meta")}
+        m = {r["key"]: r["value"] for r in conn.execute("SELECT key,value FROM meta")}
+    m["freshness"] = freshness(m)
+    return m
+
+
+def freshness(m: dict) -> dict:
+    """Is the database still a faithful view of the artifacts?
+
+    It is a *derived* store, so it goes stale the moment the artifacts move --
+    and the failure is silent: every page still renders, every number still
+    looks plausible, and nothing says the manifest underneath has changed. Two
+    cheap signals, both reported rather than acted on:
+
+      * the repo HEAD now vs. the HEAD `ingest.py` last ran against;
+      * the manifest's mtime vs. the database's.
+
+    A drifted SHA is not by itself wrong -- most commits touch nothing this
+    board reads -- so it is worded as "rebuild to be sure", not as an error.
+    """
+    out: dict = {"stale": False, "reasons": []}
+    head = None
+    try:
+        head = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+                              capture_output=True, text=True, timeout=10,
+                              check=True).stdout.strip()
+    except Exception:
+        pass
+    out["repo_head"] = head
+    out["built_from"] = m.get("repo_git_sha")
+    out["db_built_utc"] = m.get("db_built_utc")
+    if head and m.get("repo_git_sha") and head != m["repo_git_sha"]:
+        out["stale"] = True
+        out["reasons"].append(
+            f"repo has moved to {head[:12]} since this database was built "
+            f"from {m['repo_git_sha'][:12]}")
+    manifest = ROOT / "artifacts" / "09" / "manifest-v1.json"
+    if manifest.exists() and DB.exists() and manifest.stat().st_mtime > DB.stat().st_mtime:
+        out["stale"] = True
+        out["reasons"].append("artifacts/09/manifest-v1.json is newer than the database")
+    return out
 
 
 def rows(conn, sql: str, args=()) -> list[dict]:
@@ -157,7 +198,12 @@ def problem_detail(conn, key: str) -> dict:
     wls = rows(conn, "SELECT * FROM workload WHERE problem_key=? ORDER BY rowid", (key,))
     for w in wls:
         w["axes"] = json.loads(w.pop("axes_json") or "{}")
-        w["headroom"] = (w["t_b_ms"] / w["t_sol_ms"]) if w["t_sol_ms"] else None
+        # Both, not just t_sol_ms. A deferred problem has a T_SOL (it is
+        # architectural and needs no GPU) but no T_b (nothing ran), so guarding
+        # only the divisor left None/float and 500'd every one of the 15
+        # deferred problem pages -- the exact pages a reader follows to find out
+        # why the row shows 0.
+        w["headroom"] = (w["t_b_ms"] / w["t_sol_ms"]) if (w["t_sol_ms"] and w["t_b_ms"]) else None
         w["results"] = rows(conn, """
             SELECT r.*, s.slug, s.name AS submission_name, s.kind
               FROM result r JOIN submission s ON s.id=r.submission_id
@@ -253,7 +299,7 @@ def index(request: Request, category: str | None = None):
                                     SUM(CASE WHEN deferred=1 THEN 1 ELSE 0 END) AS deferred
                                FROM problem GROUP BY category ORDER BY category""")
     return page(request, "index.html", board=board, categories=cats,
-                category=category)
+                category=category, nav="board")
 
 
 @app.get("/problems", response_class=HTMLResponse)
@@ -267,7 +313,8 @@ def problems(request: Request, category: str | None = None, q: str | None = None
                  if needle in p["key"].lower()
                  or needle in (p["description"] or "").lower()]
     return page(request, "problems.html", problems=items,
-                categories=[c["category"] for c in cats], category=category, q=q or "")
+                categories=[c["category"] for c in cats], category=category,
+                q=q or "", nav="problems")
 
 
 @app.get("/problems/{key}", response_class=HTMLResponse)
@@ -293,12 +340,19 @@ def methodology(request: Request):
         excluded = json.loads(dict(
             (r["key"], r["value"]) for r in conn.execute("SELECT key,value FROM meta")
         ).get("excluded_submissions") or "{}")
-        deferred = rows(conn, """SELECT key, deferred_reason FROM problem
-                                  WHERE deferred=1 ORDER BY key""")
+        deferred = rows(conn, """SELECT key, n_workloads, deferred_reason,
+                                        deferred_mechanism, deferred_error
+                                   FROM problem WHERE deferred=1 ORDER BY key""")
     return page(request, "methodology.html", bound_sources=bounds,
-                deferred=deferred, excluded=excluded)
+                deferred=deferred, excluded=excluded, nav="methodology")
 
 
 @app.get("/healthz")
 def healthz():
-    return JSONResponse({"ok": DB.exists(), "db": str(DB)})
+    if not DB.exists():
+        return JSONResponse({"ok": False, "db": str(DB), "error": "not built"},
+                            status_code=503)
+    m = meta()
+    return JSONResponse({"ok": True, "db": str(DB), "part": m.get("part"),
+                         "manifest_version": m.get("manifest_version"),
+                         "freshness": m["freshness"]})

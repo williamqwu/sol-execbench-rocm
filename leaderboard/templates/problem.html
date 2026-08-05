@@ -7,8 +7,18 @@
 <h1 class="mono">{{ problem.name }}</h1>
 {% if problem.deferred %}
   <div class="banner warn">
-    <b>Deferred from v1.</b>
-    {{ problem.deferred_reason or 'This problem is accepted by the schema but is not scoreable in manifest v1.' }}
+    <p style="margin:0 0 7px"><b>Deferred from manifest {{ meta.manifest_version }} &mdash;
+      0 of {{ problem.n_workloads }} workloads are scoreable.</b>
+      {% if problem.deferred_reason %}<span class="tag tag-deferred">{{ problem.deferred_reason }}</span>{% endif %}</p>
+    <p style="margin:0 0 7px">{{ problem.deferred_mechanism or
+       'Accepted by the schema, but not scoreable in this manifest.' }}
+       This is a recorded decision, not a sweep that failed to run: nothing was
+       measured because there was nothing valid to measure against.</p>
+    {% if problem.deferred_error %}
+      <pre class="code sm" style="margin:0">{{ problem.deferred_error }}</pre>
+    {% endif %}
+    <p class="sub" style="margin:7px 0 0">Ledger: <code>artifacts/deferred.json</code>
+       &middot; <a href="/methodology#deferred">all {{ meta.total_problems|int - meta.scoreable_problems|int }} deferrals</a></p>
   </div>
 {% endif %}
 <p class="lede">{{ problem.description }}</p>

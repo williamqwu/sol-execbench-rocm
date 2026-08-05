@@ -6,7 +6,20 @@
 <p class="lede">{{ problems|length }} shown.
   Headroom is the median T<sub>b</sub>/T<sub>SOL</sub> over a problem's workloads &mdash;
   how much room there is between the optimized&#8209;PyTorch anchor and the physical bound.
-  A problem at 1.2&times; is nearly at the roofline already; one at 40&times; is wide open.</p>
+  A problem at 1.2&times; is nearly at the roofline already; one at 40&times; is wide open.
+  Click a column heading to sort.</p>
+
+{% set n_deferred = problems | selectattr('deferred') | list | length %}
+{% if n_deferred %}
+<div class="banner warn">
+  <b>{{ n_deferred }} problem{{ 's' if n_deferred != 1 }} here show 0 scoreable workloads.</b>
+  That is a recorded decision, not a sweep that failed to run &mdash; the reference
+  implementation itself raises on ROCm, before any submission is involved. Each one
+  prints its reason below; the machine&#8209;readable ledger is
+  <code>artifacts/deferred.json</code>, and every published count quotes it.
+  <a href="/methodology">Methodology &rarr;</a>
+</div>
+{% endif %}
 
 <form class="filters" method="get" action="/problems">
   <a class="chip {% if not category %}on{% endif %}" href="/problems">all</a>
@@ -22,18 +35,25 @@
   <thead><tr>
     <th>problem</th><th>category</th>
     <th class="r">workloads</th><th class="r">headroom</th>
-    <th class="r">best score</th><th class="r">submissions</th><th></th>
+    <th class="r">best score</th><th class="r">submissions</th><th class="nosort"></th>
   </tr></thead>
   <tbody>
   {% for p in problems %}
     <tr class="{% if p.deferred %}dim{% endif %}">
       <td><a class="mono" href="/problems/{{ p.key }}">{{ p.name }}</a>
-          <div class="sub trunc">{{ p.description }}</div></td>
+          <div class="sub trunc">{{ p.description }}</div>
+          {% if p.deferred %}
+          <span class="why"><b>Not scoreable:</b>
+            {{ p.deferred_mechanism or 'deferred — see the ledger.' }}
+            {% if p.deferred_error %}<br><code>{{ p.deferred_error }}</code>{% endif %}
+          </span>
+          {% endif %}
+      </td>
       <td class="sm">{{ p.category }}</td>
-      <td class="r">{{ p.n_scoreable }}<span class="sub">/{{ p.n_workloads }}</span></td>
+      <td class="r" data-sort="{{ p.n_scoreable }}">{{ p.n_scoreable }}<span class="sub">/{{ p.n_workloads }}</span></td>
       <td class="r mono">{% if p.median_headroom %}{{ '%.1f'|format(p.median_headroom) }}&times;{% else %}&mdash;{% endif %}</td>
       <td class="r mono">{% if p.best_score %}{{ '%.3f'|format(p.best_score) }}{% else %}&mdash;{% endif %}</td>
-      <td class="r">{{ p.n_submissions }}</td>
+      <td class="r">{% if p.deferred %}&mdash;{% else %}{{ p.n_submissions }}{% endif %}</td>
       <td>{% if p.deferred %}<span class="tag tag-deferred">deferred</span>{% endif %}</td>
     </tr>
   {% endfor %}

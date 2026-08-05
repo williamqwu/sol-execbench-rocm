@@ -20,7 +20,9 @@ import json
 import os
 import sqlite3
 import statistics
+import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,6 +44,19 @@ VARIANT_LABELS = {
     "v4_contiguous": "PyTorch eager + contiguous",
 }
 
+# Runs that stay on disk as artifacts but off the board. Deleting them would be
+# the wrong fix -- they were really run and their transcripts are evidence --
+# but a truncated pilot next to finished work invites a comparison that is not
+# there to be made. Excluded here, listed with the reason on /methodology.
+BOARD_EXCLUSIONS = {
+    "pilot8": "Smoke test, not a result. The $8/problem cap stopped all eight "
+              "sessions mid-work (8/8 `budget_exhausted`), so none of them "
+              "chose when to stop, and three of the eight submitted a kernel "
+              "that does not pass. Its mean of 0.776 is survivorship over the "
+              "five problems where anything passed at all. Artifacts and "
+              "transcripts are kept under artifacts/10/pilot8/.",
+}
+
 
 def connect(db: Path) -> sqlite3.Connection:
     db.parent.mkdir(parents=True, exist_ok=True)
@@ -50,8 +65,33 @@ def connect(db: Path) -> sqlite3.Connection:
     return conn
 
 
+def git_sha(path: Path) -> str | None:
+    try:
+        return subprocess.run(["git", "-C", str(path), "rev-parse", "HEAD"],
+                              capture_output=True, text=True, timeout=10,
+                              check=True).stdout.strip()
+    except Exception:
+        return None
+
+
+def part_of(device: str | None) -> str | None:
+    """'AMD Instinct MI350X' -> 'MI350X'.
+
+    The part is not decoration. T_SOL in milliseconds, T_b and F_LOCK all differ
+    between MI350X and MI355X, and `scripts/score_solutions.py` refuses an
+    artifact whose part is not the live node's rather than rescaling it. A board
+    that does not name its part invites exactly the comparison that refusal
+    exists to prevent.
+    """
+    for token in (device or "").split():
+        if token.upper().startswith("MI"):
+            return token
+    return None
+
+
 def ingest_meta(conn, manifest: dict) -> None:
     prov = manifest.get("_provenance", {})
+    device = ((prov.get("torch") or {}).get("devices") or [None])[0]
     rows = {
         "manifest_version": manifest.get("manifest_version"),
         "methodology": manifest.get("methodology"),
@@ -63,8 +103,15 @@ def ingest_meta(conn, manifest: dict) -> None:
         "rocm_version": (prov.get("rocm") or {}).get("version"),
         "driver_version": (prov.get("rocm") or {}).get("driver"),
         "torch_version": (prov.get("torch") or {}).get("version"),
-        "device": ((prov.get("torch") or {}).get("devices") or [None])[0],
+        "device": device,
+        "part": prov.get("part") or part_of(device),
         "n_devices": (prov.get("torch") or {}).get("device_count"),
+        # Freshness. The database is a view of the artifacts and goes stale the
+        # moment they move; without these it goes stale *silently*, which is the
+        # one failure a leaderboard cannot afford. `app.py` compares
+        # `repo_git_sha` against the working tree and says so in the header.
+        "db_built_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "repo_git_sha": git_sha(ROOT),
         "total_problems": manifest["problem_set"]["total_in_dataset"],
         "scoreable_problems": manifest["problem_set"]["scoreable_problems"],
         "scoreable_workloads": manifest["stats"]["scoreable_workloads"],
@@ -76,15 +123,27 @@ def ingest_meta(conn, manifest: dict) -> None:
 
 
 def ingest_problems(conn, manifest: dict) -> None:
-    deferred_reasons = {}
+    # `deferred.json` keys its entries under "problems", as a dict. An earlier
+    # version of this read `d.get("deferred", ...)`, which is absent, so every
+    # reason silently resolved to None and all 15 NVFP4 problems rendered as an
+    # unexplained "0 scoreable" -- indistinguishable, to a reader, from a sweep
+    # that never ran. Missing an explanation is how a documented decision comes
+    # to look like a bug, so this asserts the shape rather than defaulting.
+    deferred_info: dict[str, dict] = {}
     if DEFERRED.exists():
         d = json.loads(DEFERRED.read_text())
-        for entry in d.get("deferred", d if isinstance(d, list) else []):
-            if isinstance(entry, dict):
-                key = entry.get("problem") or entry.get("key")
-                if key:
-                    deferred_reasons[key] = entry.get("reason") or d.get("reason")
+        entries = d.get("problems")
+        if not isinstance(entries, dict):
+            raise SystemExit(
+                f"{DEFERRED}: expected a 'problems' object mapping problem key -> "
+                f"reason; found keys {sorted(d)}. Refusing to ingest deferrals "
+                f"as unexplained zeros.")
+        deferred_info = {k: v for k, v in entries.items() if isinstance(v, dict)}
     deferred_set = set(manifest["problem_set"]["deferred_problems"])
+    if deferred_set - set(deferred_info):
+        raise SystemExit(
+            "manifest defers problems that carry no entry in deferred.json: "
+            f"{sorted(deferred_set - set(deferred_info))}")
 
     for key, p in manifest["problems"].items():
         category, name = key.split("__", 1)
@@ -95,19 +154,20 @@ def ingest_problems(conn, manifest: dict) -> None:
         heads = [w["t_b_ms"] / w["t_sol_ms"] for w in wls.values()
                  if w.get("scoreable") and w.get("t_sol_ms") and w.get("t_b_ms")]
 
+        info = deferred_info.get(key) or {}
         conn.execute(
             """INSERT OR REPLACE INTO problem
                (key,category,name,description,hf_id,reference,axes_json,
                 inputs_json,outputs_json,n_workloads,n_scoreable,deferred,
-                deferred_reason,median_headroom)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                deferred_reason,deferred_mechanism,deferred_error,median_headroom)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (key, category, name, defn.get("description"), defn.get("hf_id"),
              defn.get("reference"), json.dumps(defn.get("axes") or {}),
              json.dumps(defn.get("inputs") or {}),
              json.dumps(defn.get("outputs") or {}),
              p.get("n_workloads", len(wls)), p.get("n_scoreable", 0),
              1 if key in deferred_set else 0,
-             deferred_reasons.get(key),
+             info.get("reason"), info.get("mechanism"), info.get("error"),
              statistics.median(heads) if heads else None))
 
         for uuid, w in wls.items():
@@ -151,7 +211,7 @@ def add_submission(conn, **kw) -> int:
     return cur.lastrowid
 
 
-def ingest_variants(conn, manifest: dict) -> None:
+def ingest_variants(conn, manifest: dict) -> dict:
     """The four PyTorch variants, from the task 06 sweep.
 
     Authoritative (GPU 0) timings win where they exist; the wider sweep on GPUs
@@ -176,7 +236,7 @@ def ingest_variants(conn, manifest: dict) -> None:
                     # authoritative overwrites sweep, by iteration order
                     store[(pkey, uuid)] = (ms, label, bool(v.get("all_passed")))
 
-    excluded = []
+    excluded: list[str] = []
     for vname, entries in sorted(per_variant.items()):
         # v5_compile_contiguous ran on all 235 problems and passed zero
         # workloads (torch.compile raises during tracing). A row with 0%
@@ -215,14 +275,11 @@ def ingest_variants(conn, manifest: dict) -> None:
                 score,flagged,note) VALUES (?,?,?,?,?,?,?,?)""", rows)
         print(f"  {vname}: {len(rows)} scored workloads")
 
-    if excluded:
-        conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)",
-                     ("excluded_submissions", json.dumps(
-                         {v: "ran on all 235 problems, passed 0 workloads"
-                          for v in excluded})))
+    return {v: "Ran on all 235 problems and passed 0 workloads "
+               "(torch.compile raises during tracing)." for v in excluded}
 
 
-def ingest_agent_runs(conn, extra_roots: list[Path] | None = None) -> None:
+def ingest_agent_runs(conn, extra_roots: list[Path] | None = None) -> dict:
     """Any `<root>/<run>/scored.json` written by `agent_score.py`.
 
     Extra roots matter because a run directory does not have to live in the
@@ -239,13 +296,21 @@ def ingest_agent_runs(conn, extra_roots: list[Path] | None = None) -> None:
                 scored_files.append(root / "scored.json")
         else:
             print(f"  (agent-run root not found, skipped: {root})")
+
+    excluded: dict[str, str] = {}
     for scored in scored_files:
         doc = json.loads(scored.read_text())
         run_id = doc.get("run_id", scored.parent.name)
         # Validation runs are scored the same way and kept as artifacts, but a
         # one-problem smoke test on the board is noise, not information.
         if doc.get("leaderboard") is False:
-            print(f"  agent {run_id}: excluded from board (validation run)")
+            excluded[run_id] = doc.get("excluded_reason") or "validation run"
+            print(f"  agent {run_id}: excluded from board ({excluded[run_id]})")
+            continue
+        if run_id in BOARD_EXCLUSIONS:
+            excluded[run_id] = BOARD_EXCLUSIONS[run_id]
+            print(f"  agent {run_id}: excluded from board (smoke test), "
+                  f"recorded in meta")
             continue
         sub_id = add_submission(
             conn,
@@ -284,6 +349,7 @@ def ingest_agent_runs(conn, extra_roots: list[Path] | None = None) -> None:
                   f"{len(bad)} problem(s) have a bound a real kernel beat: {bad}")
         else:
             print(f"  agent {run_id}: {len(rows)} scored workloads")
+    return excluded
 
 
 def main() -> int:
@@ -308,9 +374,12 @@ def main() -> int:
     ingest_meta(conn, manifest)
     ingest_problems(conn, manifest)
     print("variants:")
-    ingest_variants(conn, manifest)
+    excluded = ingest_variants(conn, manifest)
     print("agent runs:")
-    ingest_agent_runs(conn, extra)
+    excluded.update(ingest_agent_runs(conn, extra))
+    if excluded:
+        conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)",
+                     ("excluded_submissions", json.dumps(excluded)))
     conn.commit()
 
     n_p = conn.execute("SELECT COUNT(*) FROM problem").fetchone()[0]

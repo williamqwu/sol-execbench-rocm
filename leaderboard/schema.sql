@@ -34,7 +34,13 @@ CREATE TABLE problem (
     n_workloads     INTEGER NOT NULL DEFAULT 0,
     n_scoreable     INTEGER NOT NULL DEFAULT 0,
     deferred        INTEGER NOT NULL DEFAULT 0,
-    deferred_reason TEXT,
+    -- All three, because a deferral shown as a bare "0 scoreable" reads as a
+    -- gap in the sweep. It is not: `artifacts/deferred.json` carries the slug,
+    -- the mechanism and the interpreter's own error text, and the UI shows
+    -- them next to the zero so the reader never has to guess which it is.
+    deferred_reason    TEXT,   -- slug, e.g. 'nvfp4-no-rocm-path'
+    deferred_mechanism TEXT,   -- one sentence: why more work does not close it
+    deferred_error     TEXT,   -- the exception the reference itself raises
     -- median over workloads of T_b / T_SOL: how much room a kernel has.
     median_headroom REAL
 );

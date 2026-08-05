@@ -59,22 +59,34 @@
    instances. Category totals: <code>{{ meta.expected_by_category }}</code>.</p>
 
 {% if deferred %}
-<h3>Deferred ({{ deferred|length }})</h3>
+<h3 id="deferred">Deferred ({{ deferred|length }}) &mdash; why some problems show 0</h3>
 <p class="sub">Deferred is a decision with a reason attached, and is counted in
-   every published figure. It is not the same as missing.</p>
+   every published figure. It is not the same as missing: these problems were
+   attempted, and the <em>reference implementation itself</em> fails on ROCm
+   before any submission is involved. That is why they show 0 scoreable
+   workloads rather than a low score.</p>
 <table class="grid">
-  <thead><tr><th>problem</th><th>reason</th></tr></thead>
+  <thead><tr><th>problem</th><th class="r">workloads</th><th>reason</th></tr></thead>
   <tbody>
   {% for d in deferred %}
     <tr><td class="mono sm"><a href="/problems/{{ d.key }}">{{ d.key }}</a></td>
-        <td class="sm">{{ d.deferred_reason or 'see artifacts/deferred.json' }}</td></tr>
+        <td class="r sm">0<span class="sub">/{{ d.n_workloads }}</span></td>
+        <td class="sm">
+          <span class="tag tag-deferred">{{ d.deferred_reason or 'deferred' }}</span>
+          {% if d.deferred_mechanism %}<div style="margin-top:5px">{{ d.deferred_mechanism }}</div>{% endif %}
+          {% if d.deferred_error %}<div style="margin-top:4px"><code class="sub">{{ d.deferred_error }}</code></div>{% endif %}
+        </td></tr>
   {% endfor %}
   </tbody>
 </table>
 {% endif %}
 
 {% if excluded %}
-<h3>Excluded from the leaderboard</h3>
+<h3>Ran, but excluded from the board</h3>
+<p class="sub">These were really executed and their artifacts are kept. They are
+   off the board because ranking them next to finished work would invite a
+   comparison that is not there to be made &mdash; listed here rather than
+   deleted, so the exclusion is auditable.</p>
 <table class="grid">
   <thead><tr><th>entry</th><th>why</th></tr></thead>
   <tbody>
@@ -82,6 +94,21 @@
   </tbody>
 </table>
 {% endif %}
+
+<h2>What this board does not cover</h2>
+<div class="banner">
+  <p style="margin:0 0 8px"><b>One part, one clock.</b> Every score here was
+     measured on <b>{{ meta.part or meta.device }}</b> at F<sub>LOCK</sub>
+     {{ meta.f_lock_mhz }} MHz. T<sub>SOL</sub> in milliseconds, T<sub>b</sub>
+     and F<sub>LOCK</sub> all differ by part, so a score measured on another part
+     cannot be ranked against these &mdash; <code>scripts/score_solutions.py</code>
+     refuses that rather than rescaling.</p>
+  <p style="margin:0">A second port to <b>MI355X</b> (F<sub>LOCK</sub> 1640, 8&times;1400 W)
+     is in progress on <code>feat/agent-scoreboard</code> and is deliberately absent:
+     its T<sub>b</sub> is not yet anchor-verified, so its agent runs are scored on a
+     weaker basis (headroom and speedup, not S) and it has no S to publish. When that
+     lands it needs its own board, not extra rows on this one.</p>
+</div>
 
 {% if meta.problems_with_invalid_bound %}
 <h2>Problems whose bound is known to be wrong</h2>

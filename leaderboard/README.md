@@ -57,16 +57,42 @@ skipping the hard problems.
 
 ## Things the board is careful about
 
+* **One part per board.** Every score is `MI350X` at F_LOCK 1300 MHz, and the
+  header says so. T_SOL in milliseconds, T_b and F_LOCK all differ by part, so
+  a score from another part cannot be ranked against these —
+  `scripts/score_solutions.py` refuses that comparison rather than rescaling it.
+  The MI355X port on `feat/agent-scoreboard` is deliberately **not** merged in:
+  its T_b is not anchor-verified, its agent runs are scored on headroom and
+  speedup rather than S, and it has no S to publish. It needs its own board.
 * **Reference variants are labelled as such.** The four PyTorch formulations are
   what T_b is *derived from* — the winner of each workload scores exactly 0.5
   there by construction. They calibrate the scale rather than compete on it.
-* **Deferred ≠ missing.** The 15 NVFP4 problems appear, marked, with the reason,
-  and are counted in every denominator.
+* **Deferred ≠ missing.** The 15 NVFP4 problems appear, marked, and each one
+  prints the mechanism and the interpreter's own error next to its `0`. A
+  documented decision that renders as a bare zero is indistinguishable from a
+  sweep that never ran, so `ingest.py` now *raises* if the manifest defers a
+  problem that `artifacts/deferred.json` cannot explain.
 * **Entries that produced nothing are recorded, not dropped.**
   `v5_compile_contiguous` ran on all 235 problems and passed zero workloads;
-  it is excluded from the rankings and listed on the methodology page with why.
+  the `pilot8` agent run was a smoke test whose $8 cap stopped all eight
+  sessions mid-work. Both are off the rankings and listed on the methodology
+  page with the reason.
 * **Flagged submissions stay visible.** A workload the anti-reward-hack checks
   rejected scores zero and is still displayed as flagged.
+* **Staleness is reported, not assumed away.** The database is a view over the
+  artifacts and goes stale the moment they move — silently, since every page
+  still renders. `ingest.py` stamps the repo SHA and build time; `app.py`
+  compares them against the working tree and puts a banner in the header when
+  they diverge. `/healthz` returns the same check as JSON.
+
+## Themes
+
+Dark by default, light on request, toggled from the header and remembered in
+`localStorage`; with nothing stored it follows `prefers-color-scheme`. The
+theme is applied by an inline script in `<head>` before first paint, because
+reading it later renders the page dark and then flashes to light. Every colour
+is a CSS variable declared once per theme, so no component carries a
+theme-specific override — `style.css` is the only place either palette lives.
 
 ## API
 
@@ -77,7 +103,7 @@ skipping the hard problems.
 | `GET /api/problems?category=` | problem index |
 | `GET /api/problems/{key}` | one problem: bounds, tolerances, per-workload results |
 | `GET /api/submissions/{slug}` | one submission, broken down per problem |
-| `GET /healthz` | liveness + database path |
+| `GET /healthz` | liveness, part, and whether the database has gone stale |
 
 Interactive docs at `/api/docs`.
 
