@@ -50,13 +50,25 @@ ancestors() {
   done
 }
 
-# PIDs matching a pattern, excluding this process and its ancestors. pgrep rather
-# than `ps aux | grep "[a]bc"`: the bracket trick only hides grep itself and does
-# nothing about the ancestor case above.
+# Our own session id. Everything tmux started for this invocation -- the pane
+# shell, the subshells of the `| tee` pipeline, this script -- shares it, and every
+# one of their command lines contains the text of what was launched, so all of them
+# match a search for "run_pipeline.sh". Ancestor exclusion alone is not enough
+# because pipeline members are SIBLINGS, not ancestors.
+own_sid() { awk '{print $6}' "/proc/$$/stat" 2>/dev/null; }
+
+# PIDs matching a pattern, excluding this process, its ancestors, and anything in
+# our own session. pgrep rather than `ps aux | grep "[a]bc"`: the bracket trick
+# only hides grep itself.
 matching_pids() {
-  local exclude
-  exclude="$(ancestors | paste -sd'|' -)"
-  pgrep -f "$1" 2>/dev/null | grep -vxE "${exclude:-^$}" || true
+  local sid
+  sid="$(own_sid)"
+  pgrep -f "$1" 2>/dev/null | while read -r pid; do
+    [ -n "${pid}" ] || continue
+    psid="$(awk '{print $6}' "/proc/${pid}/stat" 2>/dev/null)"
+    [ "${psid}" = "${sid}" ] && continue
+    echo "${pid}"
+  done || true
 }
 
 running() { [ -n "$(matching_pids "$1")" ]; }
@@ -163,15 +175,15 @@ acquire_lock() {
     rm -f "${LOCK}"
   fi
 
-  local others
-  others="$(matching_pids 'run_pipeline.sh' | tr '\n' ' ')"
-  if [ -n "${others// /}" ]; then
-    say "REFUSING: another run_pipeline.sh is running (pids: ${others})."
-    echo "  It predates this lock, so there is no lock file to check." >&2
-    echo "  Attach to it instead:  tmux attach -t solb" >&2
-    exit 1
-  fi
-
+  # A process-name scan used to run here as a second check, for a driver started
+  # before this lock existed. It was removed: every shell tmux creates to launch
+  # this script carries the launch command in its own command line, so the scan
+  # matched its own siblings and refused to start at all. Excluding ancestors, then
+  # the session, each fixed one case and missed another. The lock file is
+  # unambiguous, and the legacy case it guarded against no longer exists.
+  #
+  # If a driver ever does run without a lock file, `pgrep -f run_pipeline.sh` from
+  # another shell says so in one line, and this refuses on the file next time.
   echo "$$" > "${LOCK}"
   trap release_lock EXIT INT TERM
 }

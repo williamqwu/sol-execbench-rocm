@@ -258,5 +258,6 @@
   },
   "all_within_tolerance": false,
   "spread_mhz": 99.0,
-  "note": "per-GPU determinism setpoints chosen so every GPU HOLDS the same clock under load. A single node-wide setpoint does not: two GPUs obey it and six land at ~0.82x, and the six are not power-limited. An F_LOCK 8/8 cards hold is a better basis than one 2/8 hold."
+  "note": "per-GPU determinism setpoints chosen so every GPU HOLDS the same clock under load. A single node-wide setpoint does not: two GPUs obey it and six land at ~0.82x, and the six are not power-limited. An F_LOCK 8/8 cards hold is a better basis than one 2/8 hold.",
+  "_rejected": "REJECTED as a lock, kept as evidence. These per-GPU setpoints do equalize the SATURATED clock -- seven cards held 1471-1490 MHz, 1.28%, under simultaneous load -- but they do not PIN it. Determinism caps the soft maximum at the setpoint, so a card set to 1910 in order to land at 1480 under saturation runs up to ~1890 on short or bursty kernels. The clock monitor measured 1888 MHz against an F_LOCK of 1480, +27.6%, and 22 T_b artifacts were quarantined. A pinned clock requires achieved ~= setpoint, which on this node is true only on GPU 1. See STATE.md D29. Renamed so provenance.clock_lock_state() stops treating it as the expectation."
 }
