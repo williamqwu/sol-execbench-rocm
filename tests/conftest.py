@@ -42,7 +42,9 @@ def pytest_configure(config):
     """Register custom markers."""
     config.addinivalue_line(
         "markers",
-        "timing_serial: GPU timing tests (skipped by default; run with: pytest tests -m timing_serial -n 0)",
+        "timing_serial: GPU wall-clock timing tests; run serially. Skipped only "
+        "when pytest-xdist is distributing the run, since a co-scheduled worker "
+        "on the same GPU corrupts the measurement.",
     )
 
 
@@ -55,12 +57,15 @@ def pytest_collection_modifyitems(
     """
     sm_version = _gpu_sm_version()
     skip_timing = pytest.mark.skip(
-        reason="timing_serial tests skipped by default; run with: pytest tests -m timing_serial -n 0"
+        reason="timing_serial tests measure GPU wall-clock and are skipped under "
+               "parallel execution; run without -n/--dist to include them"
     )
 
-    # If the user passed -m that includes timing_serial, don't auto-skip them.
+    # If the user passed -m that includes timing_serial, honour it even in
+    # parallel -- an explicit selection is a decision, not an accident.
     markexpr = config.getoption("-m", default="")
     timing_selected = "timing_serial" in markexpr
+    parallel = _running_in_parallel(config)
 
     amd = _is_amd()
     for item in items:
@@ -70,8 +75,28 @@ def pytest_collection_modifyitems(
                     reason=f"cuTile requires sm_100+ (detected sm_{sm_version})"
                 )
             )
-        if "timing_serial" in item.keywords and not timing_selected:
+        if "timing_serial" in item.keywords and parallel and not timing_selected:
             item.add_marker(skip_timing)
+        # AMD: CUPTI has no ROCm build, so these cannot pass here at all.
+        if amd and item.cls is not None and item.cls.__name__ in _CUPTI_TEST_CLASSES:
+            item.add_marker(
+                pytest.mark.skip(
+                    reason=f"{item.cls.__name__}: CUPTI is NVIDIA-only and has no "
+                           f"ROCm build; the AMD path is the rocprofiler-sdk shim "
+                           f"(task 04)"
+                )
+            )
+        # AMD: threshold measured on NVIDIA, and re-deriving it here showed the
+        # statistic does not discriminate on this part. See the note above.
+        if amd and item.originalname in _AMD_UNSPECIFIED_TIMING_TESTS:
+            item.add_marker(
+                pytest.mark.skip(
+                    reason=f"{item.originalname}: PASS threshold was measured on "
+                           f"RTX 4090/B200 and the spread is bimodal on MI350X; "
+                           f"needs re-specification, see "
+                           f"artifacts/02/timing-variance-amd.json"
+                )
+            )
         # AMD: example solutions written in an NVIDIA-only language.
         if amd and item.fspath.basename == "test_examples.py":
             case_id = item.name[item.name.find("[") + 1 : -1]
@@ -140,6 +165,78 @@ _NVIDIA_ONLY_TEST_FILES = {
 _NVIDIA_ONLY_EXAMPLE_SUFFIXES = (
     "_cuda", "_cutlass", "_cudnn", "_cute_dsl", "_cutile",
 )
+
+# Test classes in test_timing.py that exercise CUPTI. They are not caught by
+# _NVIDIA_ONLY_TEST_FILES because timing.py imports cupti *lazily*, inside
+# bench_gpu_time_with_cupti -- deliberately, so the module stays importable on
+# ROCm. The consequence is that the module collects fine here and the tests
+# then fail at call time with ModuleNotFoundError instead of being skipped.
+#
+# That was invisible for as long as it was: these carry the `timing_serial`
+# marker, which was auto-skipped, so 38 permanently-broken tests sat behind a
+# skip that read like a scheduling choice. Whoever first ran the documented
+# command would have seen 40 failures and no clue which were real.
+#
+# CUPTI is NVIDIA-only and has no ROCm build, so no amount of hardware makes
+# these pass here -- idle AMD GPUs do not help. The AMD counterpart is the
+# rocprofiler-sdk shim (task 04), validated separately at -0.61% median
+# divergence over 1430 kernel pairs. They still run on an NVIDIA host, which
+# is the point: that path stays the regression reference for the port.
+_CUPTI_TEST_CLASSES = {
+    "TestCuptiTimingAttribution",
+    "TestBenchGPUTimeWithCuptiGPU",
+    "TestCuptiVsCudaEvents",
+    "TestStreamHidingDetection",   # asserts CUPTI captures non-default streams
+}
+
+
+# Timing tests whose PASS/FAIL constant was measured on NVIDIA and does not
+# carry to AMD. Not skipped because they are inconvenient -- skipped because
+# re-deriving the constant on this hardware showed the test's statistic does
+# not discriminate here, so any number chosen would be theatre.
+#
+# `test_matmul_timing_variance` asserts max(times)/min(times) < k, with k from
+# "measured ranges on RTX 4090 and B200". On MI350X, over 120 invocations per
+# size across 4 GPUs (artifacts/02/timing-variance-amd.json), that ratio is
+# *bimodal*: mm[2048] sits at a median of 1.02x and then jumps straight to
+# 21.4-22.5x on 2.5% of runs, with nothing in between. Choosing k to stop the
+# flake needs 25x; the normal spread is 1.02x. Such a test asserts nothing.
+# Picking a k anyway would be inventing a threshold, so the deferral is
+# recorded here with its evidence instead -- the same treatment the NVFP4
+# problems get, and for the same reason: this needs re-specification on AMD,
+# not a translated constant.
+#
+# The tight clustering of those outliers (21.4/21.6/22.5, and 3.3-3.4x at
+# mm[4096]) says they are one repeatable event, not noise. It is NOT cold
+# start -- the first call of each size is the tightest sample taken. It is
+# unexplained, and it is written up in STATE.md rather than smoothed over.
+_AMD_UNSPECIFIED_TIMING_TESTS = {
+    "test_matmul_timing_variance",
+    "test_variance_decreases_with_compute_intensity",  # holds only 93% of runs
+}
+
+
+def _running_in_parallel(config) -> bool:
+    """True when pytest-xdist is actually distributing this run.
+
+    `timing_serial` exists because these tests measure wall-clock time on a
+    GPU, so a second worker sharing the card corrupts them. That is a reason to
+    skip them *under parallelism*, not a reason to skip them always -- and
+    always is what the old blanket rule did, on a container where xdist is not
+    even installed. Every one of them was unreachable.
+    """
+    if hasattr(config, "workerinput"):        # we are inside an xdist worker
+        return True
+    for opt in ("numprocesses", "dist"):
+        try:
+            val = config.getoption(opt)
+        except (ValueError, AttributeError):  # xdist not installed
+            continue
+        if opt == "numprocesses" and val not in (None, 0):
+            return True
+        if opt == "dist" and val not in (None, "no"):
+            return True
+    return False
 
 
 def pytest_ignore_collect(collection_path, config):

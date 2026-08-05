@@ -593,6 +593,66 @@ traffic from `num_kv_indices × page_size`, the pages the workload actually
 names, rather than from `num_pages`. Until then, scores on those six problems
 are not usable and are marked as such wherever they appear.
 
+### D19 — 38 dead tests behind a skip that read like a scheduling choice
+
+`pytest tests/` reported `75 skipped`. 63 of those carried the `timing_serial`
+marker, which `conftest.py` auto-skipped **unconditionally**. Running them
+showed **40 of 63 failing**.
+
+Two separate causes, and neither was visible from the skip line:
+
+* **38 are CUPTI tests.** `timing.py` imports cupti *lazily* — correctly, so the
+  module stays importable on ROCm — which means these collect fine here and then
+  fail at call time with `ModuleNotFoundError` instead of being skipped.
+  `_NVIDIA_ONLY_TEST_FILES` never caught them because the file imports cleanly.
+  CUPTI has no ROCm build, so no hardware makes them pass; the AMD path is the
+  task-04 rocprofiler shim. Now skipped by class, with that reason.
+* **The marker's own instruction did not work.** The skip reason printed 63
+  times said to run `pytest tests -m timing_serial -n 0`. `-n 0` is a
+  pytest-xdist flag and xdist is not installed in the pinned image, so that
+  command errors. The one pointer at the largest block of unrun tests was dead.
+
+The blanket skip was also wrong in intent: `timing_serial` exists because these
+measure GPU wall-clock and a co-scheduled worker corrupts them — a reason to
+skip *under parallelism*, not always. Gated on actual xdist now, so on an idle
+node they run. `pytest tests/` went from **483 passed / 75 skipped** to
+**503 passed / 55 skipped**, 0 failed.
+
+### D20 — matmul timing spread on MI350X is bimodal, and the cause is unknown
+
+The remaining 2 non-CUPTI failures were `test_matmul_timing_variance`, whose
+thresholds its docstring sources to "measured ranges on **RTX 4090 and B200**" —
+NVIDIA constants, forbidden by directive 2. Re-derived on this part with
+`scripts/derive_timing_variance.py`: 120 invocations per size across GPUs 1-4,
+clock-locked at `perf_determinism`, same statistic the test computes
+(`max/min` over one `time_runnable(return_mode="all")` call). Only the constant
+was re-derived; the statistic was not changed.
+Artifact: `artifacts/02/timing-variance-amd.json`.
+
+| size | median | p95 | % >2× | outliers cluster at | NVIDIA k | k fails |
+|---|---|---|---|---|---|---|
+| 64 | 1.76× | 5.73× | 14.2% | scattered, ≤9.2× | 1.25 | 100% |
+| 512 | 1.49× | 2.68× | 5.8% | ≤3.9× | 1.30 | 93% |
+| 2048 | 1.02× | 1.04× | 2.5% | **21.4 / 21.6 / 22.5×** | 1.15 | 2.5% |
+| 4096 | 1.01× | 3.35× | 7.5% | **3.3–3.4×, nine times** | 1.15 | 7.5% |
+
+**No constant fixes this test.** At 2048 the normal spread is 1.02× and then it
+cliffs straight to 21×, with nothing between: stopping the flake needs k=25,
+and a 25× threshold on a 1.02× quantity asserts nothing. So the tests are
+deferred with this evidence rather than given an invented number — the same
+treatment as the NVFP4 problems, and for the same reason: re-specification, not
+translation.
+
+**The unexplained part, stated as such.** Those outlier clusters are far too
+tight to be jitter — 21.4/21.6/22.5 on three different GPUs, and 3.3–3.4× nine
+separate times — so they are one repeatable event, not noise. It is **not** cold
+start: the first call of every size was the *tightest* sample taken, which is
+the opposite of the obvious hypothesis and was checked because of it. Candidates
+not yet distinguished: hipBLASLt re-tuning, a power-management transition, or
+queue preemption. Whether it perturbs T_b is not established, though the
+benchmark's use of trimmed statistics over many reps should absorb a ~2% rate,
+and task 04 measured −0.61% median divergence over 1430 pairs.
+
 ---
 
 ## Fixes to scripts on first contact
