@@ -92,6 +92,55 @@ def backfill_record(record: dict, problem_key: str, t_sol: dict,
     return record, True
 
 
+def _assert_comparable(score_files: list[Path], manifest: Path) -> None:
+    """Refuse to pair a T_b with a T_k that is not comparable to it.
+
+    The docstring above claims T_k "was measured on the authoritative GPU at F_LOCK
+    and is still valid, only the bounds changed". S divides one by the other, so that
+    claim is load-bearing, and it is only true while both sides come from the same
+    card at the same clock. Nothing checked it.
+
+    It has since stopped being true here. The pilot's T_k was measured on **GPU 0 at
+    F_LOCK 1640**, before D30 established that GPU 0 does not hold a setpoint under
+    load -- it runs 1657 MHz alone and 1410 with the node busy. The T_b in
+    manifest-MI355X-v1 was measured on **GPU 1 at 1650**. Backfilling one into the
+    other silently rescales every score by the ratio between two cards' real clocks,
+    and the output looks entirely plausible: this is D26 again, one layer further in.
+
+    So the guard `collect_t_b()` applies when *gathering* T_b is applied here when
+    *pairing* it. Refuses rather than warns, because the failure is invisible
+    downstream.
+    """
+    m = json.loads(manifest.read_text())
+    m_prov = m.get("_provenance") or {}
+    m_lock = m_prov.get("f_lock_mhz")
+    m_gpu = m_prov.get("authoritative_gpu")
+
+    seen: dict[tuple, int] = {}
+    for p in score_files:
+        prov = (json.loads(p.read_text()).get("_provenance") or {})
+        seen[(prov.get("f_lock_mhz"), prov.get("authoritative_gpu"))] = \
+            seen.get((prov.get("f_lock_mhz"), prov.get("authoritative_gpu")), 0) + 1
+
+    bad = {k: n for k, n in seen.items()
+           if (k[0] is not None and m_lock is not None and k[0] != m_lock)
+           or (k[1] is not None and m_gpu is not None and k[1] != m_gpu)}
+    if bad:
+        lines = "\n".join(
+            f"    {n} record file(s) measured at F_LOCK {lk} on GPU {g}"
+            for (lk, g), n in sorted(bad.items(), key=lambda kv: -kv[1]))
+        sys.exit(
+            f"REFUSING to backfill: these scores were not measured under the "
+            f"conditions this manifest's T_b was.\n"
+            f"  manifest T_b : F_LOCK {m_lock} MHz on GPU {m_gpu}\n"
+            f"{lines}\n"
+            f"  S = f(T_k, T_b, T_SOL) divides one timing by another, so pairing "
+            f"them rescales every score by the ratio between two different clocks "
+            f"-- silently, and the result looks plausible (STATE.md D26).\n"
+            f"  Re-run scoring for this run against the current node, or backfill "
+            f"from a manifest measured under the same conditions.")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -113,6 +162,7 @@ def main() -> int:
           f"{meta['problems_with_t_b']}")
 
     files = sorted(p for p in scores_dir.glob("*/*.json") if p.name != "summary.json")
+    _assert_comparable(files, args.manifest)
     changed_files = 0
     changed_records = 0
     basis_counts: dict[str, int] = {}
