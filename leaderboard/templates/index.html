@@ -26,38 +26,62 @@
   {% endfor %}
 </div>
 
-<table class="board">
+<p class="sub hint">Click any column heading to sort by it.</p>
+
+<table class="board sortable">
   <thead>
     <tr>
-      <th class="r">#</th>
+      <th class="r" title="Rank by benchmark score. Sort by this column to restore the default order.">#</th>
       <th>submission</th>
       <th>kind</th>
-      <th class="r" title="Sum of per-workload scores over EVERY scoreable workload; anything not passed counts as zero.">benchmark&nbsp;score</th>
-      <th class="r" title="Mean over the workloads this submission actually passed. Read it together with coverage.">mean&nbsp;(attempted)</th>
-      <th class="r">coverage</th>
-      <th class="r">problems</th>
-      <th class="r">flagged</th>
+      <th class="r" title="Sum of per-workload scores over EVERY scoreable workload in the benchmark, divided by all 3717 of them. A workload that failed, and a workload that was never attempted, both contribute zero.">benchmark&nbsp;score</th>
+      <th class="r" title="Sum of scores divided by the workloads this submission ATTEMPTED. An attempt that failed counts as zero; a workload never attempted is excluded. Read it together with coverage.">mean&nbsp;(attempted)</th>
+      <th class="r" title="Workloads passed, out of all 3717 scoreable workloads.">coverage</th>
+      <th class="r" title="Problems where every scoreable workload passed.">problems</th>
+      <th class="r" title="Workloads the verifier rejected as reward hacking (status REWARD_HACK): output accepted without the work being done. Zero so far across every submission — a dash here means the check ran and found nothing, not that it was not run.">flagged</th>
     </tr>
   </thead>
   <tbody>
   {% for s in board %}
     <tr class="kind-{{ s.kind }}">
-      <td class="r rank">{{ s.rank }}</td>
-      <td><a href="/submissions/{{ s.slug }}">{{ s.name }}</a>
+      <td class="r rank" data-sort="{{ s.rank }}">{{ s.rank }}</td>
+      <td data-sort="{{ s.name|lower }}"><a href="/submissions/{{ s.slug }}">{{ s.name }}</a>
           {% if s.model %}<span class="model">{{ s.model }}</span>{% endif %}</td>
-      <td><span class="tag tag-{{ s.kind }}">{{ s.kind.replace('_',' ') }}</span></td>
-      <td class="r big">{{ '%.4f'|format(s.benchmark_score) }}</td>
-      <td class="r">{{ '%.4f'|format(s.mean_score_attempted) }}</td>
-      <td class="r cov">
+      <td data-sort="{{ s.kind }}"><span class="tag tag-{{ s.kind }}">{{ s.kind.replace('_',' ') }}</span></td>
+      {# The star marks a score whose denominator includes workloads this
+         submission was never run on. Without it the headline is silently
+         unfair in a way the number itself cannot show: an agent that solved
+         four problems well and a baseline that ran the whole benchmark are
+         both just "a number", and the small one looks like weakness rather
+         than absence. #}
+      <td class="r big" data-sort="{{ s.benchmark_score }}">{{ '%.4f'|format(s.benchmark_score) }}{%
+        if s.partial %}<span class="star" title="Partial: not run on all {{ s.workloads_total }} scoreable workloads. {{ s.workloads_untested }} were never attempted and count as zero in this score. See 'mean (attempted)' for the score over what was actually run.">*</span>{% endif %}</td>
+      {# `cov` too, not just for the coverage column: it is what puts the
+         sub-line on its own row instead of letting it wrap only when the
+         column happens to be narrow enough. #}
+      <td class="r cov" data-sort="{{ s.mean_score_attempted }}">{{ '%.4f'|format(s.mean_score_attempted) }}
+        <span class="sub cov-n">{{ s.workloads_attempted }} attempted{% if s.workloads_failed %}, {{ s.workloads_failed }} scored 0{% endif %}</span></td>
+      <td class="r cov" data-sort="{{ s.coverage }}">
         <span class="bar"><span style="width:{{ (s.coverage*100)|round(1) }}%"></span></span>{{ '%.1f'|format(s.coverage*100) }}%
         <span class="sub cov-n">{{ s.workloads_passed }}/{{ s.workloads_total }}</span>
       </td>
-      <td class="r">{{ s.problems_complete }}<span class="sub">/{{ s.problems_total }}</span></td>
-      <td class="r">{% if s.n_flagged %}<span class="flag">{{ s.n_flagged }}</span>{% else %}&mdash;{% endif %}</td>
+      <td class="r" data-sort="{{ s.problems_complete }}">{{ s.problems_complete }}<span class="sub">/{{ s.problems_total }}</span></td>
+      <td class="r" data-sort="{{ s.n_flagged }}">{% if s.n_flagged %}<span class="flag">{{ s.n_flagged }}</span>{% else %}&mdash;{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
 </table>
+
+<p class="sub footnote">
+  <span class="star">*</span> <b>Partial.</b> The benchmark score always divides
+  by all {{ meta.scoreable_workloads }} scoreable workloads, so a workload that
+  was never attempted counts as zero exactly like one that failed. A starred row
+  was not run on the whole benchmark, and its headline is a floor, not a
+  measurement of what that submission can do. <b>No row is unstarred today</b>
+  &mdash; even the eager-PyTorch sweep is missing a handful of workloads &mdash;
+  so read the star as "how much is missing", in the two counts under
+  <i>mean&nbsp;(attempted)</i>, rather than as a pass/fail mark.
+</p>
 
 <p class="note">
   <b>Reference variants are not agent results.</b> The four PyTorch formulations

@@ -275,8 +275,20 @@ def ingest_variants(conn, manifest: dict) -> dict:
             if not bound or ms is None:
                 continue
             t_sol, t_b = bound
+            # Score ONLY on a pass. A variant that failed the correctness check
+            # still has a latency -- and `sol_score` will happily turn it into a
+            # 0.4956 -- but that number is the speed of computing the wrong
+            # answer, and it is not comparable to anything. This path used to
+            # store it, which diverged from the agent path (`agent_score.py`
+            # leaves score None unless PASSED); the aggregate queries all filter
+            # on status='PASSED' so no ranking was ever affected, but every page
+            # that displayed a raw per-workload score showed it, and the
+            # submission x problem view put "FAILED ... S=0.4956" on one row.
+            # Fixed here rather than in the templates so that every consumer,
+            # including /api, gets the same answer.
             rows.append((sub_id, pkey, uuid, "PASSED" if all_passed else "FAILED",
-                         ms, sol_score(ms, t_b, t_sol), 0, label))
+                         ms, sol_score(ms, t_b, t_sol) if all_passed else None,
+                         0, label))
         conn.executemany(
             """INSERT OR REPLACE INTO result
                (submission_id,problem_key,workload_uuid,status,latency_ms,

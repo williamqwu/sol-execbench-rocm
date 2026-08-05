@@ -1,6 +1,6 @@
 -- SPDX-License-Identifier: Apache-2.0
 --
--- SOL-ExecBench-AMD leaderboard.
+-- SOL-ExecBench-ROCm leaderboard.
 --
 -- The database is a VIEW of the artifacts, never a source of truth. Every row
 -- here is derived from artifacts/09/manifest-v1.json and the per-problem

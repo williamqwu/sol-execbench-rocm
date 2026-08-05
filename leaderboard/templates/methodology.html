@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Methodology &middot; SOL-ExecBench-AMD{% endblock %}
+{% block title %}Methodology &middot; SOL-ExecBench-ROCm{% endblock %}
 {% block content %}
 
 <h1>Methodology</h1>
@@ -143,12 +143,27 @@
   <li><b>Benchmark score</b> sums per-workload scores over every scoreable
       workload and counts anything not passed as zero. It is the headline
       because it cannot be improved by attempting fewer problems.</li>
-  <li><b>Mean (attempted)</b> is never shown without <b>coverage</b>. On its own
-      it rewards a submission for skipping the hard problems.</li>
+  <li><b>An asterisk on the benchmark score</b> means the submission was not run
+      on all {{ meta.scoreable_workloads }} scoreable workloads. The untested
+      ones are still in the denominator, counting as zero exactly like failures,
+      so a starred score is a floor rather than a measurement. Every row on the
+      board is starred today.</li>
+  <li><b>Mean (attempted)</b> divides by the workloads a submission
+      <i>attempted</i>, and an attempt that failed counts as zero &mdash; it does
+      not leave the average. Dividing by passes instead would put
+      <code>torch.compile</code> (0.4907) above eager PyTorch (0.4548) purely
+      because the 585 workloads it raises on would vanish from the denominator.
+      It is never shown without <b>coverage</b>: on its own, any mean rewards
+      attempting less.</li>
   <li><b>Reference variants sit at 0.5 by construction.</b> They define
       T<sub>b</sub>; they are on the board to calibrate the scale, not to compete.</li>
-  <li><b>Flagged</b> counts submissions the harness's anti-reward-hack checks
-      rejected. A flagged workload scores zero and is still displayed.</li>
+  <li><b>Flagged</b> counts workloads the harness's anti-reward-hack check
+      rejected &mdash; <code>status == REWARD_HACK</code>, an output accepted
+      without the work being done. A flagged workload scores zero and is still
+      displayed. The count is <b>0 across all 14,077 recorded results</b>: the
+      dash on every row means the check ran and caught nothing, not that it was
+      never run. It is kept as a column precisely so that a first non-zero is
+      visible the moment it happens.</li>
 </ul>
 
 <p class="sub">The database is a view over the artifacts, rebuilt by

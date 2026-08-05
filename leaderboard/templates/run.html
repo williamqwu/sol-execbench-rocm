@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}{{ submission.name }} on {{ problem.name }} &middot; SOL-ExecBench-ROCm{% endblock %}
+{% block content %}
+
+<div class="crumb">
+  <a href="/">Leaderboard</a> /
+  <a href="/submissions/{{ submission.slug }}">{{ submission.name }}</a> /
+  <a href="/problems/{{ problem.key }}">{{ problem.name }}</a>
+</div>
+
+<h1 class="mono">{{ problem.name }}</h1>
+<p>
+  <span class="tag tag-{{ submission.kind }}">{{ submission.kind.replace('_',' ') }}</span>
+  <a href="/submissions/{{ submission.slug }}">{{ submission.name }}</a>
+  {% if submission.model %}<span class="model">{{ submission.model }}</span>{% endif %}
+  <span class="sub">&middot; {{ problem.category }}</span>
+</p>
+
+{% if problem.deferred %}
+  <div class="banner warn">
+    <b>This problem is deferred from manifest {{ meta.manifest_version }}.</b>
+    None of its {{ problem.n_workloads }} workloads are scoreable, so no
+    submission can score on it and nothing here was run.
+    {% if problem.deferred_mechanism %} {{ problem.deferred_mechanism }}{% endif %}
+    <span class="sub">&middot; <a href="/methodology#deferred">why</a></span>
+  </div>
+{% endif %}
+
+<div class="cards">
+  <div class="card">
+    <div class="num">{% if summary.mean_attempted is not none %}{{ '%.4f'|format(summary.mean_attempted) }}{% else %}&mdash;{% endif %}</div>
+    <div class="lbl">mean S over attempts</div>
+  </div>
+  <div class="card">
+    <div class="num">{{ summary.passed }}<span class="of">/{{ summary.n_scoreable }}</span></div>
+    <div class="lbl">workloads passed</div>
+  </div>
+  <div class="card">
+    <div class="num">{% if summary.best is not none %}{{ '%.4f'|format(summary.best) }}{% else %}&mdash;{% endif %}</div>
+    <div class="lbl">best workload S</div>
+  </div>
+  <div class="card">
+    <div class="num">{% if summary.problem_score is not none %}{{ '%.4f'|format(summary.problem_score) }}{% else %}&mdash;{% endif %}</div>
+    <div class="lbl" title="What this problem contributes to the benchmark score: scores summed over every scoreable workload, including the ones that failed or were never run.">contribution to benchmark</div>
+  </div>
+  {% if summary.n_flagged %}
+  <div class="card"><div class="num bad">{{ summary.n_flagged }}</div><div class="lbl">flagged (reward hack)</div></div>
+  {% endif %}
+</div>
+
+{# Failed and untested are separated everywhere on this page. Both are zeroes
+   in the benchmark score, but one says the kernel is wrong and the other says
+   no kernel exists yet -- collapsing them is how a partial run gets read as a
+   bad one. #}
+<p class="sub">
+  {{ summary.attempted }} of {{ summary.n_scoreable }} scoreable workloads were
+  attempted{% if summary.failed %}, {{ summary.failed }} of those failed{% endif %}{%
+  if summary.untested %}, and {{ summary.untested }} were never
+  run{% endif %}.
+  {% if summary.mean_passed is not none and summary.failed %}
+    Mean over passes alone is {{ '%.4f'|format(summary.mean_passed) }}; the
+    figure above counts a failed attempt as zero.
+  {% endif %}
+</p>
+
+<h2>Per-workload</h2>
+<div class="scale-legend">
+  <span class="k">S scale: 0 &mdash; T<sub>b</sub> at the tick (S&nbsp;=&nbsp;0.5) &mdash; T<sub>SOL</sub> at the right edge (S&nbsp;=&nbsp;1)</span>
+  <span class="k"><i class="swatch beat"></i> faster than optimized PyTorch</span>
+  <span class="k"><i class="swatch under"></i> slower</span>
+  <span class="k"><i class="swatch none"></i> no measurement</span>
+</div>
+<div class="scroll">
+<table class="grid sortable">
+  <thead>
+    <tr>
+      <th>workload</th>
+      <th>axes</th>
+      <th>status</th>
+      <th class="r" title="Speed-of-light time for this workload: the arithmetic and the traffic it cannot avoid.">T<sub>SOL</sub> (ms)</th>
+      <th class="r" title="The anchor: fastest of the four PyTorch formulations on this workload. S = 0.5 here by construction.">T<sub>b</sub> (ms)</th>
+      <th class="r" title="This submission's measured time.">T<sub>k</sub> (ms)</th>
+      <th class="r" title="T_b / T_k. Above 1.0 means faster than optimized PyTorch.">vs T<sub>b</sub></th>
+      <th class="r">S</th>
+      <th class="nosort">where it landed</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for w in workloads %}
+    <tr class="{% if not w.attempted %}miss{% elif not w.scoreable %}dim{% endif %}">
+      <td class="mono sm" data-sort="{{ loop.index }}">{{ w.uuid[:8] }}</td>
+      <td class="sm">{% for k,v in w.axes.items() %}<span class="ax">{{ k }}={{ v }}</span>{% endfor %}</td>
+      <td class="sm" data-sort="{{ w.status or 'zzz' }}">
+        {%- if not w.scoreable %}<span class="sub">not scoreable</span>
+        {%- elif not w.attempted %}<span class="sub">not attempted</span>
+        {%- elif w.passed %}<span class="ok">PASSED</span>
+        {%- else %}<span class="bad">{{ w.status }}</span>{% endif %}
+        {%- if w.flagged %} <span class="flag">reward hack</span>{% endif %}
+      </td>
+      <td class="r mono">{{ '%.5f'|format(w.t_sol_ms) if w.t_sol_ms else '&mdash;'|safe }}</td>
+      <td class="r mono">{{ '%.5f'|format(w.t_b_ms) if w.t_b_ms else '&mdash;'|safe }}</td>
+      <td class="r mono">{{ '%.5f'|format(w.latency_ms) if w.latency_ms else '&mdash;'|safe }}</td>
+      <td class="r mono {% if w.speedup_vs_tb and w.speedup_vs_tb >= 1 %}ok{% endif %}">{{
+        '%.2f'|format(w.speedup_vs_tb) + '×' if w.speedup_vs_tb else '—' }}</td>
+      <td class="r mono">{{ '%.4f'|format(w.score) if w.score is not none else '&mdash;'|safe }}</td>
+      <td class="why-miss">
+        {%- if w.bound_invalid %}
+          <span class="flag" title="T_k came in below T_SOL, which nothing can do. The bound is wrong, so no score is stored for this workload rather than one above 1.0.">bound invalid</span>
+        {%- elif w.score is not none %}
+          <span class="solbar {% if w.score >= 0.5 %}beat{% else %}under{% endif %}"
+                title="S = {{ '%.4f'|format(w.score) }}">
+            <span class="fill" style="width:{{ (w.score * 100)|round(1) }}%"></span>
+            <span class="tick"></span>
+          </span>
+        {%- elif w.attempted %}
+          <span class="sub">no score &mdash; {{ w.status|lower }}</span>
+        {%- else %}
+          <span class="sub">counts as zero in the benchmark score</span>
+        {%- endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if workloads and workloads[0].note %}
+<p class="sub">Timing note: {{ workloads[0].note }}.</p>
+{% endif %}
+
+<h2>Everyone else on this problem</h2>
+{% if peers %}
+<table class="grid sortable">
+  <thead><tr><th>submission</th><th>kind</th>
+             <th class="r">workloads passed</th><th class="r">mean S (passes)</th><th class="nosort"></th></tr></thead>
+  <tbody>
+  {% for s in peers %}
+    <tr {% if s.slug == submission.slug %}class="self"{% endif %}>
+      <td>{% if s.slug == submission.slug %}<b>{{ s.name }}</b> <span class="sub">(this run)</span>
+          {% else %}<a href="/submissions/{{ s.slug }}/problems/{{ problem.key }}">{{ s.name }}</a>{% endif %}</td>
+      <td><span class="tag tag-{{ s.kind }}">{{ s.kind.replace('_',' ') }}</span></td>
+      <td class="r">{{ s.passed }}<span class="sub">/{{ problem.n_scoreable }}</span></td>
+      <td class="r big">{{ '%.4f'|format(s.mean_score) if s.mean_score is not none else '&mdash;'|safe }}</td>
+      <td class="sm">{% if s.slug != submission.slug %}<a href="/submissions/{{ s.slug }}/problems/{{ problem.key }}">this run &rarr;</a>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="sub">No submission has results on this problem.</p>
+{% endif %}
+
+<p class="note">
+  Bounds are a property of the problem, not of this run: T<sub>SOL</sub> and
+  T<sub>b</sub> above are the same for every submission, which is what makes the
+  column comparable down the page. Their derivation, and the reference
+  implementation a kernel has to match, are on the
+  <a href="/problems/{{ problem.key }}">problem page</a>.
+</p>
+
+{% endblock %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ problem.key }} &middot; SOL-ExecBench-AMD{% endblock %}
+{% block title %}{{ problem.key }} &middot; SOL-ExecBench-ROCm{% endblock %}
 {% block content %}
 
 <div class="crumb"><a href="/problems">Problems</a> / <a href="/problems?category={{ problem.category }}">{{ problem.category }}</a> / {{ problem.name }}</div>
@@ -77,19 +77,21 @@
 
 <h2>Submissions on this problem</h2>
 {% if submissions %}
-<table class="grid">
+<table class="grid sortable">
   <thead><tr><th>submission</th><th>kind</th><th class="r">workloads passed</th>
-             <th class="r">mean score</th><th class="r">best latency (ms)</th><th class="r">flagged</th></tr></thead>
+             <th class="r">mean score</th><th class="r">best latency (ms)</th><th class="r">flagged</th>
+             <th class="nosort"></th></tr></thead>
   <tbody>
   {% for s in submissions %}
     <tr>
       <td><a href="/submissions/{{ s.slug }}">{{ s.name }}</a>
           {% if s.model %}<span class="model">{{ s.model }}</span>{% endif %}</td>
       <td><span class="tag tag-{{ s.kind }}">{{ s.kind.replace('_',' ') }}</span></td>
-      <td class="r">{{ s.passed }}<span class="sub">/{{ problem.n_scoreable }}</span></td>
-      <td class="r big">{{ '%.4f'|format(s.mean_score) if s.mean_score else '&mdash;'|safe }}</td>
+      <td class="r" data-sort="{{ s.passed }}">{{ s.passed }}<span class="sub">/{{ problem.n_scoreable }}</span></td>
+      <td class="r big" data-sort="{{ s.mean_score if s.mean_score is not none else '' }}">{{ '%.4f'|format(s.mean_score) if s.mean_score else '&mdash;'|safe }}</td>
       <td class="r mono">{{ '%.5f'|format(s.best_latency) if s.best_latency else '&mdash;'|safe }}</td>
-      <td class="r">{% if s.flagged %}<span class="flag">{{ s.flagged }}</span>{% else %}&mdash;{% endif %}</td>
+      <td class="r" data-sort="{{ s.flagged or 0 }}">{% if s.flagged %}<span class="flag">{{ s.flagged }}</span>{% else %}&mdash;{% endif %}</td>
+      <td class="sm"><a href="/submissions/{{ s.slug }}/problems/{{ problem.key }}">this run &rarr;</a></td>
     </tr>
   {% endfor %}
   </tbody>
@@ -107,7 +109,7 @@
   {% for w in workloads %}{% for r in w.results %}
     <tr>
       <td class="mono sm">{{ w.uuid[:8] }}</td>
-      <td class="sm"><a href="/submissions/{{ r.slug }}">{{ r.submission_name }}</a></td>
+      <td class="sm"><a href="/submissions/{{ r.slug }}/problems/{{ problem.key }}">{{ r.submission_name }}</a></td>
       <td class="sm">{% if r.status == 'PASSED' %}<span class="ok">PASSED</span>{% else %}<span class="bad">{{ r.status }}</span>{% endif %}
           {% if r.flagged %}<span class="flag">flagged</span>{% endif %}</td>
       <td class="r mono">{{ '%.5f'|format(r.latency_ms) if r.latency_ms else '&mdash;'|safe }}</td>

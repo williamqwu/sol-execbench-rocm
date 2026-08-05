@@ -715,6 +715,40 @@ overwrote the last, and taking the pilot off the board deleted
 `FlashInfer-Bench__019` — the D18 problem — from `/methodology`. Now accumulated
 across every run read, excluded or not.
 
+### D22 — a failed workload was carrying a score
+
+Found while building the submission × problem view, which is the first page
+that puts a status and its score on the same row.
+
+`ingest.py` scored the four reference variants unconditionally:
+
+```python
+rows.append((sub_id, pkey, uuid, "PASSED" if all_passed else "FAILED",
+             ms, sol_score(ms, t_b, t_sol), 0, label))   # score even on FAILED
+```
+
+A variant that fails the correctness check still has a latency, and `sol_score`
+turns it into a perfectly plausible number — the speed at which the *wrong
+answer* was produced. `torch.compile` on
+`L1__002_vae_conv3x3_groupnorm_silu_residual_fused` displayed `FAILED … S =
+0.4956` on thirteen rows, and the page's own summary card read "best workload S
+= 0.5832" for a submission that passed nothing on that problem.
+
+**No ranking was ever wrong.** Every aggregate filters `status='PASSED'`, and
+the board totals are byte-identical before and after the fix. It was confined
+to per-workload *display* — but `/api/problems/{key}` served it too, so anything
+consuming the API would have inherited it.
+
+The agent path never had this: `agent_score.py` leaves `score` at `None` unless
+the workload passed. The variant path had simply diverged. Fixed at ingest
+rather than in the templates, so every consumer gets one answer. The run page
+additionally suppresses the T_b speedup on a failed row, for the same reason —
+"0.99× vs optimized PyTorch" next to `FAILED` reads as near-parity.
+
+This is the second defect of exactly this shape (D21 was the first): a number
+that is real, plausible, and attached to the wrong claim. Both were invisible
+until a page forced two facts next to each other.
+
 ---
 
 ## Fixes to scripts on first contact

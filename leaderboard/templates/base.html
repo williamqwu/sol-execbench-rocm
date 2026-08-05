@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}SOL-ExecBench-AMD{% endblock %}</title>
-<link rel="stylesheet" href="/static/style.css?v=3">
+<title>{% block title %}SOL-ExecBench-ROCm{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css?v=4">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>&#9889;</text></svg>">
 <script>
 /* Applied before first paint. Reading the stored theme in <body> instead makes
@@ -23,7 +23,12 @@
   <div class="wrap">
     <a class="brand" href="/">
       <span class="spark">&#9889;</span>
-      SOL&#8209;ExecBench<span class="amd">&#8209;AMD</span>
+      {# One flex item, not two. `.brand` is an inline-flex with `gap:8px` to
+         space the bolt off the wordmark, and a bare text node followed by
+         <span class="amd"> made the suffix a SECOND flex item -- so the gap
+         opened up inside the product name, rendering "SOL-ExecBench  -ROCm".
+         Wrapping the whole wordmark keeps the gap where it was meant to be. #}
+      <span class="word">SOL&#8209;ExecBench<span class="amd">&#8209;ROCm</span></span>
     </a>
     {% if meta.part %}<span class="part-pill" title="Every T_SOL, T_b and F_LOCK on this board was measured on this part. Scores from another part are not comparable.">{{ meta.part }}</span>{% endif %}
     <nav>
@@ -83,26 +88,44 @@ document.getElementById("theme-toggle").addEventListener("click", function(){
 
 /* Click a column header to sort. Numeric where the cell parses as a number,
    lexical otherwise; "--" and blanks always sort last regardless of direction,
-   because a missing measurement is not a small one. */
-document.querySelectorAll("table.sortable th").forEach(function(th, idx){
+   because a missing measurement is not a small one.
+
+   `th.cellIndex`, NOT the querySelectorAll index. The selector returns every
+   sortable header on the page as one flat list, so with more than one sortable
+   table (or more than one header row) the enumeration index keeps counting
+   across them -- the second table's first column would have read index 8 and
+   sorted by a cell that does not exist. cellIndex is the column's position in
+   its own row, which is the only thing that means anything here. */
+document.querySelectorAll("table.sortable th").forEach(function(th){
   if(th.classList.contains("nosort")) return;
   th.classList.add("sortable-th");
   th.addEventListener("click", function(){
+    var idx = th.cellIndex;
     var tb = th.closest("table").tBodies[0];
-    var asc = th.classList.contains("sort-asc") ? false : true;
-    th.closest("tr").querySelectorAll("th").forEach(function(o){
-      o.classList.remove("sort-asc","sort-desc");
-    });
-    th.classList.add(asc ? "sort-asc" : "sort-desc");
     var val = function(tr){
       var c = tr.children[idx];
       if(!c) return null;
       var t = (c.getAttribute("data-sort") || c.innerText || "").trim();
-      if(t === "" || t === "—") return null;
-      var n = parseFloat(t.replace(/[,%$×x]/g,""));
+      if(t === "" || t === "—" || t === "-") return null;
+      var n = parseFloat(t.replace(/[,%$×x*]/g,""));
       return isNaN(n) ? t.toLowerCase() : n;
     };
-    Array.from(tb.rows).sort(function(a,b){
+    var rowsArr = Array.from(tb.rows);
+    /* First click sorts a numeric column DESCENDING and a text column
+       ascending. On a leaderboard "best first" is the question being asked, so
+       opening every score column on its worst row would be wrong; names, on
+       the other hand, are wanted A-Z. Detected from the data, not declared per
+       column, so a new column cannot be added with the wrong default. */
+    var sample = rowsArr.map(val).find(function(v){ return v !== null; });
+    var numeric = typeof sample === "number";
+    var asc = th.classList.contains("sort-asc") ? false
+            : th.classList.contains("sort-desc") ? true
+            : !numeric;
+    th.closest("tr").querySelectorAll("th").forEach(function(o){
+      o.classList.remove("sort-asc","sort-desc");
+    });
+    th.classList.add(asc ? "sort-asc" : "sort-desc");
+    rowsArr.sort(function(a,b){
       var x = val(a), y = val(b);
       if(x === null && y === null) return 0;
       if(x === null) return 1;          /* missing always last */

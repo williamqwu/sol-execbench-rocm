@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""SOL-ExecBench-AMD leaderboard — local web app.
+"""SOL-ExecBench-ROCm leaderboard — local web app.
 
     leaderboard/run.sh              # http://127.0.0.1:8088
 
@@ -15,9 +15,15 @@ easy to game:
   is the headline. A submission that solves eight problems brilliantly cannot
   outrank one that solves two hundred.
 * **Mean score (attempted)** — the average over the workloads a submission
-  actually passed, always displayed next to its coverage. Useful for reading a
-  partial run; meaningless without the coverage figure, so the UI never shows
-  one without the other.
+  *attempted*, with an attempt that failed counting as zero. Always displayed
+  next to its coverage. Useful for reading a partial run; meaningless without
+  the coverage figure, so the UI never shows one without the other.
+
+  This deliberately does **not** average over passes only. Averaging over
+  passes rewards giving up: `torch.compile` reads 0.4907 that way, above eager
+  PyTorch's 0.4548, purely because the 585 workloads it raised on vanish from
+  the denominator instead of scoring zero. Both denominators are defensible in
+  isolation, but only one of them cannot be improved by attempting less.
 """
 
 from __future__ import annotations
@@ -38,7 +44,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 DB = Path(os.environ.get("SOLBENCH_DB", HERE / "solbench.db"))
 
-app = FastAPI(title="SOL-ExecBench-AMD leaderboard", docs_url="/api/docs")
+app = FastAPI(title="SOL-ExecBench-ROCm leaderboard", docs_url="/api/docs")
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 templates = Jinja2Templates(directory=str(HERE / "templates"))
 # `meta` is a flat string->string table, so JSON-valued rows come back as text.
@@ -154,10 +160,21 @@ def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
             "workloads_total": total,
             "workloads_passed": agg["n_passed"],
             "workloads_attempted": attempted,
+            # Everything the benchmark score counts as zero, split by WHY it is
+            # zero. Untested and failed are both zeroes in the headline, but
+            # they mean different things about the submission, and a reader who
+            # cannot tell them apart cannot tell a partial run from a bad one.
+            "workloads_untested": total - attempted,
+            "workloads_failed": attempted - agg["n_passed"],
+            "partial": attempted < total,
             "problems_total": total_problems,
             "problems_complete": complete,
             "benchmark_score": (agg["score_sum"] / total) if total else 0.0,
-            "mean_score_attempted": agg["score_mean"],
+            # Denominator is attempts, not passes: a workload that was tried
+            # and failed scores 0 here, it does not leave the average. See the
+            # module docstring for why the other denominator is unusable.
+            "mean_score_attempted": (agg["score_sum"] / attempted) if attempted else 0.0,
+            "mean_score_passed": agg["score_mean"],
             "coverage": (agg["n_passed"] / total) if total else 0.0,
             "n_flagged": agg["n_flagged"],
         })
@@ -244,6 +261,103 @@ def submission_detail(conn, slug: str) -> dict:
     return {"submission": s, "problems": per_problem}
 
 
+def run_detail(conn, slug: str, key: str) -> dict:
+    """One submission on one problem — the cell where the board's two axes meet.
+
+    Rendered per request from the same tables as everything else. It is
+    deliberately not pre-generated: there are 6 submissions x 235 problems =
+    1410 of these today and the product grows with every run added, so a static
+    build would be 1410 files that go stale the moment `ingest.py` runs again,
+    which is exactly the failure mode the freshness check exists to catch.
+
+    Rows come from `workload` LEFT JOINed to `result`, not from `result` alone.
+    That is the whole point of the page: a workload this submission never
+    attempted still has a T_SOL and a T_b, and it still contributes a zero to
+    the benchmark score. Driving the table off `result` would silently omit
+    precisely the rows that explain the score.
+    """
+    s = conn.execute("SELECT * FROM submission WHERE slug=?", (slug,)).fetchone()
+    if s is None:
+        raise HTTPException(404, f"no such submission: {slug}")
+    p = conn.execute("SELECT * FROM problem WHERE key=?", (key,)).fetchone()
+    if p is None:
+        raise HTTPException(404, f"no such problem: {key}")
+    s, p = dict(s), dict(p)
+    s["provenance"] = json.loads(s.pop("provenance_json") or "{}")
+    for f in ("axes_json", "inputs_json", "outputs_json"):
+        p.pop(f, None)
+
+    wls = rows(conn, """
+        SELECT w.uuid, w.axes_json, w.scoreable, w.t_sol_ms, w.t_sol_source,
+               w.sol_bottleneck, w.t_b_ms, w.t_b_variant,
+               r.status, r.latency_ms, r.score, r.flagged, r.note
+          FROM workload w
+          LEFT JOIN result r ON r.problem_key = w.problem_key
+                            AND r.workload_uuid = w.uuid
+                            AND r.submission_id = ?
+         WHERE w.problem_key = ?
+         ORDER BY w.rowid""", (s["id"], key))
+
+    n_att = n_pass = 0
+    score_sum = 0.0
+    for w in wls:
+        w["axes"] = json.loads(w.pop("axes_json") or "{}")
+        w["attempted"] = w["status"] is not None
+        w["passed"] = w["status"] == "PASSED"
+        # Speedup against the anchor, which is the number a kernel author
+        # actually feels. S is the scored quantity but it is compressed; 1.8x
+        # faster than optimized PyTorch reads as an outcome, S=0.64 does not.
+        # Only on a pass, for the same reason the score is: T_k on a failed
+        # workload is how fast the wrong answer was produced, and "0.99x vs
+        # optimized PyTorch" printed next to FAILED reads as near-parity.
+        w["speedup_vs_tb"] = ((w["t_b_ms"] / w["latency_ms"])
+                              if w["passed"] and w["t_b_ms"] and w["latency_ms"]
+                              else None)
+        w["headroom"] = ((w["t_b_ms"] / w["t_sol_ms"])
+                         if w["t_b_ms"] and w["t_sol_ms"] else None)
+        # A score present on a row whose bound was beaten is impossible by
+        # construction: ingest stores NULL there. Surface the reason instead of
+        # an empty cell, or the page reads as a missing measurement.
+        w["bound_invalid"] = (w["passed"] and w["score"] is None
+                              and bool(w["latency_ms"]))
+        if w["attempted"] and w["scoreable"]:
+            n_att += 1
+            if w["passed"]:
+                n_pass += 1
+                score_sum += w["score"] or 0.0
+
+    n_scoreable = p["n_scoreable"] or 0
+    summary = {
+        "n_scoreable": n_scoreable,
+        "attempted": n_att,
+        "passed": n_pass,
+        "failed": n_att - n_pass,
+        "untested": max(0, n_scoreable - n_att),
+        # Same three denominators as the board, for the same reason.
+        "mean_attempted": (score_sum / n_att) if n_att else None,
+        "mean_passed": (score_sum / n_pass) if n_pass else None,
+        "problem_score": (score_sum / n_scoreable) if n_scoreable else None,
+        # Passed rows only. Taking the max over every score let a submission
+        # that passed nothing on this problem still advertise a "best workload
+        # S", drawn from a row whose correctness check had failed.
+        "best": max((w["score"] for w in wls
+                     if w["passed"] and w["score"] is not None), default=None),
+        "n_flagged": sum(1 for w in wls if w["flagged"]),
+    }
+
+    peers = rows(conn, """
+        SELECT s.slug, s.name, s.kind,
+               SUM(CASE WHEN r.status='PASSED' THEN 1 ELSE 0 END) AS passed,
+               AVG(CASE WHEN r.status='PASSED' THEN r.score END) AS mean_score
+          FROM result r JOIN submission s ON s.id = r.submission_id
+         WHERE r.problem_key = ?
+         GROUP BY s.id
+         ORDER BY (mean_score IS NULL), mean_score DESC""", (key,))
+
+    return {"submission": s, "problem": p, "workloads": wls,
+            "summary": summary, "peers": peers}
+
+
 # --------------------------------------------------------------------------
 # JSON API
 # --------------------------------------------------------------------------
@@ -280,6 +394,12 @@ def api_problem(key: str):
 def api_submission(slug: str):
     with db() as conn:
         return submission_detail(conn, slug)
+
+
+@app.get("/api/submissions/{slug}/problems/{key}")
+def api_run(slug: str, key: str):
+    with db() as conn:
+        return run_detail(conn, slug, key)
 
 
 # --------------------------------------------------------------------------
@@ -328,6 +448,13 @@ def submission(request: Request, slug: str):
     with db() as conn:
         d = submission_detail(conn, slug)
     return page(request, "submission.html", **d)
+
+
+@app.get("/submissions/{slug}/problems/{key}", response_class=HTMLResponse)
+def run(request: Request, slug: str, key: str):
+    with db() as conn:
+        d = run_detail(conn, slug, key)
+    return page(request, "run.html", **d)
 
 
 @app.get("/methodology", response_class=HTMLResponse)

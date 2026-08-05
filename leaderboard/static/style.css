@@ -50,6 +50,10 @@ header .wrap{display:flex;align-items:center;gap:20px;height:58px}
 .brand{font-weight:700;font-size:17px;color:var(--fg);letter-spacing:-.2px;
   display:inline-flex;align-items:center;gap:8px}
 .brand:hover{text-decoration:none}
+/* The wordmark is ONE flex item. `gap:8px` above is meant to separate the bolt
+   from the name; leaving the name as a bare text node plus a <span> for the
+   suffix made it apply between them too, opening a gap mid-word. */
+.brand .word{white-space:nowrap}
 .brand .amd{color:var(--accent)}
 .brand .spark{font-size:15px;filter:saturate(1.2)}
 .part-pill{font-family:var(--mono);font-size:11px;letter-spacing:.3px;
@@ -166,6 +170,36 @@ html[data-theme="light"] .tag-memory{border-color:#2d5bbf;color:#2d5bbf}
    different layouts down the table. */
 .cov{white-space:nowrap}
 .cov .cov-n{display:block;margin-top:2px}
+
+/* Marks a score whose denominator counts workloads that were never run. */
+.star{color:var(--warn);font-weight:700;cursor:help;margin-left:1px}
+.footnote{max-width:88ch;margin-top:14px}
+.hint{margin:16px 0 6px;color:var(--dim)}
+
+/* ------------------------------------------------------- SOL scale (runs) */
+/* Where a kernel landed between the PyTorch anchor and the roofline. The
+   score alone is a bare number; this shows the two fixed reference points it
+   sits between, which is the only way S=0.64 means anything at a glance. */
+.solbar{position:relative;width:150px;height:9px;background:var(--bar-bg);
+  border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle}
+.solbar>.fill{display:block;height:100%;background:var(--dim)}
+.solbar.beat>.fill{background:var(--accent2)}
+.solbar.under>.fill{background:var(--warn)}
+/* T_b sits at exactly S=0.5 by construction, so the tick is a fixed landmark,
+   not a per-row value. Left of it is slower than optimized PyTorch. */
+.solbar>.tick{position:absolute;left:50%;top:0;bottom:0;width:1px;
+  background:var(--fg);opacity:.45}
+.scale-legend{display:flex;gap:18px;align-items:center;color:var(--dim);
+  font-size:12px;margin:2px 0 14px;flex-wrap:wrap}
+.scale-legend .k{display:inline-flex;align-items:center;gap:6px}
+.swatch{width:11px;height:11px;border-radius:3px;display:inline-block}
+.swatch.beat{background:var(--accent2)}
+.swatch.under{background:var(--warn)}
+.swatch.none{background:var(--bar-bg)}
+
+tr.self{background:var(--panel2)}
+tr.miss td{opacity:.5}
+tr.miss td.why-miss{opacity:1;color:var(--dim);font-style:italic}
 
 /* --------------------------------------------------------------- banners */
 .banner{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line2);

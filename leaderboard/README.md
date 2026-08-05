@@ -1,4 +1,4 @@
-# SOL-ExecBench-AMD leaderboard
+# SOL-ExecBench-ROCm leaderboard
 
 A local leaderboard for the AMD port: rankings, a problem index, and a
 **per-problem subpage** showing the scoring bounds, tolerances and every

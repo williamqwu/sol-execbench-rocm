@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ submission.name }} &middot; SOL-ExecBench-AMD{% endblock %}
+{% block title %}{{ submission.name }} &middot; SOL-ExecBench-ROCm{% endblock %}
 {% block content %}
 
 <div class="crumb"><a href="/">Leaderboard</a> / {{ submission.name }}</div>
@@ -19,17 +19,24 @@
 </div>
 
 <h2>Per-problem results</h2>
-<table class="grid">
+<p class="sub hint">Click a problem to see this submission's per-workload timings on it.
+  Click any column heading to sort.</p>
+<table class="grid sortable">
   <thead><tr><th>problem</th><th>category</th>
-             <th class="r">passed</th><th class="r">mean score</th><th class="r">flagged</th></tr></thead>
+             <th class="r">passed</th><th class="r">mean score</th><th class="r">flagged</th>
+             <th class="nosort"></th></tr></thead>
   <tbody>
   {% for p in problems %}
     <tr>
-      <td><a class="mono" href="/problems/{{ p.key }}">{{ p.name }}</a></td>
+      {# Links to the RUN, not the problem: from inside a submission the
+         question is "how did this submission do here", and the problem page
+         answers a different one. The problem itself is one hop further. #}
+      <td><a class="mono" href="/submissions/{{ submission.slug }}/problems/{{ p.key }}">{{ p.name }}</a></td>
       <td class="sm">{{ p.category }}</td>
-      <td class="r">{{ p.passed }}<span class="sub">/{{ p.n_scoreable }}</span></td>
-      <td class="r big">{{ '%.4f'|format(p.mean_score) if p.mean_score else '&mdash;'|safe }}</td>
-      <td class="r">{% if p.flagged %}<span class="flag">{{ p.flagged }}</span>{% else %}&mdash;{% endif %}</td>
+      <td class="r" data-sort="{{ p.passed }}">{{ p.passed }}<span class="sub">/{{ p.n_scoreable }}</span></td>
+      <td class="r big" data-sort="{{ p.mean_score if p.mean_score is not none else '' }}">{{ '%.4f'|format(p.mean_score) if p.mean_score else '&mdash;'|safe }}</td>
+      <td class="r" data-sort="{{ p.flagged or 0 }}">{% if p.flagged %}<span class="flag">{{ p.flagged }}</span>{% else %}&mdash;{% endif %}</td>
+      <td class="sm"><a href="/problems/{{ p.key }}">problem &rarr;</a></td>
     </tr>
   {% endfor %}
   </tbody>
