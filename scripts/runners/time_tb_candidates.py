@@ -19,12 +19,14 @@ wrong is not a baseline.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import importlib.util
 import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from _common import (  # noqa: E402
     PASSED,
@@ -37,8 +39,35 @@ from _common import (  # noqa: E402
     summarize,
     workloads_path,
 )
+from provenance import ClockMonitor, clock_basis  # noqa: E402
 
 CANDIDATE_DIR = ROOT / "reference" / "tb-candidates"
+
+
+@contextlib.contextmanager
+def _variant_clock():
+    """Sample the clock across ONE variant, on the unlocked basis only.
+
+    `run_guarded` already samples across the whole runner, which is the right
+    granularity for a fixed F_LOCK: one setpoint covers every variant, so a single
+    verdict on "was the node at F_LOCK" applies to all of them.
+
+    It is the wrong granularity unlocked, because there the clock is a property of
+    the kernel. Variants of one problem are different kernels with different power
+    draws -- an eager formulation and a `max_autotune` one need not run at the same
+    frequency -- so a median across all of them describes none, and would trip the
+    12% spread gate on nearly every problem. T_SOL has to be evaluated at the clock
+    of the variant that actually won.
+
+    Yields None under the fixed basis so the surrounding code stays one path, and so
+    the sampler's own amdsmi polling is not added to runs that have no use for it.
+    """
+    if clock_basis() != "unlocked":
+        yield None
+        return
+    monitor = ClockMonitor()
+    with monitor:
+        yield monitor
 
 
 def _load_variants() -> dict:
@@ -99,15 +128,19 @@ def main() -> int:
 
         results: dict[str, dict] = {}
         for name, src in sources.items():
+            variant_clock = None
             try:
-                traces = evaluate(
-                    definition,
-                    workloads,
-                    reference_solution(definition, name_suffix=name, source=src),
-                    config,
-                    timeout=a.timeout,
-                )
-                summary = summarize(traces)
+                with _variant_clock() as monitor:
+                    traces = evaluate(
+                        definition,
+                        workloads,
+                        reference_solution(definition, name_suffix=name, source=src),
+                        config,
+                        timeout=a.timeout,
+                    )
+                    summary = summarize(traces)
+                if monitor is not None:
+                    variant_clock = monitor.summary()
             except Exception as e:                  # noqa: BLE001
                 # A variant that fails to compile or run is a RESULT: some
                 # formulations legitimately do not work for some problems
@@ -129,6 +162,9 @@ def main() -> int:
                 "all_passed": summary["all_passed"],
                 "latency_ms_by_workload": per_wl,
                 "is_override": name in overrides,
+                # None under the fixed basis, where run_guarded's node-wide verdict
+                # is what applies.
+                "measured_clock": variant_clock,
                 "failures": [
                     {"workload_uuid": w["workload_uuid"], "status": w["status"],
                      "log": w["log"][:1000]}
@@ -150,6 +186,15 @@ def main() -> int:
             for uuid, ms in r["latency_ms_by_workload"].items():
                 if uuid not in winners or ms < winners[uuid]["t_b_ms"]:
                     winners[uuid] = {"variant": name, "t_b_ms": ms}
+                    # The winning variant's clock travels WITH its T_b, because that
+                    # pairing is what the manifest anchors a score on: unlocked, a
+                    # T_b without the frequency it was taken at cannot be turned
+                    # into a bound. Absent under the fixed basis, where F_LOCK
+                    # applies to every artifact alike.
+                    mc = r.get("measured_clock")
+                    if mc is not None:
+                        winners[uuid]["f_for_bound_mhz"] = mc.get("f_for_bound_mhz")
+                        winners[uuid]["clock_stable"] = mc.get("clock_stable")
 
         return {
             "problem": key,
