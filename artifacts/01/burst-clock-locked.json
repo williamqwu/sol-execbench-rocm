@@ -1,0 +1,211 @@
+{
+  "_provenance": {
+    "task": "01-burst-clock",
+    "utc": "2026-08-05T04:36:26.317153+00:00",
+    "git_sha": "e0ff8309c1f78d6e061e1676e4d85c19f3c18c98-dirty",
+    "host": "mia1-p02-g10",
+    "python": "3.10.12",
+    "torch": {
+      "available": true,
+      "version": "2.9.1+rocm7.2.0.git7e1940d4",
+      "hip": "7.2.26015-fc0010cf6a",
+      "cuda": null,
+      "device_count": 8,
+      "devices": [
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X"
+      ]
+    },
+    "rocm": {
+      "version": "7.2.0",
+      "driver": "6.16.6",
+      "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+    },
+    "part": "MI355X",
+    "kernel_stack": {
+      "triton": {
+        "available": true,
+        "path": "/sgl-workspace/triton-custom/python/triton/__init__.py",
+        "dist_version": "3.6.0+git42270451",
+        "is_release_wheel": false,
+        "gluon": true
+      },
+      "aiter": {
+        "available": true,
+        "path": "/sgl-workspace/aiter/aiter/__init__.py",
+        "dist_version": null,
+        "git_sha": "d9e5ef7ce08ee7045d583aed768cff41aa9210fe-dirty"
+      },
+      "hipcc": "HIP version: 7.2.26015-fc0010cf6a\nAMD clang version 22.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.2.0 26014 7b800a19466229b8479a78de19143dc33c3ab9b5)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /opt/rocm-7.2.0/lib/llvm/bin\nConfiguration file: /opt/rocm-7.2.0/lib/llvm/bin/clang++.cfg",
+      "rocm_libraries": {
+        "ck": true,
+        "ck_tile": true,
+        "hipblaslt": true,
+        "miopen": true
+      }
+    },
+    "env": {
+      "mode": "native",
+      "in_docker": true,
+      "stack_drift_allowed": false
+    },
+    "f_lock_mhz": 1650,
+    "clock_lock": {
+      "mode": "uniform",
+      "expected_setpoint_mhz": 1660,
+      "setpoint_mhz_per_gpu": [
+        1660,
+        1660,
+        1660,
+        1660,
+        1660,
+        1660,
+        1660,
+        1660
+      ],
+      "perf_levels": [
+        "perf_determinism"
+      ],
+      "agrees": true
+    },
+    "visible_devices": "0,1,2,3,4,5,6,7"
+  },
+  "gpu": 1,
+  "mode": "locked",
+  "bursts": [
+    110,
+    400,
+    2000,
+    10000,
+    50000
+  ],
+  "results": {
+    "gemm_4096_compute_bound": {
+      "bursts": [
+        {
+          "iters": 110,
+          "per_iter_ms": 0.13017638120800257,
+          "per_iter_ms_min": 0.12974683618681,
+          "per_iter_ms_max": 0.13238105457276106,
+          "ratio_vs_sustained": 1.2258952482648218
+        },
+        {
+          "iters": 400,
+          "per_iter_ms": 0.1191292324801907,
+          "per_iter_ms_min": 0.1182023249566555,
+          "per_iter_ms_max": 0.12137796235037968,
+          "ratio_vs_sustained": 1.1218621893748206
+        },
+        {
+          "iters": 2000,
+          "per_iter_ms": 0.1083445074618794,
+          "per_iter_ms_min": 0.1082086599781178,
+          "per_iter_ms_max": 0.10845006548333913,
+          "ratio_vs_sustained": 1.0203004234760942
+        },
+        {
+          "iters": 10000,
+          "per_iter_ms": 0.10624569179490208,
+          "per_iter_ms_min": 0.10621763629605994,
+          "per_iter_ms_max": 0.10625695529161021,
+          "ratio_vs_sustained": 1.000535485095912
+        },
+        {
+          "iters": 50000,
+          "per_iter_ms": 0.10618882925948128,
+          "per_iter_ms_min": 0.10597752274014055,
+          "per_iter_ms_max": 0.10644925161963328,
+          "ratio_vs_sustained": 1.0
+        }
+      ],
+      "flops_per_iter": 137438953472.0
+    },
+    "gemm_1024_small": {
+      "bursts": [
+        {
+          "iters": 110,
+          "per_iter_ms": 0.023229999086734923,
+          "per_iter_ms_min": 0.018676090985536575,
+          "per_iter_ms_max": 0.02505233595994386,
+          "ratio_vs_sustained": 1.7007776229018288
+        },
+        {
+          "iters": 400,
+          "per_iter_ms": 0.033102185116149485,
+          "per_iter_ms_min": 0.022085397504270077,
+          "per_iter_ms_max": 0.033633199927862734,
+          "ratio_vs_sustained": 2.423566850110202
+        },
+        {
+          "iters": 2000,
+          "per_iter_ms": 0.022882481513079256,
+          "per_iter_ms_min": 0.022319362498819828,
+          "per_iter_ms_max": 0.031237374467309564,
+          "ratio_vs_sustained": 1.675334224878787
+        },
+        {
+          "iters": 10000,
+          "per_iter_ms": 0.014055167697370053,
+          "per_iter_ms_min": 0.0139403140055947,
+          "per_iter_ms_max": 0.016277427691966294,
+          "ratio_vs_sustained": 1.0290450127253759
+        },
+        {
+          "iters": 50000,
+          "per_iter_ms": 0.013658457621932029,
+          "per_iter_ms_min": 0.013593456838279961,
+          "per_iter_ms_max": 0.013713751460891216,
+          "ratio_vs_sustained": 1.0
+        }
+      ],
+      "flops_per_iter": 2147483648.0
+    },
+    "elementwise_memory_bound": {
+      "bursts": [
+        {
+          "iters": 110,
+          "per_iter_ms": 0.016304954293776642,
+          "per_iter_ms_min": 0.016156591432677073,
+          "per_iter_ms_max": 0.016358500050211496,
+          "ratio_vs_sustained": 1.0380228005847987
+        },
+        {
+          "iters": 400,
+          "per_iter_ms": 0.01587114267749712,
+          "per_iter_ms_min": 0.01585649501066655,
+          "per_iter_ms_max": 0.015891392540652305,
+          "ratio_vs_sustained": 1.0104050384774519
+        },
+        {
+          "iters": 2000,
+          "per_iter_ms": 0.01575422997120768,
+          "per_iter_ms_min": 0.01574904000153765,
+          "per_iter_ms_max": 0.015761090035084635,
+          "ratio_vs_sustained": 1.002962021304884
+        },
+        {
+          "iters": 10000,
+          "per_iter_ms": 0.01571343900868669,
+          "per_iter_ms_min": 0.015712861099746078,
+          "per_iter_ms_max": 0.01571755700279027,
+          "ratio_vs_sustained": 1.0003651450185918
+        },
+        {
+          "iters": 50000,
+          "per_iter_ms": 0.015707703419029714,
+          "per_iter_ms_min": 0.015703907220158728,
+          "per_iter_ms_max": 0.01570909550180659,
+          "ratio_vs_sustained": 1.0
+        }
+      ],
+      "flops_per_iter": 0.0
+    }
+  },
+  "note": "Go/no-go for per-measurement F. Asks whether a short burst runs at the same clock as a sustained loop, using only wall-clock timing so the 5 Hz telemetry sampling rate is irrelevant."
+}

@@ -368,11 +368,24 @@ def do_problem(args) -> tuple[str, dict]:
                 _mac_pc = float(_arch.get("MAC_per_cycle") or 0.0)
                 _dram_bw = float(_arch.get("DRAM_byte_per_cycle") or 0.0)
                 _macs = float(perf["workload"]["total_macs"])
-                exact_cycles = max(
-                    _macs / _mac_pc if _mac_pc > 0 else 0.0,
-                    float(fused["memory_bytes"]) / _dram_bw if _dram_bw > 0 else 0.0,
-                )
+                _compute_cycles = _macs / _mac_pc if _mac_pc > 0 else 0.0
+                _memory_cycles = (float(fused["memory_bytes"]) / _dram_bw
+                                  if _dram_bw > 0 else 0.0)
+                exact_cycles = max(_compute_cycles, _memory_cycles)
                 cycles = max(1, math.ceil(exact_cycles))
+                # The two terms are kept SEPARATELY, not just their max, because the
+                # two scale differently with the clock and this node cannot pin a
+                # clock (STATE.md D30): every timing happens at whatever frequency
+                # the card chose for that kernel, so the bound has to be evaluated
+                # at that frequency. Per the arch YAML's own annotations,
+                # MAC_per_cycle is architectural and frequency-independent, while
+                # DRAM_byte_per_cycle is derived as bytes_per_sec/freq. So in TIME:
+                # the compute term scales as 1/F and the memory term does not scale
+                # at all. Given only the max, neither could be recovered, and the
+                # bottleneck can flip as F moves -- which is why both are emitted
+                # along with the frequency-independent constants needed to
+                # re-evaluate them. See t_sol_at() in src/solexbench_rocm/t_sol_at.py.
+                _dram_byte_per_sec = _dram_bw * freq_ghz * 1e9
                 out["workloads"][wl.uuid] = {
                     # THE bound. `fused` is the model that matches what a good
                     # kernel actually does -- intermediates stay on chip. The
@@ -385,6 +398,12 @@ def do_problem(args) -> tuple[str, dict]:
                     "t_sol_cycles_exact": exact_cycles,
                     "t_sol_ms": cycles / (freq_ghz * 1e6),
                     "bottleneck": fused["bottleneck"],
+                    # Frequency-independent bound terms, for re-evaluating T_SOL at
+                    # the clock a measurement actually ran at.
+                    "compute_cycles": _compute_cycles,
+                    "memory_cycles_at_f_ref": _memory_cycles,
+                    "mac_per_cycle": _mac_pc,
+                    "dram_byte_per_sec": _dram_byte_per_sec,
                     "unfused_cycles": max(1, math.ceil(float(unfused["total_cycles"]))),
                     "macs": int(perf["workload"]["total_macs"]),
                     "memory_bytes": int(fused["memory_bytes"]),
