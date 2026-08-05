@@ -338,6 +338,35 @@ def cmd_lock(args):
     sys.exit(0 if ok else 1)
 
 
+def cmd_unlock(args):
+    """Clear every determinism setpoint and hand the clock back to the firmware.
+
+    The counterpart to `lock`, needed because measuring on the unlocked basis
+    requires that nothing be pinned. On this node determinism holds cards 2-7 about
+    20% below the requested clock while reporting success (D30), so a setpoint left
+    over from an earlier pass would depress those timings with nothing in any
+    artifact showing why -- which is what `assert_clock_lock()` refuses on.
+
+    Verified by reading the levels back, for the same reason `set_perf_determinism`
+    does: inside a container with /sys read-only, rocm-smi exits 0 having done
+    nothing at all.
+    """
+    r = subprocess.run(["rocm-smi", "--setperflevel", "auto"],
+                       capture_output=True, text=True)
+    time.sleep(5)
+    levels = perf_levels()          # sysfs path -> level, one entry per card
+    still = [p for p, lv in levels.items()
+             if lv and "determinism" in str(lv).lower()]
+    print("perf levels: " + ", ".join(sorted(set(levels.values()))))
+    if still:
+        print(f"UNLOCK FAILED — still pinned: {still}\n"
+              f"  rocm-smi said: {(r.stdout + r.stderr).strip()[:300]}",
+              file=sys.stderr)
+        sys.exit(1)
+    print("unlocked — every GPU on perf_level=auto")
+    sys.exit(0)
+
+
 def cmd_verify(args):
     """An unloaded GPU reports the requested clock whether or not the lock
     is doing anything. Verification is only meaningful under load."""
@@ -791,6 +820,11 @@ def main():
     l.add_argument("--freq-mhz", type=int, required=True)
     l.add_argument("--gpu", type=int, default=0)
     l.add_argument("--all-gpus", action="store_true")
+
+    u = sub.add_parser("unlock",
+                       help="clear all determinism setpoints (perf_level=auto), "
+                            "required by the unlocked measurement basis")
+    u.set_defaults(fn=cmd_unlock)
 
     v = sub.add_parser("verify"); v.set_defaults(fn=cmd_verify)
     v.add_argument("--freq-mhz", type=int, required=True)

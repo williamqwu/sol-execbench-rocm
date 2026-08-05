@@ -77,15 +77,32 @@ def run_guarded(out: Path, kind: str, body: Callable[[], dict[str, Any]]) -> int
     measured = monitor.summary()
     payload["measured_clock"] = measured
 
-    if payload.get("ok") and measured.get("within_tolerance") is False:
+    # What voids a measurement depends on which clock convention is in force. Under
+    # a fixed F_LOCK it is deviation from that constant. Unlocked there is no
+    # constant to deviate from -- the clock is part of the result and its bound is
+    # evaluated there -- so what voids the measurement instead is a window no single
+    # frequency describes. Both land in the same quarantine path.
+    violation = None
+    if payload.get("ok"):
+        if measured.get("clock_basis") == "unlocked":
+            if measured.get("clock_stable") is False:
+                violation = (
+                    f"clock not determinable for this measurement: "
+                    f"{measured.get('unstable_reason')}. Unlocked, T_SOL is "
+                    f"evaluated at the clock the measurement ran at, so a timing "
+                    f"whose clock is unknown cannot be scored.")
+        elif measured.get("within_tolerance") is False:
+            violation = (
+                f"measured {measured['median_mhz']} MHz against F_LOCK "
+                f"{measured['expected_f_lock_mhz']} "
+                f"({measured['deviation']:+.1%}, tolerance "
+                f"±{measured['tolerance']:.0%}). The timings in this artifact are "
+                f"wall-clock times and are wrong by that ratio.")
+
+    if violation is not None:
         payload["ok"] = False
         payload["clock_violation"] = True
-        payload["error"] = (
-            f"measured {measured['median_mhz']} MHz against F_LOCK "
-            f"{measured['expected_f_lock_mhz']} "
-            f"({measured['deviation']:+.1%}, tolerance "
-            f"±{measured['tolerance']:.0%}). The timings in this artifact are "
-            f"wall-clock times and are wrong by that ratio.")
+        payload["error"] = violation
         # Written rather than discarded -- prime directive 1 -- but the caller
         # is expected to move it aside so the problem is retried once the node
         # is right, not skipped as already done.

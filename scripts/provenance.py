@@ -361,6 +361,29 @@ def assert_clock_lock() -> None:
             "REFUSING to measure: could not read the clock lock back from the "
             "devices (amdsmi unavailable). An unverified lock means every "
             "timing is taken at an unknown clock.")
+
+    if clock_basis() == _BASIS_UNLOCKED:
+        # The mirror-image check. Unlocked, the guarantee needed is that nothing is
+        # pinned: a determinism setpoint left over from an earlier pass would put
+        # cards 2-7 back into their 0.80-0.85 scaling (D30) while every artifact
+        # claimed to be unlocked, and per-measurement clocks would faithfully record
+        # the depressed frequency without anything flagging why.
+        # `perf_levels` is the deduplicated set of level values across the node, not
+        # a per-GPU list, so the question it can answer is "is anything pinned",
+        # which is the one that matters here.
+        pinned = [lv for lv in (st.get("perf_levels") or [])
+                  if lv and "determinism" in str(lv).lower()]
+        if pinned:
+            raise SystemExit(
+                "REFUSING to measure: SOLEXBENCH_CLOCK_BASIS=unlocked, but a "
+                "performance-determinism setpoint is still applied.\n"
+                f"  levels found on the node: {st['perf_levels']}\n"
+                "On this node determinism holds cards 2-7 about 20% below the "
+                "requested clock (D30), so these timings would be slow for a "
+                "reason no artifact would show.\n"
+                "Clear it with `clock_calibrate.py unlock`, then re-run.")
+        return
+
     if not st["agrees"]:
         if st.get("mode") == "equalized":
             raise SystemExit(
@@ -386,6 +409,40 @@ def assert_clock_lock() -> None:
 # discards most of the samples a timing run offers.
 _BUSY_ACTIVITY_PCT = 50
 _DEFAULT_TOLERANCE = 0.03
+
+# Two ways an artifact can say what clock it was measured at.
+#
+#   "fixed_f_lock"  -- one F_LOCK applies to every measurement, and a measurement
+#                      whose sampled clock deviates from it is void. What every
+#                      artifact before this used.
+#   "unlocked"      -- no setpoint is applied; each measurement records the clock it
+#                      observed and its bound is evaluated there (t_sol_at.py).
+#
+# The second exists because no setpoint is honoured on this node (D30) and because
+# unlocked the cards are markedly better behaved: 3.4% throughput spread across all
+# eight, 0.7% drift over 8 minutes, 1.0% neighbour coupling, against 21% under
+# determinism. The cost is that frequency becomes a property of the kernel rather
+# than of the node -- 27.9% across workload types -- which is exactly why it must be
+# recorded per measurement instead of assumed.
+_BASIS_FIXED = "fixed_f_lock"
+_BASIS_UNLOCKED = "unlocked"
+
+# An unlocked measurement needs enough samples for its median to mean anything, and
+# a window that did not span two clock regimes. Both are gates, not adjustments: a
+# measurement that fails them is recorded unverified and quarantined, never scored
+# against a guessed frequency.
+_MIN_BUSY_SAMPLES = 8
+_MAX_CLOCK_SPREAD = 0.12
+
+
+def clock_basis() -> str:
+    """Which clock convention this process is measuring under."""
+    v = (os.environ.get("SOLEXBENCH_CLOCK_BASIS") or _BASIS_FIXED).strip().lower()
+    if v not in (_BASIS_FIXED, _BASIS_UNLOCKED):
+        raise ValueError(
+            f"SOLEXBENCH_CLOCK_BASIS must be {_BASIS_FIXED!r} or {_BASIS_UNLOCKED!r}, "
+            f"got {v!r}")
+    return v
 
 
 class ClockMonitor:
@@ -492,16 +549,32 @@ class ClockMonitor:
         import statistics
 
         expected = f_lock_mhz()
+        basis = clock_basis()
         clk = [s[0] for s in self._samples]
         pw = [s[1] for s in self._samples]
         out: dict = {
+            "clock_basis": basis,
             "expected_f_lock_mhz": expected,
             "tolerance": self.tolerance,
             "n_busy_samples": len(clk),
             "busy_gpus": sorted(self._busy_gpus),
             "sampler_error": self._error,
+            "min_busy_samples": _MIN_BUSY_SAMPLES,
+            "max_clock_spread": _MAX_CLOCK_SPREAD,
         }
         if not clk:
+            if basis == _BASIS_UNLOCKED:
+                # Under a fixed lock an unsampled window is merely unverified --
+                # assert_clock_lock() still covers the systematic case. Unlocked
+                # there is no systematic case to fall back on: the clock IS the
+                # measurement, so no samples means no bound can be evaluated.
+                out.update(median_mhz=None, min_mhz=None, max_mhz=None,
+                           median_power_w=None, deviation=None,
+                           within_tolerance=None, f_for_bound_mhz=None,
+                           clock_spread=None, clock_stable=False,
+                           unstable_reason="no busy samples: the window never "
+                                           "caught the GPU working")
+                return out
             # Not a violation: a problem can be short enough, or compile-bound
             # enough, that no sample lands on GPU work. Recorded as unverified
             # rather than silently passed -- assert_clock_lock() still covers
@@ -513,6 +586,7 @@ class ClockMonitor:
         clk.sort()
         med = statistics.median(clk)
         dev = (med - expected) / expected if expected else None
+        spread = (clk[-1] - clk[0]) / med if med else None
         out.update(
             median_mhz=med,
             min_mhz=clk[0],
@@ -521,7 +595,23 @@ class ClockMonitor:
             median_power_w=statistics.median(pw),
             deviation=dev,
             within_tolerance=(dev is not None and abs(dev) <= self.tolerance),
+            clock_spread=spread,
         )
+        if basis == _BASIS_UNLOCKED:
+            reason = None
+            if len(clk) < _MIN_BUSY_SAMPLES:
+                reason = (f"only {len(clk)} busy samples, need {_MIN_BUSY_SAMPLES} "
+                          f"for the median to describe the window")
+            elif spread is not None and spread > _MAX_CLOCK_SPREAD:
+                reason = (f"clock moved {spread:.1%} across the window "
+                          f"({clk[0]}-{clk[-1]} MHz), more than "
+                          f"{_MAX_CLOCK_SPREAD:.0%}: no single frequency describes "
+                          f"it, so the bound cannot be placed")
+            out.update(
+                clock_stable=reason is None,
+                unstable_reason=reason,
+                f_for_bound_mhz=med if reason is None else None,
+            )
         return out
 
 
@@ -540,6 +630,11 @@ def stamp(task: str, extra: dict | None = None) -> dict:
             "kernel_stack": kernel_stack(),
             "env": env_mode(),
             "f_lock_mhz": f_lock_mhz(),
+            # Which clock convention the artifact was measured under. Without this
+            # an unlocked artifact and a fixed-F_LOCK one are indistinguishable,
+            # and f_lock_mhz above would be read as the clock the timings were
+            # taken at when unlocked it is merely a table entry.
+            "clock_basis": clock_basis(),
             "clock_lock": clock_lock_state(),
             "visible_devices": os.environ.get("HIP_VISIBLE_DEVICES"),
             **(extra or {}),
