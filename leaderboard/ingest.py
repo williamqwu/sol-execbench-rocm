@@ -28,6 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+import inputs  # noqa: E402
 from sol_execbench.sol_score import sol_score  # noqa: E402
 
 DATASET = ROOT / "data" / "SOL-ExecBench" / "benchmark"
@@ -89,7 +90,7 @@ def part_of(device: str | None) -> str | None:
     return None
 
 
-def ingest_meta(conn, manifest: dict) -> None:
+def ingest_meta(conn, manifest: dict, extra_roots: list[Path] | None = None) -> None:
     prov = manifest.get("_provenance", {})
     device = ((prov.get("torch") or {}).get("devices") or [None])[0]
     rows = {
@@ -107,9 +108,11 @@ def ingest_meta(conn, manifest: dict) -> None:
         "part": prov.get("part") or part_of(device),
         "n_devices": (prov.get("torch") or {}).get("device_count"),
         # Freshness. The database is a view of the artifacts and goes stale the
-        # moment they move; without these it goes stale *silently*, which is the
-        # one failure a leaderboard cannot afford. `app.py` compares
-        # `repo_git_sha` against the working tree and says so in the header.
+        # moment they move; without this it goes stale *silently*, which is the
+        # one failure a leaderboard cannot afford. `app.py` re-derives the
+        # signature and compares. The git SHA is kept for provenance only --
+        # comparing it was the bug, since it flagged every unrelated commit and
+        # missed untracked artifacts entirely.
         "db_built_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "repo_git_sha": git_sha(ROOT),
         "total_problems": manifest["problem_set"]["total_in_dataset"],
@@ -117,6 +120,11 @@ def ingest_meta(conn, manifest: dict) -> None:
         "scoreable_workloads": manifest["stats"]["scoreable_workloads"],
         "expected_by_category": json.dumps(manifest["problem_set"]["expected_by_category"]),
         "bound_sources": json.dumps(manifest.get("bound_sources", {})),
+        # The extra roots go in too: without them `app.py` would enumerate a
+        # different input set than the build did and report a phantom "files
+        # removed" on every request.
+        "input_signature": json.dumps(inputs.signature(extra_roots)),
+        "input_extra_roots": json.dumps([str(p) for p in (extra_roots or [])]),
     }
     conn.executemany("INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)",
                      [(k, None if v is None else str(v)) for k, v in rows.items()])
@@ -393,7 +401,7 @@ def main() -> int:
     conn = connect(a.db)
     conn.executescript((Path(__file__).parent / "schema.sql").read_text())
 
-    ingest_meta(conn, manifest)
+    ingest_meta(conn, manifest, extra)
     ingest_problems(conn, manifest)
     print("variants:")
     excluded = ingest_variants(conn, manifest)

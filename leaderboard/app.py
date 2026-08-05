@@ -25,8 +25,9 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
-import subprocess
 from pathlib import Path
+
+import inputs
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -60,39 +61,37 @@ def meta() -> dict:
 
 
 def freshness(m: dict) -> dict:
-    """Is the database still a faithful view of the artifacts?
+    """Is the database still a faithful view of the artifacts it was built from?
 
-    It is a *derived* store, so it goes stale the moment the artifacts move --
-    and the failure is silent: every page still renders, every number still
-    looks plausible, and nothing says the manifest underneath has changed. Two
-    cheap signals, both reported rather than acted on:
+    It is a *derived* store, so it goes stale the moment those artifacts move,
+    and the failure is silent: every page still renders and every number still
+    looks plausible.
 
-      * the repo HEAD now vs. the HEAD `ingest.py` last ran against;
-      * the manifest's mtime vs. the database's.
-
-    A drifted SHA is not by itself wrong -- most commits touch nothing this
-    board reads -- so it is worded as "rebuild to be sure", not as an error.
+    This compares the INPUTS, not the repo. An earlier version compared git
+    HEAD, which fired on every commit -- including one that only touched a
+    stylesheet -- and would still have called the board fresh when the
+    untracked `glm-run1` agent run appeared. Both failures came from asking
+    git a question about data git does not track. See `inputs.py`.
     """
     out: dict = {"stale": False, "reasons": []}
-    head = None
-    try:
-        head = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
-                              capture_output=True, text=True, timeout=10,
-                              check=True).stdout.strip()
-    except Exception:
-        pass
-    out["repo_head"] = head
-    out["built_from"] = m.get("repo_git_sha")
     out["db_built_utc"] = m.get("db_built_utc")
-    if head and m.get("repo_git_sha") and head != m["repo_git_sha"]:
-        out["stale"] = True
-        out["reasons"].append(
-            f"repo has moved to {head[:12]} since this database was built "
-            f"from {m['repo_git_sha'][:12]}")
-    manifest = ROOT / "artifacts" / "09" / "manifest-v1.json"
-    if manifest.exists() and DB.exists() and manifest.stat().st_mtime > DB.stat().st_mtime:
-        out["stale"] = True
-        out["reasons"].append("artifacts/09/manifest-v1.json is newer than the database")
+    out["built_from_git_sha"] = m.get("repo_git_sha")   # provenance, not a check
+    try:
+        recorded = json.loads(m.get("input_signature") or "{}")
+        extra = [Path(p) for p in json.loads(m.get("input_extra_roots") or "[]")]
+        current = inputs.signature(extra)
+        out["inputs"] = {"recorded": recorded, "current": current}
+        out["reasons"] = inputs.compare(recorded, current)
+        out["stale"] = bool(out["reasons"])
+        # The command must carry the roots this build actually used. A bare
+        # `ingest.py` re-reads only artifacts/10, so following the banner
+        # literally would silently drop every run kept outside the repo --
+        # turning a freshness warning into a way to lose a submission.
+        out["rebuild_command"] = "python leaderboard/ingest.py" + (
+            " --agent-runs " + " ".join(str(p) for p in extra) if extra else "")
+    except Exception as exc:                             # never 500 a page over this
+        out["reasons"] = []
+        out["error"] = f"{type(exc).__name__}: {exc}"
     return out
 
 

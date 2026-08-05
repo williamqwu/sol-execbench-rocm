@@ -50,9 +50,9 @@
 {% if meta.freshness and meta.freshness.stale %}
 <div class="wrap">
   <div class="banner warn stale">
-    <b>This view may be behind the artifacts.</b>
+    <b>The artifacts have changed since this view was built.</b>
     {{ meta.freshness.reasons | join('; ') }}.
-    Rebuild with <code>python leaderboard/ingest.py</code> to be sure.
+    Rebuild: <code>{{ meta.freshness.rebuild_command }}</code>
   </div>
 </div>
 {% endif %}
