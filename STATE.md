@@ -1020,6 +1020,102 @@ observation rather than a `T_SOL` one, it is independent of the rate bug, and it
 is about the same problem my first hypothesis pointed at. So `018` remains the one
 problem both ports flag, for reasons neither has yet closed out.
 
+### D32 — the timing window is shorter than the clock takes to settle, and that is in every number we have published
+
+Found while checking whether the unlocked basis was sound, and it turns out not to
+be about locking at all. `scripts/burst_clock_probe.py`,
+`artifacts/01/burst-clock.json` and `-locked.json`.
+
+`time_runnable` times `warmup_runs=10 + iterations=50`. For the sub-millisecond
+kernels that make up most of this corpus that is a **1–13 ms window**, which no 5 Hz
+telemetry sampler can observe — so the question "what clock was this measured at?"
+had never actually been answered for any artifact, only assumed.
+
+Answered without telemetry, by timing the same kernel at increasing burst lengths;
+per-iteration time at a fixed shape is proportional to 1/clock, so a flat curve
+means a flat clock. It is not flat:
+
+| burst | GEMM 4096³ (compute-bound) | GEMM 1024³ | elementwise |
+|---|---|---|---|
+| **110 iters** (≈ what we do) | **1.18–1.23x** | **1.70–1.74x** | 1.03x |
+| 2 000 | 1.02–1.03 | 1.68–1.74 | 1.00 |
+| 10 000 | 1.00–1.02 | 1.01–1.03 | 1.00 |
+| 50 000 | 1.000 | 1.000 | 1.000 |
+
+A compute-bound kernel measures **~20% slower** at our burst length than at steady
+state, a small one up to 74% (and non-monotonically — 1.74, 2.56, 1.74 — because at
+that size fixed overhead dominates the whole window). The cause is the clock ramping
+up from idle plus per-launch overhead, not the kernel.
+
+**The decisive part: this is the same locked and unlocked** — 1.226x locked against
+1.181x unlocked for the compute-bound case, i.e. marginally *worse* under the lock.
+So it is not a defect of the unlocked basis, and D31 does not introduce it. It is a
+property of the upstream measurement methodology that every T_b and every score we
+have published already contains, with the locked basis simply asserting 1650 MHz
+through a window where the silicon was demonstrably somewhere else.
+
+What it does and does not invalidate: baseline and candidate are measured the same
+way, so **speedup ratios are unaffected** — the bias divides out. **SOL efficiency
+is systematically understated**, since T_measured carries ramp overhead that T_SOL
+does not model. Roughly uniformly, so rankings hold, which is why this is recorded
+rather than treated as a blocker.
+
+Not fixed, deliberately. Raising `iterations` until the window reaches steady state
+(10 000+ reps) would remove the bias and make the clock samplable, but `iterations=50`
+is upstream Sol-ExecBench methodology; changing it makes our numbers incomparable
+with published ones and requires re-timing everything. That is a decision about what
+the benchmark is for, not a bug fix, so it is written down and left to be chosen.
+
+### D31 — F_LOCK is replaced by the clock each measurement actually ran at
+
+**Status: implemented and unit-tested; acceptance cross-check still pending.** The
+change is inert until `SOLEXBENCH_CLOCK_BASIS=unlocked`, and no published artifact
+uses it yet.
+
+Why. D30 established that no setpoint is honoured on this node, so `F_LOCK` as a
+table constant describes nothing. Unlocked the cards behave far better — 3.4%
+throughput spread across all eight, 0.7% drift over 8 minutes, 1.0% neighbour
+coupling, against 21% under determinism — but the clock becomes a property of the
+**kernel**: a dense GEMM saturates the 1400 W budget and is held to ~1730 MHz while a
+memory-bound kernel needs ~1170 W and boosts to 2394, a 27.9% spread
+(`artifacts/01/unlocked-clock.json`). One frequency cannot describe a run, so each
+measurement records its own and its bound is evaluated there.
+
+This was only possible because the two roofline terms scale oppositely, and the arch
+YAML says which is which: `MAC_per_cycle` is architectural, so the compute term is a
+fixed cycle count whose time goes as 1/F; `DRAM_byte_per_cycle` is derived as
+`bytes_per_sec/freq`, so the memory term is a fixed time. A card boosting to 2394 MHz
+on a memory-bound kernel has not moved that kernel's bound at all — HBM does not run
+off the core clock. `sol_bounds.py` therefore emits both terms instead of their max,
+because from the max neither is recoverable and **the bottleneck flips as F moves**;
+`t_sol_at()` re-maxes them at any clock.
+
+Gates rather than adjustments, throughout. A measurement whose clock cannot be
+pinned down — fewer than 8 busy samples, or a window whose clock moved over 12% — is
+quarantined, never scored against a guessed frequency. The 12% gate is why clock
+sampling had to move from the whole runner to **per variant**: autotuning bursty
+kernels boosts to ~2394 while the timed dense kernel sits at ~1730, and a median
+across both describes neither. `assert_clock_lock()` gained the mirror-image check,
+refusing to measure unlocked while any determinism setpoint lingers, since that would
+put cards 2–7 back into their 0.80–0.85 scaling with every artifact claiming
+otherwise.
+
+Concrete gain beyond parallelism: 10 of 191 problems (5.6%) in the locked reference
+run were **thrown away** on clock violations, five of them well-sampled and genuinely
+low (1576 MHz over 553 samples, 1599 over 171, 1587 over 49). Those are scoreable
+under a per-measurement F. Incidentally this also refutes the claim in D30 that GPU 1
+is invariant at 1656: that held for the dense GEMM used to probe it, but on real
+benchmark kernels GPU 1 also tracks the workload, 1576–1599 MHz, 3.4–4.5% below
+1650. Frequency follows the kernel even on the best card under the lock; unlocked
+just makes the effect larger and honest.
+
+**Risk, stated because nothing downstream would reveal it: a kernel's own power draw
+now sets its bound.** A kernel that saturates the package budget runs at a lower
+clock and therefore receives a *looser* T_SOL. I do not believe it is exploitable —
+burning power to depress the clock also slows the kernel, and the two roughly cancel
+— but it is an attack surface the fixed lock did not have, and it should be checked
+against the trivial-copy and static-source screens rather than assumed benign.
+
 ### D30 — the cards are uniform; `perf_determinism` is what breaks them, and it is a no-op on the card we time on
 
 D29 below concluded "only GPU 1 holds a lock" and the first node defect report
@@ -1071,6 +1167,12 @@ stands.
 Escalated to IT/AMD as a firmware bug in the determinism path rather than a
 hardware fault — the two questions being why determinism substitutes a ~1000 W
 budget on GPUs 2–7, and why the setpoint is ignored on GPUs 0–1.
+
+> **Partly superseded by D31.** "GPU 1 is invariant at 1655–1657 MHz" holds for the
+> dense GEMM used to probe it, but not for real benchmark kernels: under the same
+> lock GPU 1 ran 1576–1599 MHz on several problems, confirmed by up to 553 busy
+> samples. Frequency tracks the kernel on this node even on the best card and even
+> locked. The lock narrows the effect; it does not remove it.
 
 ### D29 — authoritative timing cannot be parallelized on this node, and only GPU 1 holds a lock
 
