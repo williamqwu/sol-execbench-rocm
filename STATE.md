@@ -643,15 +643,77 @@ deferred with this evidence rather than given an invented number — the same
 treatment as the NVFP4 problems, and for the same reason: re-specification, not
 translation.
 
-**The unexplained part, stated as such.** Those outlier clusters are far too
-tight to be jitter — 21.4/21.6/22.5 on three different GPUs, and 3.3–3.4× nine
-separate times — so they are one repeatable event, not noise. It is **not** cold
-start: the first call of every size was the *tightest* sample taken, which is
-the opposite of the obvious hypothesis and was checked because of it. Candidates
-not yet distinguished: hipBLASLt re-tuning, a power-management transition, or
-queue preemption. Whether it perturbs T_b is not established, though the
-benchmark's use of trimmed statistics over many reps should absorb a ~2% rate,
-and task 04 measured −0.61% median divergence over 1430 pairs.
+**Narrowed, and the leading hypothesis falsified.**
+`scripts/probe_timing_stall.py` → `artifacts/02/timing-stall-probe.json`:
+
+* **Not cold start.** The first call of every size is the *tightest* sample
+  taken — the opposite of the obvious hypothesis, checked because it was obvious.
+* **Not a fixed structural offset.** Stall indices are scattered (3–9 distinct
+  per cell, concentration 0.11–0.5, median position 0.45 through the call), so
+  it is not an allocator pool wrap or a page boundary at a reproducible index.
+* **A per-iteration hazard, not per-call.** mm[4096] stalls at 0.135% of
+  iterations at rep=100 and 0.125% at rep=25 — flat in the iteration count.
+* **Even across GPUs** (5/3/4/4 over GPUs 1–4), so not one bad card.
+* **mm[2048] did not reproduce**: 0 stalls in 12,000 iterations, against 3 at
+  ~21× in 3,600 earlier. The 21× event is real but conditional on something not
+  yet identified, and that discrepancy is unresolved.
+
+**The clock is not the mechanism.** A discrete DPM step was the natural
+explanation for a fixed multiplier, and this part has exactly one intermediate
+step to fall to (`pp_dpm_sclk`: 38 / 500 / 2200 MHz, determinism range
+500–1600). `scripts/probe_stall_clock.py` samples the active level at ~860 Hz
+while the timing loop runs, sharing `CLOCK_MONOTONIC` across the two processes
+so each sample can be attributed to the call it fell inside
+(`artifacts/02/timing-stall-clock.json`):
+
+```
+calls WITH a stall   n=  6   clock 1401-1452 MHz   in-call spread 1.04x
+calls without        n=114   clock 1449-1451 MHz   in-call spread 1.00x
+```
+
+A 1.04× clock spread cannot produce a 3.9–4.5× stall. **Hypothesis rejected.**
+
+Two things that alignment step was load-bearing for. Without it the raw
+histogram showed the clock sweeping 107→1598 MHz and looked like a confirmation;
+that spread is entirely process startup and the idle gaps *between* calls. And
+the DRM card had to be resolved by PCI bus — on this node torch 1 is `card9`
+while `card1` is torch 0, so sampling `card{gpu}` would have read an idle GPU,
+produced a flat trace, and "falsified" the hypothesis for the wrong reason. Same
+trap as D11 and the task-01 floor that was fiction.
+
+**Useful side result:** during actual measurement the clock is steady to 1.00×
+at ~1450 MHz. That is reassurance for T_b, and it also shows F_LOCK = 1300 is
+the *sustained-load* figure — short bursty runs on an idle node sit ~150 MHz
+higher, which is why T_b and submissions must be timed the same way.
+
+Still open: what costs a steady-clock kernel 3.9–4.5× at 0.13% of iterations.
+Kernel selection inside hipBLASLt is the remaining suspect and has not been
+tested.
+
+### D21 — two more bounds a real kernel beat, and neither is D18's mechanism
+
+`glm-run1` (GLM-5.2, 24 problems, re-timed on GPU 0) beat T_SOL on two problems
+that are **not** paged attention, so the D18 explanation does not cover them:
+
+| problem | T_SOL source | beaten by | workloads |
+|---|---|---|---|
+| `L1__005_conv_gated_projection_with_causal_conv` | `solar_fused`, compute | **1.09–1.15×** | 4 of 16 |
+| `L1__035_flux_ada_layer_norm_zero_modulation_extraction` | mixed | **1.003–1.013×** | 2 of 16 |
+
+Different in kind, and probably from each other too. L1__005 is a compute-bound
+SOLAR roofline that is ~15% too slow — a rate or a missed fusion, and a real
+defect. L1__035 is beaten by 0.3–1.3%, on a problem whose headroom is only
+T_b/T_SOL = 1.008: there is almost no scoring range there at all, so a 1%
+timing difference flips it either way. Whether that is a wrong bound or a bound
+too tight to be measurable against is not yet decided, and the two need
+separating before v1.1.
+
+**Ingest bug found on the way, and fixed.** A bound a real kernel beat is a fact
+about the *bound*, not the run that exposed it, but `ingest.py` wrote the list
+with `INSERT OR REPLACE` per run and skipped excluded runs entirely. So each run
+overwrote the last, and taking the pilot off the board deleted
+`FlashInfer-Bench__019` — the D18 problem — from `/methodology`. Now accumulated
+across every run read, excluded or not.
 
 ---
 

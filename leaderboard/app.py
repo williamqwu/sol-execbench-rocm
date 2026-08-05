@@ -343,8 +343,24 @@ def methodology(request: Request):
         deferred = rows(conn, """SELECT key, n_workloads, deferred_reason,
                                         deferred_mechanism, deferred_error
                                    FROM problem WHERE deferred=1 ORDER BY key""")
+        # Facts about each invalid-bound problem rather than a single asserted
+        # cause: at least two distinct mechanisms are in play (D18, D21), so a
+        # per-row explanation copied from the first one found would be wrong
+        # for the others.
+        bad_keys = json.loads(dict(
+            (r["key"], r["value"]) for r in conn.execute("SELECT key,value FROM meta")
+        ).get("problems_with_invalid_bound") or "[]")
+        invalid_bound_info = {}
+        for k in bad_keys:
+            row = conn.execute(
+                """SELECT n_workloads, median_headroom FROM problem WHERE key=?""",
+                (k,)).fetchone()
+            if row:
+                invalid_bound_info[k] = {"n_workloads": row["n_workloads"],
+                                         "headroom": row["median_headroom"]}
     return page(request, "methodology.html", bound_sources=bounds,
-                deferred=deferred, excluded=excluded, nav="methodology")
+                deferred=deferred, excluded=excluded, nav="methodology",
+                invalid_bound_info=invalid_bound_info)
 
 
 @app.get("/healthz")

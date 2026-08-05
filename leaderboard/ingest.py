@@ -298,9 +298,23 @@ def ingest_agent_runs(conn, extra_roots: list[Path] | None = None) -> dict:
             print(f"  (agent-run root not found, skipped: {root})")
 
     excluded: dict[str, str] = {}
+    # A bound a real kernel beat is a fact about the BOUND, not about the run
+    # that happened to expose it. Two ways that got lost: `INSERT OR REPLACE`
+    # let each run overwrite the previous run's list, and excluding a run threw
+    # its findings away with it -- which is how FlashInfer-Bench__019, found by
+    # the pilot and central to D18, disappeared from /methodology the moment
+    # the pilot came off the board. Accumulated across every run that was read,
+    # excluded or not, and written once.
+    invalid_bounds: set[str] = set()
+
+    def note_bound_violations(doc: dict) -> None:
+        invalid_bounds.update(r["problem"] for r in doc.get("results", [])
+                              if r.get("bound_violation"))
+
     for scored in scored_files:
         doc = json.loads(scored.read_text())
         run_id = doc.get("run_id", scored.parent.name)
+        note_bound_violations(doc)
         # Validation runs are scored the same way and kept as artifacts, but a
         # one-problem smoke test on the board is noise, not information.
         if doc.get("leaderboard") is False:
@@ -322,7 +336,11 @@ def ingest_agent_runs(conn, extra_roots: list[Path] | None = None) -> dict:
             created_utc=(doc.get("_provenance") or {}).get("utc"),
             notes=doc.get("notes"),
             provenance_json=json.dumps(doc.get("_provenance") or {}),
-            cost_usd=doc.get("total_cost_usd"),
+            # A run reporting exactly 0 alongside a null wall time did not cost
+            # nothing -- nothing recorded it. Storing 0 asserts "free" and puts
+            # a $0 in a column next to a real $250; NULL asserts "unknown",
+            # which is what is true. glm-run1 is the case in point.
+            cost_usd=(doc.get("total_cost_usd") or None),
             wall_seconds=doc.get("wall_seconds_total"),
             gpu="0 (authoritative re-time)")
         rows = []
@@ -343,12 +361,16 @@ def ingest_agent_runs(conn, extra_roots: list[Path] | None = None) -> dict:
         bad = sorted({r["problem"] for r in doc.get("results", [])
                       if r.get("bound_violation")})
         if bad:
-            conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)",
-                         ("problems_with_invalid_bound", json.dumps(bad)))
             print(f"  agent {run_id}: {len(rows)} workloads; "
                   f"{len(bad)} problem(s) have a bound a real kernel beat: {bad}")
         else:
             print(f"  agent {run_id}: {len(rows)} scored workloads")
+
+    if invalid_bounds:
+        conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)",
+                     ("problems_with_invalid_bound", json.dumps(sorted(invalid_bounds))))
+        print(f"  bounds beaten by a real kernel, across all runs read: "
+              f"{len(invalid_bounds)}")
     return excluded
 
 
