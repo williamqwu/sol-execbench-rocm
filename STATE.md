@@ -1020,7 +1020,64 @@ observation rather than a `T_SOL` one, it is independent of the rate bug, and it
 is about the same problem my first hypothesis pointed at. So `018` remains the one
 problem both ports flag, for reasons neither has yet closed out.
 
+### D30 — the cards are uniform; `perf_determinism` is what breaks them, and it is a no-op on the card we time on
+
+D29 below concluded "only GPU 1 holds a lock" and the first node defect report
+blamed per-socket power provisioning. **Both were wrong**, and a control experiment
+asked for by the user — same kernel on all eight cards, measuring throughput
+independently of the clock — is what showed it. `scripts/gpu_parity_check.py`,
+`artifacts/00/gpu-parity.json`.
+
+**The control that mattered: TFLOPS/GHz.** Wall-clock throughput divided by
+reported clock is **813–856 across every card in every condition** — locked,
+unlocked, alone, contended, fast cards and slow. So the clock telemetry is honest
+and none of this is a measurement artifact. That was the user's concern and it is
+answered: the cards really do run slow when they report slow.
+
+**Unlocked, the node is uniform.** All eight at `perf_level=auto`, saturating GEMM,
+45 s: 1447–1498 TFLOPS (**3.4% spread**), 1724–1837 MHz, 1377–1399 W each, 56–63 °C.
+Every socket delivers its full 1400 W simultaneously. There is no weak card, no
+cooling imbalance, and no power-provisioning fault — which disproves the first
+report's hypothesis. Under determinism the same eight cards spread **21.2%**. The
+feature whose only purpose is reproducibility is what makes this node non-uniform.
+
+**And the setpoint is a no-op on GPU 1.** Sweeping the request, one card at a time
+under load:
+
+| requested | GPU 1 | GPU 2 |
+|---|---|---|
+| 1200 | **1657 MHz** (1.38x) | 1015 (0.85x) |
+| 1400 | **1656** (1.18x) | 1155 (0.83x) |
+| 1500 | **1655** (1.10x) | 1214 (0.81x) |
+| 1660 | 1656 (1.00x) | 1322 (0.80x) |
+
+GPU 1 runs 1655–1657 MHz **whatever it is asked for**. It looked like the one
+healthy card only because 1656 coincides with the 1660 we happened to request; had
+the sweep been run before choosing it, this would have been obvious. GPUs 2–7 are
+the ones where determinism functions as a control, with a 0.80–0.85 scale error.
+Neither group is correct and the two failure modes are opposite: one cannot be
+slowed, the other cannot reach speed. Determinism reports success and reads back as
+`perf_determinism` on all of them.
+
+**What this changes.** Not the choice of GPU 1 — it is invariant at 1655–1657 MHz
+at ~1295 W whether alone or with all eight saturated, and invariance is what the
+SOL bound needs. What changes is the *claim*: we do not lock GPU 1 to 1650, we
+observe that firmware pins it near 1656 and we verify that on every run. `F_LOCK`
+is a measurement, not a setting (this is D27's lesson again, one level deeper).
+`--setperfdeterminism` on GPU 1 is decoration; if firmware ever changed the pinned
+value, only the achieved-clock assertion would catch it. It does, so the pipeline
+stands.
+
+Escalated to IT/AMD as a firmware bug in the determinism path rather than a
+hardware fault — the two questions being why determinism substitutes a ~1000 W
+budget on GPUs 2–7, and why the setpoint is ignored on GPUs 0–1.
+
 ### D29 — authoritative timing cannot be parallelized on this node, and only GPU 1 holds a lock
+
+> **Superseded in part by D30.** "Only GPU 1 holds a lock" is wrong: GPU 1 ignores
+> the setpoint too, and coincidence made it look right. The conclusion that timing
+> must be serial on GPU 1 survives, for a different reason — invariance, not
+> obedience.
 
 Asked to use all eight GPUs for the timing passes, accepting some distortion.
 **Three designs were measured and all three fail.** The negative result is worth

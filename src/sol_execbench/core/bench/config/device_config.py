@@ -108,15 +108,31 @@ CLOCK_LOCK_PRESETS: dict[str, ClockPreset] = {
     # F_LOCK 1650 is a round number below the 1655 measured median (min 1652), so
     # every T_SOL is marginally conservative rather than marginally optimistic.
     #
-    # **Only ONE GPU on this node holds a determinism setpoint, and it is GPU 1.**
+    # **NO GPU on this node honours a determinism setpoint -- including GPU 1.**
+    # A parity control (scripts/gpu_parity_check.py, artifacts/00/gpu-parity.json)
+    # swept the setpoint per card, and GPU 1 runs 1655-1657 MHz whatever it is
+    # asked for: 1200 -> 1657, 1400 -> 1656, 1500 -> 1655, 1660 -> 1656. It looked
+    # like the one healthy card only because 1656 coincides with the 1660 we ask
+    # for. GPUs 2-7 do track the setpoint, at a 0.80-0.85 scale error. So the
+    # setpoint below is a NO-OP on the card we time on, and achieved_gpu_clk_mhz is
+    # a measurement of where firmware pins that card -- not a value we control. A
+    # firmware update could move it silently, which is why every timing run
+    # asserts the achieved clock instead of trusting that the lock took effect.
+    #
+    # What GPU 1 does give us is invariance, which is what the bound actually
+    # needs: 1655-1657 MHz at ~1295 W, alone or with all eight cards saturated.
     # With all eight loaded at setpoint 1660:
     #
-    #   torch 1 -> 1655 MHz (0.997)  1276 W   <- pinned
-    #   torch 0 -> 1419 MHz (0.855)   989 W
-    #   torch 2 -> 1324 .. torch 7 -> 1341    945-983 W
+    #   torch 1 -> 1656 MHz  1292 W   <- invariant, timing happens here
+    #   torch 0 -> 1410 MHz   994 W   (holds 1657 when it is the only card loaded)
+    #   torch 2 -> 1326 .. torch 7 -> 1340    957-1000 W
     #
-    # The six slow cards are not power-limited; they draw ~950-980 W of a 1400 W
-    # cap. Three ways of parallelizing authoritative timing were measured and all
+    # The six slow cards are not power-limited; they draw ~980 W of a 1400 W cap
+    # and report no violation bit. Unlocked they all reach 1724-1837 MHz at
+    # ~1385 W within a 3.4% throughput spread, so the hardware is uniform and it
+    # is determinism itself that makes this node heterogeneous (STATE.md D30).
+    #
+    # Three ways of parallelizing authoritative timing were measured and all
     # three fail, which is recorded in STATE.md D29 because the negative result is
     # the useful part:
     #
