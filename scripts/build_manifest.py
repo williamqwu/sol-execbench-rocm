@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -35,6 +36,12 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "src"))
 
 from provenance import write_artifact  # noqa: E402
+from solexbench_rocm.t_sol_at import (  # noqa: E402
+    MissingBoundTerms,
+    bottleneck_at,
+    t_sol_cycles_at,
+    t_sol_ms_at,
+)
 
 EXPECTED = {"L1": 94, "L2": 82, "Quant": 33, "FlashInfer-Bench": 26}
 
@@ -49,6 +56,42 @@ def collect_t_sol(path: Path) -> dict[str, dict]:
     if not doc:
         return {}
     return {k: (v.get("workloads") or {}) for k, v in doc.get("problems", {}).items()}
+
+
+def _at_clock(rec: dict, f_mhz: float, f_independent_time: bool = False) -> dict:
+    """Re-express one bound candidate at *f_mhz*, or return it untouched.
+
+    Returns the record unchanged when it cannot be rescaled, rather than raising:
+    a manifest mixing rescalable and non-rescalable bounds should still build, with
+    `t_sol_rescaled` marking which is which, so the gap is visible instead of fatal.
+    A silent wrong rescale is the only outcome worth avoiding here.
+    """
+    if not rec or not f_mhz:
+        return rec
+
+    if f_independent_time:
+        ms = rec.get("t_sol_ms")
+        if ms is None:
+            return rec
+        cycles = max(1, math.ceil(ms * f_mhz * 1e3))
+        return {**rec, "t_sol_ms": ms, "t_sol_cycles": cycles,
+                "t_sol_cycles_exact": ms * f_mhz * 1e3,
+                "t_sol_rescaled": True, "f_for_bound_mhz": f_mhz}
+
+    try:
+        return {**rec,
+                "t_sol_ms": t_sol_ms_at(rec, f_mhz),
+                "t_sol_cycles": t_sol_cycles_at(rec, f_mhz),
+                "bottleneck_at_measured_clock": bottleneck_at(rec, f_mhz),
+                "t_sol_rescaled": True,
+                "f_for_bound_mhz": f_mhz}
+    except MissingBoundTerms:
+        # A T_SOL derived before sol_bounds.py split the two roofline terms. Guessing
+        # from `bottleneck` would work only while the measured clock stays above the
+        # reference one and would be wrong the first time it did not.
+        return {**rec, "t_sol_rescaled": False,
+                "t_sol_rescale_error": "T_SOL predates the split bound terms; "
+                                       "re-run scripts/sol_bounds.py"}
 
 
 def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
@@ -74,14 +117,30 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
     out: dict[str, dict] = {}
     stats = {"solar_fused": 0, "declared_traffic": 0, "max_of_both": 0,
              "traffic_rejected_above_t_b": 0, "solar_rejected_above_t_b": 0,
-             "no_valid_bound": 0}
+             "no_valid_bound": 0, "rescaled_to_measured_clock": 0}
     for key in set(solar) | set(traffic):
         s_w, t_w = solar.get(key, {}), traffic.get(key, {})
         merged: dict[str, dict] = {}
         for u in set(s_w) | set(t_w):
             s, t = s_w.get(u) or {}, t_w.get(u) or {}
+            tb_entry = ((tb.get(key) or {}).get(u) or {})
+            measured = tb_entry.get("t_b_ms")
+
+            # Unlocked, this workload's T_b was taken at its own clock, so its bound
+            # belongs at that clock too. Rescaling here rather than downstream keeps
+            # the comparisons below -- candidate against candidate, and candidate
+            # against T_b -- all in the same frame.
+            f_meas = tb_entry.get("f_for_bound_mhz")
+            if f_meas:
+                s = _at_clock(s, f_meas)
+                # The declared-traffic bound is bytes over DRAM bandwidth, which does
+                # not run off the core clock: its TIME is already frequency-independent
+                # and only its cycle count moves.
+                t = _at_clock(t, f_meas, f_independent_time=True)
+                if s.get("t_sol_rescaled") or t.get("t_sol_rescaled"):
+                    stats["rescaled_to_measured_clock"] += 1
+
             s_cyc, t_cyc = s.get("t_sol_cycles"), t.get("t_sol_cycles")
-            measured = ((tb.get(key) or {}).get(u) or {}).get("t_b_ms")
             # A candidate bound above the measured time is not a loose lower
             # bound, it is not a lower bound at all -- it would make
             # (T_b - T_SOL) negative and push scores past 1. The rule is
@@ -96,8 +155,14 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
                     stats["solar_rejected_above_t_b"] += 1
                     s_cyc = None
             if s_cyc is not None and t_cyc is not None:
-                source = "max_of_both" if t_cyc > s_cyc else "solar_fused"
-                chosen = t if t_cyc > s_cyc else s
+                # Compared in MILLISECONDS, not cycles. At one shared clock the two
+                # orderings agree, since ms is monotonic in cycles -- but once each
+                # workload carries its own clock, the two candidates can be expressed
+                # at different frequencies and a cycle count is no longer a common
+                # unit. Time always is.
+                t_bigger = (t.get("t_sol_ms") or 0) > (s.get("t_sol_ms") or 0)
+                source = "max_of_both" if t_bigger else "solar_fused"
+                chosen = t if t_bigger else s
             elif s_cyc is not None:
                 source, chosen = "solar_fused", s
             elif t_cyc is not None:
@@ -132,15 +197,36 @@ def collect_t_b(directory: Path, f_lock_mhz: int | None = None) -> dict[str, dic
     if not directory.exists():
         return out
     foreign: list[tuple[str, object]] = []
+    unclocked = 0
     for f in sorted(directory.glob("*.json")):
         doc = _load(f)
         if not (doc and doc.get("winner_by_workload")):
             continue
-        measured_at = (doc.get("_provenance") or {}).get("f_lock_mhz")
+        prov = doc.get("_provenance") or {}
+        if prov.get("clock_basis") == "unlocked":
+            # F_LOCK is not what an unlocked artifact was measured at -- it is only a
+            # table entry -- so comparing against it would reject every one of them.
+            # The equivalent guard here is that each winner carries the clock ITS
+            # timing ran at, since that is what its bound gets evaluated at. A winner
+            # whose clock could not be pinned down was already flagged upstream; it is
+            # dropped rather than silently anchored at the table value.
+            winners = {
+                u: w for u, w in doc["winner_by_workload"].items()
+                if w.get("f_for_bound_mhz")
+            }
+            unclocked += len(doc["winner_by_workload"]) - len(winners)
+            if winners:
+                out[doc.get("problem", f.stem)] = winners
+            continue
+        measured_at = prov.get("f_lock_mhz")
         if f_lock_mhz is not None and measured_at not in (None, f_lock_mhz):
             foreign.append((f.name, measured_at))
             continue
         out[doc.get("problem", f.stem)] = doc["winner_by_workload"]
+    if unclocked:
+        print(f"\n  DROPPED {unclocked} unlocked T_b winner(s) with no usable clock: "
+              f"their timing is real but no frequency describes it, so no bound can "
+              f"be placed.\n", file=sys.stderr)
     if foreign:
         print(f"\n  REJECTED {len(foreign)} T_b artifact(s) measured at a different "
               f"clock than F_LOCK={f_lock_mhz}:", file=sys.stderr)
