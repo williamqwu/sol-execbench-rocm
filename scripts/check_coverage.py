@@ -60,9 +60,24 @@ def covered(art: Path, pattern: str | None) -> set[str]:
                 out.add(key)
         return out
     if pattern:
-        # nested layout: <artifacts>/<Category>/<problem>/<pattern>
-        return {f"{p.parent.parent.name}__{p.parent.name}"
-                for p in art.rglob(pattern)}
+        out = set()
+        for p in art.rglob(pattern):
+            # Two directory layouts carry a per-problem file, and guessing wrong is
+            # worse than not running at all: this script reported the ENTIRE agent
+            # sweep as uncovered, naming 202 problems that were all present, because
+            # it assumed the nested form while the sweep writes the joined one. A
+            # checker whose false alarm is that large is one nobody will read.
+            #
+            #   joined : <artifacts>/<Category>__<problem>/<pattern>
+            #   nested : <artifacts>/<Category>/<problem>/<pattern>
+            #
+            # The directory name itself says which: a joined name already contains
+            # the separator, and no category or problem name does.
+            if "__" in p.parent.name:
+                out.add(p.parent.name)
+            else:
+                out.add(f"{p.parent.parent.name}__{p.parent.name}")
+        return out
     # flat layout: <artifacts>/<Category>__<problem>.json
     return {p.stem for p in art.glob("*.json")}
 
