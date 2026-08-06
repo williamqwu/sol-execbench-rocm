@@ -301,7 +301,7 @@ uint64_t timestamp() {
 }  // namespace
 
 PYBIND11_MODULE(_rocprof_shim, m) {
-  m.doc() = "rocprofiler-sdk activity source for SOL-ExecBench-AMD";
+  m.doc() = "rocprofiler-sdk activity source for SOL-ExecBench-ROCm";
   m.def("configure", &ensure_configured,
         "Register with rocprofiler. MUST be called before the HIP runtime "
         "initializes: rocprofiler locks its configuration once a runtime is "

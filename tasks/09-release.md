@@ -63,7 +63,7 @@ more than once.
 The vendor device layer was built to be upstreamable — upstream's
 `SupportedHardware` enum already anticipates more than one target. Decide with
 stakeholders: PR it to `nvidia/sol-execbench` behind a vendor flag, or maintain
-`SOL-ExecBench-AMD` as a sibling. Recommendation in `PLAN.md` §9 is to build for
+`SOL-ExecBench-ROCm` as a sibling. Recommendation in `PLAN.md` §9 is to build for
 upstreaming and decide based on receptiveness.
 
 ## Acceptance check

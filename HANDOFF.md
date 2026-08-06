@@ -1,11 +1,22 @@
 # HANDOFF — moving to an MI350X node
 
-Written 2026-08-03 at the end of session 1, which ran on **`mia1-p02-g10`, an
-8× MI355X node**. Work continues on a **different node with MI350X**.
+> **Superseded — this migration is complete.** Kept as the record of *why*
+> `artifacts/00/` and `artifacts/01/` were regenerated rather than reused, which
+> is not visible from the artifacts themselves. For current state read
+> [`STATE.md`](STATE.md); for what is still open read [`TODO.md`](TODO.md).
+>
+> What actually happened, against the predictions below: **F_LOCK on MI350X
+> measured 1300 MHz**, not the 1650 carried from MI355X — a 21% difference, and
+> the reason §1 exists. Sibling-GPU interference re-measured at **−0.11%**, so
+> the "sweeps may share the node" verdict did hold on the air-cooled part, but
+> only because it was re-measured. Everything in the "NO" rows below was
+> regenerated.
 
-Read this before `STATE.md`. It says which of session 1's results transfer to
-MI350X and which are void, because that distinction is not visible from the
-artifacts themselves.
+Written 2026-08-03 at the end of session 1, which ran on **`mia1-p02-g10`, an
+8× MI355X node**. Work continued on a **different node with MI350X**
+(`gbt350-odcdh1-a08-1`).
+
+It says which of session 1's results transfer to MI350X and which are void.
 
 ---
 

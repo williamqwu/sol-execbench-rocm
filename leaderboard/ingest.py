@@ -270,7 +270,7 @@ def ingest_variants(conn, manifest: dict) -> dict:
             slug=f"baseline-{vname.replace('_','-')}",
             name=VARIANT_LABELS.get(vname, vname),
             kind="reference_variant",
-            author="sol-execbench-amd",
+            author="sol-execbench-rocm",
             model=None,
             created_utc=prov.get("utc"),
             notes=("One of the four PyTorch formulations that T_b is derived from. "

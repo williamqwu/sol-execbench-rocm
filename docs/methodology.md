@@ -1,4 +1,4 @@
-# SOL-ExecBench-AMD — methodology
+# SOL-ExecBench-ROCm — methodology
 
 How the AMD numbers were derived, what differs from upstream's B200
 methodology, and what is deferred. Every figure here was measured on the
@@ -435,14 +435,21 @@ by construction; the re-measurement is not, and it found one problem
 for them, stably across two independent runs. A manifest that only ever checked
 itself would have called that problem perfect.
 
-**What was not run: the agent baseline.** Upstream's median SOL of 0.732 and
-its r = 0.981 headroom correlation are results about a kernel-optimizing
-agent's submissions. The four PyTorch formulations here cluster around `T_b` by
-construction, because `T_b` is defined as the fastest of them, so the pooled
-correlation over them (0.175) is computed over a sample that barely varies and
-is not a failed replication of upstream's number — it is not that experiment.
-`artifacts/09/agent-baseline.json` records the decision and what a replication
-would need.
+**What is still not replicated: the agent baseline.** Upstream's median SOL of
+0.732 and its r = 0.981 headroom correlation are results about a
+kernel-optimizing agent's submissions over the whole benchmark. The four
+PyTorch formulations here cluster around `T_b` by construction, because `T_b`
+is defined as the fastest of them, so the pooled correlation over them (0.175)
+is computed over a sample that barely varies and is not a failed replication of
+upstream's number — it is not that experiment.
+
+Three agent runs have since been made — `pilot8` (8 problems), `glm-run1` (24)
+and `opus5-budget100` (4) — and none of them is that experiment either. The
+largest covers 10.3% of scoreable workloads. A median over 24 problems chosen
+for a pilot is not comparable to a median over 220, and this document does not
+report one. See [`agent-baseline.md`](agent-baseline.md) for what the runs did
+establish, which is mostly about cost, GPU occupancy and two defects in the
+benchmark itself.
 
 ## 9. Deferrals
 
@@ -460,7 +467,8 @@ Two further limitations that are *not* deferrals but should be read alongside
 them: five backends (`ck`, `ck_tile`, `hipblaslt`, `miopen`, `aiter`) are
 accepted by the schema and have never been built through — see
 [`backend-coverage.md`](backend-coverage.md), which also lists the three
-defects the one `hip_cpp` seed found — and no agent baseline was run.
+defects the one `hip_cpp` seed found — and no *full-benchmark* agent baseline
+has been run, only samples of 4 to 24 problems.
 
 **15 NVFP4 Quant problems.** These fail at the reference itself on ROCm:
 
@@ -486,3 +494,43 @@ Feasibility was established rather than assumed (`artifacts/07/spike.json`):
 | Triton `dot_scaled`, e2m1 operands + E8M0 scales | **works** — compiled, launched, numerically verified |
 
 So MXFP4 has a real kernel path on gfx950 and NVFP4 has none.
+
+## 10. Bounds that are known to be wrong
+
+Not a deferral — these problems *are* in the manifest and *do* produce scores.
+The scores are not usable, and saying so here is the only thing that stops them
+being read as ordinary results.
+
+A `T_SOL` is a lower bound: nothing can beat it. Three have been beaten, by
+correct kernels, on real hardware. That is not a kernel being exceptional; it
+is proof the bound is wrong.
+
+| problem | beaten by | found by |
+|---|---|---|
+| `FlashInfer-Bench__019_mla_paged_prefill` | 25 of 38 workloads | `pilot8` |
+| `L1__005_conv_gated_projection_with_causal_conv` | 1.09–1.15×, 4 of 16 | `glm-run1` |
+| `L1__035_flux_ada_layer_norm_zero_modulation_extraction` | 1.003–1.013×, 2 of 16 | `glm-run1` |
+
+**The first has a known mechanism and a known blast radius.** The
+declared-traffic tier prices a paged KV cache at its full allocation, while a
+kernel that honours the page table gathers 34 pages out of 989,669. Six paged
+FlashInfer problems and **249 scoreable workloads** are exposed by that
+mechanism, whether or not a kernel has yet demonstrated it on each. `STATE.md`
+D18 has the derivation; the v1.1 fix derives paged traffic from the page table,
+not from `num_pages`.
+
+**The other two are not paged attention and are not explained.** `L1__005` is a
+compute-bound SOLAR roofline that is roughly 15% too slow — a rate or a missed
+fusion, and a real defect. `L1__035` is beaten by 0.3–1.3% on a problem whose
+total headroom is `T_b / T_SOL = 1.008`: there is almost no scoring range there
+at all, so a 1% timing difference flips it either way. Whether that is a wrong
+bound or a bound too tight to be measurable against is undecided, and the two
+need separating before v1.1. `STATE.md` D21.
+
+**Why the `T_SOL <= T_b` gate did not catch any of them.** `T_b` comes from a
+PyTorch reference that over-reads in exactly the same way the bound over-counts,
+so both numbers move together and their ordering stays valid. It takes a kernel
+that *avoids* the traffic to separate them. That is a general property, not a
+one-off: a self-consistent bound and anchor cannot detect a shared error, and
+only an independent implementation can. It is the strongest argument in this
+repo for running an agent against a benchmark before publishing it.

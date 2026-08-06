@@ -1,11 +1,17 @@
 # CLAUDE.md — read this first
 
 You are continuing a port of NVIDIA's **SOL-ExecBench** GPU-kernel benchmark to
-**AMD Instinct MI355X / ROCm**. Substantial preparatory work is already done and
-verified; your job is the part that requires real silicon.
+**AMD Instinct CDNA4 / ROCm**.
 
-You are running on a **single 8×MI355X node**. That node is the scarce resource.
-Everything that could be done without it already has been.
+**All ten tasks are `done` and manifest v1 is frozen** — 220 of 235 problems
+scoreable, 3717 workloads, measured on **8× MI350X** (`gbt350-odcdh1-a08-1`),
+F_LOCK 1300 MHz. Read `STATE.md` for the ledger and `TODO.md` for what is
+actually open. The remaining work is v1.1 corrections, the MI355X part, and a
+full-benchmark agent baseline — not the initial port.
+
+The node is still the scarce resource. **Start GPU work first and do CPU work in
+its shadow**; a session that spends its time on documentation while eight cards
+sit at 0% has wasted the only thing that cannot be recovered.
 
 ---
 
@@ -35,10 +41,13 @@ propagated to every artifact that states a count.
 
 ## 1. What "done" means
 
-A working `SOL-ExecBench-AMD`: **all 235 problems** evaluate
-end-to-end on MI355X, scored against AMD-derived Speed-of-Light bounds, with a
-published scoring manifest. Acceptance is defined per task in `tasks/`, and
-overall in `tasks/09-release.md`.
+A working `SOL-ExecBench-ROCm`: **all 235 problems** evaluate
+end-to-end on the target part, scored against AMD-derived Speed-of-Light bounds,
+with a published scoring manifest. Acceptance is defined per task in `tasks/`,
+and overall in `tasks/09-release.md`.
+
+Reached for MI350X at 220/235, with 15 NVFP4 deferred under the sanctioned
+contingency below. **Not** reached for MI355X: nothing there has been measured.
 
 ## 2. Prime directives
 
@@ -75,12 +84,17 @@ benchmark's validity, and the damage is not visible in the output.
 
 ```
 1. Read STATE.md            -> current progress, blockers, what is next
-2. Read tasks/NN-*.md       -> the next task not marked done
-3. Check its preconditions  -> if unmet, go to the task that satisfies them
-4. Execute the steps
-5. Run the acceptance check -> paste real output
-6. Update STATE.md          -> status, artifacts produced, anything surprising
+2. Read TODO.md             -> the open gaps, and which are v1.1 blockers
+3. Execute the work
+4. Run the acceptance check -> paste real output
+5. Update STATE.md          -> status, artifacts produced, anything surprising
 ```
+
+All ten `tasks/NN-*.md` are `done`; they remain the specification of what each
+acceptance check means, and `verify_artifacts.py --task NN` still runs. Two
+checks fail today and both are known: task 01 (no MI350X clock preset) and task
+03 (the wrong bounds, D18/D21). **A third failure is a regression** — find out
+what you broke before doing anything else.
 
 `STATE.md` is the single source of truth for progress and is the handoff between
 sessions. Update it as you go, not at the end — a session can be interrupted.
@@ -90,27 +104,33 @@ the graph and shows what can run in parallel.
 
 ## 4. This node
 
-- **8× MI355X** (CDNA4, gfx950), 288 GB HBM3E each, 8 TB/s, 1400 W per GPU.
+- **8× MI350X** (CDNA4, gfx950), 288 GB HBM3E each, 8 TB/s, **1000 W** per GPU,
+  air-cooled. Host `gbt350-odcdh1-a08-1`. **F_LOCK = 1300 MHz** at
+  `--setperfdeterminism 1600`.
 - All eight GPUs are yours. Use them — the long sweeps (tasks 05, 06) shard
   8-way via `scripts/shard_sweep.py` and are the difference between a 3-day and
   a 12-hour turnaround.
 
+Session 1 ran on an 8× MI355X node (1400 W, liquid). None of its measurements
+transfer; see `HANDOFF.md`.
+
 ### GPU discipline
 
-**Timing runs and exploration must not share a GPU.** Beyond that, whether they
-can share a *node* is an open question this hardware will answer:
+**Timing runs and exploration must not share a GPU.** This is not negotiable and
+task 01 did not soften it.
 
-> At 8×1400 W there may be power or thermal coupling between GPUs, meaning a
-> loaded GPU 3 perturbs a timing run on GPU 0. **`tasks/01` measures this
-> explicitly.** Until it has, treat concurrent load as unsafe for authoritative
-> timing.
-
-Working rule until task 01 reports otherwise:
+What task 01 *did* settle is whether they may share a **node**. Measured
+sibling-GPU interference on this part: **−0.11%**, well inside run-to-run noise.
+So sweeps on GPUs 1–7 may run concurrently with authoritative timing on GPU 0.
 
 | GPU | Use |
 |---|---|
 | 0 | Authoritative timing only. Idle otherwise. |
 | 1–7 | Compilation, correctness sweeps, exploration, sharded calibration |
+
+The leaderboard's submission worker holds GPU 0 under a lock file and runs one
+job at a time, for the same reason: two jobs on GPU 0 invalidates both timings
+*and* every published number they would be compared against.
 
 Pin with `HIP_VISIBLE_DEVICES`. Record which GPU produced every timing artifact.
 
@@ -121,24 +141,36 @@ Pin with `HIP_VISIBLE_DEVICES`. Record which GPU produced every timing artifact.
 | Full engineering plan | `PLAN.md` | Reference. Six phases, risks, methodology. |
 | Upstream audit | `reference/upstream-audit.md` | Every NVIDIA-specific call site, located. |
 | Vendor-neutral timing attribution | `src/solexbench_rocm/activity/` | **CPU-verified, 19 tests, mutation-tested.** Do not rewrite. |
-| rocprofiler shim contract | `reference/contracts/rocprof_shim.md` | Spec for the C++ shim. Task 04 implements it. |
-| SOLAR arch config generator | `src/solexbench_rocm/solar/gen_arch_yaml.py` | Reproduces AMD spec sheet at peak clock. Needs F_LOCK. |
+| rocprofiler shim | `src/solexbench_rocm/shim/`, `reference/contracts/rocprof_shim.md` | **Built and validated.** Median divergence −0.61% over 1430 pairs; clock domain verified. |
+| SOLAR arch config generator | `src/solexbench_rocm/solar/gen_arch_yaml.py` | Reproduces AMD spec sheet at peak clock. |
+| The harness port | `src/sol_execbench/`, deltas marked `# AMD:` | **Done.** 3717/3717 non-deferred workloads pass under AMD tolerances. |
+| Sweep runners | `scripts/runners/` | All four written and run. |
+| T_b candidate variants | `reference/tb-candidates/variants.py` | Source-to-source transforms; one set covers all 235. |
+| Anti-reward-hack corpus | `reference/exploits/` | 28/28 replay cases pass, 0 false positives on 235 references. |
+| Frozen scoring manifest | `artifacts/09/manifest-v1.json` | 220/235 problems, 3717 workloads. Do not edit; regenerate. |
+| Leaderboard and submission service | `leaderboard/` | Board, typed `/api/v1`, submit queue, GPU-0 worker. |
 
 The activity package is the one piece you should be most reluctant to touch. Its
 selection logic is subtle, it is behaviour-preserving against upstream, and its
 test suite was mutation-tested — seven distinct mutations are each caught. If you
 believe it is wrong, write a failing test first.
 
-## 5b. What is NOT built — read `TODO.md`
+## 5b. What is NOT done — read `TODO.md`
 
-`TODO.md` lists every known gap: scripts written but never executed on hardware
-(expect small first-contact fixes), the four sweep runners, the port itself, and
-five assumptions carried from research that no hardware has confirmed. Nothing
-in this repo silently pretends to be finished; if something is missing it is
-listed there.
+`TODO.md` lists every known gap. The ones that will bite you first:
 
-If the node is not ready yet, `TODO.md` also lists what is still doable without
-a GPU — the T_b candidate variants being the largest remaining prep win.
+* **Three T_SOL bounds are known wrong** and ship in v1 anyway, marked
+  everywhere they appear (D18, D21). Do not treat scores on those problems as
+  results, and do not "fix" a score by adjusting a bound without re-deriving it.
+* **`CLOCK_LOCK_PRESETS` has no MI350X entry**, so every artifact stamps
+  `f_lock_mhz: null` even though F_LOCK was measured. This is the one remaining
+  task-01 gate failure.
+* **Nothing is measured on MI355X.** The port needs no work; every number does.
+* **D20 is unexplained** — 0.13% of matmul iterations cost 3.9–4.5×. The clock
+  hypothesis was tested and falsified. Two upstream tests are skipped behind it.
+
+Nothing in this repo silently pretends to be finished; if something is missing
+it is listed there.
 
 ## 6. Key facts worth not rediscovering
 
@@ -158,6 +190,17 @@ a GPU — the T_b candidate variants being the largest remaining prep win.
   problems port directly. It is CDNA3/MI300X that has the `fnuz` mismatch.
 - **NVFP4 ≠ MXFP4.** Block 16 vs 32, FP8-E4M3 scales vs E8M0. The 15 NVFP4
   problems need re-specification, not translation. See `tasks/07`.
+- **`--setperfdeterminism X` does not give you X.** On this part it yields
+  roughly `0.83·X`: setting 1600 achieves **1300 MHz**, and only the achieved
+  value is F_LOCK. Whether that ratio holds on the 1400 W part was never asked.
+- **A self-consistent bound and anchor cannot detect a shared error.** `T_b`
+  comes from a PyTorch reference that over-reads exactly where the
+  declared-traffic bound over-counts, so the `T_SOL <= T_b` gate passes while
+  both are wrong. Only an independent kernel separates them — which is how all
+  three known-bad bounds were found, by agents, after the manifest froze.
+- **A run stopped by its budget is a cost measurement, not a score
+  measurement.** `pilot8` is off the board for this reason: no session chose
+  when to stop, so its mean is survivorship over whatever happened to finish.
 
 ## 7. Conventions
 
@@ -166,12 +209,24 @@ a GPU — the T_b candidate variants being the largest remaining prep win.
 - Long sweeps: `nohup` + log to `artifacts/<task>/logs/`, and make them
   **resumable** — assume the session dies mid-sweep, because it will.
 - Python: repo code targets 3.12 to match upstream's `requires-python`.
-- Run `pytest tests/` before and after touching anything in `src/`.
+- Run `pytest tests/` before and after touching anything in `src/`. Expect
+  **503 passed, 56 skipped** in the container; the skips are CUPTI-only tests,
+  NVIDIA-only example languages, the two D20 variance tests, and the leaderboard
+  suite (which needs fastapi and so runs in `leaderboard/.venv` instead).
+- The leaderboard is a *view*. Never edit `leaderboard/solbench.db`; change the
+  artifact and re-ingest. If a run lives outside the repo, pass `--agent-runs`
+  every single time — omitting it silently deletes that run from the board.
 
 ## 8. If the dataset is missing
 
-`data/` is not in the repo. Fetch with
-`huggingface-cli download nvidia/SOL-ExecBench --repo-type dataset --local-dir data/`.
-This was never verified from the build environment (network-restricted), so if
-it is gated or the layout differs from `reference/upstream-audit.md`, record what
-you actually find in `STATE.md` before adapting anything to it.
+`data/` is gitignored and does not travel with the repo. The Hub ships parquet,
+not the per-problem layout, so fetching is two steps — see the README's *Running
+it*. `scripts/materialize_dataset.py` is the exact inverse of the dataset's own
+converter and round-trip-verifies all 235 problems.
+
+The census is confirmed against the files, not taken from the paper:
+**L1 94, L2 82, Quant 33, FlashInfer-Bench 26**.
+
+Then `scripts/fetch_flashinfer_traces.py`. Without those blobs, 9 of the 26
+FlashInfer problems fail at run time as ordinary runtime errors — which looks
+like a port defect and is not one.

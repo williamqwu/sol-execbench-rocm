@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# Measurement environment for SOL-ExecBench-AMD on MI355X.
+# Measurement environment for SOL-ExecBench-ROCm on CDNA4 (gfx950).
+#
+# Serves both parts: MI350X (air, 1000 W) and MI355X (liquid, 1400 W) are the
+# same die, so they share the image and share nothing that was measured.
 #
 # Pinned base. Do NOT bump the torch/ROCm tag to make something work: every
 # measured baseline is relative to this stack (prime directive 6). If the pin is

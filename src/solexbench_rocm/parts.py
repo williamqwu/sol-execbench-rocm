@@ -4,7 +4,7 @@
 
 Why this module exists
 ----------------------
-SOL-ExecBench-AMD targets more than one CDNA4 part. MI350X and MI355X are the
+SOL-ExecBench-ROCm targets more than one CDNA4 part. MI350X and MI355X are the
 **same die** (gfx950, 256 CU, 288 GB HBM3E at 8 TB/s, 256 MiB Infinity Cache)
 in **different chassis**: MI355X is the liquid-cooled 1400 W part clocked to
 2.4 GHz, MI350X the air-cooled 1000 W part clocked to 2.2 GHz.

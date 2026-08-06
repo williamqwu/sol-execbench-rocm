@@ -1,14 +1,23 @@
 # Agent baseline
 
-`artifacts/09/agent-baseline.json` records that no kernel-optimizing agent was
-ever run on this node, and why the four PyTorch variants cannot stand in for
-one: they cluster at S = 0.5 by construction, because T_b is defined as the
-fastest of them. Upstream's headline numbers — median SOL 0.732, headroom
-correlation r = 0.981, 14.5% flagged — are results *about agents*, and nothing
-in this repo was comparable to them.
+The four PyTorch variants cannot stand in for an agent: they cluster at S = 0.5
+by construction, because T_b is defined as the fastest of them. Upstream's
+headline numbers — median SOL 0.732, headroom correlation r = 0.981, 14.5%
+flagged — are results *about agents*.
 
-This is the instrument that closes the gap, and the cost study that says what
-closing it fully would take.
+`artifacts/09/agent-baseline.json` recorded that no agent had been run at the
+time the manifest was frozen. **Three runs have since happened**, and none of
+them replicates upstream's numbers, because none covers the benchmark:
+
+| run | model | problems | coverage | mean S (attempted) | cost | on the board |
+|---|---|---|---|---|---|---|
+| `pilot8` | Claude-Opus-5, $8/problem cap | 8 | 2.7% | 0.776 over what passed | $65.08 | **no** — see below |
+| `glm-run1` | GLM-5.2, amdpilot fleet | 24 submitted, 23 measured | 10.3% | 0.6079 | not recorded | yes |
+| `opus5-budget100` | Claude-Opus-5, $100/problem | 4 | 1.6% | 0.7011 | $249.58 | yes |
+
+So this document is still an instrument and a cost study, not a baseline. What
+the runs have produced is a price per problem, a GPU-occupancy figure that
+changes node planning, and two defects in the benchmark itself.
 
 ## What it does
 
@@ -146,9 +155,43 @@ reference that over-reads in exactly the same way. It took a kernel that
 avoided the traffic to separate the two numbers — which is a good argument for
 running an agent against a benchmark you intend to publish.
 
-## What this is not
+**And `glm-run1` found two more, by a different mechanism.**
+`L1__005_conv_gated_projection_with_causal_conv` was beaten by 1.09–1.15× on 4
+of 16 workloads, and `L1__035_flux_ada_layer_norm_zero_modulation_extraction`
+by 1.003–1.013× on 2 of 16. Neither is paged attention, so D18 does not cover
+them, and they are probably not the same defect as each other: L1__005 is a
+compute-bound roofline that is ~15% too slow, while L1__035 has total headroom
+of 1.008, leaving almost no scoring range for a 1% timing difference to sit in.
+`STATE.md` D21.
 
-It is a **pilot over a sample**, not a full-benchmark submission. Its coverage
-on the leaderboard is a fraction of a percent by design, and the board's
-headline benchmark score reflects that honestly rather than hiding it. The
-purpose is to price a full run, and to prove the path works end to end.
+Two runs, two independent bound defects, neither reachable by any self-check
+the manifest performs on itself. That is the strongest result these runs have
+produced, and it is not a result about agents.
+
+## Why pilot8 is no longer on the board
+
+It was a smoke test, and it reads as a result. All eight sessions ended in
+`budget_exhausted`: the $8 cap stopped every one of them mid-work, so **none
+chose when to stop**. Three of the eight submitted a kernel that does not pass.
+Its mean of 0.776 is survivorship over the five problems where anything passed
+at all — a number computed over the subset that happened to work, sitting in a
+column next to runs that were allowed to finish.
+
+Deleting the run would be the wrong fix: it was really run, and its transcripts
+are the evidence for D18. It is excluded from the leaderboard with that reason
+printed on `/methodology`, and the artifacts stay under `artifacts/10/pilot8/`.
+
+The general rule this establishes: **a run that was stopped by its budget is a
+cost measurement, not a score measurement.** `opus5-budget100` exists to test
+the other end of that — 0 of 4 sessions capped, so all four chose their own
+stopping point — and it reaches mean S 0.7011 on four problems for $250.
+
+## What none of this is
+
+**A full-benchmark submission.** The largest run covers 10.3% of scoreable
+workloads. The board shows each run's coverage beside its score and stars every
+benchmark score that is a floor rather than a measurement, so a partial run
+cannot be mistaken for a complete one. Replicating upstream's median SOL means
+running 220 problems, and `cost-report.md`'s extrapolation is what says how
+much that would cost — as a range from the observed median and p75, with the
+sample size beside it, not as a point estimate.

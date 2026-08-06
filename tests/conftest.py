@@ -121,7 +121,7 @@ def tmp_cache_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("SOLEXECBENCH_CACHE_PATH", str(cache_dir))
     return cache_dir
 
-# --- SOL-ExecBench-AMD additions ------------------------------------------
+# --- SOL-ExecBench-ROCm additions ------------------------------------------
 # The CPU-verified activity package is imported by tests/test_gpu_activity.py
 # as a top-level module, mirroring how the rocprofiler shim will import it.
 import sys as _sys

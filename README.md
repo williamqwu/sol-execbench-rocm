@@ -1,4 +1,4 @@
-# SOL-ExecBench-AMD
+# SOL-ExecBench-ROCm
 
 Port of NVIDIA's [SOL-ExecBench](https://github.com/nvidia/sol-execbench) — which
 scores GPU kernels by proximity to an analytically derived hardware
@@ -88,14 +88,16 @@ than its recorded `T_b`) and one workload at the tolerance edge. That problem's
 anchor is optimistic by ~16%, which depresses its scores rather than inflating
 them; it is written up in [`STATE.md`](STATE.md) D15 rather than smoothed away.
 
-**No agent baseline was run** (`artifacts/09/agent-baseline.json` records the
-decision). Upstream's median SOL of 0.732 and correlation of r = 0.981 are
-results about *agents*, and the four PyTorch formulations here cluster around
-`T_b` by construction — `T_b` is defined as the fastest of them. What the
-variant set does establish is that the scale is well-formed: every score finite
-and in (0, 1], `S = 0.5` at `T_b` to machine precision, and a within-workload
-correlation between `S` and headroom reclaimed of **r = 1.000** (median over
-2518 workloads).
+**The variant set is not an agent baseline.** The four PyTorch formulations
+cluster around `T_b` by construction — `T_b` is defined as the fastest of them —
+so they cannot replicate upstream's median SOL of 0.732, which is a result
+*about agents*. What they do establish is that the scale is well-formed: every
+score finite and in (0, 1], `S = 0.5` at `T_b` to machine precision, and a
+within-workload correlation between `S` and headroom reclaimed of **r = 1.000**
+(median over 2518 workloads).
+
+Three agent runs have since happened, none of them a full-benchmark submission;
+see [Deferrals](#deferrals).
 
 ## Running it
 
@@ -120,7 +122,7 @@ snapshot_download(\"nvidia/SOL-ExecBench\", repo_type=\"dataset\",
 env/solb bash -lc 'python scripts/fetch_flashinfer_traces.py'
 
 # 4. Sanity
-env/solb bash -lc 'python -m pytest tests/ -q'          # 473 passed, 75 skipped
+env/solb bash -lc 'python -m pytest tests/ -q'          # 503 passed, 56 skipped
 env/solb bash -lc 'bash scripts/node_acceptance.sh'
 env/solb bash -lc 'python scripts/verify_artifacts.py --task 00'
 ```
@@ -153,18 +155,30 @@ read-only in a stock container.
 leaderboard/run.sh            # http://127.0.0.1:8088
 ```
 
-A local leaderboard over the frozen manifest: rankings, a searchable problem
-index, and a **per-problem subpage** with the scoring bounds, the tolerance and
-its derivation, and every submission's result on every workload. The database
-is a rebuildable SQLite view of `artifacts/` — never a source of truth — and
-scores are computed by importing the repo's own `sol_score`, so the board
-cannot drift from the harness. See [`leaderboard/README.md`](leaderboard/README.md).
+A local leaderboard over the frozen manifest, with four kinds of page:
+
+* **rankings**, and a searchable problem index;
+* a **problem** page — scoring bounds, tolerance and its derivation, every
+  submission's result on every workload;
+* a **run** page (`/submissions/<slug>/problems/<key>`) — one submission on one
+  problem: per-workload `T_SOL` / `T_b` / `T_k`, the kernel it proposed beside
+  the `T_b` formulation it had to beat, the trajectory of every harness eval it
+  ran, and what the problem cost in dollars and turns;
+* a **submission API** (`POST /api/v1/submit`) with a queue and a GPU-0 worker.
+
+The database is a rebuildable SQLite view of `artifacts/` — never a source of
+truth — and scores are computed by importing the repo's own `sol_score`, so the
+board cannot drift from the harness. Every `/api/v1` route declares a response
+schema. See [`leaderboard/README.md`](leaderboard/README.md).
 
 It ranks on a benchmark score that sums per-workload scores across the *whole*
-benchmark and counts anything not passed as zero. That ordering is the point:
-`torch.compile` has the best mean score of any variant and ranks third, because
-it only passes 69.6% of workloads. Mean-attempted is never shown without
-coverage beside it.
+benchmark and counts anything not passed as zero — so it cannot be raised by
+attempting less. Both other denominators are shown beside it and neither is
+ranked on: mean over *attempts* (a failed attempt scores zero) and mean over
+*passes*. The gap between them is the point. `torch.compile` reads 0.4907 over
+passes, the best of any variant, and 0.4002 over attempts, below plain eager —
+the difference is the 585 workloads it raises on, which leave the first
+denominator and not the second.
 
 ## Reproducing the measurements
 
@@ -237,7 +251,13 @@ scripts/
   agent_eval.py            the agent's feedback loop — the real harness, no bounds shown
   agent_score.py           re-time the agents' kernels on an idle GPU 0 and score
   agent_cost_report.py     dollars, wall time, GPU occupancy, and what a full run costs
-leaderboard/               local leaderboard: SQLite view + FastAPI + problem subpages
+leaderboard/               local leaderboard and submission service
+  ingest.py                rebuilds the SQLite view from artifacts/, atomically
+  app.py, models.py        pages + a typed JSON API under /api/v1
+  submit.py, worker.py     submission queue, and the GPU-0 scoring worker
+tests/
+  leaderboard/             service tests; skipped in the container, which
+                           deliberately has no fastapi
 src/sol_execbench/         vendored upstream fork; AMD deltas marked "# AMD:"
 src/solexbench_rocm/
   parts.py                 dual-SKU constants — one source of truth
@@ -286,22 +306,47 @@ problem.
 
 **Partial: the agent baseline.** Upstream reports a median SOL of 0.732 over a
 kernel-optimizing agent's submissions, and a headroom correlation of r = 0.981.
-A Claude-Opus-5 pilot has now been run over an 8-problem stratified sample
-(`docs/agent-baseline.md`, `artifacts/10/pilot8/`) — $65.08, 99 workloads
-scored, mean S = 0.776 — but that is a sample, not the 220-problem submission
-upstream's numbers describe, and the leaderboard shows its 2% coverage rather
-than hiding it. `artifacts/09/score-distribution.json` still carries the T_b
-variant set, which validates the scale and is labelled as not being an agent
-result.
+Three runs have happened here. **None is a full-benchmark submission**, so none
+replicates that number, and the board shows each one's coverage rather than
+hiding it:
 
-**Six problems have an invalid T_SOL.** The pilot produced a correct kernel
-that ran *faster than the speed-of-light bound* on 25 workloads, which is
-possible only if the bound is wrong. It is: the declared-traffic tier prices a
-paged KV cache at its full allocation while the kernel gathers 34 pages of
-989,669. The six paged FlashInfer problems — 249 scoreable workloads — are
-affected, badly at the median for the three prefill variants. Scores on them
-are not usable in v1 and are marked wherever they appear; the v1.1 fix is in
-`STATE.md` D18.
+| run | problems | coverage | benchmark score | on the board |
+|---|---|---|---|---|
+| `glm-run1` — GLM-5.2, amdpilot fleet | 24 submitted, **23 measured** | 10.3% | 0.0672 | yes |
+| `opus5-budget100` — Claude-Opus-5, $100/problem, $250 total | 4 | 1.6% | 0.0111 | yes |
+| `pilot8` — Claude-Opus-5, $8/problem | 8 | 2.7% | — | **no** |
+
+The 24th `glm-run1` kernel is real and unmeasured: `FlashInfer-Bench__014`'s
+authoritative re-time hit `TimeoutExpired` after 1200 s, so it produces no
+result rows at all. It contributes zero to the score, exactly like a problem
+nobody attempted — which it is not. `STATE.md` D23.
+
+`pilot8` is excluded, with the reason on `/methodology`: all eight sessions hit
+the spend cap mid-work, so none chose when to stop, and three submitted a kernel
+that does not pass. Its mean of 0.776 is survivorship over the five problems
+where anything passed at all. The artifacts are kept; the row is not.
+
+`artifacts/09/score-distribution.json` still carries the T_b variant set, which
+validates the scale and is labelled as not being an agent result.
+
+**Eight problems have a T_SOL that is known or suspected wrong.** Three were
+caught directly — a correct kernel measured *faster than the speed-of-light
+bound*, which is possible only if the bound is wrong:
+
+* `FlashInfer-Bench__019_mla_paged_prefill` (25 of 38 workloads, `pilot8`). The
+  declared-traffic tier prices a paged KV cache at its full allocation while the
+  kernel gathers 34 pages of 989,669. The same mechanism exposes **six** paged
+  FlashInfer problems and **249 scoreable workloads**, badly at the median for
+  the three prefill variants — `STATE.md` D18.
+* `L1__005_conv_gated_projection_with_causal_conv`, beaten by 1.09–1.15×, and
+  `L1__035_flux_ada_layer_norm_zero_modulation_extraction`, by 1.003–1.013×
+  (both `glm-run1`). Neither is paged attention, so D18 does not explain them,
+  and they are probably not the same defect as each other — `STATE.md` D21.
+
+Scores on all of these are not usable in v1 and are marked wherever they appear.
+The v1.1 fixes are in `STATE.md`; the `T_SOL <= T_b` gate cannot catch any of
+them, because a bound that over-counts traffic is under-cut by the reference in
+exactly the same way.
 
 ## Licence
 
