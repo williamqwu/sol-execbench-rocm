@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}SOL-ExecBench-ROCm{% endblock %}</title>
-<link rel="stylesheet" href="/static/style.css?v=4">
+<link rel="stylesheet" href="/static/style.css?v=5">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>&#9889;</text></svg>">
 <script>
 /* Applied before first paint. Reading the stored theme in <body> instead makes
@@ -84,6 +84,21 @@ document.getElementById("theme-toggle").addEventListener("click", function(){
   var next = el.getAttribute("data-theme") === "dark" ? "light" : "dark";
   el.setAttribute("data-theme", next);
   try{ localStorage.setItem("theme", next); }catch(e){}
+});
+
+/* Source-view tabs. Every pane is in the DOM already, so switching is a class
+   change and nothing refetches -- and "view source" keeps working. */
+document.querySelectorAll("[data-tabs] .tab").forEach(function(btn){
+  btn.addEventListener("click", function(){
+    var bar = btn.closest("[data-tabs]");
+    bar.querySelectorAll(".tab").forEach(function(b){ b.classList.remove("on"); });
+    btn.classList.add("on");
+    var want = btn.getAttribute("data-tab");
+    bar.querySelectorAll(".tab").forEach(function(b){
+      var pane = document.getElementById(b.getAttribute("data-tab"));
+      if(pane) pane.classList.toggle("on", b.getAttribute("data-tab") === want);
+    });
+  });
 });
 
 /* Click a column header to sort. Numeric where the cell parses as a number,

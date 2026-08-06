@@ -128,6 +128,179 @@
 <p class="sub">Timing note: {{ workloads[0].note }}.</p>
 {% endif %}
 
+{# ------------------------------------------------------------ the solution #}
+<h2>The solution it proposed</h2>
+{% if kernel %}
+  {% if kernel.retime_error %}
+    <div class="banner warn">
+      <b>A kernel was submitted, but the authoritative re-time never
+      completed.</b> That is why this problem contributes nothing to the score
+      and shows no workloads: the attempt was real, only the measurement is
+      missing. Never-attempted and could-not-be-measured are different facts.
+      <pre class="code sm" style="margin:8px 0 0">{{ kernel.retime_error }}</pre>
+    </div>
+  {% endif %}
+  <p class="sub">
+    {{ kernel.n_lines }} lines &middot; <code class="sm">{{ kernel.sha256[:12] }}</code>
+    &middot; <a href="/api/v1/submissions/{{ submission.slug }}/problems/{{ problem.key }}/kernel">raw</a>
+  </p>
+
+  {# Tabs, not a line diff. A 168-line handwritten HIP kernel against a
+     52-line torch.compile wrapper shares almost no lines, so a unified diff
+     would report ~100% changed and communicate nothing. Side by side, on
+     demand, is what actually gets read. #}
+  <div class="tabs" data-tabs>
+    <button class="tab on" data-tab="k-submitted">submitted kernel</button>
+    {% for v in variants %}
+      <button class="tab" data-tab="k-{{ v.variant }}">T<sub>b</sub> anchor: {{ v.variant }}
+        <span class="chip-n">{{ v.won_workloads }} wl</span></button>
+    {% endfor %}
+    {% if reference %}<button class="tab" data-tab="k-reference">reference</button>{% endif %}
+  </div>
+
+  <div class="tabpane on" id="k-submitted"><pre class="code sm">{{ kernel.source }}</pre></div>
+  {% for v in variants %}
+    <div class="tabpane" id="k-{{ v.variant }}">
+      <p class="sub">This formulation was the fastest PyTorch on
+        <b>{{ v.won_workloads }}</b> of this problem's workloads, so it is the
+        T<sub>b</sub> those workloads are scored against. It is generated as a
+        source transform of the reference below &mdash; the same transform task 06
+        compiled and timed.</p>
+      <pre class="code sm">{{ v.source }}</pre>
+    </div>
+  {% endfor %}
+  {% if reference %}
+    <div class="tabpane" id="k-reference">
+      <p class="sub">What a submission must match numerically.</p>
+      <pre class="code sm">{{ reference }}</pre>
+    </div>
+  {% endif %}
+{% else %}
+  <p class="sub">No kernel was recorded for this submission on this problem.
+    {% if submission.kind == 'reference_variant' %}
+      Reference variants are source transforms of the problem's own reference,
+      not authored kernels &mdash; see the <a href="/problems/{{ problem.key }}">problem
+      page</a> for the reference and the anchor.
+    {% endif %}</p>
+{% endif %}
+
+{# ------------------------------------------------------------- trajectory #}
+<h2>How it got there</h2>
+{% if trajectory %}
+  {% if chart %}
+  <svg class="traj" viewBox="0 0 {{ chart.w }} {{ chart.h }}" width="100%" height="{{ chart.h }}"
+       role="img" aria-label="Score over the course of the run">
+    {% if chart.y_anchor %}
+      <line x1="{{ chart.pad_l }}" y1="{{ chart.y_anchor }}" x2="{{ chart.w }}" y2="{{ chart.y_anchor }}"
+            class="anchor-line"/>
+      <text x="{{ chart.pad_l - 6 }}" y="{{ chart.y_anchor + 4 }}" class="ax-lbl" text-anchor="end">0.5</text>
+    {% endif %}
+    <line x1="{{ chart.pad_l }}" y1="{{ chart.x_axis }}" x2="{{ chart.w }}" y2="{{ chart.x_axis }}" class="axis"/>
+    <text x="{{ chart.w }}" y="{{ chart.h - 6 }}" class="ax-lbl" text-anchor="end">{{ chart.x_max_min }} min</text>
+    <path d="{{ chart.path }}" class="traj-line"/>
+    {% for m in chart.marks %}
+      <line x1="{{ m.x }}" y1="{{ chart.x_axis - 8 }}" x2="{{ m.x }}" y2="{{ chart.x_axis }}"
+            class="mark-{{ 'err' if m.harness_error else 'reg' }}">
+        <title>eval {{ m.n }}: {{ 'harness did not run' if m.harness_error else 'no score' }}</title>
+      </line>
+    {% endfor %}
+    {% for p in chart.points %}
+      <circle cx="{{ p.x }}" cy="{{ p.y }}" r="{{ 4.5 if p.regression else 3.5 }}"
+              class="pt {% if p.regression %}pt-reg{% endif %}">
+        <title>eval {{ p.n }} at +{{ '%.0f'|format(p.minutes_in or 0) }} min — S = {{ '%.4f'|format(p.mean_score) }}, {{ p.passed }}/{{ p.workloads }} passed</title>
+      </circle>
+    {% endfor %}
+  </svg>
+  <p class="sub">
+    Mean S over the problem's workloads, at each harness evaluation the agent
+    ran. The horizontal line is T<sub>b</sub> (S&nbsp;=&nbsp;0.5): above it the
+    kernel is faster than the best PyTorch formulation. Ticks on the axis are
+    evals that produced no score.
+  </p>
+  {% endif %}
+
+  <div class="scroll">
+  <table class="grid sortable">
+    <thead><tr>
+      <th>#</th><th class="r">at</th><th class="r">passed</th>
+      <th class="r">geomean vs ref</th><th class="r">mean S</th>
+      <th class="r" title="Change in mean S against the best earlier eval of this problem.">&Delta; vs best</th>
+      <th class="r">kernel</th><th>note</th>
+    </tr></thead>
+    <tbody>
+    {% for e in trajectory %}
+      <tr class="{% if e.harness_error %}miss{% endif %}">
+        <td class="mono">{{ e.n }}</td>
+        <td class="r mono sm">+{{ '%.0f'|format(e.minutes_in or 0) }}m</td>
+        <td class="r" data-sort="{{ e.passed if e.passed is not none else '' }}">{{ e.passed }}<span class="sub">/{{ e.workloads }}</span></td>
+        <td class="r mono">{{ '%.3f'|format(e.geomean_speedup) + '×' if e.geomean_speedup else '—' }}</td>
+        <td class="r mono big">{{ '%.4f'|format(e.mean_score) if e.mean_score is not none else '&mdash;'|safe }}</td>
+        <td class="r mono {% if e.delta_vs_best and e.delta_vs_best < 0 %}bad{% elif e.delta_vs_best and e.delta_vs_best > 0 %}ok{% endif %}">{{
+          '%+.4f'|format(e.delta_vs_best) if e.delta_vs_best is not none else '—' }}</td>
+        <td class="r mono sm">{{ e.kernel_lines ~ ' ln' if e.kernel_lines else '—' }}</td>
+        <td class="sm">
+          {%- if e.harness_error %}<span class="sub">harness did not run &mdash; nothing measured</span>
+          {%- elif e.regression %}<span class="flag">correctness regression</span>
+          {%- endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="sub footnote">
+    <b>&Delta; carries no verdict.</b> Only a <i>correctness</i> regression is
+    labelled &mdash; an eval that passes fewer workloads than an earlier one
+    broke something, and that needs no threshold. A dip in S is left as a
+    number: there is no measured noise floor for an agent-side eval on this
+    part (STATE.md D20), so calling a 0.2% drop a regression would be asserting
+    a threshold nobody measured.
+  </p>
+{% else %}
+  <p class="sub">{{ depth_note or 'No trajectory was recorded for this run.' }}</p>
+{% endif %}
+
+{# ----------------------------------------------------------------- effort #}
+<h2>What it cost</h2>
+{% if effort %}
+<div class="cards">
+  {% if effort.cost_usd %}<div class="card"><div class="num">${{ '%.2f'|format(effort.cost_usd) }}</div><div class="lbl">API cost, this problem</div></div>{% endif %}
+  {% if effort.wall_seconds %}<div class="card"><div class="num">{{ '%.0f'|format(effort.wall_seconds/60) }}<span class="of">min</span></div><div class="lbl">wall time{% if effort.api_seconds %} ({{ '%.0f'|format(effort.api_seconds/60) }} in API){% endif %}</div></div>{% endif %}
+  {% if effort.turns %}<div class="card"><div class="num">{{ effort.turns }}</div><div class="lbl">agent turns</div></div>{% endif %}
+  {% if effort.harness_evals %}<div class="card"><div class="num">{{ effort.harness_evals }}</div><div class="lbl">harness evals</div></div>{% endif %}
+  {% if summary.mean_attempted and effort.cost_usd %}
+  <div class="card"><div class="num">${{ '%.0f'|format(effort.cost_usd / summary.mean_attempted) }}</div>
+    <div class="lbl" title="Cost divided by the mean S reached. A rate, not a price: nothing here was bought at this rate.">per point of S</div></div>
+  {% endif %}
+</div>
+<p class="sub">
+  Tokens: {{ '{:,}'.format(effort.input_tokens or 0) }} in &middot;
+  {{ '{:,}'.format(effort.output_tokens or 0) }} out &middot;
+  {{ '{:,}'.format(effort.cache_read_tokens or 0) }} cache read &middot;
+  {{ '{:,}'.format(effort.cache_write_tokens or 0) }} cache write.
+  Agent ran on GPU {{ effort.gpu }} (exploration); the timings above are the
+  re-time on GPU 0.
+  {%- if effort.capped %} <b>Budget cap stopped this session.</b>{% endif %}
+  {%- if effort.timed_out %} <b>This session timed out.</b>{% endif %}
+</p>
+{% else %}
+<p class="sub">{{ depth_note or 'No per-problem cost was recorded for this run.' }}</p>
+{% endif %}
+
+{% if transcript %}
+<h2>Transcript</h2>
+<p class="sub">
+  {{ '{:,}'.format(transcript.n_lines) }} records &middot;
+  {{ '{:,}'.format(transcript.n_turns) }} assistant turns &middot;
+  {{ (transcript.bytes / 1048576)|round(1) }} MB &middot;
+  tool calls: {% for t, n in transcript.tools.items() %}<span class="ax">{{ t }} {{ n }}</span>{% endfor %}
+</p>
+<p><a class="chip" href="{{ transcript.url }}">download the full transcript (JSONL)</a></p>
+<p class="sub">Served from disk, not from the database. It carries gateway
+  hostnames and key prefixes in its provenance records &mdash; internal viewers
+  only.</p>
+{% endif %}
+
 <h2>Everyone else on this problem</h2>
 {% if peers %}
 <table class="grid sortable">

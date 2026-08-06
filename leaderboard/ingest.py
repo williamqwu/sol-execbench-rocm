@@ -16,6 +16,8 @@ so the leaderboard cannot drift from the scoring the harness applies.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import importlib.util
 import json
 import os
 import sqlite3
@@ -378,6 +380,18 @@ def ingest_agent_runs(conn, extra_roots: list[Path] | None = None) -> dict:
             """INSERT OR REPLACE INTO result
                (submission_id,problem_key,workload_uuid,status,latency_ms,
                 score,flagged,note) VALUES (?,?,?,?,?,?,?,?)""", rows)
+        # Depth: kernels, trajectory, effort, transcripts. Keyed off the
+        # problems this run actually has results for, so a stale file left in
+        # a run directory for a problem that was never scored cannot invent a
+        # row on the board.
+        run_problems = sorted({r["problem"] for r in doc.get("results", [])})
+        found = ingest_depth(conn, sub_id, scored.parent, run_problems)
+        conn.execute("UPDATE submission SET depth_note=?, depth_json=? WHERE id=?",
+                     (depth_note(found, len(run_problems)), json.dumps(found), sub_id))
+        print(f"    depth: {found['kernels']} kernels, {found['trajectory']} "
+              f"trajectories, {found['effort']} effort, "
+              f"{found['transcripts']} transcripts")
+
         bad = sorted({r["problem"] for r in doc.get("results", [])
                       if r.get("bound_violation")})
         if bad:
@@ -394,6 +408,219 @@ def ingest_agent_runs(conn, extra_roots: list[Path] | None = None) -> dict:
     return excluded
 
 
+def ingest_depth(conn, sub_id: int, run_dir: Path, problems: list[str]) -> dict:
+    """Kernels, trajectory, per-problem effort and transcripts for one run.
+
+    All of it optional. Different harnesses wrote different subsets -- the
+    amdpilot fleet run recorded no trajectory and no transcripts at all -- so
+    this reports what it found rather than assuming a layout, and the caller
+    stores that report on the submission.
+    """
+    found = {"kernels": 0, "trajectory": 0, "effort": 0, "transcripts": 0,
+             "unmeasured": 0}
+
+    # ---- the kernel that was submitted -------------------------------------
+    # Driven by the kernels ON DISK, unioned with the problems that produced
+    # results -- not by results alone. A kernel whose re-time timed out has no
+    # result rows at all, and keying off results would have dropped it here
+    # too, so the one problem where the harness failed to measure a real
+    # attempt would look exactly like a problem nobody opened.
+    kernel_dir = run_dir / "kernels"
+    on_disk = sorted(f.stem for f in kernel_dir.glob("*.py")) if kernel_dir.is_dir() else []
+    for key in sorted(set(problems) | set(on_disk)):
+        f = kernel_dir / f"{key}.py"
+        if not f.exists():
+            continue
+        src = f.read_text(errors="replace")
+        retimed = run_dir / "retimed" / f"{key}.json"
+        ok, err = None, None
+        if retimed.exists():
+            try:
+                doc = json.loads(retimed.read_text())
+                ok = _int_or_none(doc.get("ok"))
+                err = doc.get("error")
+            except Exception:
+                pass
+        conn.execute(
+            """INSERT OR REPLACE INTO run_kernel
+               (submission_id,problem_key,source,n_lines,sha256,retime_ok,retime_error)
+               VALUES (?,?,?,?,?,?,?)""",
+            (sub_id, key, src, src.count("\n") + 1,
+             hashlib.sha256(src.encode()).hexdigest(), ok, err))
+        found["kernels"] += 1
+        if key not in problems:
+            found["unmeasured"] += 1
+
+    # ---- per-problem cost and effort ---------------------------------------
+    cost_report = run_dir / "cost-report.json"
+    if cost_report.exists():
+        doc = json.loads(cost_report.read_text())
+        for p in doc.get("per_problem") or []:
+            conn.execute(
+                """INSERT OR REPLACE INTO run_effort
+                   (submission_id,problem_key,cost_usd,wall_seconds,api_seconds,
+                    turns,input_tokens,output_tokens,cache_write_tokens,
+                    cache_read_tokens,harness_evals,kernel_changed,capped,
+                    timed_out,gpu)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (sub_id, p.get("problem"), p.get("cost_usd"), p.get("wall_seconds"),
+                 p.get("api_seconds"), p.get("turns"), p.get("input_tokens"),
+                 p.get("output_tokens"), p.get("cache_write_tokens"),
+                 p.get("cache_read_tokens"), p.get("harness_evals"),
+                 _int_or_none(p.get("kernel_changed")), _int_or_none(p.get("capped")),
+                 _int_or_none(p.get("timed_out")),
+                 None if p.get("gpu") is None else str(p.get("gpu"))))
+            found["effort"] += 1
+
+    # ---- the trajectory ----------------------------------------------------
+    # Two sources, and they disagree in useful ways. `cost-report.json` holds a
+    # ready-made series with `mean_score` already on the SOL scale; the
+    # `eval-<ts>.json` files hold the timestamps and the kernel snapshots. The
+    # eval files are authoritative for ORDER (they carry the clock), and the
+    # cost report is merged in for the score, matched by position.
+    scored_series = ((json.loads(cost_report.read_text()).get("trajectory") or {})
+                     .get("per_problem") or {}) if cost_report.exists() else {}
+    traj_root = run_dir / "trajectory"
+    for key in problems:
+        d = traj_root / key
+        if not d.is_dir():
+            continue
+        evals = []
+        for f in d.glob("eval-*.json"):
+            try:
+                doc = json.loads(f.read_text())
+            except Exception:
+                continue
+            stamp = f.stem.split("-", 1)[1]
+            evals.append((doc.get("_provenance", {}).get("utc") or "", stamp, doc))
+        if not evals:
+            continue
+        evals.sort()
+        t0 = _parse_utc(evals[0][0])
+        series = scored_series.get(key) or []
+        for i, (utc, stamp, doc) in enumerate(evals, 1):
+            snap = d / f"kernel-{stamp}.py"
+            src = snap.read_text(errors="replace") if snap.exists() else None
+            t = _parse_utc(utc)
+            scored = series[i - 1] if i - 1 < len(series) else {}
+            conn.execute(
+                """INSERT OR REPLACE INTO trajectory_eval
+                   (submission_id,problem_key,n,utc,minutes_in,ok,all_passed,
+                    passed,workloads,geomean_speedup,mean_score,kernel_sha,
+                    kernel_source,kernel_lines)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (sub_id, key, i, utc or None,
+                 (t - t0).total_seconds() / 60 if (t and t0) else None,
+                 _int_or_none(doc.get("ok")), _int_or_none(doc.get("all_passed")),
+                 doc.get("passed"), doc.get("workloads"),
+                 doc.get("geomean_speedup"), scored.get("mean_score"),
+                 hashlib.sha256(src.encode()).hexdigest()[:12] if src else None,
+                 src, (src.count("\n") + 1) if src else None))
+        found["trajectory"] += 1
+
+    # ---- transcripts: indexed, not inlined ---------------------------------
+    for key in problems:
+        f = run_dir / "transcripts" / f"{key}.jsonl"
+        if not f.exists():
+            continue
+        n_lines = n_turns = 0
+        tools: dict[str, int] = {}
+        try:
+            with f.open(errors="replace") as fh:
+                for line in fh:
+                    n_lines += 1
+                    try:
+                        j = json.loads(line)
+                    except Exception:
+                        continue
+                    if j.get("type") == "assistant":
+                        n_turns += 1
+                    for c in (j.get("message") or {}).get("content") or []:
+                        if isinstance(c, dict) and c.get("type") == "tool_use":
+                            tools[c.get("name")] = tools.get(c.get("name"), 0) + 1
+        except OSError:
+            continue
+        conn.execute(
+            """INSERT OR REPLACE INTO transcript
+               (submission_id,problem_key,path,bytes,n_lines,n_turns,tools_json)
+               VALUES (?,?,?,?,?,?,?)""",
+            (sub_id, key, str(f.resolve()), f.stat().st_size, n_lines, n_turns,
+             json.dumps(tools)))
+        found["transcripts"] += 1
+
+    return found
+
+
+def depth_note(found: dict, n_problems: int) -> str | None:   # noqa: D401
+    """One sentence naming what this harness did not write down.
+
+    Stated positively as a limitation of the RUN, because that is what it is.
+    The alternative -- an empty panel -- reads as a broken page, and the run
+    with the most problems is the one with the least depth.
+    """
+    missing = [name for name, n in (("a trajectory", found["trajectory"]),
+                                    ("transcripts", found["transcripts"]),
+                                    ("per-problem cost", found["effort"]))
+               if n == 0]
+    parts = []
+    if missing:
+        parts.append("This harness did not record " + ", ".join(missing[:-1])
+                     + (" or " if len(missing) > 1 else "") + missing[-1] + ".")
+    parts.append(f"{found['kernels']} submitted kernel"
+                 f"{'s' if found['kernels'] != 1 else ''} kept.")
+    # Not "N of M": the kernel count can legitimately EXCEED the number of
+    # problems with results, which is the interesting case and which an
+    # "x of y" phrasing renders as the nonsense "24 of 23".
+    if found["unmeasured"]:
+        n = found["unmeasured"]
+        parts.append(f"{n} of them produced no measurement at all and so "
+                     f"{'appear' if n != 1 else 'appears'} nowhere in the score.")
+    return " ".join(parts) if (missing or found["unmeasured"]) else None
+
+
+def ingest_variant_sources(conn, problems: dict[str, str]) -> int:
+    """Regenerate the T_b formulations from each problem's own reference.
+
+    They are source-to-source transforms (`reference/tb-candidates/variants.py`)
+    with no torch import, so this is a pure text operation -- and it produces
+    exactly the code task 06 compiled and timed, which is the point: a diff
+    against a reconstruction nobody measured would be decoration.
+    """
+    spec = importlib.util.spec_from_file_location(
+        "_tb_variants", ROOT / "reference" / "tb-candidates" / "variants.py")
+    if spec is None or spec.loader is None:
+        return 0
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    n = 0
+    for key, reference in problems.items():
+        if not reference:
+            continue
+        for vname, transform in mod.VARIANTS.items():
+            try:
+                src = transform(reference)
+            except Exception:
+                continue          # a transform that cannot apply is not a row
+            conn.execute(
+                """INSERT OR REPLACE INTO variant_source
+                   (problem_key,variant,source,n_lines) VALUES (?,?,?,?)""",
+                (key, vname, src, src.count("\n") + 1))
+            n += 1
+    return n
+
+
+def _int_or_none(v):
+    return None if v is None else int(bool(v)) if isinstance(v, bool) else int(v)
+
+
+def _parse_utc(s: str):
+    try:
+        return datetime.fromisoformat(s)
+    except Exception:
+        return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", type=Path, default=Path(__file__).parent / "solbench.db")
@@ -408,13 +635,27 @@ def main() -> int:
     extra += [Path(p) for p in env_roots.split(":") if p.strip()]
 
     manifest = json.loads(MANIFEST.read_text())
-    if a.db.exists():
-        a.db.unlink()
-    conn = connect(a.db)
+
+    # Build into a side file and swap it in at the end. The old path deleted the
+    # live database and rebuilt in place, which gave every reader a window --
+    # measured at 0.30s, and observed returning `rows=0` on the first attempt --
+    # where the API answered 200 with an EMPTY leaderboard. Not an error a
+    # client could detect: indistinguishable from "no submissions exist". The
+    # window is short but it is a wrong answer, and it grows with every run
+    # added. `os.replace` is atomic on POSIX, so a reader sees the whole old
+    # database or the whole new one and never a half-built one.
+    tmp = a.db.with_name(a.db.name + f".build-{os.getpid()}")
+    for stale in _db_files(tmp):
+        stale.unlink(missing_ok=True)
+    conn = connect(tmp)
     conn.executescript((Path(__file__).parent / "schema.sql").read_text())
 
     ingest_meta(conn, manifest, extra)
     ingest_problems(conn, manifest)
+    n_vs = ingest_variant_sources(
+        conn, {r["key"]: r["reference"]
+               for r in conn.execute("SELECT key,reference FROM problem")})
+    print(f"variant sources: {n_vs} regenerated from problem references")
     print("variants:")
     excluded = ingest_variants(conn, manifest)
     print("agent runs:")
@@ -424,13 +665,35 @@ def main() -> int:
                      ("excluded_submissions", json.dumps(excluded)))
     conn.commit()
 
-    n_p = conn.execute("SELECT COUNT(*) FROM problem").fetchone()[0]
-    n_w = conn.execute("SELECT COUNT(*) FROM workload").fetchone()[0]
-    n_s = conn.execute("SELECT COUNT(*) FROM submission").fetchone()[0]
-    n_r = conn.execute("SELECT COUNT(*) FROM result").fetchone()[0]
-    print(f"\n{a.db}: {n_p} problems, {n_w} workloads, {n_s} submissions, {n_r} results")
+    counts = {t: conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+              for t in ("problem", "workload", "submission", "result",
+                        "run_kernel", "run_effort", "trajectory_eval", "transcript")}
+
+    # Fold the WAL back into the single file before swapping. `os.replace` moves
+    # one inode; a `-wal` sidecar left under the build name would strand
+    # committed pages outside the file that gets published. Nothing writes to
+    # the served database -- it is rebuilt and swapped, never updated in place --
+    # so WAL buys it nothing anyway.
+    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    conn.execute("PRAGMA journal_mode=DELETE")
     conn.close()
+
+    os.replace(tmp, a.db)
+    # SQLite keys sidecars to the FILE NAME, not the inode, so a `-wal` left by
+    # the previous database now sits next to a new one that has nothing to do
+    # with it. The new header says DELETE so it would be ignored, but leaving it
+    # to be ignored forever is worse than removing it. Readers still holding the
+    # old inode keep their open fds; unlink does not break them.
+    for stale in _db_files(a.db)[1:]:
+        stale.unlink(missing_ok=True)
+
+    print(f"\n{a.db}: " + ", ".join(f"{n} {t}s" for t, n in counts.items() if n))
     return 0
+
+
+def _db_files(db: Path) -> list[Path]:
+    """The database and the two sidecars SQLite may create beside it."""
+    return [db, db.with_name(db.name + "-wal"), db.with_name(db.name + "-shm")]
 
 
 if __name__ == "__main__":

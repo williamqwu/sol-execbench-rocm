@@ -23,3 +23,9 @@ leaderboard/solbench.db*
 
 # torch TunableOp writes its tuning results to CWD when an agent enables it.
 tunableop_results*.csv
+
+# Agent transcripts: 2 MB of JSONL per problem, and their provenance records
+# carry gateway hostnames and API-key prefixes. Kept on disk and served to
+# internal viewers by /api/v1/.../transcript, which reads the path out of the
+# `transcript` table -- never out of the request. Not in the tree.
+artifacts/10/*/transcripts/

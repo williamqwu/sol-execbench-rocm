@@ -35,10 +35,14 @@ from pathlib import Path
 
 import inputs
 
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
+                               PlainTextResponse)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+
+from models import (Health, LeaderboardRow, ProblemDetail, ProblemSummary,
+                    RunDetail, Stats, SubmissionDetail)
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -253,12 +257,30 @@ def submission_detail(conn, slug: str) -> dict:
                SUM(CASE WHEN r.status='PASSED' THEN 1 ELSE 0 END) AS passed,
                COUNT(*) AS attempted,
                AVG(CASE WHEN r.status='PASSED' THEN r.score END) AS mean_score,
-               SUM(r.flagged) AS flagged
-          FROM result r JOIN problem p ON p.key=r.problem_key
+               SUM(r.flagged) AS flagged,
+               e.cost_usd, e.wall_seconds, e.turns, e.harness_evals
+          FROM result r
+          JOIN problem p ON p.key=r.problem_key
+          LEFT JOIN run_effort e ON e.submission_id=r.submission_id
+                                AND e.problem_key=r.problem_key
          WHERE r.submission_id=?
          GROUP BY p.key
          ORDER BY (mean_score IS NULL), mean_score DESC""", (s["id"],))
-    return {"submission": s, "problems": per_problem}
+
+    # Kernels that produced no results at all. Without this they are absent
+    # from the submission page entirely -- the agent wrote a kernel, the
+    # re-time failed, and the run looks like it never touched the problem.
+    unmeasured = rows(conn, """
+        SELECT k.problem_key AS key, p.category, p.name, p.n_scoreable,
+               k.n_lines, k.retime_error
+          FROM run_kernel k JOIN problem p ON p.key = k.problem_key
+         WHERE k.submission_id = ?
+           AND NOT EXISTS (SELECT 1 FROM result r
+                            WHERE r.submission_id = k.submission_id
+                              AND r.problem_key = k.problem_key)
+         ORDER BY k.problem_key""", (s["id"],))
+
+    return {"submission": s, "problems": per_problem, "unmeasured": unmeasured}
 
 
 def run_detail(conn, slug: str, key: str) -> dict:
@@ -354,13 +376,187 @@ def run_detail(conn, slug: str, key: str) -> dict:
          GROUP BY s.id
          ORDER BY (mean_score IS NULL), mean_score DESC""", (key,))
 
-    return {"submission": s, "problem": p, "workloads": wls,
-            "summary": summary, "peers": peers}
+    kernel = conn.execute(
+        """SELECT source, n_lines, sha256, retime_ok, retime_error
+             FROM run_kernel WHERE submission_id=? AND problem_key=?""",
+        (s["id"], key)).fetchone()
+
+    # Which T_b formulations actually anchored this problem, and on how many
+    # workloads. Not "the baseline", plural: T_b is chosen per workload, so a
+    # single problem is routinely anchored by two or three different variants
+    # and a page that names only one is showing the wrong side of the diff for
+    # the rest.
+    won = {r["t_b_variant"]: r["n"] for r in conn.execute(
+        """SELECT t_b_variant, COUNT(*) AS n FROM workload
+            WHERE problem_key=? AND t_b_variant IS NOT NULL
+            GROUP BY t_b_variant""", (key,))}
+    variants = []
+    for vname, n in sorted(won.items(), key=lambda kv: -kv[1]):
+        row = conn.execute(
+            "SELECT source, n_lines FROM variant_source WHERE problem_key=? AND variant=?",
+            (key, vname)).fetchone()
+        if row:
+            variants.append({"variant": vname, "source": row["source"],
+                             "n_lines": row["n_lines"], "won_workloads": n})
+
+    traj = rows(conn, """
+        SELECT n, utc, minutes_in, ok, all_passed, passed, workloads,
+               geomean_speedup, mean_score, kernel_sha, kernel_lines
+          FROM trajectory_eval
+         WHERE submission_id=? AND problem_key=? ORDER BY n""", (s["id"], key))
+    _mark_regressions(traj)
+
+    effort = conn.execute(
+        "SELECT * FROM run_effort WHERE submission_id=? AND problem_key=?",
+        (s["id"], key)).fetchone()
+    tr = conn.execute(
+        "SELECT bytes, n_lines, n_turns, tools_json FROM transcript "
+        "WHERE submission_id=? AND problem_key=?", (s["id"], key)).fetchone()
+
+    return {
+        "submission": s, "problem": p, "workloads": wls,
+        "summary": summary, "peers": peers,
+        "kernel": dict(kernel) if kernel else None,
+        "variants": variants,
+        "reference": p.get("reference"),
+        "trajectory": traj,
+        "effort": {k: v for k, v in dict(effort).items()
+                   if k not in ("submission_id", "problem_key")} if effort else None,
+        "transcript": ({"bytes": tr["bytes"], "n_lines": tr["n_lines"],
+                        "n_turns": tr["n_turns"],
+                        "tools": json.loads(tr["tools_json"] or "{}"),
+                        "url": f"/api/v1/submissions/{slug}/problems/{key}/transcript"}
+                       if tr else None),
+        "depth_note": s.get("depth_note"),
+    }
+
+
+def _mark_regressions(traj: list[dict]) -> None:
+    """Classify each eval against the best seen so far in the same problem.
+
+    `regression` is reserved for **correctness**: an eval that passes fewer
+    workloads than an earlier one broke something that worked, and that needs
+    no threshold to assert.
+
+    Score movement deliberately gets no boolean. The first version flagged any
+    eval below the running best, which marked ten of L1__030's fifteen evals as
+    regressions -- including 0.5652 against a best of 0.5665, a 0.2% difference
+    on a plateau. Calling that a regression is a claim about measurement noise,
+    and this repo has no figure for the noise of an agent-side eval (STATE.md
+    D20 records that the matmul timing spread on this part is bimodal and that
+    no defensible constant could be derived). Inventing a threshold to make the
+    flag look reasonable would be inventing a measurement. So `delta_vs_best`
+    is reported as a number and the reader judges it.
+
+    An eval where the harness itself did not run is neither: `workloads == 0`
+    means nothing was measured, so it cannot have regressed. It is called out
+    as a harness error instead, which is what it is.
+    """
+    best_score = None
+    best_passed = 0
+    for e in traj:
+        measured = bool(e.get("ok")) and (e.get("workloads") or 0) > 0
+        e["harness_error"] = not measured
+        e["regression"] = bool(
+            measured and e.get("passed") is not None and e["passed"] < best_passed)
+        e["delta_vs_best"] = (
+            (e["mean_score"] - best_score)
+            if (measured and e.get("mean_score") is not None and best_score is not None)
+            else None)
+        if not measured:
+            continue
+        if e.get("mean_score") is not None:
+            best_score = (e["mean_score"] if best_score is None
+                          else max(best_score, e["mean_score"]))
+        if e.get("passed") is not None:
+            best_passed = max(best_passed, e["passed"])
 
 
 # --------------------------------------------------------------------------
-# JSON API
+# JSON API — /api/v1 is the contract; bare /api/* is kept as a legacy alias
+#
+# Every v1 route declares a response_model, so `/openapi.json` describes the
+# shapes and a client can be generated from it. The unversioned routes below
+# predate that and are left in place only because things already call them;
+# they return the same objects with no schema attached.
 # --------------------------------------------------------------------------
+
+V1 = APIRouter(prefix="/api/v1", tags=["v1"])
+
+
+@V1.get("/stats", response_model=Stats)
+def v1_stats():
+    return api_stats()
+
+
+@V1.get("/leaderboard", response_model=list[LeaderboardRow])
+def v1_leaderboard(category: str | None = None):
+    with db() as conn:
+        return leaderboard_rows(conn, category)
+
+
+@V1.get("/problems", response_model=list[ProblemSummary])
+def v1_problems(category: str | None = None):
+    with db() as conn:
+        return problem_rows(conn, category)
+
+
+@V1.get("/problems/{key}", response_model=ProblemDetail)
+def v1_problem(key: str):
+    with db() as conn:
+        return problem_detail(conn, key)
+
+
+@V1.get("/submissions/{slug}", response_model=SubmissionDetail)
+def v1_submission(slug: str):
+    with db() as conn:
+        return submission_detail(conn, slug)
+
+
+@V1.get("/submissions/{slug}/problems/{key}", response_model=RunDetail)
+def v1_run(slug: str, key: str):
+    with db() as conn:
+        return run_detail(conn, slug, key)
+
+
+@V1.get("/submissions/{slug}/problems/{key}/kernel",
+        response_class=PlainTextResponse)
+def v1_kernel(slug: str, key: str):
+    """The submitted kernel as source, for diffing without unwrapping JSON."""
+    with db() as conn:
+        row = conn.execute(
+            """SELECT k.source FROM run_kernel k
+                 JOIN submission s ON s.id = k.submission_id
+                WHERE s.slug=? AND k.problem_key=?""", (slug, key)).fetchone()
+    if row is None:
+        raise HTTPException(404, f"no kernel recorded for {slug} on {key}")
+    return PlainTextResponse(row["source"], media_type="text/x-python")
+
+
+@V1.get("/submissions/{slug}/problems/{key}/transcript")
+def v1_transcript(slug: str, key: str):
+    """Stream the agent transcript from disk.
+
+    Transcripts are 2 MB of JSONL each and are deliberately NOT in the
+    database. The path is looked up in `transcript`, never taken from the
+    request, so a caller cannot name a file the ingest did not index -- the
+    slug and key are only ever used as lookup keys, and the resolved path is
+    re-checked against the indexed value before the file is opened.
+    """
+    with db() as conn:
+        row = conn.execute(
+            """SELECT t.path FROM transcript t
+                 JOIN submission s ON s.id = t.submission_id
+                WHERE s.slug=? AND t.problem_key=?""", (slug, key)).fetchone()
+    if row is None:
+        raise HTTPException(404, f"no transcript recorded for {slug} on {key}")
+    path = Path(row["path"])
+    if not path.is_file():
+        raise HTTPException(
+            410, f"transcript was indexed but is no longer on disk: {path.name}")
+    return FileResponse(path, media_type="application/x-ndjson",
+                        filename=f"{slug}__{key}.jsonl")
+
 
 @app.get("/api/stats")
 def api_stats():
@@ -450,11 +646,62 @@ def submission(request: Request, slug: str):
     return page(request, "submission.html", **d)
 
 
+def trajectory_chart(traj: list[dict], w: int = 720, h: int = 190) -> dict | None:
+    """Lay out the trajectory as SVG coordinates.
+
+    Server-side so the page stays dependency-free — no chart library, no build
+    step, and the same numbers the API returns are the ones plotted.
+
+    Plotted against S, not against speedup. Speedup is relative to whatever the
+    agent's own harness measured as the reference on its own GPU, which is not
+    the anchor the leaderboard scores against; S is. That also puts T_b at a
+    fixed y = 0.5 gridline, so "crossed the anchor" is visible as a line
+    crossing rather than something the reader has to work out.
+    """
+    pts = [e for e in traj if e.get("mean_score") is not None]
+    if len(pts) < 2:
+        return None
+    pad_l, pad_r, pad_t, pad_b = 44, 12, 12, 26
+    xs = [e.get("minutes_in") or 0.0 for e in pts]
+    x_max = max(xs) or 1.0
+    ys = [e["mean_score"] for e in pts]
+    # Always include the 0.5 anchor in the visible range, or a run that never
+    # reaches it renders as a confident climb to nowhere in particular.
+    y_lo, y_hi = min(min(ys), 0.5), max(max(ys), 0.5)
+    span = (y_hi - y_lo) or 0.1
+    y_lo, y_hi = y_lo - span * 0.15, y_hi + span * 0.15
+
+    def px(m):
+        return pad_l + (m / x_max) * (w - pad_l - pad_r)
+
+    def py(s):
+        return pad_t + (1 - (s - y_lo) / (y_hi - y_lo)) * (h - pad_t - pad_b)
+
+    points = [{"x": round(px(e.get("minutes_in") or 0.0), 1),
+               "y": round(py(e["mean_score"]), 1), **e} for e in pts]
+    # Evals with no score still happened, and hiding them would make a run that
+    # broke twice look monotonic. Drawn on the axis as marks, not as points.
+    marks = [{"x": round(px(e.get("minutes_in") or 0.0), 1),
+              "n": e["n"], "harness_error": e.get("harness_error"),
+              "regression": e.get("regression")}
+             for e in traj if e.get("mean_score") is None]
+    return {"w": w, "h": h, "points": points, "marks": marks,
+            "path": " ".join(f"{'M' if i == 0 else 'L'}{p['x']},{p['y']}"
+                             for i, p in enumerate(points)),
+            "y_anchor": round(py(0.5), 1) if y_lo <= 0.5 <= y_hi else None,
+            "x_axis": round(h - pad_b, 1), "pad_l": pad_l,
+            "x_max_min": round(x_max, 1),
+            "y_lo": round(y_lo, 3), "y_hi": round(y_hi, 3)}
+
+
 @app.get("/submissions/{slug}/problems/{key}", response_class=HTMLResponse)
 def run(request: Request, slug: str, key: str):
     with db() as conn:
         d = run_detail(conn, slug, key)
-    return page(request, "run.html", **d)
+    return page(request, "run.html", chart=trajectory_chart(d["trajectory"]), **d)
+
+
+app.include_router(V1)
 
 
 @app.get("/methodology", response_class=HTMLResponse)
@@ -489,7 +736,7 @@ def methodology(request: Request):
                 invalid_bound_info=invalid_bound_info)
 
 
-@app.get("/healthz")
+@app.get("/healthz", response_model=Health)
 def healthz():
     if not DB.exists():
         return JSONResponse({"ok": False, "db": str(DB), "error": "not built"},
