@@ -749,6 +749,53 @@ This is the second defect of exactly this shape (D21 was the first): a number
 that is real, plausible, and attached to the wrong claim. Both were invisible
 until a page forced two facts next to each other.
 
+### D23 — a submitted kernel whose re-time timed out is invisible
+
+`glm-run1` has 24 kernels on disk and results for 23. The missing one,
+`FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1`, has a
+`retimed/*.json` recording `TimeoutExpired` after 1200 s.
+
+It produces no result rows, so every aggregate treats it as *not attempted* —
+identical to a problem the agent never opened. The agent wrote 180 lines and
+the harness could not measure them; that is a different fact, and it was not
+recoverable from the board.
+
+Found only because ingesting kernels-from-disk disagreed with
+kernels-from-results, 24 against 23. Nothing else would have surfaced it.
+
+The board now carries `run_kernel.retime_ok` / `retime_error` and shows the
+state on both the run page and the submission page. **The score is unchanged
+and should be**: no measurement exists, so there is nothing to score. The fix
+is to stop the absence from being silent, not to fill it in.
+
+Still open: whether the 1200 s timeout is the right budget for a paged-prefill
+problem of that size, or whether this is another instance of D18's
+paged-attention trouble on the same FlashInfer family. Not investigated.
+
+### D24 — the same "dropped the external run" bug, twice more
+
+`ingest.py` reads agent runs from `artifacts/10` unless told otherwise, so any
+rebuild that omits `--agent-runs` silently deletes every run kept outside the
+repo — currently the $250 Opus run.
+
+This has now been introduced three separate times:
+
+1. The staleness banner told the reader to run a bare `ingest.py`. Fixed by
+   printing the roots the build actually used.
+2. `worker.py` shelled out to a bare `ingest.py` after scoring. **Caught in the
+   first end-to-end test**: the job scored correctly, and the Opus run
+   disappeared from the board. Fixed by reading `meta.input_extra_roots` back
+   out of the database that is about to be replaced.
+3. Any manual rebuild, still, if the flag is forgotten.
+
+The shape of the bug is that the *default* is lossy and the loss is silent —
+the board still renders, still looks complete, and only the person whose
+submission vanished would notice. `worker.py` now diffs the submission set
+across a rebuild and reports a drop rather than trusting the exit code.
+
+The durable fix is for the roots to live in a config the ingest reads by
+default, so that "rebuild" cannot mean two different things. Not done.
+
 ---
 
 ## Fixes to scripts on first contact

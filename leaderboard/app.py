@@ -34,6 +34,7 @@ import sqlite3
 from pathlib import Path
 
 import inputs
+import submit
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
@@ -702,6 +703,7 @@ def run(request: Request, slug: str, key: str):
 
 
 app.include_router(V1)
+app.include_router(submit.router)
 
 
 @app.get("/methodology", response_class=HTMLResponse)

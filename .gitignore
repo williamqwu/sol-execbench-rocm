@@ -29,3 +29,10 @@ tunableop_results*.csv
 # internal viewers by /api/v1/.../transcript, which reads the path out of the
 # `transcript` table -- never out of the request. Not in the tree.
 artifacts/10/*/transcripts/
+
+# Submission API tokens, and the queue's own database. The queue is durable
+# state, not a view over artifacts -- but it is per-deployment state, and a
+# token file in the tree is a token that is public.
+leaderboard/.tokens
+leaderboard/queue.db*
+artifacts/10/_spool/

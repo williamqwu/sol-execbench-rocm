@@ -16,8 +16,11 @@ First run creates the venv and builds the database; after that it just serves.
 | layer | choice | why |
 |---|---|---|
 | database | SQLite, `leaderboard/solbench.db` | Rebuildable view over `artifacts/`. Gitignored. |
-| backend | FastAPI + uvicorn, `app.py` | Server-rendered pages plus a JSON API under `/api/`. |
+| backend | FastAPI + uvicorn, `app.py` | Server-rendered pages plus a typed JSON API under `/api/v1/`. |
+| contract | `models.py`, pydantic | Every `/api/v1` route declares a response model, so `/openapi.json` is a real schema and a client can be generated from it. |
 | frontend | Jinja2 + one stylesheet | No build step, no npm. The node has no node. |
+| write path | `submit.py` + `queue.db` | Queue only. Accepting a submission never runs anything. |
+| worker | `worker.py`, GPU 0, one job at a time | Re-times through `scripts/agent_score.py`, so there is exactly one scorer. |
 | venv | `leaderboard/.venv`, host python 3.11 | **Not** the pinned measurement container. |
 
 That last row is the load-bearing one. Adding fastapi to
@@ -31,12 +34,38 @@ never touches a GPU, so it has no business in that image.
 leaderboard/.venv/bin/python leaderboard/ingest.py
 ```
 
-`ingest.py` drops and recreates every table from:
+`ingest.py` builds a **new** database beside the old one and `os.replace()`s it
+in. It used to delete the live file and rebuild in place, which gave readers a
+window -- measured at 0.30s, and caught serving `rows=0` on the first attempt --
+where the API returned 200 with an empty leaderboard. Not an error a client
+could detect: indistinguishable from "nobody has submitted".
+
+If a run lives outside the repo, pass it every time:
+
+```bash
+leaderboard/.venv/bin/python leaderboard/ingest.py --agent-runs /path/to/runs
+```
+
+Omitting it silently drops those submissions. The staleness banner prints the
+roots the current build used, and `worker.py` reads them back out of `meta`
+before it rebuilds, because both have already been caught getting this wrong.
+
+`ingest.py` recreates every table from:
 
 * `artifacts/09/manifest-v1.json` — problems, workloads, T_SOL, T_b, tolerances
 * `data/SOL-ExecBench/benchmark/*/*/definition.json` — descriptions, axes, reference source
 * `artifacts/06/candidates/` and `artifacts/06/authoritative/` — the four PyTorch variants
 * `artifacts/10/*/scored.json` — agent runs
+* `artifacts/10/*/kernels/*.py` — the kernel each submission proposed
+* `artifacts/10/*/trajectory/<problem>/eval-*.json` — every harness eval, with its kernel snapshot
+* `artifacts/10/*/cost-report.json` — per-problem cost, turns, tokens
+* `artifacts/10/*/transcripts/*.jsonl` — indexed by path only; see below
+* `reference/tb-candidates/variants.py` — applied to each problem's reference to
+  regenerate the T_b formulations, so the run page can show what a kernel had to beat
+
+Depth is uneven by harness and that is recorded, not hidden:
+`submission.depth_note` says what a given run did not write down, so an empty
+panel explains itself instead of looking broken.
 
 The database is never a source of truth. If it disagrees with the artifacts,
 it is stale — rerun the ingest. Scores are computed by importing the repo's own
@@ -112,3 +141,65 @@ Interactive docs at `/api/docs`.
 The system SQLite here is 3.26, which predates `FILTER` and `NULLS LAST`
 (both 3.30). Those parse as syntax errors rather than being ignored, so the
 queries use `CASE WHEN` aggregates and `ORDER BY (x IS NULL), x` instead.
+
+
+## Submitting
+
+```bash
+# one token per line, `token:name`. No file => the write API is 503, by design.
+printf 'S3CRET:william\n' > leaderboard/.tokens && chmod 600 leaderboard/.tokens
+
+curl -X POST http://127.0.0.1:8088/api/v1/submit \
+  -H 'Authorization: Bearer S3CRET' -H 'Content-Type: application/json' \
+  -d '{"slug":"my-run","problem_key":"L1__085_geglu_activation","kernel":"import torch\ndef run(...):..."}'
+# -> 202 with a job id
+
+curl http://127.0.0.1:8088/api/v1/jobs/1        # poll
+
+leaderboard/.venv/bin/python leaderboard/worker.py --drain   # score the queue
+```
+
+A slug groups jobs into **one** leaderboard entry: submitting a second problem
+under the same slug extends the entry rather than creating a rival to it.
+
+`202`, not `200`. Nothing has been measured when the POST returns.
+
+### The trust boundary
+
+Scoring means executing code somebody else wrote, on a GPU, in this repo's
+container. **`env/solb` is a reproducibility boundary, not a security one** — it
+runs as a normal user with the repo bind-mounted read-write and no seccomp
+profile or network namespace of its own. A submitted kernel can read and write
+the tree.
+
+So: **authenticated internal users, and nobody else.** The token gates who can
+queue work; nothing gates what queued code does once it runs. That is fine for
+a team-internal service and is not fine for a public one, and the difference is
+a sandbox that does not exist yet. Do not expose the port.
+
+### Why one job at a time
+
+Every number on this board is timed on GPU 0 with nothing else on it. That is
+what makes T_b, T_SOL and every submitted score comparable. Two workers, or one
+worker running two jobs, would produce numbers that are not comparable to the
+3717 already published. A lock file enforces it; a second worker exits rather
+than share the GPU. When the queue backs up, the answer is to wait.
+
+## Transcripts
+
+Served from disk by `/api/v1/submissions/{slug}/problems/{key}/transcript`,
+which looks the path up in the `transcript` table — never takes it from the
+request. They are 2 MB each and their provenance records carry gateway
+hostnames and API-key prefixes, so they are gitignored and internal-only.
+
+## Tests
+
+```bash
+leaderboard/.venv/bin/python -m pytest tests/leaderboard -q
+```
+
+They skip in the measurement container (no fastapi there, deliberately), so
+`env/solb pytest tests/` stays green. They cover the invariants that have
+actually broken: the atomic rebuild, no score on a failed workload, untested vs
+failed, the write API failing closed, the GPU-0 lock, and the regression
+classifier not inventing a noise threshold.

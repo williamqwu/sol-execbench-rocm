@@ -58,6 +58,14 @@ BOARD_EXCLUSIONS = {
               "that does not pass. Its mean of 0.776 is survivorship over the "
               "five problems where anything passed at all. Artifacts and "
               "transcripts are kept under artifacts/10/pilot8/.",
+    "submitted-apitest": "Not a result. Two problems, and the 'kernel' "
+              "submitted for each is that problem's own reference "
+              "implementation -- it exists to exercise the write path end to "
+              "end (POST -> queue -> worker -> GPU 0 -> score -> rebuild) and "
+              "it scores below 0.5 by construction, since T_b is the fastest "
+              "of four formulations of the same code. Kept as artifacts under "
+              "artifacts/10/submitted-apitest/ and as jobs 1-2 in the queue. "
+              "Delete this entry to put it on the board.",
 }
 
 
