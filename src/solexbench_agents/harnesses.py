@@ -479,10 +479,47 @@ def _reap_orphans(packet_dir: Path) -> list[str]:
     Returns the command lines it killed, so a session record says whether this
     happened rather than leaving it to be inferred from a busy GPU.
     """
+    return _reap_under(packet_dir)
+
+
+def reap_eval_scratch(scratch_root: Path | None = None) -> list[str]:
+    """Kill orphans left in the evaluation scratch tree.
+
+    Separate from `_reap_orphans` because an eval subprocess does NOT run in the
+    packet directory: `runners/_common.py` gives it a fresh `solb_run_*` staging dir
+    under ``SOLEXBENCH_SCRATCH``, so the packet-scoped sweep cannot see it however
+    thoroughly it searches.
+
+    That gap stalled a full pipeline run for 15 hours. Two `eval_driver.py` processes
+    outlived their agents, were reparented to init, and sat holding GPU memory for
+    ~19 h. `require_idle()` correctly refused to start the scoring stage while an
+    `eval_driver` was alive, `reap()` could not find them to kill, and so the driver
+    exited immediately after the sweep and every later stage simply never ran. The
+    guard was right and the cleanup was blind, which is the worst pairing: the run
+    fails safe and silent.
+    """
+    import os
+    import tempfile
+
+    root = scratch_root or Path(
+        os.environ.get("SOLEXBENCH_SCRATCH", tempfile.gettempdir()))
+    killed: list[str] = []
+    if not root.is_dir():
+        return killed
+    # Only the staging dirs, not the whole scratch root: sibling trees under
+    # /var/tmp/solbench include the dataset and SOLAR's own scratch, and something
+    # legitimately working there must not be killed.
+    for staging in sorted(root.glob("solb_run_*")):
+        killed += _reap_under(staging)
+    return killed
+
+
+def _reap_under(target_dir: Path) -> list[str]:
+    """Kill every process whose cwd is at or below *target_dir*. Returns cmdlines."""
     import os
     import signal
 
-    target = str(packet_dir.resolve())
+    target = str(target_dir.resolve())
     killed: list[str] = []
     me = os.getpid()
     for entry in Path("/proc").iterdir():

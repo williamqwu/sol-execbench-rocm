@@ -93,12 +93,20 @@ reap() {
 import sys
 from pathlib import Path
 sys.path.insert(0, "src")
-from solexbench_agents.harnesses import _reap_orphans
+from solexbench_agents.harnesses import _reap_orphans, reap_eval_scratch
 killed = []
 for run in Path("artifacts/10/runs").glob("*/*/*/packet"):
     killed += _reap_orphans(run)
 if killed:
     print(f"reaped {len(killed)} orphan process(es) still holding a packet")
+# An eval subprocess runs in its own solb_run_* staging dir, not in the packet, so
+# the sweep above is structurally blind to it. Two such orphans once outlived their
+# agents and held GPU memory for 19 h; require_idle refused the scoring stage on
+# their account, reap could not find them, and the pipeline exited after the sweep
+# with 15 h of stages never running.
+scratch = reap_eval_scratch()
+if scratch:
+    print(f"reaped {len(scratch)} orphan eval process(es) in the scratch tree")
 PY
 }
 
