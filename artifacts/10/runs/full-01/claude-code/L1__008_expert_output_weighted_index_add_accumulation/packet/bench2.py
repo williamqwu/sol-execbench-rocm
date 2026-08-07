@@ -1,38 +1,45 @@
-import torch, itertools, json
-import reference, kern_impl
-dev = torch.device("cuda:0")
-def make(bs, sl):
-    return reference.get_inputs(dict(batch_size=bs, seq_len=sl, hidden_size=3072,
-                                     num_experts_per_tok=8), dev)
-def ref(f,e,i):
-    o=f.clone(); o.index_add_(0,i,e); return o
-def tm(fn, args, it=30):
+import torch, triton, triton.language as tl, importlib, sys
+DEV="cuda:0"; H=3072; TOPK=8
+MS=[131,256,512,1024,2048,2164,3758,4096,8192]
+
+def make(M, seed=0):
+    g=torch.Generator(device=DEV); g.manual_seed(seed)
+    return (torch.randn(M,H,dtype=torch.bfloat16,device=DEV,generator=g),
+            torch.randn(M*TOPK,H,dtype=torch.bfloat16,device=DEV,generator=g),
+            torch.randint(0,M,(M*TOPK,),dtype=torch.long,device=DEV,generator=g))
+
+def ref(f,s,i):
+    o=f.clone(); o.index_add_(0,i,s); return o
+
+def bench_steady(fn,args,K=20,reps=8):
     for _ in range(5): fn(*args)
     torch.cuda.synchronize()
-    s=torch.cuda.Event(True); en=torch.cuda.Event(True); s.record()
-    for _ in range(it): fn(*args)
-    en.record(); torch.cuda.synchronize()
-    return s.elapsed_time(en)/it*1000
-def ratio(o,r,atol,rtol):
-    o=o.float(); r=r.float(); d=(o-r).abs()
-    ok=(d<=atol)|(d<=rtol*r.abs())
-    return ok.float().mean().item()
+    best=1e9
+    for _ in range(reps):
+        s=torch.cuda.Event(True); e=torch.cuda.Event(True)
+        s.record()
+        for _ in range(K): fn(*args)
+        e.record(); torch.cuda.synchronize()
+        best=min(best, s.elapsed_time(e)*1000.0/K)
+    return best
 
-wl=[json.loads(l) for l in open('workload.jsonl')]
-shapes=sorted({(w['axes']['batch_size']*w['axes']['seq_len']) for w in wl})
-print("Ns:",shapes)
-for bs,sl in [(1,131),(1,256),(2,256),(1,1024),(2,1024),(4,541),(2,1879),(1,8192),(64,128),(32,256)]:
-    d=make(bs,sl); a=(d['final_hidden_states'],d['expert_outputs'],d['token_indices'])
-    r=ref(*a); N=bs*sl
-    sol=10*N*3072*2/8e12*1e6
-    tr=tm(ref,a)
-    res=[]
-    for BH,KB,nw in itertools.product([256,384,512,768,1024,1536,3072],[4,8,16],[4,8]):
-        if BH*KB>32768: continue
-        try:
-            o=kern_impl.run_impl(*a,BLOCK_H=BH,KB=KB,nw=nw)
-            t=tm(lambda *x: kern_impl.run_impl(*x,BLOCK_H=BH,KB=KB,nw=nw), a)
-        except Exception as ex: continue
-        res.append((t,BH,KB,nw,ratio(o,r,0.234375,0.375)))
-    res.sort()
-    print(f"N={N:6d} SOL={sol:7.1f} ref={tr:7.1f} | "+" | ".join(f"{t:.1f}us BH{b} KB{k} w{w} rat{rr:.4f}" for t,b,k,w,rr in res[:4]))
+def sol_us(M): return (10*M*H*2 + TOPK*M*8)/5.6e12*1e6
+
+def check(o,r,atol=0.234375,rtol=0.375):
+    o=o.float(); r=r.float(); d=(o-r).abs()
+    return (((d<=atol)|(d<=rtol*r.abs())).float().mean().item())
+
+if __name__=="__main__":
+    cands={"ref":ref}
+    for m in sys.argv[1:]:
+        cands[m]=importlib.import_module(m).run
+    print(f"{'M':>6} {'SOL':>7} "+" ".join(f"{k:>11}" for k in cands))
+    tot={k:0.0 for k in cands}
+    for M in MS:
+        f,s,i=make(M); r=ref(f,s,i); row=[]
+        for k,fn in cands.items():
+            o=fn(f,s,i); rr=check(o,r)
+            t=bench_steady(fn,(f,s,i)); tot[k]+=t
+            row.append(f"{t:11.1f}" if rr>=0.99 else f"  BAD{rr:.3f}")
+        print(f"{M:6d} {sol_us(M):7.1f} "+" ".join(row))
+    print("TOTAL  "+"        "+" ".join(f"{tot[k]:11.1f}" for k in cands))

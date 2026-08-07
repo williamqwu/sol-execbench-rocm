@@ -21,7 +21,34 @@ artifacts/10/runs/*/verify-root/
 # sources ARE tracked -- they are the result -- but the debug scripts, probes and
 # local test harnesses an agent wrote along the way are not, and they arrive with
 # unpredictable names.
-artifacts/10/runs/*/*/packet/__pycache__/
+#
+# Unpredictable names is exactly why this has to be an allowlist. The previous rule
+# excluded only __pycache__, so the stated intent above was never actually enforced
+# and scratch accumulated: bt2.py, v_atomic.py, exp1.py, _sweep_ds.py, sweep_at.py.
+#
+# What must stay: solution.json together with every path it declares in `sources`.
+# solution.json ships those with `content: ""`, so the file sitting in the packet is
+# the ONLY copy of the result -- dropping it would discard the very thing the run
+# produced. The declared paths across all runs to date are kernel.py, gn_triton.py,
+# candidate.py, flash_attn.py, tunable.csv and sitecustomize.py; the last is a
+# rejected reward-hack vector, kept because a rejected submission still has to be
+# auditable. `.attempts.json` stays because it is the agent's own record of what it
+# tried, which nothing else reproduces.
+#
+# The packet SCAFFOLDING is excluded for the same reason verify-root above is:
+# definition.json, reference.py, workload.jsonl, TASK.md, ./verify and .packet.json
+# are rebuilt by task_packet.py from the committed dataset plus the artifacts/05
+# tolerances, and committing them duplicates that material once per problem per
+# harness -- 391 copies, ~11 MB per run, growing with every run.
+artifacts/10/runs/*/*/*/packet/*
+!artifacts/10/runs/*/*/*/packet/.attempts.json
+!artifacts/10/runs/*/*/*/packet/solution.json
+!artifacts/10/runs/*/*/*/packet/kernel.py
+!artifacts/10/runs/*/*/*/packet/gn_triton.py
+!artifacts/10/runs/*/*/*/packet/candidate.py
+!artifacts/10/runs/*/*/*/packet/flash_attn.py
+!artifacts/10/runs/*/*/*/packet/tunable.csv
+!artifacts/10/runs/*/*/*/packet/sitecustomize.py
 *.so
 .venv/
 uv.lock

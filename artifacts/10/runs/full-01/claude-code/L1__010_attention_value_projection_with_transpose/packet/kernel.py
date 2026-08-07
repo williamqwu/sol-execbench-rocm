@@ -3,179 +3,203 @@ import triton
 import triton.language as tl
 
 
-# out[b, h, s, d] = sum_k hidden[b, s, k] * w[h*128+d, k]
+# ---------------------------------------------------------------------------
+# Problem: value projection + reshape + transpose, fused.
 #
-# hidden : [B, S, K]  bf16, contiguous
-# w      : [N, K]     bf16, contiguous   (N = 1024 = 8 * 128)
-# out    : [B, 8, S, 128] bf16, contiguous
+#   hidden_states : [B, S, 5120]  bf16
+#   v_proj_weight : [1024, 5120]  bf16
+#   out           : [B, 8, S, 128] bf16   (out[b,h,s,d] = sum_k A[b,s,k]*W[h*128+d,k])
 #
-# The transpose is folded into the GEMM epilogue: nothing but the GEMM's own
-# output is ever written, so the reshape+transpose+contiguous of the reference
-# costs zero extra memory traffic.
+# The GEMM is [M, 5120] x [5120, 1024] with M = B*S.  N = 1024 is small, so for
+# small M there is not enough tile parallelism to fill 256 CUs and the kernel
+# becomes latency/occupancy bound while the 10 MiB weight read dominates.
+# Split-K fixes that: partition the K=5120 reduction across SPLIT programs,
+# write fp32 partials, then reduce.  The reduction pass also performs the
+# reshape+transpose scatter, so the transpose is free.
+#
+# For large M there is already ample parallelism and the extra workspace
+# round-trip costs more than it saves, so we use a single fused pass that
+# scatters straight to the transposed layout.
+# ---------------------------------------------------------------------------
 
 
 @triton.jit
-def _vproj_kernel(
-    a_ptr, w_ptr, o_ptr,
-    S,
+def _partial_k(
+    A, W, WS,
+    M,
     K: tl.constexpr,
-    N: tl.constexpr,
-    HEAD_DIM: tl.constexpr,
-    BM: tl.constexpr,
-    BN: tl.constexpr,
-    BK: tl.constexpr,
+    SPLIT: tl.constexpr,
+    BLOCK_M: tl.constexpr,
+    BLOCK_K: tl.constexpr,
+    EVEN_M: tl.constexpr,
+):
+    """Split-K partial products -> WS[SPLIT, M, 1024] fp32."""
+    BLOCK_N: tl.constexpr = 128
+    KS: tl.constexpr = K // SPLIT
+
+    pid = tl.program_id(0)
+    pid_k = pid % SPLIT
+    r = pid // SPLIT
+    pid_n = r % 8
+    pid_m = r // 8
+
+    rm = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
+    rn = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
+    rk = pid_k * KS + tl.arange(0, BLOCK_K)
+
+    rma = rm if EVEN_M else tl.where(rm < M, rm, 0)
+    a_ptrs = A + rma[:, None] * K + rk[None, :]
+    w_ptrs = W + rn[:, None] * K + rk[None, :]
+
+    acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
+    for _ in range(0, KS, BLOCK_K):
+        acc = tl.dot(tl.load(a_ptrs), tl.trans(tl.load(w_ptrs)), acc)
+        a_ptrs += BLOCK_K
+        w_ptrs += BLOCK_K
+
+    o = WS + pid_k * (M * 1024) + rm[:, None] * 1024 + rn[None, :]
+    if EVEN_M:
+        tl.store(o, acc)
+    else:
+        tl.store(o, acc, mask=(rm < M)[:, None])
+
+
+@triton.jit
+def _reduce_scatter(
+    WS, C,
+    M, S,
+    SPLIT: tl.constexpr,
+    BLOCK: tl.constexpr,
+):
+    """Sum the SPLIT fp32 partials and scatter into [B,8,S,128] bf16."""
+    pid = tl.program_id(0)
+    off = pid * BLOCK + tl.arange(0, BLOCK)
+    total = M * 1024
+    mask = off < total
+
+    m = off // 1024
+    n = off - m * 1024
+
+    acc = tl.zeros((BLOCK,), dtype=tl.float32)
+    for i in tl.static_range(SPLIT):
+        acc += tl.load(WS + i * total + off, mask=mask, other=0.0)
+
+    b = m // S
+    s = m - b * S
+    h = n // 128
+    d = n - h * 128
+    tl.store(
+        C + b * (8 * S * 128) + h * (S * 128) + s * 128 + d,
+        acc.to(C.dtype.element_ty),
+        mask=mask,
+    )
+
+
+@triton.jit
+def _fused(
+    A, W, C,
+    M, S,
+    BLOCK_M: tl.constexpr,
+    BLOCK_K: tl.constexpr,
     GROUP_M: tl.constexpr,
     EVEN_M: tl.constexpr,
 ):
+    """Single-pass GEMM writing directly to the transposed layout."""
+    K: tl.constexpr = 5120
+    BLOCK_N: tl.constexpr = 128
+
     pid = tl.program_id(0)
-    bid = tl.program_id(1)
+    num_pid_m = tl.cdiv(M, BLOCK_M)
+    nig = GROUP_M * 8
+    gid = pid // nig
+    fm = gid * GROUP_M
+    gsm = min(num_pid_m - fm, GROUP_M)
+    pid_m = fm + ((pid % nig) % gsm)
+    pid_n = (pid % nig) // gsm
 
-    num_pid_m = tl.cdiv(S, BM)
-    num_pid_n: tl.constexpr = N // BN
+    rm = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
+    rn = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
+    rk = tl.arange(0, BLOCK_K)
 
-    # grouped ordering for L2 reuse of the weight tiles
-    num_pid_in_group = GROUP_M * num_pid_n
-    group_id = pid // num_pid_in_group
-    first_pid_m = group_id * GROUP_M
-    group_size_m = min(num_pid_m - first_pid_m, GROUP_M)
-    pid_m = first_pid_m + ((pid % num_pid_in_group) % group_size_m)
-    pid_n = (pid % num_pid_in_group) // group_size_m
+    rma = rm if EVEN_M else tl.where(rm < M, rm, 0)
+    a_ptrs = A + rma[:, None] * K + rk[None, :]
+    w_ptrs = W + rn[:, None] * K + rk[None, :]
 
-    offs_m = pid_m * BM + tl.arange(0, BM)
-    offs_n = pid_n * BN + tl.arange(0, BN)
-    offs_k = tl.arange(0, BK)
+    acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
+    for _ in range(0, K, BLOCK_K):
+        acc = tl.dot(tl.load(a_ptrs), tl.trans(tl.load(w_ptrs)), acc)
+        a_ptrs += BLOCK_K
+        w_ptrs += BLOCK_K
 
-    if EVEN_M:
-        offs_am = offs_m
-    else:
-        offs_am = tl.where(offs_m < S, offs_m, 0)
-
-    a_ptrs = a_ptr + bid.to(tl.int64) * (S * K) + offs_am[:, None] * K + offs_k[None, :]
-    w_ptrs = w_ptr + offs_n[:, None] * K + offs_k[None, :]
-
-    acc = tl.zeros((BM, BN), dtype=tl.float32)
-    for k in tl.range(0, K // BK):
-        a = tl.load(a_ptrs)
-        w = tl.load(w_ptrs)
-        acc = tl.dot(a, tl.trans(w), acc)
-        a_ptrs += BK
-        w_ptrs += BK
-
-    o = acc.to(o_ptr.dtype.element_ty)
-
-    h = offs_n // HEAD_DIM
-    d = offs_n % HEAD_DIM
-    o_ptrs = (
-        o_ptr
-        + bid.to(tl.int64) * (N * S)
-        + h[None, :] * (HEAD_DIM * S)
-        + offs_m[:, None] * HEAD_DIM
-        + d[None, :]
+    out = acc.to(C.dtype.element_ty)
+    b = rm // S
+    s = rm - b * S
+    cp = (
+        C
+        + b[:, None] * (8 * S * 128)
+        + pid_n * (S * 128)
+        + s[:, None] * 128
+        + tl.arange(0, 128)[None, :]
     )
     if EVEN_M:
-        tl.store(o_ptrs, o)
+        tl.store(cp, out)
     else:
-        tl.store(o_ptrs, o, mask=offs_m[:, None] < S)
+        tl.store(cp, out, mask=(rm < M)[:, None])
 
 
-@triton.jit
-def _vproj_splitk_kernel(
-    a_ptr, w_ptr, o_ptr,
-    S,
-    K: tl.constexpr,
-    N: tl.constexpr,
-    HEAD_DIM: tl.constexpr,
-    BM: tl.constexpr,
-    BN: tl.constexpr,
-    BK: tl.constexpr,
-    SPLIT_K: tl.constexpr,
-    EVEN_M: tl.constexpr,
-):
-    pid = tl.program_id(0)
-    bid = tl.program_id(1)
-    pid_k = tl.program_id(2)
-
-    num_pid_n: tl.constexpr = N // BN
-    pid_m = pid // num_pid_n
-    pid_n = pid % num_pid_n
-
-    offs_m = pid_m * BM + tl.arange(0, BM)
-    offs_n = pid_n * BN + tl.arange(0, BN)
-    offs_k = pid_k * (K // SPLIT_K) + tl.arange(0, BK)
-
-    if EVEN_M:
-        offs_am = offs_m
-    else:
-        offs_am = tl.where(offs_m < S, offs_m, 0)
-
-    a_ptrs = a_ptr + bid.to(tl.int64) * (S * K) + offs_am[:, None] * K + offs_k[None, :]
-    w_ptrs = w_ptr + offs_n[:, None] * K + offs_k[None, :]
-
-    acc = tl.zeros((BM, BN), dtype=tl.float32)
-    for k in tl.range(0, K // (BK * SPLIT_K)):
-        a = tl.load(a_ptrs)
-        w = tl.load(w_ptrs)
-        acc = tl.dot(a, tl.trans(w), acc)
-        a_ptrs += BK
-        w_ptrs += BK
-
-    h = offs_n // HEAD_DIM
-    d = offs_n % HEAD_DIM
-    o_ptrs = (
-        o_ptr
-        + bid.to(tl.int64) * (N * S)
-        + h[None, :] * (HEAD_DIM * S)
-        + offs_m[:, None] * HEAD_DIM
-        + d[None, :]
-    )
-    if EVEN_M:
-        tl.atomic_add(o_ptrs, acc, sem="relaxed")
-    else:
-        tl.atomic_add(o_ptrs, acc, mask=offs_m[:, None] < S, sem="relaxed")
+# --- configuration chosen from an on-device sweep over both strategies -------
+# (SPLIT, BLOCK_M, BLOCK_K, num_warps, num_stages)
+_SPLIT_CFG = [
+    (256,  (8, 64, 64, 8, 3)),
+    (512,  (4, 64, 64, 8, 3)),
+    (1024, (4, 128, 64, 8, 3)),
+    (2048, (2, 128, 64, 8, 3)),
+]
+# (BLOCK_M, BLOCK_K, GROUP_M, num_warps, num_stages)
+_FUSED_CFG = (128, 64, 8, 8, 3)
 
 
-@triton.jit
-def _cast_kernel(src, dst, n_elem, BLK: tl.constexpr):
-    pid = tl.program_id(0)
-    offs = pid * BLK + tl.arange(0, BLK)
-    m = offs < n_elem
-    v = tl.load(src + offs, mask=m, other=0.0)
-    tl.store(dst + offs, v.to(dst.dtype.element_ty), mask=m)
-
-
-_HEAD_DIM = 128
-_NUM_KV = 8
-
-
-def _pick(M):
-    # (BM, BN, BK, GROUP_M, num_warps, num_stages)
-    if M <= 256:
-        return (64, 128, 128, 8, 4, 2)
-    if M <= 1024:
-        return (128, 128, 64, 8, 4, 2)
-    if M <= 4096:
-        return (128, 256, 64, 8, 8, 2)
-    return (256, 256, 64, 8, 8, 2)
+def _split_cfg(M):
+    for lim, cfg in _SPLIT_CFG:
+        if M <= lim:
+            return cfg
+    return None
 
 
 @torch.no_grad()
 def run(hidden_states: torch.Tensor, v_proj_weight: torch.Tensor) -> torch.Tensor:
-    B, S, K = hidden_states.shape
-    N = v_proj_weight.shape[0]
+    batch_size, seq_len, hidden_size = hidden_states.shape
+    M = batch_size * seq_len
 
-    hidden_states = hidden_states.contiguous()
-    v_proj_weight = v_proj_weight.contiguous()
+    a = hidden_states.reshape(M, hidden_size)
+    if not a.is_contiguous():
+        a = a.contiguous()
+    w = v_proj_weight
+    if not w.is_contiguous():
+        w = w.contiguous()
 
-    out = torch.empty((B, _NUM_KV, S, _HEAD_DIM), dtype=hidden_states.dtype,
-                      device=hidden_states.device)
-
-    BM, BN, BK, GM, nw, ns = _pick(B * S)
-    grid = (triton.cdiv(S, BM) * (N // BN), B)
-    _vproj_kernel[grid](
-        hidden_states, v_proj_weight, out,
-        S, K, N, _HEAD_DIM,
-        BM=BM, BN=BN, BK=BK, GROUP_M=GM,
-        EVEN_M=(S % BM == 0),
-        num_warps=nw, num_stages=ns,
+    c = torch.empty(
+        (batch_size, 8, seq_len, 128),
+        device=hidden_states.device,
+        dtype=hidden_states.dtype,
     )
-    return out
+
+    cfg = _split_cfg(M)
+    if cfg is not None:
+        SPLIT, BM, BK, nw, ns = cfg
+        ws = torch.empty(SPLIT * M * 1024, device=a.device, dtype=torch.float32)
+        _partial_k[(triton.cdiv(M, BM) * 8 * SPLIT,)](
+            a, w, ws, M, 5120, SPLIT, BM, BK, M % BM == 0,
+            num_warps=nw, num_stages=ns,
+        )
+        BL = 1024
+        _reduce_scatter[(triton.cdiv(M * 1024, BL),)](
+            ws, c, M, seq_len, SPLIT, BL, num_warps=4,
+        )
+    else:
+        BM, BK, GM, nw, ns = _FUSED_CFG
+        _fused[(triton.cdiv(M, BM) * 8,)](
+            a, w, c, M, seq_len, BM, BK, GM, M % BM == 0,
+            num_warps=nw, num_stages=ns,
+        )
+    return c

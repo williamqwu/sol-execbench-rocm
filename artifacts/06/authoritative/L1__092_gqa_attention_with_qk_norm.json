@@ -1,0 +1,223 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-05T05:26:22.519947+00:00",
+  "git_sha": "908a4837fe636f8d41fddb90c17edf5ff07abd16-dirty",
+  "host": "mia1-p02-g10",
+  "python": "3.10.12",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "part": "MI355X",
+  "kernel_stack": {
+   "triton": {
+    "available": true,
+    "path": "/sgl-workspace/triton-custom/python/triton/__init__.py",
+    "dist_version": "3.6.0+git42270451",
+    "is_release_wheel": false,
+    "gluon": true
+   },
+   "aiter": {
+    "available": true,
+    "path": "/sgl-workspace/aiter/aiter/__init__.py",
+    "dist_version": null,
+    "git_sha": "d9e5ef7ce08ee7045d583aed768cff41aa9210fe-dirty"
+   },
+   "hipcc": "HIP version: 7.2.26015-fc0010cf6a\nAMD clang version 22.0.0git (https://github.com/RadeonOpenCompute/llvm-project roc-7.2.0 26014 7b800a19466229b8479a78de19143dc33c3ab9b5)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /opt/rocm-7.2.0/lib/llvm/bin\nConfiguration file: /opt/rocm-7.2.0/lib/llvm/bin/clang++.cfg",
+   "rocm_libraries": {
+    "ck": true,
+    "ck_tile": true,
+    "hipblaslt": true,
+    "miopen": true
+   }
+  },
+  "env": {
+   "mode": "native",
+   "in_docker": true,
+   "stack_drift_allowed": false
+  },
+  "f_lock_mhz": 1650,
+  "clock_basis": "fixed_f_lock",
+  "clock_lock": {
+   "mode": "uniform",
+   "expected_setpoint_mhz": 1660,
+   "setpoint_mhz_per_gpu": [
+    1660,
+    1660,
+    1660,
+    1660,
+    1660,
+    1660,
+    1660,
+    1660
+   ],
+   "perf_levels": [
+    "perf_determinism"
+   ],
+   "agrees": true
+  },
+  "visible_devices": "1"
+ },
+ "problem": "L1__092_gqa_attention_with_qk_norm",
+ "definition": "092_gqa_attention_with_qk_norm",
+ "workloads_from": "data/SOL-ExecBench/benchmark/L1/092_gqa_attention_with_qk_norm/workload.jsonl",
+ "gpu": "1",
+ "variants": {
+  "v1_eager": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "c92bb0a5-0dff-5559-921c-3f4e48c6ec5d": 0.7190039753913879,
+    "51c2b5bd-fcfa-54aa-8b49-7dcf549e8071": 0.5841829776763916,
+    "ce688df8-9e5d-54d3-808b-5dfacd84c6e1": 0.6224234998226166,
+    "6c00773e-6f6e-5f0c-b52a-a3a4b5bb7a3a": 2.7213940620422363,
+    "65a1864d-4cc8-548f-a9d5-c42a9e639607": 2.445333480834961,
+    "4e17d54d-ba8b-5456-a399-d6ed486e94f4": 3.6842994689941406,
+    "d0ce8c45-23c5-55e8-a582-f62b1f6068a9": 1.3209869861602783,
+    "45487d16-a02f-5861-a6b1-4e565c7d7285": 7.124238014221191,
+    "d30e1ce8-92e4-570b-a489-bcdb3170de61": 1.8559100031852722,
+    "36af929c-db1b-5edc-8de5-3b0f3700c535": 3.361277937889099,
+    "047a5b81-f0f6-5bc5-85b8-499f96dc333e": 1.3858674764633179,
+    "07ab2bf3-193a-57df-b434-30a648c63369": 4.582365036010742,
+    "ccea3f00-da6d-515a-846e-3c65f48ad459": 0.3061220049858093,
+    "785dbede-dd28-536f-89c1-a2e8ec40d983": 5.346128940582275,
+    "610a5d07-2a1f-520e-a7df-8eba4a0dc3a8": 1.046585500240326,
+    "1e96cc88-5675-52ff-a563-8a51a889e1fe": 1.1476470232009888
+   },
+   "is_override": false,
+   "measured_clock": null,
+   "failures": []
+  },
+  "v4_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "c92bb0a5-0dff-5559-921c-3f4e48c6ec5d": 0.7043240070343018,
+    "51c2b5bd-fcfa-54aa-8b49-7dcf549e8071": 0.5843029916286469,
+    "ce688df8-9e5d-54d3-808b-5dfacd84c6e1": 0.6220030188560486,
+    "6c00773e-6f6e-5f0c-b52a-a3a4b5bb7a3a": 2.7177945375442505,
+    "65a1864d-4cc8-548f-a9d5-c42a9e639607": 2.4510130882263184,
+    "4e17d54d-ba8b-5456-a399-d6ed486e94f4": 3.690059542655945,
+    "d0ce8c45-23c5-55e8-a582-f62b1f6068a9": 1.3198269605636597,
+    "45487d16-a02f-5861-a6b1-4e565c7d7285": 7.132417440414429,
+    "d30e1ce8-92e4-570b-a489-bcdb3170de61": 1.8577094674110413,
+    "36af929c-db1b-5edc-8de5-3b0f3700c535": 3.3590575456619263,
+    "047a5b81-f0f6-5bc5-85b8-499f96dc333e": 1.3835075497627258,
+    "07ab2bf3-193a-57df-b434-30a648c63369": 4.598424434661865,
+    "ccea3f00-da6d-515a-846e-3c65f48ad459": 0.31446199119091034,
+    "785dbede-dd28-536f-89c1-a2e8ec40d983": 5.3822691440582275,
+    "610a5d07-2a1f-520e-a7df-8eba4a0dc3a8": 1.045425534248352,
+    "1e96cc88-5675-52ff-a563-8a51a889e1fe": 1.1493659615516663
+   },
+   "is_override": false,
+   "measured_clock": null,
+   "failures": []
+  }
+ },
+ "winner_by_workload": {
+  "c92bb0a5-0dff-5559-921c-3f4e48c6ec5d": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.7043240070343018
+  },
+  "51c2b5bd-fcfa-54aa-8b49-7dcf549e8071": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.5841829776763916
+  },
+  "ce688df8-9e5d-54d3-808b-5dfacd84c6e1": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 0.6220030188560486
+  },
+  "6c00773e-6f6e-5f0c-b52a-a3a4b5bb7a3a": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 2.7177945375442505
+  },
+  "65a1864d-4cc8-548f-a9d5-c42a9e639607": {
+   "variant": "v1_eager",
+   "t_b_ms": 2.445333480834961
+  },
+  "4e17d54d-ba8b-5456-a399-d6ed486e94f4": {
+   "variant": "v1_eager",
+   "t_b_ms": 3.6842994689941406
+  },
+  "d0ce8c45-23c5-55e8-a582-f62b1f6068a9": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 1.3198269605636597
+  },
+  "45487d16-a02f-5861-a6b1-4e565c7d7285": {
+   "variant": "v1_eager",
+   "t_b_ms": 7.124238014221191
+  },
+  "d30e1ce8-92e4-570b-a489-bcdb3170de61": {
+   "variant": "v1_eager",
+   "t_b_ms": 1.8559100031852722
+  },
+  "36af929c-db1b-5edc-8de5-3b0f3700c535": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 3.3590575456619263
+  },
+  "047a5b81-f0f6-5bc5-85b8-499f96dc333e": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 1.3835075497627258
+  },
+  "07ab2bf3-193a-57df-b434-30a648c63369": {
+   "variant": "v1_eager",
+   "t_b_ms": 4.582365036010742
+  },
+  "ccea3f00-da6d-515a-846e-3c65f48ad459": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.3061220049858093
+  },
+  "785dbede-dd28-536f-89c1-a2e8ec40d983": {
+   "variant": "v1_eager",
+   "t_b_ms": 5.346128940582275
+  },
+  "610a5d07-2a1f-520e-a7df-8eba4a0dc3a8": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 1.045425534248352
+  },
+  "1e96cc88-5675-52ff-a563-8a51a889e1fe": {
+   "variant": "v1_eager",
+   "t_b_ms": 1.1476470232009888
+  }
+ },
+ "n_workloads": 16,
+ "n_workloads_with_tb": 16,
+ "complete": true,
+ "ok": true,
+ "measured_clock": {
+  "clock_basis": "fixed_f_lock",
+  "expected_f_lock_mhz": 1650,
+  "tolerance": 0.03,
+  "n_busy_samples": 38,
+  "busy_gpus": [
+   0
+  ],
+  "sampler_error": null,
+  "min_busy_samples": 8,
+  "max_clock_spread": 0.12,
+  "median_mhz": 1640.5,
+  "min_mhz": 1567,
+  "max_mhz": 1658,
+  "p5_mhz": 1567,
+  "median_power_w": 853.5,
+  "deviation": -0.005757575757575757,
+  "within_tolerance": true,
+  "clock_spread": 0.0554708930204206
+ }
+}

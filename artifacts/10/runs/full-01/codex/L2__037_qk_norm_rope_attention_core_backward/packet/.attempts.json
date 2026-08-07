@@ -1,0 +1,51 @@
+{
+  "used": 4,
+  "log": [
+    {
+      "attempt": 1,
+      "utc": 1785979297.0660012,
+      "languages": [
+        "pytorch"
+      ],
+      "ok": true,
+      "passed": 16,
+      "workloads": 16,
+      "all_passed": true,
+      "elapsed_s": 23.180171251296997
+    },
+    {
+      "attempt": 2,
+      "utc": 1785979359.1511543,
+      "languages": [
+        "pytorch"
+      ],
+      "ok": false,
+      "error": "RuntimeError: no traces produced (rc=-6)\nstderr:\nm_warps=4\n  triton_mm_325 0.0856 ms 52.5% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=32, BLOCK_M=64, BLOCK_N=32, EVEN_K=True, GROUP_M=8, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=4\n  triton_mm_330 0.0869 ms 51.7% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=64, BLOCK_M=64, BLOCK_N=64, EVEN_K=True, GROUP_M=4, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=4\n  triton_mm_332 0.0880 ms 51.0% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=32, BLOCK_M=64, BLOCK_N=128, EVEN_K=True, GROUP_M=4, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=2, num_stages=2, num_warps=4\n  triton_mm_329 0.0902 ms 49.8% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=16, BLOCK_M=64, BLOCK_N=64, EVEN_K=True, GROUP_M=8, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=4\nSingleProcess AUTOTUNE benchmarking takes 0.5420 seconds and 0.0003 seconds precompiling for 30 choices\nAutotune Choices Stats:\n{\"num_choices\": 30, \"num_triton_choices\": 29, \"best_kernel\": \"mm\", \"best_time\": 0.11507999897003174, \"best_triton_pos\": 1, \"best_triton_time\": 0.19132100045681, \"best_triton_kernel\": \"triton_mm_207\", \"best_triton_kernel_desc\": \"ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=64, BLOCK_M=32, BLOCK_N=64, EVEN_K=True, GROUP_M=8, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=4\"}\nAUTOTUNE mm(512x3072, 3072x3072)\nstrides: [3072, 1], [3072, 1]\ndtypes: torch.float32, torch.float32\n  mm 0.1151 ms 100.0% \n  triton_mm_207 0.1913 ms 60.2% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=64, BLOCK_M=32, BLOCK_N=64, EVEN_K=True, GROUP_M=8, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=4\n  triton_mm_218 0.1989 ms 57.9% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=64, BLOCK_M=64, BLOCK_N=128, EVEN_K=True, GROUP_M=4, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=8\n  triton_mm_217 0.2155 ms 53.4% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=32, BLOCK_M=64, BLOCK_N=128, EVEN_K=True, GROUP_M=8, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=8\n  triton_mm_211 0.2195 ms 52.4% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=64, BLOCK_M=64, BLOCK_N=32, EVEN_K=True, GROUP_M=8, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=8\n  triton_mm_210 0.2304 ms 49.9% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=64, BLOCK_M=64, BLOCK_N=32, EVEN_K=True, GROUP_M=8, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=4\n  triton_mm_214 0.2419 ms 47.6% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=64, BLOCK_M=64, BLOCK_N=64, EVEN_K=True, GROUP_M=4, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=4\n  triton_mm_209 0.2426 ms 47.4% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=32, BLOCK_M=64, BLOCK_N=32, EVEN_K=True, GROUP_M=8, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=4\n  triton_mm_215 0.2490 ms 46.2% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=128, BLOCK_M=64, BLOCK_N=64, EVEN_K=True, GROUP_M=16, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=8\n  triton_mm_216 0.2495 ms 46.1% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=32, BLOCK_M=64, BLOCK_N=128, EVEN_K=True, GROUP_M=4, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=2, num_stages=2, num_warps=4\nSingleProcess AUTOTUNE benchmarking takes 0.8575 seconds and 0.0022 seconds precompiling for 30 choices\nMemory access fault by GPU node-9 (Agent handle: 0x5cc789684870) on address 0x7395f4a27000. Reason: Unknown.\nGPU coredump: Directory \"/coredumps not writable or does not exist\nGPU core dump failed\n\nstdout:\n",
+      "elapsed_s": 13.734132766723633
+    },
+    {
+      "attempt": 3,
+      "utc": 1785980123.827397,
+      "languages": [
+        "pytorch"
+      ],
+      "ok": true,
+      "passed": 16,
+      "workloads": 16,
+      "all_passed": true,
+      "elapsed_s": 34.22850275039673
+    },
+    {
+      "attempt": 4,
+      "utc": 1785980648.3162136,
+      "languages": [
+        "pytorch"
+      ],
+      "ok": true,
+      "passed": 16,
+      "workloads": 16,
+      "all_passed": true,
+      "elapsed_s": 32.90235900878906
+    }
+  ]
+}

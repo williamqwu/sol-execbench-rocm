@@ -1,97 +1,94 @@
+"""Local correctness + timing harness. Not part of the solution."""
 import json, sys, time, importlib
 import torch
 
 sys.path.insert(0, ".")
 import reference
 
-MOD = sys.argv[1] if len(sys.argv) > 1 else "kernel"
-kernel = importlib.import_module(MOD)
-
 DEV = "cuda:0"
-HID = 2560
+H = 2560
 
 
-def make_inputs(b, s, seed=0):
+def make_inputs(B, S, seed=0):
     g = torch.Generator(device=DEV).manual_seed(seed)
-    go = torch.randn(b, s, HID, generator=g, device=DEV, dtype=torch.bfloat16)
-    x = torch.randn(b, s, HID, generator=g, device=DEV, dtype=torch.float32)
-    nm = torch.randn(b, s, HID, generator=g, device=DEV, dtype=torch.float32)
-    rs = torch.randn(b, s, 1, generator=g, device=DEV, dtype=torch.float32)
-    w = torch.randn(HID, generator=g, device=DEV, dtype=torch.float32)
-    return go, x, nm, rs, w
+    go = torch.randn(B, S, H, device=DEV, dtype=torch.bfloat16, generator=g)
+    x = torch.randn(B, S, H, device=DEV, dtype=torch.float32, generator=g)
+    nrm = torch.randn(B, S, H, device=DEV, dtype=torch.float32, generator=g)
+    rstd = torch.randn(B, S, 1, device=DEV, dtype=torch.float32, generator=g)
+    w = torch.randn(H, device=DEV, dtype=torch.float32, generator=g)
+    return go, x, nrm, rstd, w
 
 
-def compare(name, out, ref, atol, rtol, ratio_req):
-    out = out.float()
+def check(ref, got, atol, rtol, ratio, label):
     ref = ref.float()
-    diff = (out - ref).abs()
-    tol = atol + rtol * ref.abs()
-    ok = diff <= tol
-    matched = ok.float().mean().item()
-    # worst violation
-    viol = (diff - tol)
-    worst = viol.max().item()
-    maxerr = diff.max().item()
-    passed = matched >= ratio_req
-    return passed, f"{name}: matched={matched:.6f} (req {ratio_req}) maxabs={maxerr:.5g} worst_excess={worst:.3g}"
+    got = got.float()
+    if ref.shape != got.shape:
+        return False, f"{label}: shape {got.shape} != {ref.shape}"
+    diff = (ref - got).abs()
+    allowed = atol + rtol * ref.abs()
+    ok = diff <= allowed
+    frac = ok.float().mean().item()
+    worst = (diff - allowed).max().item()
+    return frac >= ratio, f"{label}: matched={frac:.6f} worst_excess={worst:.3e} maxdiff={diff.max().item():.3e}"
 
 
 def bench(fn, args, iters=30):
     for _ in range(5):
         fn(*args)
     torch.cuda.synchronize()
-    # graph-free timing
-    ts = []
+    # use cuda events
+    st = torch.cuda.Event(enable_timing=True)
+    en = torch.cuda.Event(enable_timing=True)
+    torch.cuda.synchronize()
+    st.record()
     for _ in range(iters):
-        torch.cuda.synchronize()
-        t0 = time.perf_counter()
         fn(*args)
-        torch.cuda.synchronize()
-        ts.append(time.perf_counter() - t0)
-    ts.sort()
-    return ts[len(ts) // 2] * 1e3
+    en.record()
+    torch.cuda.synchronize()
+    return st.elapsed_time(en) / iters
 
 
-wls = [json.loads(l) for l in open("workload.jsonl")]
+def main():
+    modname = sys.argv[1] if len(sys.argv) > 1 else "kernel"
+    mod = importlib.import_module(modname)
+    only = None
+    if len(sys.argv) > 2:
+        only = int(sys.argv[2])
 
-allpass = True
-tot_mine = 0.0
-tot_ref = 0.0
-for i, wl in enumerate(wls):
-    b = wl["axes"]["batch_size"]
-    s = wl["axes"]["seq_len"]
-    tol = wl["tolerance"]
-    args = make_inputs(b, s, seed=i)
-    ref_out = reference.run(*args)
-    my_out = kernel.run(*args)
-    names = ["grad_hidden_states", "grad_residual", "grad_weight"]
-    msgs = []
-    wlpass = True
-    for n, o, r in zip(names, my_out, ref_out):
-        if o.shape != r.shape:
-            wlpass = False
-            msgs.append(f"{n}: SHAPE {tuple(o.shape)} != {tuple(r.shape)}")
+    workloads = [json.loads(l) for l in open("workload.jsonl")]
+    tot_ref = 0.0
+    tot_got = 0.0
+    allok = True
+    for i, wl in enumerate(workloads):
+        if only is not None and i != only:
             continue
-        if o.dtype != r.dtype:
-            wlpass = False
-            msgs.append(f"{n}: DTYPE {o.dtype} != {r.dtype}")
-            continue
-        p, m = compare(n, o, r, tol["max_atol"], tol["max_rtol"], tol["required_matched_ratio"])
-        wlpass &= p
-        msgs.append(m)
-    if my_out[0].data_ptr() == my_out[1].data_ptr():
-        msgs.append("WARNING: gh and gr alias")
-    tmine = bench(kernel.run, args)
-    tref = bench(reference.run, args)
-    tot_mine += tmine
-    tot_ref += tref
-    elts = b * s * HID
-    gbps = elts * 10 / (tmine * 1e-3) / 1e9
-    allpass &= wlpass
-    print(f"[{'PASS' if wlpass else 'FAIL'}] b={b:3d} s={s:5d} M={b*s:7d}  mine={tmine:8.4f}ms ref={tref:8.4f}ms  x{tref/tmine:6.2f}  {gbps:7.1f} GB/s(10B/elt)")
-    for m in msgs:
-        print("        ", m)
+        B = wl["axes"]["batch_size"]
+        S = wl["axes"]["seq_len"]
+        tol = wl["tolerance"]
+        args = make_inputs(B, S, seed=i)
+        ref_out = reference.run(*args)
+        got_out = mod.run(*args)
+        msgs = []
+        okall = True
+        for name, r, gt in zip(["gh", "gr", "gw"], ref_out, got_out):
+            ok, m = check(r, gt, tol["max_atol"], tol["max_rtol"], tol["required_matched_ratio"], name)
+            okall &= ok
+            msgs.append(m)
+        t_ref = bench(reference.run, args)
+        t_got = bench(mod.run, args)
+        tot_ref += t_ref
+        tot_got += t_got
+        n = B * S * H
+        gb = n * 10 / 1e9  # 6 bytes read + 4 bytes written
+        bw = gb / (t_got / 1e3) / 1e3  # TB/s
+        allok &= okall
+        print(f"[{i:2d}] B={B:3d} S={S:5d} {'PASS' if okall else 'FAIL'} "
+              f"ref={t_ref*1000:9.1f}us mine={t_got*1000:9.1f}us "
+              f"speedup={t_ref/t_got:6.2f}x bw={bw:6.2f}TB/s")
+        if not okall:
+            for m in msgs:
+                print("      ", m)
+    print(f"TOTAL ref={tot_ref*1000:.1f}us mine={tot_got*1000:.1f}us speedup={tot_ref/tot_got:.2f}x  allok={allok}")
 
-print()
-print("ALL PASS" if allpass else "SOME FAILED")
-print(f"total mine={tot_mine:.3f}ms ref={tot_ref:.3f}ms  speedup={tot_ref/tot_mine:.2f}x")
+
+main()

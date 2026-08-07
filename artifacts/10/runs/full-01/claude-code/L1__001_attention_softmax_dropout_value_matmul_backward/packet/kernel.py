@@ -4,145 +4,141 @@ import triton.language as tl
 
 
 # ---------------------------------------------------------------------------
-# Kernel 1: grad_attn_scores
+# Kernel A: grad_attn_scores
 #
-#   dP[m,n]   = sum_d dO[m,d] * V[n,d]                     (fp32 accum)
-#   dAW[m,n]  = (dP[m,n] * mask[m,n]) / (1-p)
-#   s[m]      = sum_n dAW[m,n] * A[m,n]
-#   dS[m,n]   = A[m,n] * (dAW[m,n] - s[m])                 -> bf16
+#   dP_ij      = (dO_i . V_j)                     [f32 accum over head_dim]
+#   g_ij       = dP_ij * mask_ij / (1 - p)
+#   s_i        = sum_j g_ij * W_ij
+#   dS_ij      = W_ij * (g_ij - s_i)              -> bf16
 #
-# Two passes over the kv axis: the first accumulates the row sum, the second
-# emits the output.  V is tiny and stays resident in cache, so the second pass
-# only re-touches A / mask.
+# Two passes over the kv axis; dP is recomputed in the second pass rather than
+# materialised (recompute is ~5x cheaper than the extra HBM round trip here).
 # ---------------------------------------------------------------------------
 @triton.jit
 def _ds_kernel(
-    DO, A, MSK, V, DS,
-    sq, skv,
+    DO, W, MSK, V, DS,
+    SQ, SKV,
     s_do_b, s_do_m, s_do_h,
-    s_a_b, s_a_h, s_a_m,
+    s_w_b, s_w_h, s_w_m,
     s_v_b, s_v_h, s_v_n,
-    one_minus_p,
-    H: tl.constexpr, G: tl.constexpr, D: tl.constexpr,
-    APPLY: tl.constexpr,
-    BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr,
+    scale,
+    H: tl.constexpr, NG: tl.constexpr,
+    BM: tl.constexpr, BN: tl.constexpr, D: tl.constexpr,
 ):
-    pid_m = tl.program_id(0)
-    pid_bh = tl.program_id(1)
+    pid_bh = tl.program_id(0)
+    pid_m = tl.program_id(1)
     b = pid_bh // H
     h = pid_bh % H
-    hk = h // G
+    hk = h // NG
 
-    offs_m = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
+    offs_m = pid_m * BM + tl.arange(0, BM)
     offs_d = tl.arange(0, D)
-    mm = offs_m < sq
+    m_mask = offs_m < SQ
 
     do = tl.load(
-        DO + b * s_do_b + h * s_do_h + offs_m[:, None] * s_do_m + offs_d[None, :],
-        mask=mm[:, None], other=0.0,
+        DO + b * s_do_b + offs_m[:, None] * s_do_m + h * s_do_h + offs_d[None, :],
+        mask=m_mask[:, None], other=0.0,
     )
 
-    a_base = A + b * s_a_b + h * s_a_h + offs_m[:, None] * s_a_m
-    k_base = MSK + b * s_a_b + h * s_a_h + offs_m[:, None] * s_a_m
+    w_base = W + b * s_w_b + h * s_w_h + offs_m[:, None] * s_w_m
+    k_base = MSK + b * s_w_b + h * s_w_h + offs_m[:, None] * s_w_m
     v_base = V + b * s_v_b + hk * s_v_h
+    d_base = DS + b * s_w_b + h * s_w_h + offs_m[:, None] * s_w_m
 
-    acc = tl.zeros([BLOCK_M], dtype=tl.float32)
-
-    for start in range(0, skv, BLOCK_N):
-        offs_n = start + tl.arange(0, BLOCK_N)
-        nm = offs_n < skv
-        v = tl.load(v_base + offs_n[:, None] * s_v_n + offs_d[None, :],
-                    mask=nm[:, None], other=0.0)
+    # ---- pass 1: row sums -------------------------------------------------
+    s = tl.zeros([BM], tl.float32)
+    for start in range(0, SKV, BN):
+        offs_n = start + tl.arange(0, BN)
+        n_mask = offs_n < SKV
+        full = m_mask[:, None] & n_mask[None, :]
+        v = tl.load(
+            v_base + offs_n[:, None] * s_v_n + offs_d[None, :],
+            mask=n_mask[:, None], other=0.0,
+        )
         dp = tl.dot(do, tl.trans(v))
-        both = mm[:, None] & nm[None, :]
-        a = tl.load(a_base + offs_n[None, :], mask=both, other=0.0).to(tl.float32)
-        if APPLY:
-            kp = tl.load(k_base + offs_n[None, :], mask=both, other=0)
-            dp = tl.where(kp != 0, dp, 0.0) / one_minus_p
-        acc += tl.sum(dp * a, axis=1)
+        w = tl.load(w_base + offs_n[None, :], mask=full, other=0.0).to(tl.float32)
+        mk = tl.load(k_base + offs_n[None, :], mask=full, other=0).to(tl.float32)
+        s += tl.sum(dp * mk * w, 1)
+    s = s * scale
 
-    for start in range(0, skv, BLOCK_N):
-        offs_n = start + tl.arange(0, BLOCK_N)
-        nm = offs_n < skv
-        v = tl.load(v_base + offs_n[:, None] * s_v_n + offs_d[None, :],
-                    mask=nm[:, None], other=0.0)
+    # ---- pass 2: gradient -------------------------------------------------
+    for start in range(0, SKV, BN):
+        offs_n = start + tl.arange(0, BN)
+        n_mask = offs_n < SKV
+        full = m_mask[:, None] & n_mask[None, :]
+        v = tl.load(
+            v_base + offs_n[:, None] * s_v_n + offs_d[None, :],
+            mask=n_mask[:, None], other=0.0,
+        )
         dp = tl.dot(do, tl.trans(v))
-        both = mm[:, None] & nm[None, :]
-        a = tl.load(a_base + offs_n[None, :], mask=both, other=0.0).to(tl.float32)
-        if APPLY:
-            kp = tl.load(k_base + offs_n[None, :], mask=both, other=0)
-            dp = tl.where(kp != 0, dp, 0.0) / one_minus_p
-        ds = a * (dp - acc[:, None])
-        tl.store(DS + b * s_a_b + h * s_a_h + offs_m[:, None] * s_a_m + offs_n[None, :],
-                 ds.to(tl.bfloat16), mask=both)
+        w = tl.load(w_base + offs_n[None, :], mask=full, other=0.0).to(tl.float32)
+        mk = tl.load(k_base + offs_n[None, :], mask=full, other=0).to(tl.float32)
+        g = dp * mk * scale
+        ds = w * (g - s[:, None])
+        tl.store(d_base + offs_n[None, :], ds.to(tl.bfloat16), mask=full)
 
 
 # ---------------------------------------------------------------------------
-# Kernel 2: grad_value_states
+# Kernel B: grad_value_states
 #
-#   dV[b,hk,j,d] = sum_{g<G} sum_m AWD[b, hk*G+g, m, j] * dO[b, m, hk*G+g, d]
+#   dV[b,hk,j,:] = sum_{g<NG} sum_i Wd[b, hk*NG+g, i, j] * dO[b, i, hk*NG+g, :]
 # ---------------------------------------------------------------------------
 @triton.jit
 def _dv_kernel(
-    AWD, DO, OUT,
-    sq, skv,
-    s_a_b, s_a_h, s_a_m,
+    WD, DO, DV,
+    SQ, SKV,
     s_do_b, s_do_m, s_do_h,
-    s_o_b, s_o_h, s_o_n,
-    n_mblk, n_chunks,
-    HK: tl.constexpr, G: tl.constexpr, D: tl.constexpr,
-    SPLIT: tl.constexpr, ATOMIC: tl.constexpr,
-    BLOCK_J: tl.constexpr, BLOCK_M: tl.constexpr,
+    s_w_b, s_w_h, s_w_m,
+    s_dv_b, s_dv_h, s_dv_n,
+    HKV: tl.constexpr, NG: tl.constexpr,
+    GPS: tl.constexpr, NSPLIT: tl.constexpr, ATOMIC: tl.constexpr,
+    BM: tl.constexpr, BN: tl.constexpr, D: tl.constexpr,
 ):
-    pid_j = tl.program_id(0)
-    pid_bh = tl.program_id(1)
-    pid_k = tl.program_id(2)
-    b = pid_bh // HK
-    hk = pid_bh % HK
-
-    offs_j = pid_j * BLOCK_J + tl.arange(0, BLOCK_J)
-    offs_d = tl.arange(0, D)
-    jm = offs_j < skv
-
-    acc = tl.zeros([BLOCK_J, D], dtype=tl.float32)
-
-    for c in range(pid_k, n_chunks, SPLIT):
-        g = c // n_mblk
-        mb = c % n_mblk
-        h = hk * G + g
-        offs_m = mb * BLOCK_M + tl.arange(0, BLOCK_M)
-        mm = offs_m < sq
-        aw = tl.load(
-            AWD + b * s_a_b + h * s_a_h + offs_m[:, None] * s_a_m + offs_j[None, :],
-            mask=mm[:, None] & jm[None, :], other=0.0,
-        )
-        do = tl.load(
-            DO + b * s_do_b + h * s_do_h + offs_m[:, None] * s_do_m + offs_d[None, :],
-            mask=mm[:, None], other=0.0,
-        )
-        acc += tl.dot(tl.trans(aw), do)
-
-    optr = OUT + b * s_o_b + hk * s_o_h + offs_j[:, None] * s_o_n + offs_d[None, :]
-    if ATOMIC:
-        tl.atomic_add(optr, acc, mask=jm[:, None], sem="relaxed")
-    else:
-        tl.store(optr, acc.to(tl.bfloat16), mask=jm[:, None])
-
-
-@triton.jit
-def _cast_kernel(SRC, DST, n, BLOCK: tl.constexpr):
     pid = tl.program_id(0)
-    offs = pid * BLOCK + tl.arange(0, BLOCK)
-    m = offs < n
-    tl.store(DST + offs, tl.load(SRC + offs, mask=m, other=0.0).to(tl.bfloat16), mask=m)
+    pid_n = tl.program_id(1)
+    sp = pid % NSPLIT
+    tmp = pid // NSPLIT
+    hk = tmp % HKV
+    b = tmp // HKV
+
+    offs_n = pid_n * BN + tl.arange(0, BN)
+    offs_d = tl.arange(0, D)
+    n_mask = offs_n < SKV
+
+    acc = tl.zeros([BN, D], tl.float32)
+    for gi in tl.static_range(GPS):
+        h = hk * NG + sp * GPS + gi
+        wd_base = WD + b * s_w_b + h * s_w_h
+        do_base = DO + b * s_do_b + h * s_do_h
+        for start in range(0, SQ, BM):
+            offs_m = start + tl.arange(0, BM)
+            m_mask = offs_m < SQ
+            wd = tl.load(
+                wd_base + offs_m[:, None] * s_w_m + offs_n[None, :],
+                mask=m_mask[:, None] & n_mask[None, :], other=0.0,
+            )
+            do = tl.load(
+                do_base + offs_m[:, None] * s_do_m + offs_d[None, :],
+                mask=m_mask[:, None], other=0.0,
+            )
+            acc += tl.dot(tl.trans(wd), do)
+
+    ptrs = DV + b * s_dv_b + hk * s_dv_h + offs_n[:, None] * s_dv_n + offs_d[None, :]
+    if ATOMIC:
+        tl.atomic_add(ptrs, acc, mask=n_mask[:, None])
+    else:
+        tl.store(ptrs, acc.to(tl.bfloat16), mask=n_mask[:, None])
 
 
-def _pick_bm(sq, n_bh):
-    # keep enough workgroups to fill 256 CUs
-    for bm in (128, 64, 32, 16):
-        if triton.cdiv(sq, bm) * n_bh >= 2048 or bm == 16:
-            return bm
-    return 32
+def _pick_split(nblocks_base, ng):
+    for ns in (1, 2, 5, 10):
+        if ns > ng:
+            break
+        if ng % ns:
+            continue
+        if nblocks_base * ns >= 1024:
+            return ns
+    return ng if nblocks_base * ng < 1024 else 1
 
 
 @torch.no_grad()
@@ -154,81 +150,71 @@ def run(
     dropout_mask: torch.Tensor,
     attention_dropout: float,
 ):
-    H = 80
-    HK = 8
-    G = H // HK
-
-    B = grad_attn_output.shape[0]
-    SQ = grad_attn_output.shape[1]
+    B, SQ, H, D = grad_attn_output.shape
+    HKV = value_states.shape[1]
     SKV = value_states.shape[2]
-    D = value_states.shape[3]
+    NG = H // HKV
 
-    if isinstance(attention_dropout, torch.Tensor):
-        p = float(attention_dropout.item())
-    else:
-        p = float(attention_dropout)
-    apply_drop = p > 0.0
-    one_minus_p = 1.0 - p
+    grad_attn_output = grad_attn_output.contiguous()
+    attn_weights = attn_weights.contiguous()
+    attn_weights_dropped = attn_weights_dropped.contiguous()
+    value_states = value_states.contiguous()
+    dropout_mask = dropout_mask.contiguous()
 
-    dev = grad_attn_output.device
+    scale = 1.0 / (1.0 - attention_dropout) if attention_dropout > 0.0 else 1.0
 
-    grad_attn_scores = torch.empty(
-        (B, H, SQ, SKV), dtype=torch.bfloat16, device=dev
-    )
+    ds = torch.empty((B, H, SQ, SKV), dtype=torch.bfloat16,
+                     device=grad_attn_output.device)
 
-    msk = dropout_mask.view(torch.uint8) if dropout_mask.dtype == torch.bool else dropout_mask
+    s_do_b, s_do_m, s_do_h = (grad_attn_output.stride(0),
+                              grad_attn_output.stride(1),
+                              grad_attn_output.stride(2))
+    s_w_b, s_w_h, s_w_m = (attn_weights.stride(0), attn_weights.stride(1),
+                           attn_weights.stride(2))
+    s_v_b, s_v_h, s_v_n = (value_states.stride(0), value_states.stride(1),
+                           value_states.stride(2))
 
-    BM = _pick_bm(SQ, B * H)
-    BN = 128 if SKV >= 128 else 64
-    if BM * BN > 8192:
-        BN = 64
-    nw = 8 if BM * BN >= 8192 else 4
-
-    _ds_kernel[(triton.cdiv(SQ, BM), B * H)](
-        grad_attn_output, attn_weights, msk, value_states, grad_attn_scores,
+    BM = 128 if SQ >= 384 else 64
+    BN = 64
+    grid_a = (B * H, triton.cdiv(SQ, BM))
+    _ds_kernel[grid_a](
+        grad_attn_output, attn_weights, dropout_mask, value_states, ds,
         SQ, SKV,
-        grad_attn_output.stride(0), grad_attn_output.stride(1), grad_attn_output.stride(2),
-        attn_weights.stride(0), attn_weights.stride(1), attn_weights.stride(2),
-        value_states.stride(0), value_states.stride(1), value_states.stride(2),
-        one_minus_p,
-        H=H, G=G, D=D, APPLY=apply_drop,
-        BLOCK_M=BM, BLOCK_N=BN,
-        num_warps=nw, num_stages=2,
+        s_do_b, s_do_m, s_do_h,
+        s_w_b, s_w_h, s_w_m,
+        s_v_b, s_v_h, s_v_n,
+        scale,
+        H=H, NG=NG, BM=BM, BN=BN, D=D,
+        num_warps=8, num_stages=2,
     )
 
-    # ---- dV ----
-    BJ = 64
+    # ---- dV ---------------------------------------------------------------
     BMv = 64
-    n_mblk = triton.cdiv(SQ, BMv)
-    n_chunks = G * n_mblk
-    base_wgs = triton.cdiv(SKV, BJ) * B * HK
-    split = 1
-    while split * 2 <= n_chunks and base_wgs * split < 1024:
-        split *= 2
-
-    if split == 1:
-        grad_value_states = torch.empty((B, HK, SKV, D), dtype=torch.bfloat16, device=dev)
-        out = grad_value_states
-        atomic = False
-    else:
-        out = torch.zeros((B, HK, SKV, D), dtype=torch.float32, device=dev)
+    BNv = 64
+    nb_base = B * HKV * triton.cdiv(SKV, BNv)
+    nsplit = _pick_split(nb_base, NG)
+    if attention_dropout <= 0.0:
+        pass
+    if nsplit > 1:
+        dv_buf = torch.zeros((B, HKV, SKV, D), dtype=torch.float32,
+                             device=grad_attn_output.device)
         atomic = True
+    else:
+        dv_buf = torch.empty((B, HKV, SKV, D), dtype=torch.bfloat16,
+                             device=grad_attn_output.device)
+        atomic = False
 
-    _dv_kernel[(triton.cdiv(SKV, BJ), B * HK, split)](
-        attn_weights_dropped, grad_attn_output, out,
+    grid_b = (B * HKV * nsplit, triton.cdiv(SKV, BNv))
+    _dv_kernel[grid_b](
+        attn_weights_dropped, grad_attn_output, dv_buf,
         SQ, SKV,
-        attn_weights_dropped.stride(0), attn_weights_dropped.stride(1), attn_weights_dropped.stride(2),
-        grad_attn_output.stride(0), grad_attn_output.stride(1), grad_attn_output.stride(2),
-        out.stride(0), out.stride(1), out.stride(2),
-        n_mblk, n_chunks,
-        HK=HK, G=G, D=D, SPLIT=split, ATOMIC=atomic,
-        BLOCK_J=BJ, BLOCK_M=BMv,
+        s_do_b, s_do_m, s_do_h,
+        s_w_b, s_w_h, s_w_m,
+        dv_buf.stride(0), dv_buf.stride(1), dv_buf.stride(2),
+        HKV=HKV, NG=NG, GPS=NG // nsplit, NSPLIT=nsplit, ATOMIC=atomic,
+        BM=BMv, BN=BNv, D=D,
         num_warps=4, num_stages=2,
     )
 
-    if atomic:
-        grad_value_states = torch.empty((B, HK, SKV, D), dtype=torch.bfloat16, device=dev)
-        n = out.numel()
-        _cast_kernel[(triton.cdiv(n, 4096),)](out, grad_value_states, n, BLOCK=4096, num_warps=4)
-
-    return grad_attn_scores, grad_value_states
+    dv = dv_buf.to(torch.bfloat16) if atomic else dv_buf
+    return ds, dv

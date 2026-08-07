@@ -1,26 +1,29 @@
-import torch, time, triton
-import reference, kern_impl
-dev=torch.device("cuda:0")
-def tm(fn,it=200):
-    for _ in range(20): fn()
-    torch.cuda.synchronize()
-    s=torch.cuda.Event(True);e=torch.cuda.Event(True);s.record()
-    for _ in range(it): fn()
-    e.record();torch.cuda.synchronize()
-    g=s.elapsed_time(e)/it*1e3
-    torch.cuda.synchronize(); t=time.perf_counter()
-    for _ in range(it): fn()
-    torch.cuda.synchronize()
-    cpu=(time.perf_counter()-t)/it*1e6
-    return round(g,1), round(cpu,1)
+import torch, triton, triton.language as tl
+from bench import make, bench, H, TOPK
+import v_csr as V
 
-for bs,sl in [(1,131),(1,8192)]:
-    d=reference.get_inputs(dict(batch_size=bs,seq_len=sl,hidden_size=3072,num_experts_per_tok=8),dev)
-    a=(d['final_hidden_states'],d['expert_outputs'],d['token_indices'])
-    N,H=a[0].shape; M=a[2].shape[0]
-    print(bs,sl,"full", tm(lambda: kern_impl.run_impl(*a,BLOCK_H=1024,KB=16)))
-    print("   allocs", tm(lambda: (torch.zeros(N+1,dtype=torch.int32,device=dev),torch.empty(N*32,dtype=torch.int32,device=dev),torch.empty(2*M,dtype=torch.int32,device=dev),torch.empty_like(a[0]))))
-    print("   clone ", tm(lambda: a[0].clone()))
-    # count distribution
-    cnt=torch.bincount(a[2],minlength=N)
-    print("   maxcnt",cnt.max().item(),"mean",cnt.float().mean().item())
+for M in [131, 1024, 8192]:
+    final, src, idx = make(M)
+    N = src.shape[0]; dev = final.device
+    B=1024; g=(triton.cdiv(N,B),)
+    cnt = torch.zeros(M+1, dtype=torch.int32, device=dev)
+    def do_count():
+        cnt.zero_(); V._count[g](idx, cnt, N, B)
+    t_cnt = bench(do_count, ())
+    cnt.zero_(); V._count[g](idx, cnt, N, B)
+    off = torch.cumsum(cnt,0,dtype=torch.int32)
+    t_cs = bench(lambda: torch.cumsum(cnt,0,dtype=torch.int32), ())
+    perm = torch.empty(N, dtype=torch.int32, device=dev)
+    def do_sc():
+        cur = off[:M].clone(); V._scatter[g](idx, cur, perm, N, B)
+    t_sc = bench(do_sc, ())
+    do_sc()
+    t_zero = bench(lambda: cnt.zero_(), ())
+    out = torch.empty_like(final)
+    best=None
+    for BH,nw in [(1024,4),(512,2),(512,4),(1024,8),(256,2),(2048,8),(1024,2)]:
+        if H % BH: continue
+        t_g = bench(lambda: V._gather[(M,H//BH)](final,src,perm,off,out,H,BH,num_warps=nw), ())
+        print(f"  M={M:5d} BH={BH:5d} nw={nw} gather={t_g:8.1f}")
+    print(f"M={M:5d} zero={t_zero:.1f} count={t_cnt:.1f} cumsum={t_cs:.1f} scatter={t_sc:.1f}")
+    print()

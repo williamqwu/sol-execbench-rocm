@@ -1,0 +1,9 @@
+Reading additional input from stdin...
+2026-08-06T01:45:38.022697Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /sgl-workspace/sol-execbench-rocm/artifacts/10/runs/full-01/codex/L2__041_kv_shared_attention_with_dual_rope/packet/kernel.py:
+        q = F.linear(hidden_states, q_proj_weight).view(b, s, 32, 96)
+        k = F.linear(hidden_states, k_proj_weight).view(b, s, 8, 96)
+        v = F.linear(hidden_states, v_proj_weight).view(b, s, 8, 96)
+        inv = _inv_freq(hidden_states.device, rope_theta)
+        _norm_rope_qkv[(b * s * 32,)](
+            q, k, v, position_ids, q_norm_weight, k_norm_weight, inv,
+            POS_STRIDE_B=position_ids.stride(0),
