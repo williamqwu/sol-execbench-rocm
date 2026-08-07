@@ -509,6 +509,17 @@ def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
                    GROUP BY p.key
                   HAVING ok = p.n_scoreable AND ok > 0)""",
             (s["id"], *((category,) if category else ()))).fetchone()[0]
+        # Problems TOUCHED, not solved. `complete` answers "how many did it get
+        # right"; this answers "how many did it try", and the board's problems
+        # column asks the second question -- a run that attempted 89 and swept
+        # 21 of them was reading as if it had only ever seen 21.
+        touched = conn.execute(
+            f"""SELECT COUNT(DISTINCT r.problem_key)
+                  FROM result r
+                  JOIN workload w ON w.problem_key=r.problem_key
+                                 AND w.uuid=r.workload_uuid
+                 WHERE r.submission_id=? AND w.scoreable=1 {where_cat}""",
+            (s["id"], *cat_arg)).fetchone()[0]
 
         out.append({
             **s,
@@ -524,18 +535,37 @@ def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
             "partial": attempted < total,
             "problems_total": total_problems,
             "problems_complete": complete,
+            "problems_attempted": touched,
+            # ONE score, two scopes, and the board switches between them rather
+            # than printing both side by side -- see the `scope` note below.
+            #
+            #   full      : divided by every scoreable workload. Never attempted
+            #               is a zero exactly like failed.
+            #   attempted : divided by what this submission was actually run on.
+            #               A failed attempt is still a zero; only workloads it
+            #               never saw leave the denominator.
+            #
+            # The API keys keep their original names, because they already meant
+            # exactly these two things and renaming them would break every
+            # consumer to gain nothing.
             "benchmark_score": (agg["score_sum"] / total) if total else 0.0,
-            # Denominator is attempts, not passes: a workload that was tried
-            # and failed scores 0 here, it does not leave the average. See the
-            # module docstring for why the other denominator is unusable.
             "mean_score_attempted": (agg["score_sum"] / attempted) if attempted else 0.0,
             "mean_score_passed": agg["score_mean"],
             "coverage": (agg["n_passed"] / total) if total else 0.0,
+            "coverage_attempted": (agg["n_passed"] / attempted) if attempted else 0.0,
             "n_flagged": agg["n_flagged"],
         })
-    out.sort(key=lambda r: (-r["benchmark_score"], -r["mean_score_attempted"]))
-    for i, r in enumerate(out, 1):
-        r["rank"] = i
+    # Two orderings, both computed here, because the ranking is not a view of
+    # the score -- it IS the score's scope, and a rank recomputed in the browser
+    # from four decimal places of printed text would disagree with this one on
+    # ties. `rank` stays the full-benchmark rank so nothing that reads the API
+    # today changes meaning.
+    for key, field in (("rank", "benchmark_score"),
+                       ("rank_attempted", "mean_score_attempted")):
+        for i, r in enumerate(
+                sorted(out, key=lambda r: (-r[field], -r["workloads_attempted"])), 1):
+            r[key] = i
+    out.sort(key=lambda r: r["rank_attempted"])
     return out
 
 
@@ -1053,8 +1083,17 @@ def v1_stats(request: Request, part: str | None = None):
 @V1.get("/leaderboard", response_model=list[LeaderboardRow])
 def v1_leaderboard(request: Request, category: str | None = None,
                    part: str | None = None):
+    """Ordered by `rank` — the full-benchmark scope, as it always was.
+
+    The HTML board now defaults to the attempted scope and `leaderboard_rows()`
+    returns that order, so the page is correct with JavaScript off. The API
+    keeps its original ordering rather than following the page: a consumer that
+    reads position N out of this list must not silently start getting a
+    different row because a UI default changed. `rank_attempted` is on every
+    row for anyone who wants the other one.
+    """
     with db(resolve_part(request, part)) as conn:
-        return leaderboard_rows(conn, category)
+        return sorted(leaderboard_rows(conn, category), key=lambda r: r["rank"])
 
 
 @V1.get("/problems", response_model=list[ProblemSummary])
@@ -1134,8 +1173,9 @@ def api_stats(request: Request, part: str | None = None):
 @app.get("/api/leaderboard")
 def api_leaderboard(request: Request, category: str | None = None,
                     part: str | None = None):
+    # Same ordering as /api/v1/leaderboard, for the same reason.
     with db(resolve_part(request, part)) as conn:
-        return leaderboard_rows(conn, category)
+        return sorted(leaderboard_rows(conn, category), key=lambda r: r["rank"])
 
 
 @app.get("/api/problems")

@@ -1,0 +1,61 @@
+import torch
+import torch.nn.functional as F
+
+NUM_HEADS = 28
+NUM_KV_HEADS = 4
+HEAD_DIM = 128
+MROPE_SECTION = [16, 24, 24]
+
+
+@torch.compile(dynamic=True)
+def apply_mrope(query_states, key_states, cos, sin):
+    mrope_section_doubled = [s * 2 for s in MROPE_SECTION]
+    cos_splits = cos.split(mrope_section_doubled, dim=-1)
+    sin_splits = sin.split(mrope_section_doubled, dim=-1)
+    cos_combined = torch.cat([m[i % 3] for i, m in enumerate(cos_splits)], dim=-1).unsqueeze(1)
+    sin_combined = torch.cat([m[i % 3] for i, m in enumerate(sin_splits)], dim=-1).unsqueeze(1)
+
+    def rotate_half(x):
+        x1 = x[..., : x.shape[-1] // 2]
+        x2 = x[..., x.shape[-1] // 2 :]
+        return torch.cat((-x2, x1), dim=-1)
+
+    query_states = (query_states * cos_combined) + (rotate_half(query_states) * sin_combined)
+    key_states = (key_states * cos_combined) + (rotate_half(key_states) * sin_combined)
+    return query_states, key_states
+
+
+@torch.no_grad()
+def run(
+    hidden_states: torch.Tensor,
+    q_weight: torch.Tensor,
+    q_bias: torch.Tensor,
+    k_weight: torch.Tensor,
+    k_bias: torch.Tensor,
+    v_weight: torch.Tensor,
+    v_bias: torch.Tensor,
+    o_weight: torch.Tensor,
+    cos: torch.Tensor,
+    sin: torch.Tensor,
+    attention_mask: torch.Tensor,
+):
+    bsz, q_len, _ = hidden_states.size()
+
+    query_states = F.linear(hidden_states, q_weight, q_bias)
+    key_states = F.linear(hidden_states, k_weight, k_bias)
+    value_states = F.linear(hidden_states, v_weight, v_bias)
+
+    query_states = query_states.view(bsz, q_len, NUM_HEADS, HEAD_DIM).transpose(1, 2)
+    key_states = key_states.view(bsz, q_len, NUM_KV_HEADS, HEAD_DIM).transpose(1, 2)
+    value_states = value_states.view(bsz, q_len, NUM_KV_HEADS, HEAD_DIM).transpose(1, 2)
+
+    query_states, key_states = apply_mrope(query_states, key_states, cos, sin)
+
+    attn_output = F.scaled_dot_product_attention(
+        query_states, key_states, value_states, is_causal=True, enable_gqa=True
+    )
+
+    attn_output = attn_output.transpose(1, 2).reshape(bsz, q_len, NUM_HEADS * HEAD_DIM)
+    output = F.linear(attn_output, o_weight)
+
+    return output

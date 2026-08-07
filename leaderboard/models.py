@@ -89,6 +89,10 @@ class LeaderboardRow(BaseModel):
         description="Mean over passes only. Provided for comparison, NOT for "
                     "ranking: it can be raised by attempting less.")
     coverage: float
+    coverage_attempted: float = Field(
+        default=0.0,
+        description="Passes over ATTEMPTS rather than over the whole "
+                    "benchmark. The pass rate of what was actually run.")
     partial: bool = Field(
         description="True when the submission was not run on every scoreable "
                     "workload, so benchmark_score is a floor.")
@@ -99,6 +103,18 @@ class LeaderboardRow(BaseModel):
     workloads_untested: int
     problems_total: int
     problems_complete: int
+    problems_attempted: int = Field(
+        default=0,
+        description="Problems this submission has at least one result on. "
+                    "`problems_complete` is the subset it swept clean.")
+    rank: int = Field(
+        default=0,
+        description="Rank under the full-benchmark scope (`benchmark_score`).")
+    rank_attempted: int = Field(
+        default=0,
+        description="Rank under the attempted scope (`mean_score_attempted`). "
+                    "This is the board's default order, and it is NOT "
+                    "comparable across rows with different coverage.")
     n_flagged: int
 
 

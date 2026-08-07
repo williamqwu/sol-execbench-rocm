@@ -1,0 +1,5786 @@
+{
+ "run_id": "glm-sweep-2",
+ "model": "GLM-5.2",
+ "harness": "codex-cli",
+ "gateway": "http://127.0.0.1:7204/v1",
+ "gpus_used_by_agents": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7
+ ],
+ "n_problems": 192,
+ "problems": [
+  "L1__003_lm_head_projection_with_logit_slicing",
+  "L1__004_attention_output_projection_with_reshape_backward",
+  "L1__005_conv_gated_projection_with_causal_conv",
+  "L1__006_hyena_depthwise_conv1d_split_gate",
+  "L1__007_hyena_fft_size_padding_rfft",
+  "L1__008_expert_output_weighted_index_add_accumulation",
+  "L1__009_expert_token_scatter_with_weighted_forward_backward",
+  "L1__010_attention_value_projection_with_transpose",
+  "L1__011_rotary_position_embedding",
+  "L1__012_fused_cos_sin_embedding_generation",
+  "L1__013_fused_residual_rms_norm_backward",
+  "L1__014_rotary_embedding_with_attention_scaling_backward",
+  "L1__015_grouped_query_attention_with_rope_and_qk_norm",
+  "L1__016_rope_inverse_frequency_computation",
+  "L1__017_moe_expert_swiglu_with_down_projection_backward",
+  "L1__018_fused_rope_with_qk_norm_and_kv_cache_update",
+  "L1__019_vision_3d_rotary_embedding_with_spatial_merge_indexing_backward",
+  "L1__020_vision_patch_merger_spatial_shuffle_mlp",
+  "L1__021_vision_cu_seqlens_variable_length_attention",
+  "L1__022_vision_mlp_gelu_backward",
+  "L1__023_multimodal_rope_position_computation_with_grid_based_indexing",
+  "L1__024_vision_rotary_position_embedding_generation_backward",
+  "L1__025_video_latent_gelu_activation",
+  "L1__026_video_patch_embedding_projection",
+  "L1__027_video_spatial_attention_with_rope_3d",
+  "L1__028_hybrid_attention_mask_preparation",
+  "L1__029_mamba_conv1d_with_gating",
+  "L1__030_attention_output_projection_with_residual",
+  "L1__031_repeat_kv_attention_matmul",
+  "L1__032_attention_weights_matmul_with_value_projection",
+  "L1__033_post_norm_residual",
+  "L1__034_flux_multi_axis_rope_frequency_computation",
+  "L1__035_flux_ada_layer_norm_zero_modulation_extraction",
+  "L1__036_flux_output_norm_projection_chain",
+  "L1__037_flux_feedforward_gelu_approximate",
+  "L1__038_flux_multi_head_rmsnorm_qk",
+  "L1__039_adaptive_instance_normalization_2d_backward",
+  "L1__040_conv2d_residual_block",
+  "L1__041_strided_conv2d_downsampling",
+  "L1__042_moe_expert_load_balancing_and_token_capacity_backward",
+  "L1__043_mla_fused_qkv_rope_split",
+  "L1__044_moe_expert_computation",
+  "L1__045_fused_linear_gelu_grn_linear",
+  "L1__046_attention_softmax_with_softcapping_and_dropout",
+  "L1__047_attention_with_qk_norm_and_rope",
+  "L1__048_fused_gate_up_projection_with_swiglu",
+  "L1__049_attention_qk_matmul_with_gqa_repeat_and_scaling",
+  "L1__050_attention_qkv_projection_with_bias_and_reshape",
+  "L1__051_attention_qkv_with_qk_norm_single_kernel_backward",
+  "L1__052_altup_hidden_state_collapse_with_magnitude_normalization",
+  "L1__053_gaussian_topk_sparse_activation",
+  "L1__054_audio_attention_qkv_projection_with_normalization",
+  "L1__055_attention_qkv_projection_with_gqa_reshape",
+  "L1__056_mamba_ssm_dt_projection_softplus_clamp_backward",
+  "L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion",
+  "L1__058_moe_expert_token_radix_sort_with_prefix_sum",
+  "L1__059_moe_group_score_aggregation_and_masking",
+  "L1__060_fused_attention_qk_matmul_scale_mask_softmax_backward",
+  "L1__061_tanh_gated_residual_add_backward",
+  "L1__062_kv_cache_update_with_rope_backward",
+  "L1__063_attention_output_reshape_and_projection",
+  "L1__064_latent_kv_expansion_with_split",
+  "L1__065_fused_statistics_projection_and_split",
+  "L1__066_masked_softmax_with_attention_dropout_backward",
+  "L1__067_flash_attention_gqa_ultralong",
+  "L1__068_fused_rope_application_backward",
+  "L1__069_rms_norm",
+  "L1__070_mamba2_fused_intra_chunk_diagonal_computation",
+  "L1__071_kv_cache_update_with_rope",
+  "L1__072_cross_attention_qkv_projection_with_gqa_repeat_backward",
+  "L1__073_fused_encoder_final_norm_to_decoder_cross_attention_kv_projection",
+  "L1__074_fused_gated_mlp_silu",
+  "L1__075_grouped_query_self_attention_with_rope",
+  "L1__076_batched_expert_forward",
+  "L1__077_whisper_decoder_output_projection",
+  "L1__078_group_norm_fusion",
+  "L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward",
+  "L1__080_adaptive_layernorm_continuous_with_modulation",
+  "L1__081_joint_attention_context_projection",
+  "L1__082_qk_norm_scaled_dot_product_attention",
+  "L1__083_attention_score_value_matmul",
+  "L1__084_silu_activation_backward",
+  "L1__085_geglu_activation",
+  "L1__086_sam_hq_mask_decoder_iou_hypernetwork_fusion",
+  "L1__087_embedding_with_initial_layernorm_backward",
+  "L1__088_rotary_position_embedding_application",
+  "L1__089_vae_attention_block_with_groupnorm",
+  "L1__090_batched_2d_rope_position_encoding_backward",
+  "L1__091_fused_gqa_qkv_rope_qk_norm_backward",
+  "L1__092_gqa_attention_with_qk_norm",
+  "L1__093_grouped_topk_moe_routing_backward",
+  "L1__094_time_decay_exponential_stabilization",
+  "L2__001_fused_vision_multihead_attention_with_norms_backward",
+  "L2__002_decoder_layer_full_block",
+  "L2__003_grouped_query_attention_with_rope_backward",
+  "L2__004_fused_residual_rms_mlp",
+  "L2__005_swiglu_mlp_backward",
+  "L2__006_multimodal_rope_position_calculation",
+  "L2__007_multimodal_rotary_embedding_attention",
+  "L2__008_moe_sparse_routing_and_dispatch",
+  "L2__009_decoder_layer_with_residual_connections",
+  "L2__010_moe_expert_computation_with_weighted_accumulation",
+  "L2__011_moe_sparse_routing_and_dispatch_backward",
+  "L2__012_moe_expert_batched_execution_with_capacity_factor",
+  "L2__013_expert_weighted_aggregation_with_shared_expert",
+  "L2__014_audio_encoder_varlen_attention_with_chunking_backward",
+  "L2__015_audio_sinusoidal_position_embedding_with_conv_projection",
+  "L2__016_moe_expert_mlp_with_load_balancing",
+  "L2__017_fused_vision_cu_seqlens_attention_with_2d_rope_backward",
+  "L2__018_cu_seqlens_variable_length_vision_attention",
+  "L2__019_decoder_layer_fused_attention_mlp",
+  "L2__020_decoder_layer_pre_post_norm_residual",
+  "L2__021_cross_attention_text_video_conditioning_backward",
+  "L2__022_video_latent_denoising_unet_block",
+  "L2__023_video_latent_vae_encoder_downsampling",
+  "L2__024_moe_expert_parallel_execution",
+  "L2__025_moe_expert_parallel_execution_backward",
+  "L2__026_moe_expert_parallel_execution_with_weighted_aggregation",
+  "L2__027_grouped_query_attention_with_yarn_rope_and_qk_norm",
+  "L2__028_gqa_rotary_attention_core_backward",
+  "L2__029_moe_sparse_routing_and_dispatch",
+  "L2__030_flux_concatenated_sequence_processing_with_split",
+  "L2__031_flux_timestep_guidance_projection_embedding",
+  "L2__032_dual_stream_attention_with_conditional_cross_attention",
+  "L2__033_multi_scale_feature_pyramid",
+  "L2__034_vision_language_cross_attention_fusion",
+  "L2__035_convnextv2_block_with_grn",
+  "L2__036_convnextv2_layer_with_nhwc_persistence_backward",
+  "L2__037_qk_norm_rope_attention_core_backward",
+  "L2__038_audio_relative_position_attention",
+  "L2__039_kv_shared_attention_with_rope",
+  "L2__040_altup_predict_correction_cycle_backward",
+  "L2__041_kv_shared_attention_with_dual_rope",
+  "L2__042_ffn_gelu_projection_fused_backward",
+  "L2__043_mamba_chunk_scan_with_segsum",
+  "L2__044_mamba_discretization_and_segsum",
+  "L2__045_audio_encoder_to_language_model_multimodal_fusion",
+  "L2__046_conformer_relative_position_attention",
+  "L2__047_moe_training_token_repeat_and_expert_computation",
+  "L2__048_moe_expert_inference_batched_dispatch",
+  "L2__049_group_limited_topk_routing",
+  "L2__050_vae_decoder_mid_block_attention_resnet",
+  "L2__051_seqlen-finetuned-reconstructed_hyena_complete_forward_block",
+  "L2__052_seqlen-finetuned-reconstructed_hyena_gating_and_output_projection",
+  "L2__053_text_decoder_layer_with_self_attention_and_mlp",
+  "L2__054_vision_encoder_layer_with_gated_residuals",
+  "L2__055_audio_encoder_conv_positional_layer_stack",
+  "L2__056_language_model_decoder_prenorm_attention_ffn_residual_backward",
+  "L2__057_residual_coupling_flow_block",
+  "L2__058_mamba2_selective_scan",
+  "L2__059_decoder_layer_full_block",
+  "L2__060_chunk_gated_delta_rule_linear_attention",
+  "L2__061_sparse_moe_routing_and_experts",
+  "L2__062_decoder_complete_layer",
+  "L2__063_encoder_layer_dual_residual_norm_chain",
+  "L2__064_multi_head_qkv_projection_with_rope_backward",
+  "L2__065_sparse_expert_dispatch_and_combine",
+  "L2__066_resnet_block_with_time_embedding",
+  "L2__067_patch_embed_to_joint_attention_input",
+  "L2__068_gelu_approximate_feedforward_backward",
+  "L2__069_joint_transformer_block_residual_path",
+  "L2__070_basic_transformer_block",
+  "L2__071_edit_consistency_loss_with_perceptual_weighting",
+  "L2__072_region_aware_self_attention_with_edit_bias_backward",
+  "L2__073_feedforward_mlp_backward",
+  "L2__074_sam_hq_mask_decoder_iou_hypernetwork_fusion_backward",
+  "L2__075_sam_hq_mask_decoder_two_way_transformer",
+  "L2__076_sam_hq_vision_attention_with_relative_position_backward",
+  "L2__077_sam_hq_vision_encoder_window_partition_attention",
+  "L2__078_fused_final_layer_upsample_with_adaptive_norm",
+  "L2__079_git_vision_encoder_layer",
+  "L2__080_moe_complete_layer_with_shared_expert_backward",
+  "L2__081_moe_sparse_expert_dispatch",
+  "L2__082_moe_layer_complete_forward_with_residual",
+  "Quant__001_fp8_attention_output_projection",
+  "Quant__002_fp8_attention_qkv_projection",
+  "Quant__003_fp8_mlp_gate_up_projection",
+  "Quant__004_fp8_moe_expert_linear",
+  "Quant__005_fp8_moe_router_projection",
+  "Quant__006_fp8_vision_attention_output_projection",
+  "Quant__007_fp8_vision_attention_qkv_projection",
+  "Quant__010_fp8_attention_output_projection",
+  "Quant__011_fp8_moe_gate_routing",
+  "Quant__012_fp8_shared_expert_mlp",
+  "Quant__013_fp8_mla_kv_compression_projection",
+  "Quant__014_fp8_yarn_rope_embedding",
+  "Quant__015_fp8_mla_attention_output_projection",
+  "Quant__016_fp8_multi_latent_attention_qkv_projection",
+  "Quant__017_fp8_shared_expert_mlp",
+  "Quant__021_fp8_mamba2_in_projection",
+  "Quant__022_fp8_mamba2_out_projection",
+  "Quant__023_fp8_mamba2_ssm_discretization"
+ ],
+ "sessions": {
+  "L1__003_lm_head_projection_with_logit_slicing": {
+   "problem": "L1__003_lm_head_projection_with_logit_slicing",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__003_lm_head_projection_with_logit_slicing",
+   "definition": "003_lm_head_projection_with_logit_slicing",
+   "n_workloads": 16,
+   "task_chars": 8116,
+   "job_id": "j-df996d890991",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2823648,
+     "completion_tokens": 48865,
+     "reasoning_tokens": 16965,
+     "total_tokens": 2872513,
+     "calls": 60,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__004_attention_output_projection_with_reshape_backward": {
+   "problem": "L1__004_attention_output_projection_with_reshape_backward",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__004_attention_output_projection_with_reshape_backward",
+   "definition": "004_attention_output_projection_with_reshape_backward",
+   "n_workloads": 16,
+   "task_chars": 7638,
+   "job_id": "j-246e24a828b2",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2955661,
+     "completion_tokens": 65883,
+     "reasoning_tokens": 30549,
+     "total_tokens": 3021544,
+     "calls": 69,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__005_conv_gated_projection_with_causal_conv": {
+   "problem": "L1__005_conv_gated_projection_with_causal_conv",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__005_conv_gated_projection_with_causal_conv",
+   "definition": "005_conv_gated_projection_with_causal_conv",
+   "n_workloads": 16,
+   "task_chars": 7903,
+   "job_id": "j-b3f4d0e969a9",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4632788,
+     "completion_tokens": 54199,
+     "reasoning_tokens": 10237,
+     "total_tokens": 4686987,
+     "calls": 91,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__006_hyena_depthwise_conv1d_split_gate": {
+   "problem": "L1__006_hyena_depthwise_conv1d_split_gate",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__006_hyena_depthwise_conv1d_split_gate",
+   "definition": "006_hyena_depthwise_conv1d_split_gate",
+   "n_workloads": 16,
+   "task_chars": 7201,
+   "job_id": "j-3efcde026f74",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 619836,
+     "completion_tokens": 68657,
+     "reasoning_tokens": 44628,
+     "total_tokens": 688493,
+     "calls": 25,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__007_hyena_fft_size_padding_rfft": {
+   "problem": "L1__007_hyena_fft_size_padding_rfft",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__007_hyena_fft_size_padding_rfft",
+   "definition": "007_hyena_fft_size_padding_rfft",
+   "n_workloads": 16,
+   "task_chars": 6534,
+   "job_id": "j-ba04dab7c4d6",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2320950,
+     "completion_tokens": 40479,
+     "reasoning_tokens": 9114,
+     "total_tokens": 2361429,
+     "calls": 66,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__008_expert_output_weighted_index_add_accumulation": {
+   "problem": "L1__008_expert_output_weighted_index_add_accumulation",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__008_expert_output_weighted_index_add_accumulation",
+   "definition": "008_expert_output_weighted_index_add_accumulation",
+   "n_workloads": 16,
+   "task_chars": 7937,
+   "job_id": "j-a36a6128805a",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2522253,
+     "completion_tokens": 59930,
+     "reasoning_tokens": 31286,
+     "total_tokens": 2582183,
+     "calls": 63,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__009_expert_token_scatter_with_weighted_forward_backward": {
+   "problem": "L1__009_expert_token_scatter_with_weighted_forward_backward",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__009_expert_token_scatter_with_weighted_forward_backward",
+   "definition": "009_expert_token_scatter_with_weighted_forward_backward",
+   "n_workloads": 16,
+   "task_chars": 13683,
+   "job_id": "j-31eb3a9bf1e6",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1847854,
+     "completion_tokens": 38989,
+     "reasoning_tokens": 16628,
+     "total_tokens": 1886843,
+     "calls": 48,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__010_attention_value_projection_with_transpose": {
+   "problem": "L1__010_attention_value_projection_with_transpose",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__010_attention_value_projection_with_transpose",
+   "definition": "010_attention_value_projection_with_transpose",
+   "n_workloads": 16,
+   "task_chars": 6772,
+   "job_id": "j-e9376982b363",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2784870,
+     "completion_tokens": 41127,
+     "reasoning_tokens": 14322,
+     "total_tokens": 2825997,
+     "calls": 65,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__011_rotary_position_embedding": {
+   "problem": "L1__011_rotary_position_embedding",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__011_rotary_position_embedding",
+   "definition": "011_rotary_position_embedding",
+   "n_workloads": 16,
+   "task_chars": 8624,
+   "job_id": "j-74a386a932f8",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1256788,
+     "completion_tokens": 32873,
+     "reasoning_tokens": 10271,
+     "total_tokens": 1289661,
+     "calls": 42,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__012_fused_cos_sin_embedding_generation": {
+   "problem": "L1__012_fused_cos_sin_embedding_generation",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__012_fused_cos_sin_embedding_generation",
+   "definition": "012_fused_cos_sin_embedding_generation",
+   "n_workloads": 16,
+   "task_chars": 6416,
+   "job_id": "j-cc3670c0e689",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1458684,
+     "completion_tokens": 18977,
+     "reasoning_tokens": 6378,
+     "total_tokens": 1477661,
+     "calls": 60,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__013_fused_residual_rms_norm_backward": {
+   "problem": "L1__013_fused_residual_rms_norm_backward",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__013_fused_residual_rms_norm_backward",
+   "definition": "013_fused_residual_rms_norm_backward",
+   "n_workloads": 16,
+   "task_chars": 7081,
+   "job_id": "j-20684c5b6de6",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 949910,
+     "completion_tokens": 22037,
+     "reasoning_tokens": 12864,
+     "total_tokens": 971947,
+     "calls": 39,
+     "failed_calls": 4
+    }
+   }
+  },
+  "L1__014_rotary_embedding_with_attention_scaling_backward": {
+   "problem": "L1__014_rotary_embedding_with_attention_scaling_backward",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__014_rotary_embedding_with_attention_scaling_backward",
+   "definition": "014_rotary_embedding_with_attention_scaling_backward",
+   "n_workloads": 16,
+   "task_chars": 8848,
+   "job_id": "j-11b5034253f5",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1776904,
+     "completion_tokens": 32836,
+     "reasoning_tokens": 18467,
+     "total_tokens": 1809740,
+     "calls": 53,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__015_grouped_query_attention_with_rope_and_qk_norm": {
+   "problem": "L1__015_grouped_query_attention_with_rope_and_qk_norm",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__015_grouped_query_attention_with_rope_and_qk_norm",
+   "definition": "015_grouped_query_attention_with_rope_and_qk_norm",
+   "n_workloads": 16,
+   "task_chars": 10632,
+   "job_id": "j-ca82089d77e1",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1456818,
+     "completion_tokens": 35739,
+     "reasoning_tokens": 12909,
+     "total_tokens": 1492557,
+     "calls": 44,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__016_rope_inverse_frequency_computation": {
+   "problem": "L1__016_rope_inverse_frequency_computation",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__016_rope_inverse_frequency_computation",
+   "definition": "016_rope_inverse_frequency_computation",
+   "n_workloads": 16,
+   "task_chars": 5813,
+   "job_id": "j-0952f972de91",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 665080,
+     "completion_tokens": 15275,
+     "reasoning_tokens": 10369,
+     "total_tokens": 680355,
+     "calls": 30,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__017_moe_expert_swiglu_with_down_projection_backward": {
+   "problem": "L1__017_moe_expert_swiglu_with_down_projection_backward",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__017_moe_expert_swiglu_with_down_projection_backward",
+   "definition": "017_moe_expert_swiglu_with_down_projection_backward",
+   "n_workloads": 16,
+   "task_chars": 10061,
+   "job_id": "j-95daf26b18f8",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 180025,
+     "completion_tokens": 7213,
+     "reasoning_tokens": 4742,
+     "total_tokens": 187238,
+     "calls": 15,
+     "failed_calls": 4
+    }
+   }
+  },
+  "L1__018_fused_rope_with_qk_norm_and_kv_cache_update": {
+   "problem": "L1__018_fused_rope_with_qk_norm_and_kv_cache_update",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__018_fused_rope_with_qk_norm_and_kv_cache_update",
+   "definition": "018_fused_rope_with_qk_norm_and_kv_cache_update",
+   "n_workloads": 13,
+   "task_chars": 10662,
+   "job_id": "j-5eb94584fa14",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "failed",
+    "exit_code": 1,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 121296,
+     "completion_tokens": 754,
+     "reasoning_tokens": 159,
+     "total_tokens": 122050,
+     "calls": 13,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L1__019_vision_3d_rotary_embedding_with_spatial_merge_indexing_backward": {
+   "problem": "L1__019_vision_3d_rotary_embedding_with_spatial_merge_indexing_backward",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__019_vision_3d_rotary_embedding_with_spatial_merge_indexing_backward",
+   "definition": "019_vision_3d_rotary_embedding_with_spatial_merge_indexing_backward",
+   "n_workloads": 16,
+   "task_chars": 9161,
+   "job_id": "j-140764e08229",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "failed",
+    "exit_code": 1,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 22454,
+     "completion_tokens": 234,
+     "reasoning_tokens": 71,
+     "total_tokens": 22688,
+     "calls": 8,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L1__020_vision_patch_merger_spatial_shuffle_mlp": {
+   "problem": "L1__020_vision_patch_merger_spatial_shuffle_mlp",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__020_vision_patch_merger_spatial_shuffle_mlp",
+   "definition": "020_vision_patch_merger_spatial_shuffle_mlp",
+   "n_workloads": 15,
+   "task_chars": 12318,
+   "job_id": "j-a4bd1a1810b3",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 180742,
+     "completion_tokens": 1488,
+     "reasoning_tokens": 135,
+     "total_tokens": 182230,
+     "calls": 18,
+     "failed_calls": 7
+    }
+   }
+  },
+  "L1__021_vision_cu_seqlens_variable_length_attention": {
+   "problem": "L1__021_vision_cu_seqlens_variable_length_attention",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__021_vision_cu_seqlens_variable_length_attention",
+   "definition": "021_vision_cu_seqlens_variable_length_attention",
+   "n_workloads": 16,
+   "task_chars": 13360,
+   "job_id": "j-f785c75f776a",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 255637,
+     "completion_tokens": 11197,
+     "reasoning_tokens": 5796,
+     "total_tokens": 266834,
+     "calls": 21,
+     "failed_calls": 5
+    }
+   }
+  },
+  "L1__022_vision_mlp_gelu_backward": {
+   "problem": "L1__022_vision_mlp_gelu_backward",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__022_vision_mlp_gelu_backward",
+   "definition": "022_vision_mlp_gelu_backward",
+   "n_workloads": 16,
+   "task_chars": 8502,
+   "job_id": "j-1cb3025c1024",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "failed",
+    "exit_code": 1,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 55260,
+     "completion_tokens": 671,
+     "reasoning_tokens": 57,
+     "total_tokens": 55931,
+     "calls": 12,
+     "failed_calls": 7
+    }
+   }
+  },
+  "L1__023_multimodal_rope_position_computation_with_grid_based_indexing": {
+   "problem": "L1__023_multimodal_rope_position_computation_with_grid_based_indexing",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__023_multimodal_rope_position_computation_with_grid_based_indexing",
+   "definition": "023_multimodal_rope_position_computation_with_grid_based_indexing",
+   "n_workloads": 16,
+   "task_chars": 14111,
+   "job_id": "j-be90f256e04b",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "failed",
+    "exit_code": 1,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 84872,
+     "completion_tokens": 660,
+     "reasoning_tokens": 160,
+     "total_tokens": 85532,
+     "calls": 12,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L1__024_vision_rotary_position_embedding_generation_backward": {
+   "problem": "L1__024_vision_rotary_position_embedding_generation_backward",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__024_vision_rotary_position_embedding_generation_backward",
+   "definition": "024_vision_rotary_position_embedding_generation_backward",
+   "n_workloads": 16,
+   "task_chars": 10093,
+   "job_id": "j-941877371bc5",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 899497,
+     "completion_tokens": 28881,
+     "reasoning_tokens": 4711,
+     "total_tokens": 928378,
+     "calls": 34,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L1__025_video_latent_gelu_activation": {
+   "problem": "L1__025_video_latent_gelu_activation",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__025_video_latent_gelu_activation",
+   "definition": "025_video_latent_gelu_activation",
+   "n_workloads": 16,
+   "task_chars": 5804,
+   "job_id": "j-932d089448bf",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 3,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1245208,
+     "completion_tokens": 26040,
+     "reasoning_tokens": 11267,
+     "total_tokens": 1271248,
+     "calls": 47,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__026_video_patch_embedding_projection": {
+   "problem": "L1__026_video_patch_embedding_projection",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__026_video_patch_embedding_projection",
+   "definition": "026_video_patch_embedding_projection",
+   "n_workloads": 4,
+   "task_chars": 9106,
+   "job_id": "j-85f7da5165fb",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 685733,
+     "completion_tokens": 14240,
+     "reasoning_tokens": 3316,
+     "total_tokens": 699973,
+     "calls": 41,
+     "failed_calls": 8
+    }
+   }
+  },
+  "L1__027_video_spatial_attention_with_rope_3d": {
+   "problem": "L1__027_video_spatial_attention_with_rope_3d",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__027_video_spatial_attention_with_rope_3d",
+   "definition": "027_video_spatial_attention_with_rope_3d",
+   "n_workloads": 16,
+   "task_chars": 12715,
+   "job_id": "j-f5bb5f0ea98c",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1711298,
+     "completion_tokens": 28084,
+     "reasoning_tokens": 6716,
+     "total_tokens": 1739382,
+     "calls": 53,
+     "failed_calls": 5
+    }
+   }
+  },
+  "L1__028_hybrid_attention_mask_preparation": {
+   "problem": "L1__028_hybrid_attention_mask_preparation",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__028_hybrid_attention_mask_preparation",
+   "definition": "028_hybrid_attention_mask_preparation",
+   "n_workloads": 12,
+   "task_chars": 8493,
+   "job_id": "j-b46bd1e179d7",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 742548,
+     "completion_tokens": 18663,
+     "reasoning_tokens": 14296,
+     "total_tokens": 761211,
+     "calls": 35,
+     "failed_calls": 8
+    }
+   }
+  },
+  "L1__029_mamba_conv1d_with_gating": {
+   "problem": "L1__029_mamba_conv1d_with_gating",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__029_mamba_conv1d_with_gating",
+   "definition": "029_mamba_conv1d_with_gating",
+   "n_workloads": 16,
+   "task_chars": 8074,
+   "job_id": "j-ad771628c1b1",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 280180,
+     "completion_tokens": 25983,
+     "reasoning_tokens": 17303,
+     "total_tokens": 306163,
+     "calls": 25,
+     "failed_calls": 8
+    }
+   }
+  },
+  "L1__030_attention_output_projection_with_residual": {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__030_attention_output_projection_with_residual",
+   "definition": "030_attention_output_projection_with_residual",
+   "n_workloads": 16,
+   "task_chars": 6804,
+   "job_id": "j-6b6de50498fe",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1916751,
+     "completion_tokens": 35106,
+     "reasoning_tokens": 16819,
+     "total_tokens": 1951857,
+     "calls": 52,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L1__031_repeat_kv_attention_matmul": {
+   "problem": "L1__031_repeat_kv_attention_matmul",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__031_repeat_kv_attention_matmul",
+   "definition": "031_repeat_kv_attention_matmul",
+   "n_workloads": 16,
+   "task_chars": 6990,
+   "job_id": "j-5531e914e1bf",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1266373,
+     "completion_tokens": 22926,
+     "reasoning_tokens": 6355,
+     "total_tokens": 1289299,
+     "calls": 44,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__032_attention_weights_matmul_with_value_projection": {
+   "problem": "L1__032_attention_weights_matmul_with_value_projection",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__032_attention_weights_matmul_with_value_projection",
+   "definition": "032_attention_weights_matmul_with_value_projection",
+   "n_workloads": 16,
+   "task_chars": 7025,
+   "job_id": "j-a177a16cbb7b",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 160087,
+     "completion_tokens": 11109,
+     "reasoning_tokens": 7765,
+     "total_tokens": 171196,
+     "calls": 20,
+     "failed_calls": 10
+    }
+   }
+  },
+  "L1__033_post_norm_residual": {
+   "problem": "L1__033_post_norm_residual",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__033_post_norm_residual",
+   "definition": "033_post_norm_residual",
+   "n_workloads": 16,
+   "task_chars": 7020,
+   "job_id": "j-1145f5478c91",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 788415,
+     "completion_tokens": 22304,
+     "reasoning_tokens": 3307,
+     "total_tokens": 810719,
+     "calls": 33,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__034_flux_multi_axis_rope_frequency_computation": {
+   "problem": "L1__034_flux_multi_axis_rope_frequency_computation",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__034_flux_multi_axis_rope_frequency_computation",
+   "definition": "034_flux_multi_axis_rope_frequency_computation",
+   "n_workloads": 16,
+   "task_chars": 7660,
+   "job_id": "j-f0dc89075bee",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 783393,
+     "completion_tokens": 14348,
+     "reasoning_tokens": 3500,
+     "total_tokens": 797741,
+     "calls": 32,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L1__035_flux_ada_layer_norm_zero_modulation_extraction": {
+   "problem": "L1__035_flux_ada_layer_norm_zero_modulation_extraction",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__035_flux_ada_layer_norm_zero_modulation_extraction",
+   "definition": "035_flux_ada_layer_norm_zero_modulation_extraction",
+   "n_workloads": 16,
+   "task_chars": 6774,
+   "job_id": "j-17afe9a52d92",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 344827,
+     "completion_tokens": 11671,
+     "reasoning_tokens": 6608,
+     "total_tokens": 356498,
+     "calls": 22,
+     "failed_calls": 5
+    }
+   }
+  },
+  "L1__036_flux_output_norm_projection_chain": {
+   "problem": "L1__036_flux_output_norm_projection_chain",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__036_flux_output_norm_projection_chain",
+   "definition": "036_flux_output_norm_projection_chain",
+   "n_workloads": 16,
+   "task_chars": 8233,
+   "job_id": "j-ded2860ed536",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1121637,
+     "completion_tokens": 12148,
+     "reasoning_tokens": 2710,
+     "total_tokens": 1133785,
+     "calls": 39,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__037_flux_feedforward_gelu_approximate": {
+   "problem": "L1__037_flux_feedforward_gelu_approximate",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__037_flux_feedforward_gelu_approximate",
+   "definition": "037_flux_feedforward_gelu_approximate",
+   "n_workloads": 16,
+   "task_chars": 6638,
+   "job_id": "j-62bb4cb8bbdf",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 112757,
+     "completion_tokens": 1013,
+     "reasoning_tokens": 346,
+     "total_tokens": 113770,
+     "calls": 14,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L1__038_flux_multi_head_rmsnorm_qk": {
+   "problem": "L1__038_flux_multi_head_rmsnorm_qk",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__038_flux_multi_head_rmsnorm_qk",
+   "definition": "038_flux_multi_head_rmsnorm_qk",
+   "n_workloads": 16,
+   "task_chars": 7134,
+   "job_id": "j-577936511ef1",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 101821,
+     "completion_tokens": 2922,
+     "reasoning_tokens": 2304,
+     "total_tokens": 104743,
+     "calls": 14,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L1__039_adaptive_instance_normalization_2d_backward": {
+   "problem": "L1__039_adaptive_instance_normalization_2d_backward",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__039_adaptive_instance_normalization_2d_backward",
+   "definition": "039_adaptive_instance_normalization_2d_backward",
+   "n_workloads": 16,
+   "task_chars": 7994,
+   "job_id": "j-d99175e9472e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 166806,
+     "completion_tokens": 3108,
+     "reasoning_tokens": 1208,
+     "total_tokens": 169914,
+     "calls": 19,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L1__040_conv2d_residual_block": {
+   "problem": "L1__040_conv2d_residual_block",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__040_conv2d_residual_block",
+   "definition": "040_conv2d_residual_block",
+   "n_workloads": 16,
+   "task_chars": 6808,
+   "job_id": "j-a4cefd4f10c7",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "failed",
+    "exit_code": 1,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 65026,
+     "completion_tokens": 685,
+     "reasoning_tokens": 167,
+     "total_tokens": 65711,
+     "calls": 11,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L1__041_strided_conv2d_downsampling": {
+   "problem": "L1__041_strided_conv2d_downsampling",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__041_strided_conv2d_downsampling",
+   "definition": "041_strided_conv2d_downsampling",
+   "n_workloads": 16,
+   "task_chars": 6874,
+   "job_id": "j-ddadae9a2e6e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 110471,
+     "completion_tokens": 2225,
+     "reasoning_tokens": 1096,
+     "total_tokens": 112696,
+     "calls": 14,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L1__042_moe_expert_load_balancing_and_token_capacity_backward": {
+   "problem": "L1__042_moe_expert_load_balancing_and_token_capacity_backward",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__042_moe_expert_load_balancing_and_token_capacity_backward",
+   "definition": "042_moe_expert_load_balancing_and_token_capacity_backward",
+   "n_workloads": 16,
+   "task_chars": 10026,
+   "job_id": "j-737eac98c3e0",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 53929,
+     "completion_tokens": 2801,
+     "reasoning_tokens": 2376,
+     "total_tokens": 56730,
+     "calls": 10,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L1__043_mla_fused_qkv_rope_split": {
+   "problem": "L1__043_mla_fused_qkv_rope_split",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__043_mla_fused_qkv_rope_split",
+   "definition": "043_mla_fused_qkv_rope_split",
+   "n_workloads": 16,
+   "task_chars": 8623,
+   "job_id": "j-c6e78c999cb4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 256007,
+     "completion_tokens": 10067,
+     "reasoning_tokens": 6123,
+     "total_tokens": 266074,
+     "calls": 21,
+     "failed_calls": 5
+    }
+   }
+  },
+  "L1__044_moe_expert_computation": {
+   "problem": "L1__044_moe_expert_computation",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__044_moe_expert_computation",
+   "definition": "044_moe_expert_computation",
+   "n_workloads": 16,
+   "task_chars": 10459,
+   "job_id": "j-48650b449faa",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 77728,
+     "completion_tokens": 576,
+     "reasoning_tokens": 69,
+     "total_tokens": 78304,
+     "calls": 10,
+     "failed_calls": 5
+    }
+   }
+  },
+  "L1__045_fused_linear_gelu_grn_linear": {
+   "problem": "L1__045_fused_linear_gelu_grn_linear",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__045_fused_linear_gelu_grn_linear",
+   "definition": "045_fused_linear_gelu_grn_linear",
+   "n_workloads": 14,
+   "task_chars": 7016,
+   "job_id": "j-f57e5486fbc0",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1032056,
+     "completion_tokens": 29337,
+     "reasoning_tokens": 10109,
+     "total_tokens": 1061393,
+     "calls": 42,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L1__046_attention_softmax_with_softcapping_and_dropout": {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__046_attention_softmax_with_softcapping_and_dropout",
+   "definition": "046_attention_softmax_with_softcapping_and_dropout",
+   "n_workloads": 16,
+   "task_chars": 6831,
+   "job_id": "j-6c768c410ab5",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 607377,
+     "completion_tokens": 32090,
+     "reasoning_tokens": 16867,
+     "total_tokens": 639467,
+     "calls": 30,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L1__047_attention_with_qk_norm_and_rope": {
+   "problem": "L1__047_attention_with_qk_norm_and_rope",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__047_attention_with_qk_norm_and_rope",
+   "definition": "047_attention_with_qk_norm_and_rope",
+   "n_workloads": 16,
+   "task_chars": 10360,
+   "job_id": "j-beb7b2f6ab0f",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1925704,
+     "completion_tokens": 27702,
+     "reasoning_tokens": 10808,
+     "total_tokens": 1953406,
+     "calls": 66,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L1__048_fused_gate_up_projection_with_swiglu": {
+   "problem": "L1__048_fused_gate_up_projection_with_swiglu",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__048_fused_gate_up_projection_with_swiglu",
+   "definition": "048_fused_gate_up_projection_with_swiglu",
+   "n_workloads": 16,
+   "task_chars": 7200,
+   "job_id": "j-d090ed8adbd8",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1109598,
+     "completion_tokens": 30328,
+     "reasoning_tokens": 10830,
+     "total_tokens": 1139926,
+     "calls": 44,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__049_attention_qk_matmul_with_gqa_repeat_and_scaling": {
+   "problem": "L1__049_attention_qk_matmul_with_gqa_repeat_and_scaling",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__049_attention_qk_matmul_with_gqa_repeat_and_scaling",
+   "definition": "049_attention_qk_matmul_with_gqa_repeat_and_scaling",
+   "n_workloads": 16,
+   "task_chars": 7342,
+   "job_id": "j-5128d29ccae4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2975470,
+     "completion_tokens": 48393,
+     "reasoning_tokens": 16196,
+     "total_tokens": 3023863,
+     "calls": 69,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L1__050_attention_qkv_projection_with_bias_and_reshape": {
+   "problem": "L1__050_attention_qkv_projection_with_bias_and_reshape",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__050_attention_qkv_projection_with_bias_and_reshape",
+   "definition": "050_attention_qkv_projection_with_bias_and_reshape",
+   "n_workloads": 16,
+   "task_chars": 8483,
+   "job_id": "j-75bbb14da2a0",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3239890,
+     "completion_tokens": 43921,
+     "reasoning_tokens": 11026,
+     "total_tokens": 3283811,
+     "calls": 67,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__051_attention_qkv_with_qk_norm_single_kernel_backward": {
+   "problem": "L1__051_attention_qkv_with_qk_norm_single_kernel_backward",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__051_attention_qkv_with_qk_norm_single_kernel_backward",
+   "definition": "051_attention_qkv_with_qk_norm_single_kernel_backward",
+   "n_workloads": 16,
+   "task_chars": 11527,
+   "job_id": "j-b4a7709039a0",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1067747,
+     "completion_tokens": 25797,
+     "reasoning_tokens": 13602,
+     "total_tokens": 1093544,
+     "calls": 45,
+     "failed_calls": 5
+    }
+   }
+  },
+  "L1__052_altup_hidden_state_collapse_with_magnitude_normalization": {
+   "problem": "L1__052_altup_hidden_state_collapse_with_magnitude_normalization",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__052_altup_hidden_state_collapse_with_magnitude_normalization",
+   "definition": "052_altup_hidden_state_collapse_with_magnitude_normalization",
+   "n_workloads": 16,
+   "task_chars": 8273,
+   "job_id": "j-8b54152bcf68",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1732560,
+     "completion_tokens": 27848,
+     "reasoning_tokens": 9197,
+     "total_tokens": 1760408,
+     "calls": 64,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__053_gaussian_topk_sparse_activation": {
+   "problem": "L1__053_gaussian_topk_sparse_activation",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__053_gaussian_topk_sparse_activation",
+   "definition": "053_gaussian_topk_sparse_activation",
+   "n_workloads": 12,
+   "task_chars": 9601,
+   "job_id": "j-9025eabbfb49",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1125370,
+     "completion_tokens": 33703,
+     "reasoning_tokens": 12712,
+     "total_tokens": 1159073,
+     "calls": 39,
+     "failed_calls": 4
+    }
+   }
+  },
+  "L1__054_audio_attention_qkv_projection_with_normalization": {
+   "problem": "L1__054_audio_attention_qkv_projection_with_normalization",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__054_audio_attention_qkv_projection_with_normalization",
+   "definition": "054_audio_attention_qkv_projection_with_normalization",
+   "n_workloads": 16,
+   "task_chars": 8314,
+   "job_id": "j-792eb5aca431",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2534926,
+     "completion_tokens": 33764,
+     "reasoning_tokens": 13426,
+     "total_tokens": 2568690,
+     "calls": 71,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__055_attention_qkv_projection_with_gqa_reshape": {
+   "problem": "L1__055_attention_qkv_projection_with_gqa_reshape",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__055_attention_qkv_projection_with_gqa_reshape",
+   "definition": "055_attention_qkv_projection_with_gqa_reshape",
+   "n_workloads": 16,
+   "task_chars": 7908,
+   "job_id": "j-79626d9f3c32",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2131789,
+     "completion_tokens": 34826,
+     "reasoning_tokens": 10300,
+     "total_tokens": 2166615,
+     "calls": 60,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__056_mamba_ssm_dt_projection_softplus_clamp_backward": {
+   "problem": "L1__056_mamba_ssm_dt_projection_softplus_clamp_backward",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__056_mamba_ssm_dt_projection_softplus_clamp_backward",
+   "definition": "056_mamba_ssm_dt_projection_softplus_clamp_backward",
+   "n_workloads": 16,
+   "task_chars": 7790,
+   "job_id": "j-14355a6c6594",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "failed",
+    "exit_code": 1,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 78886,
+     "completion_tokens": 416,
+     "reasoning_tokens": 72,
+     "total_tokens": 79302,
+     "calls": 12,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion": {
+   "problem": "L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion",
+   "definition": "057_mtp_shifted_embedding_with_dual_rms_norm_fusion",
+   "n_workloads": 16,
+   "task_chars": 10463,
+   "job_id": "j-75e99dd28bd4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1634238,
+     "completion_tokens": 29784,
+     "reasoning_tokens": 9322,
+     "total_tokens": 1664022,
+     "calls": 49,
+     "failed_calls": 5
+    }
+   }
+  },
+  "L1__058_moe_expert_token_radix_sort_with_prefix_sum": {
+   "problem": "L1__058_moe_expert_token_radix_sort_with_prefix_sum",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__058_moe_expert_token_radix_sort_with_prefix_sum",
+   "definition": "058_moe_expert_token_radix_sort_with_prefix_sum",
+   "n_workloads": 16,
+   "task_chars": 7288,
+   "job_id": "j-504b6064e03e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1766001,
+     "completion_tokens": 29845,
+     "reasoning_tokens": 8489,
+     "total_tokens": 1795846,
+     "calls": 61,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__059_moe_group_score_aggregation_and_masking": {
+   "problem": "L1__059_moe_group_score_aggregation_and_masking",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__059_moe_group_score_aggregation_and_masking",
+   "definition": "059_moe_group_score_aggregation_and_masking",
+   "n_workloads": 16,
+   "task_chars": 7433,
+   "job_id": "j-374132b00a41",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 619364,
+     "completion_tokens": 31635,
+     "reasoning_tokens": 21468,
+     "total_tokens": 650999,
+     "calls": 34,
+     "failed_calls": 7
+    }
+   }
+  },
+  "L1__060_fused_attention_qk_matmul_scale_mask_softmax_backward": {
+   "problem": "L1__060_fused_attention_qk_matmul_scale_mask_softmax_backward",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__060_fused_attention_qk_matmul_scale_mask_softmax_backward",
+   "definition": "060_fused_attention_qk_matmul_scale_mask_softmax_backward",
+   "n_workloads": 16,
+   "task_chars": 8555,
+   "job_id": "j-926e8aa5c616",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 293610,
+     "completion_tokens": 21043,
+     "reasoning_tokens": 16797,
+     "total_tokens": 314653,
+     "calls": 23,
+     "failed_calls": 8
+    }
+   }
+  },
+  "L1__061_tanh_gated_residual_add_backward": {
+   "problem": "L1__061_tanh_gated_residual_add_backward",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__061_tanh_gated_residual_add_backward",
+   "definition": "061_tanh_gated_residual_add_backward",
+   "n_workloads": 16,
+   "task_chars": 7230,
+   "job_id": "j-e01a09456c2e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1801797,
+     "completion_tokens": 31007,
+     "reasoning_tokens": 5316,
+     "total_tokens": 1832804,
+     "calls": 60,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L1__062_kv_cache_update_with_rope_backward": {
+   "problem": "L1__062_kv_cache_update_with_rope_backward",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__062_kv_cache_update_with_rope_backward",
+   "definition": "062_kv_cache_update_with_rope_backward",
+   "n_workloads": 16,
+   "task_chars": 9928,
+   "job_id": "j-6d6d18dcba81",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1830436,
+     "completion_tokens": 47729,
+     "reasoning_tokens": 12421,
+     "total_tokens": 1878165,
+     "calls": 58,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L1__063_attention_output_reshape_and_projection": {
+   "problem": "L1__063_attention_output_reshape_and_projection",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__063_attention_output_reshape_and_projection",
+   "definition": "063_attention_output_reshape_and_projection",
+   "n_workloads": 16,
+   "task_chars": 7228,
+   "job_id": "j-3d426120c7d6",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1865282,
+     "completion_tokens": 55614,
+     "reasoning_tokens": 23943,
+     "total_tokens": 1920896,
+     "calls": 49,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__064_latent_kv_expansion_with_split": {
+   "problem": "L1__064_latent_kv_expansion_with_split",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__064_latent_kv_expansion_with_split",
+   "definition": "064_latent_kv_expansion_with_split",
+   "n_workloads": 16,
+   "task_chars": 8051,
+   "job_id": "j-feca1786228f",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2428301,
+     "completion_tokens": 45261,
+     "reasoning_tokens": 7287,
+     "total_tokens": 2473562,
+     "calls": 58,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__065_fused_statistics_projection_and_split": {
+   "problem": "L1__065_fused_statistics_projection_and_split",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__065_fused_statistics_projection_and_split",
+   "definition": "065_fused_statistics_projection_and_split",
+   "n_workloads": 16,
+   "task_chars": 6568,
+   "job_id": "j-36e3b07101cc",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3707548,
+     "completion_tokens": 51723,
+     "reasoning_tokens": 16559,
+     "total_tokens": 3759271,
+     "calls": 83,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__066_masked_softmax_with_attention_dropout_backward": {
+   "problem": "L1__066_masked_softmax_with_attention_dropout_backward",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__066_masked_softmax_with_attention_dropout_backward",
+   "definition": "066_masked_softmax_with_attention_dropout_backward",
+   "n_workloads": 16,
+   "task_chars": 7938,
+   "job_id": "j-b191440ff7af",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1616303,
+     "completion_tokens": 58516,
+     "reasoning_tokens": 31905,
+     "total_tokens": 1674819,
+     "calls": 53,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L1__067_flash_attention_gqa_ultralong": {
+   "problem": "L1__067_flash_attention_gqa_ultralong",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__067_flash_attention_gqa_ultralong",
+   "definition": "067_flash_attention_gqa_ultralong",
+   "n_workloads": 18,
+   "task_chars": 9058,
+   "job_id": "j-52a750e9c4c4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2793949,
+     "completion_tokens": 53901,
+     "reasoning_tokens": 21988,
+     "total_tokens": 2847850,
+     "calls": 72,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__068_fused_rope_application_backward": {
+   "problem": "L1__068_fused_rope_application_backward",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__068_fused_rope_application_backward",
+   "definition": "068_fused_rope_application_backward",
+   "n_workloads": 16,
+   "task_chars": 9136,
+   "job_id": "j-99ed8b2d6ed4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3054463,
+     "completion_tokens": 52357,
+     "reasoning_tokens": 22367,
+     "total_tokens": 3106820,
+     "calls": 72,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__069_rms_norm": {
+   "problem": "L1__069_rms_norm",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__069_rms_norm",
+   "definition": "069_rms_norm",
+   "n_workloads": 16,
+   "task_chars": 5988,
+   "job_id": "j-13c742879345",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2274777,
+     "completion_tokens": 45626,
+     "reasoning_tokens": 23817,
+     "total_tokens": 2320403,
+     "calls": 68,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__070_mamba2_fused_intra_chunk_diagonal_computation": {
+   "problem": "L1__070_mamba2_fused_intra_chunk_diagonal_computation",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__070_mamba2_fused_intra_chunk_diagonal_computation",
+   "definition": "070_mamba2_fused_intra_chunk_diagonal_computation",
+   "n_workloads": 14,
+   "task_chars": 10726,
+   "job_id": "j-0c9504fa7c92",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1032089,
+     "completion_tokens": 16453,
+     "reasoning_tokens": 3018,
+     "total_tokens": 1048542,
+     "calls": 47,
+     "failed_calls": 9
+    }
+   }
+  },
+  "L1__071_kv_cache_update_with_rope": {
+   "problem": "L1__071_kv_cache_update_with_rope",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__071_kv_cache_update_with_rope",
+   "definition": "071_kv_cache_update_with_rope",
+   "n_workloads": 16,
+   "task_chars": 8180,
+   "job_id": "j-1e2be851556e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1770305,
+     "completion_tokens": 37566,
+     "reasoning_tokens": 14974,
+     "total_tokens": 1807871,
+     "calls": 61,
+     "failed_calls": 5
+    }
+   }
+  },
+  "L1__072_cross_attention_qkv_projection_with_gqa_repeat_backward": {
+   "problem": "L1__072_cross_attention_qkv_projection_with_gqa_repeat_backward",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__072_cross_attention_qkv_projection_with_gqa_repeat_backward",
+   "definition": "072_cross_attention_qkv_projection_with_gqa_repeat_backward",
+   "n_workloads": 16,
+   "task_chars": 13167,
+   "job_id": "j-e1b539abc62d",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4989340,
+     "completion_tokens": 56358,
+     "reasoning_tokens": 19812,
+     "total_tokens": 5045698,
+     "calls": 94,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__073_fused_encoder_final_norm_to_decoder_cross_attention_kv_projection": {
+   "problem": "L1__073_fused_encoder_final_norm_to_decoder_cross_attention_kv_projection",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__073_fused_encoder_final_norm_to_decoder_cross_attention_kv_projection",
+   "definition": "073_fused_encoder_final_norm_to_decoder_cross_attention_kv_projection",
+   "n_workloads": 16,
+   "task_chars": 7816,
+   "job_id": "j-abcabd66169a",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3471593,
+     "completion_tokens": 51435,
+     "reasoning_tokens": 22575,
+     "total_tokens": 3523028,
+     "calls": 90,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__074_fused_gated_mlp_silu": {
+   "problem": "L1__074_fused_gated_mlp_silu",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__074_fused_gated_mlp_silu",
+   "definition": "074_fused_gated_mlp_silu",
+   "n_workloads": 16,
+   "task_chars": 6375,
+   "job_id": "j-19a5291aac90",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2636052,
+     "completion_tokens": 52028,
+     "reasoning_tokens": 24980,
+     "total_tokens": 2688080,
+     "calls": 62,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__075_grouped_query_self_attention_with_rope": {
+   "problem": "L1__075_grouped_query_self_attention_with_rope",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__075_grouped_query_self_attention_with_rope",
+   "definition": "075_grouped_query_self_attention_with_rope",
+   "n_workloads": 16,
+   "task_chars": 10784,
+   "job_id": "j-dd9b38ed4076",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2723864,
+     "completion_tokens": 44778,
+     "reasoning_tokens": 11496,
+     "total_tokens": 2768642,
+     "calls": 62,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L1__076_batched_expert_forward": {
+   "problem": "L1__076_batched_expert_forward",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__076_batched_expert_forward",
+   "definition": "076_batched_expert_forward",
+   "n_workloads": 14,
+   "task_chars": 9085,
+   "job_id": "j-2cd2f0d83527",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2341654,
+     "completion_tokens": 31159,
+     "reasoning_tokens": 9586,
+     "total_tokens": 2372813,
+     "calls": 65,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__077_whisper_decoder_output_projection": {
+   "problem": "L1__077_whisper_decoder_output_projection",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__077_whisper_decoder_output_projection",
+   "definition": "077_whisper_decoder_output_projection",
+   "n_workloads": 16,
+   "task_chars": 6100,
+   "job_id": "j-136e2c752eba",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2580827,
+     "completion_tokens": 46352,
+     "reasoning_tokens": 26241,
+     "total_tokens": 2627179,
+     "calls": 69,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__078_group_norm_fusion": {
+   "problem": "L1__078_group_norm_fusion",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__078_group_norm_fusion",
+   "definition": "078_group_norm_fusion",
+   "n_workloads": 16,
+   "task_chars": 7314,
+   "job_id": "j-1484b5fe7d02",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4346008,
+     "completion_tokens": 53410,
+     "reasoning_tokens": 13435,
+     "total_tokens": 4399418,
+     "calls": 93,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward": {
+   "problem": "L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward",
+   "definition": "079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward",
+   "n_workloads": 16,
+   "task_chars": 8521,
+   "job_id": "j-b89666dd6036",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "failed",
+    "exit_code": 1,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 160898,
+     "completion_tokens": 14873,
+     "reasoning_tokens": 12191,
+     "total_tokens": 175771,
+     "calls": 40,
+     "failed_calls": 31
+    }
+   }
+  },
+  "L1__080_adaptive_layernorm_continuous_with_modulation": {
+   "problem": "L1__080_adaptive_layernorm_continuous_with_modulation",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__080_adaptive_layernorm_continuous_with_modulation",
+   "definition": "080_adaptive_layernorm_continuous_with_modulation",
+   "n_workloads": 16,
+   "task_chars": 7771,
+   "job_id": "j-ed4808d4ee4e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3732805,
+     "completion_tokens": 55466,
+     "reasoning_tokens": 15382,
+     "total_tokens": 3788271,
+     "calls": 86,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__081_joint_attention_context_projection": {
+   "problem": "L1__081_joint_attention_context_projection",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__081_joint_attention_context_projection",
+   "definition": "081_joint_attention_context_projection",
+   "n_workloads": 16,
+   "task_chars": 8219,
+   "job_id": "j-3933abade3b6",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2251546,
+     "completion_tokens": 57222,
+     "reasoning_tokens": 26346,
+     "total_tokens": 2308768,
+     "calls": 62,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__082_qk_norm_scaled_dot_product_attention": {
+   "problem": "L1__082_qk_norm_scaled_dot_product_attention",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__082_qk_norm_scaled_dot_product_attention",
+   "definition": "082_qk_norm_scaled_dot_product_attention",
+   "n_workloads": 16,
+   "task_chars": 8159,
+   "job_id": "j-7b93e273188f",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4723233,
+     "completion_tokens": 50021,
+     "reasoning_tokens": 9742,
+     "total_tokens": 4773254,
+     "calls": 99,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__083_attention_score_value_matmul": {
+   "problem": "L1__083_attention_score_value_matmul",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__083_attention_score_value_matmul",
+   "definition": "083_attention_score_value_matmul",
+   "n_workloads": 16,
+   "task_chars": 6946,
+   "job_id": "j-55f8b1463e89",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1825735,
+     "completion_tokens": 42269,
+     "reasoning_tokens": 13251,
+     "total_tokens": 1868004,
+     "calls": 54,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__084_silu_activation_backward": {
+   "problem": "L1__084_silu_activation_backward",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__084_silu_activation_backward",
+   "definition": "084_silu_activation_backward",
+   "n_workloads": 16,
+   "task_chars": 6150,
+   "job_id": "j-2a4d3ab53507",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1213962,
+     "completion_tokens": 25613,
+     "reasoning_tokens": 9299,
+     "total_tokens": 1239575,
+     "calls": 46,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__085_geglu_activation": {
+   "problem": "L1__085_geglu_activation",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__085_geglu_activation",
+   "definition": "085_geglu_activation",
+   "n_workloads": 16,
+   "task_chars": 6000,
+   "job_id": "j-3bef79bdd3db",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2841530,
+     "completion_tokens": 43483,
+     "reasoning_tokens": 12303,
+     "total_tokens": 2885013,
+     "calls": 69,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L1__086_sam_hq_mask_decoder_iou_hypernetwork_fusion": {
+   "problem": "L1__086_sam_hq_mask_decoder_iou_hypernetwork_fusion",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__086_sam_hq_mask_decoder_iou_hypernetwork_fusion",
+   "definition": "086_sam_hq_mask_decoder_iou_hypernetwork_fusion",
+   "n_workloads": 16,
+   "task_chars": 12693,
+   "job_id": "j-5d758acdd0ce",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1443864,
+     "completion_tokens": 27409,
+     "reasoning_tokens": 15365,
+     "total_tokens": 1471273,
+     "calls": 47,
+     "failed_calls": 7
+    }
+   }
+  },
+  "L1__087_embedding_with_initial_layernorm_backward": {
+   "problem": "L1__087_embedding_with_initial_layernorm_backward",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__087_embedding_with_initial_layernorm_backward",
+   "definition": "087_embedding_with_initial_layernorm_backward",
+   "n_workloads": 16,
+   "task_chars": 9803,
+   "job_id": "j-1013a33e573a",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4729971,
+     "completion_tokens": 48956,
+     "reasoning_tokens": 9645,
+     "total_tokens": 4778927,
+     "calls": 108,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__088_rotary_position_embedding_application": {
+   "problem": "L1__088_rotary_position_embedding_application",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__088_rotary_position_embedding_application",
+   "definition": "088_rotary_position_embedding_application",
+   "n_workloads": 16,
+   "task_chars": 7806,
+   "job_id": "j-47f3d3b29155",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 2,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2295137,
+     "completion_tokens": 38086,
+     "reasoning_tokens": 4649,
+     "total_tokens": 2333223,
+     "calls": 57,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__089_vae_attention_block_with_groupnorm": {
+   "problem": "L1__089_vae_attention_block_with_groupnorm",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__089_vae_attention_block_with_groupnorm",
+   "definition": "089_vae_attention_block_with_groupnorm",
+   "n_workloads": 16,
+   "task_chars": 8627,
+   "job_id": "j-c93564aaaf9e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3365093,
+     "completion_tokens": 54775,
+     "reasoning_tokens": 15974,
+     "total_tokens": 3419868,
+     "calls": 79,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__090_batched_2d_rope_position_encoding_backward": {
+   "problem": "L1__090_batched_2d_rope_position_encoding_backward",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__090_batched_2d_rope_position_encoding_backward",
+   "definition": "090_batched_2d_rope_position_encoding_backward",
+   "n_workloads": 16,
+   "task_chars": 7140,
+   "job_id": "j-ecda893525f8",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2310456,
+     "completion_tokens": 31756,
+     "reasoning_tokens": 8235,
+     "total_tokens": 2342212,
+     "calls": 64,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__091_fused_gqa_qkv_rope_qk_norm_backward": {
+   "problem": "L1__091_fused_gqa_qkv_rope_qk_norm_backward",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__091_fused_gqa_qkv_rope_qk_norm_backward",
+   "definition": "091_fused_gqa_qkv_rope_qk_norm_backward",
+   "n_workloads": 16,
+   "task_chars": 13795,
+   "job_id": "j-3bac5bd08d80",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 647961,
+     "completion_tokens": 38295,
+     "reasoning_tokens": 23136,
+     "total_tokens": 686256,
+     "calls": 32,
+     "failed_calls": 4
+    }
+   }
+  },
+  "L1__092_gqa_attention_with_qk_norm": {
+   "problem": "L1__092_gqa_attention_with_qk_norm",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__092_gqa_attention_with_qk_norm",
+   "definition": "092_gqa_attention_with_qk_norm",
+   "n_workloads": 16,
+   "task_chars": 9876,
+   "job_id": "j-c5b17bc3a3fc",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1383320,
+     "completion_tokens": 29179,
+     "reasoning_tokens": 12109,
+     "total_tokens": 1412499,
+     "calls": 49,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__093_grouped_topk_moe_routing_backward": {
+   "problem": "L1__093_grouped_topk_moe_routing_backward",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__093_grouped_topk_moe_routing_backward",
+   "definition": "093_grouped_topk_moe_routing_backward",
+   "n_workloads": 16,
+   "task_chars": 9851,
+   "job_id": "j-74f4fa68a4ac",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1447945,
+     "completion_tokens": 44357,
+     "reasoning_tokens": 16142,
+     "total_tokens": 1492302,
+     "calls": 48,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__094_time_decay_exponential_stabilization": {
+   "problem": "L1__094_time_decay_exponential_stabilization",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L1__094_time_decay_exponential_stabilization",
+   "definition": "094_time_decay_exponential_stabilization",
+   "n_workloads": 16,
+   "task_chars": 10465,
+   "job_id": "j-c6654e805228",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2162583,
+     "completion_tokens": 32120,
+     "reasoning_tokens": 2931,
+     "total_tokens": 2194703,
+     "calls": 65,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L2__001_fused_vision_multihead_attention_with_norms_backward": {
+   "problem": "L2__001_fused_vision_multihead_attention_with_norms_backward",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__001_fused_vision_multihead_attention_with_norms_backward",
+   "definition": "001_fused_vision_multihead_attention_with_norms_backward",
+   "n_workloads": 16,
+   "task_chars": 10870,
+   "job_id": "j-fcbd87bf7e0c",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1437163,
+     "completion_tokens": 33655,
+     "reasoning_tokens": 11656,
+     "total_tokens": 1470818,
+     "calls": 47,
+     "failed_calls": 5
+    }
+   }
+  },
+  "L2__002_decoder_layer_full_block": {
+   "problem": "L2__002_decoder_layer_full_block",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__002_decoder_layer_full_block",
+   "definition": "002_decoder_layer_full_block",
+   "n_workloads": 18,
+   "task_chars": 10543,
+   "job_id": "j-9376651550f3",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2380973,
+     "completion_tokens": 47777,
+     "reasoning_tokens": 18755,
+     "total_tokens": 2428750,
+     "calls": 64,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__003_grouped_query_attention_with_rope_backward": {
+   "problem": "L2__003_grouped_query_attention_with_rope_backward",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__003_grouped_query_attention_with_rope_backward",
+   "definition": "003_grouped_query_attention_with_rope_backward",
+   "n_workloads": 16,
+   "task_chars": 13672,
+   "job_id": "j-f1cc8709a622",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2859261,
+     "completion_tokens": 37040,
+     "reasoning_tokens": 20058,
+     "total_tokens": 2896301,
+     "calls": 70,
+     "failed_calls": 4
+    }
+   }
+  },
+  "L2__004_fused_residual_rms_mlp": {
+   "problem": "L2__004_fused_residual_rms_mlp",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__004_fused_residual_rms_mlp",
+   "definition": "004_fused_residual_rms_mlp",
+   "n_workloads": 16,
+   "task_chars": 8226,
+   "job_id": "j-0bed6ab0ea1f",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2232890,
+     "completion_tokens": 38260,
+     "reasoning_tokens": 18246,
+     "total_tokens": 2271150,
+     "calls": 63,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L2__005_swiglu_mlp_backward": {
+   "problem": "L2__005_swiglu_mlp_backward",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__005_swiglu_mlp_backward",
+   "definition": "005_swiglu_mlp_backward",
+   "n_workloads": 18,
+   "task_chars": 9267,
+   "job_id": "j-f950e75d9a03",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 274903,
+     "completion_tokens": 21423,
+     "reasoning_tokens": 16392,
+     "total_tokens": 296326,
+     "calls": 24,
+     "failed_calls": 8
+    }
+   }
+  },
+  "L2__006_multimodal_rope_position_calculation": {
+   "problem": "L2__006_multimodal_rope_position_calculation",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__006_multimodal_rope_position_calculation",
+   "definition": "006_multimodal_rope_position_calculation",
+   "n_workloads": 16,
+   "task_chars": 18556,
+   "job_id": "j-60c6190043f9",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "failed",
+    "exit_code": 1,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 295107,
+     "completion_tokens": 3191,
+     "reasoning_tokens": 367,
+     "total_tokens": 298298,
+     "calls": 24,
+     "failed_calls": 9
+    }
+   }
+  },
+  "L2__007_multimodal_rotary_embedding_attention": {
+   "problem": "L2__007_multimodal_rotary_embedding_attention",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__007_multimodal_rotary_embedding_attention",
+   "definition": "007_multimodal_rotary_embedding_attention",
+   "n_workloads": 16,
+   "task_chars": 10354,
+   "job_id": "j-a2f8c4d06016",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4912824,
+     "completion_tokens": 47379,
+     "reasoning_tokens": 14232,
+     "total_tokens": 4960203,
+     "calls": 105,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__008_moe_sparse_routing_and_dispatch": {
+   "problem": "L2__008_moe_sparse_routing_and_dispatch",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__008_moe_sparse_routing_and_dispatch",
+   "definition": "008_moe_sparse_routing_and_dispatch",
+   "n_workloads": 16,
+   "task_chars": 9423,
+   "job_id": "j-ba7f32d3e7f3",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2500903,
+     "completion_tokens": 40808,
+     "reasoning_tokens": 17159,
+     "total_tokens": 2541711,
+     "calls": 67,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L2__009_decoder_layer_with_residual_connections": {
+   "problem": "L2__009_decoder_layer_with_residual_connections",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__009_decoder_layer_with_residual_connections",
+   "definition": "009_decoder_layer_with_residual_connections",
+   "n_workloads": 16,
+   "task_chars": 15753,
+   "job_id": "j-a8e0be3fedf6",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1832940,
+     "completion_tokens": 26600,
+     "reasoning_tokens": 12318,
+     "total_tokens": 1859540,
+     "calls": 62,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L2__010_moe_expert_computation_with_weighted_accumulation": {
+   "problem": "L2__010_moe_expert_computation_with_weighted_accumulation",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__010_moe_expert_computation_with_weighted_accumulation",
+   "definition": "010_moe_expert_computation_with_weighted_accumulation",
+   "n_workloads": 16,
+   "task_chars": 10998,
+   "job_id": "j-a96430108ca8",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2193027,
+     "completion_tokens": 35079,
+     "reasoning_tokens": 14391,
+     "total_tokens": 2228106,
+     "calls": 63,
+     "failed_calls": 4
+    }
+   }
+  },
+  "L2__011_moe_sparse_routing_and_dispatch_backward": {
+   "problem": "L2__011_moe_sparse_routing_and_dispatch_backward",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__011_moe_sparse_routing_and_dispatch_backward",
+   "definition": "011_moe_sparse_routing_and_dispatch_backward",
+   "n_workloads": 16,
+   "task_chars": 11410,
+   "job_id": "j-3e90bcc858d2",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3002372,
+     "completion_tokens": 32887,
+     "reasoning_tokens": 12833,
+     "total_tokens": 3035259,
+     "calls": 79,
+     "failed_calls": 5
+    }
+   }
+  },
+  "L2__012_moe_expert_batched_execution_with_capacity_factor": {
+   "problem": "L2__012_moe_expert_batched_execution_with_capacity_factor",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__012_moe_expert_batched_execution_with_capacity_factor",
+   "definition": "012_moe_expert_batched_execution_with_capacity_factor",
+   "n_workloads": 16,
+   "task_chars": 10866,
+   "job_id": "j-81a96a6180cd",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2052171,
+     "completion_tokens": 46394,
+     "reasoning_tokens": 7423,
+     "total_tokens": 2098565,
+     "calls": 60,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L2__013_expert_weighted_aggregation_with_shared_expert": {
+   "problem": "L2__013_expert_weighted_aggregation_with_shared_expert",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__013_expert_weighted_aggregation_with_shared_expert",
+   "definition": "013_expert_weighted_aggregation_with_shared_expert",
+   "n_workloads": 16,
+   "task_chars": 14268,
+   "job_id": "j-b684cda2770a",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "failed",
+    "exit_code": 1,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 102592,
+     "completion_tokens": 867,
+     "reasoning_tokens": 95,
+     "total_tokens": 103459,
+     "calls": 14,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L2__014_audio_encoder_varlen_attention_with_chunking_backward": {
+   "problem": "L2__014_audio_encoder_varlen_attention_with_chunking_backward",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__014_audio_encoder_varlen_attention_with_chunking_backward",
+   "definition": "014_audio_encoder_varlen_attention_with_chunking_backward",
+   "n_workloads": 16,
+   "task_chars": 16144,
+   "job_id": "j-68abfa3ff89e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1167221,
+     "completion_tokens": 29079,
+     "reasoning_tokens": 5330,
+     "total_tokens": 1196300,
+     "calls": 40,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L2__015_audio_sinusoidal_position_embedding_with_conv_projection": {
+   "problem": "L2__015_audio_sinusoidal_position_embedding_with_conv_projection",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__015_audio_sinusoidal_position_embedding_with_conv_projection",
+   "definition": "015_audio_sinusoidal_position_embedding_with_conv_projection",
+   "n_workloads": 16,
+   "task_chars": 10810,
+   "job_id": "j-8f9b1d2fc083",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2987602,
+     "completion_tokens": 41008,
+     "reasoning_tokens": 6212,
+     "total_tokens": 3028610,
+     "calls": 75,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__016_moe_expert_mlp_with_load_balancing": {
+   "problem": "L2__016_moe_expert_mlp_with_load_balancing",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__016_moe_expert_mlp_with_load_balancing",
+   "definition": "016_moe_expert_mlp_with_load_balancing",
+   "n_workloads": 16,
+   "task_chars": 9924,
+   "job_id": "j-8d84902dd3d0",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 316403,
+     "completion_tokens": 19025,
+     "reasoning_tokens": 14416,
+     "total_tokens": 335428,
+     "calls": 24,
+     "failed_calls": 8
+    }
+   }
+  },
+  "L2__017_fused_vision_cu_seqlens_attention_with_2d_rope_backward": {
+   "problem": "L2__017_fused_vision_cu_seqlens_attention_with_2d_rope_backward",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__017_fused_vision_cu_seqlens_attention_with_2d_rope_backward",
+   "definition": "017_fused_vision_cu_seqlens_attention_with_2d_rope_backward",
+   "n_workloads": 16,
+   "task_chars": 14857,
+   "job_id": "j-26e6eb248ee0",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 700027,
+     "completion_tokens": 28484,
+     "reasoning_tokens": 8257,
+     "total_tokens": 728511,
+     "calls": 32,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L2__018_cu_seqlens_variable_length_vision_attention": {
+   "problem": "L2__018_cu_seqlens_variable_length_vision_attention",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__018_cu_seqlens_variable_length_vision_attention",
+   "definition": "018_cu_seqlens_variable_length_vision_attention",
+   "n_workloads": 16,
+   "task_chars": 12167,
+   "job_id": "j-2c508e55bdcf",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2509799,
+     "completion_tokens": 43747,
+     "reasoning_tokens": 14889,
+     "total_tokens": 2553546,
+     "calls": 63,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L2__019_decoder_layer_fused_attention_mlp": {
+   "problem": "L2__019_decoder_layer_fused_attention_mlp",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__019_decoder_layer_fused_attention_mlp",
+   "definition": "019_decoder_layer_fused_attention_mlp",
+   "n_workloads": 16,
+   "task_chars": 12500,
+   "job_id": "j-89d167fecb81",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1737730,
+     "completion_tokens": 48143,
+     "reasoning_tokens": 21948,
+     "total_tokens": 1785873,
+     "calls": 58,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__020_decoder_layer_pre_post_norm_residual": {
+   "problem": "L2__020_decoder_layer_pre_post_norm_residual",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__020_decoder_layer_pre_post_norm_residual",
+   "definition": "020_decoder_layer_pre_post_norm_residual",
+   "n_workloads": 16,
+   "task_chars": 10662,
+   "job_id": "j-6bfff43d1209",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2203441,
+     "completion_tokens": 30050,
+     "reasoning_tokens": 11207,
+     "total_tokens": 2233491,
+     "calls": 55,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__021_cross_attention_text_video_conditioning_backward": {
+   "problem": "L2__021_cross_attention_text_video_conditioning_backward",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__021_cross_attention_text_video_conditioning_backward",
+   "definition": "021_cross_attention_text_video_conditioning_backward",
+   "n_workloads": 16,
+   "task_chars": 13876,
+   "job_id": "j-319090c4d3cf",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3677446,
+     "completion_tokens": 47919,
+     "reasoning_tokens": 15452,
+     "total_tokens": 3725365,
+     "calls": 86,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__022_video_latent_denoising_unet_block": {
+   "problem": "L2__022_video_latent_denoising_unet_block",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__022_video_latent_denoising_unet_block",
+   "definition": "022_video_latent_denoising_unet_block",
+   "n_workloads": 16,
+   "task_chars": 16286,
+   "job_id": "j-b14c33fee8de",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2604999,
+     "completion_tokens": 45205,
+     "reasoning_tokens": 11241,
+     "total_tokens": 2650204,
+     "calls": 67,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__023_video_latent_vae_encoder_downsampling": {
+   "problem": "L2__023_video_latent_vae_encoder_downsampling",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__023_video_latent_vae_encoder_downsampling",
+   "definition": "023_video_latent_vae_encoder_downsampling",
+   "n_workloads": 16,
+   "task_chars": 10686,
+   "job_id": "j-9e459bb3b534",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1837715,
+     "completion_tokens": 32927,
+     "reasoning_tokens": 13316,
+     "total_tokens": 1870642,
+     "calls": 54,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__024_moe_expert_parallel_execution": {
+   "problem": "L2__024_moe_expert_parallel_execution",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__024_moe_expert_parallel_execution",
+   "definition": "024_moe_expert_parallel_execution",
+   "n_workloads": 16,
+   "task_chars": 11168,
+   "job_id": "j-5f1a6446e193",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3234075,
+     "completion_tokens": 45628,
+     "reasoning_tokens": 12237,
+     "total_tokens": 3279703,
+     "calls": 87,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L2__025_moe_expert_parallel_execution_backward": {
+   "problem": "L2__025_moe_expert_parallel_execution_backward",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__025_moe_expert_parallel_execution_backward",
+   "definition": "025_moe_expert_parallel_execution_backward",
+   "n_workloads": 16,
+   "task_chars": 13364,
+   "job_id": "j-5e36ccc1b865",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 111559,
+     "completion_tokens": 4958,
+     "reasoning_tokens": 4519,
+     "total_tokens": 116517,
+     "calls": 17,
+     "failed_calls": 10
+    }
+   }
+  },
+  "L2__026_moe_expert_parallel_execution_with_weighted_aggregation": {
+   "problem": "L2__026_moe_expert_parallel_execution_with_weighted_aggregation",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__026_moe_expert_parallel_execution_with_weighted_aggregation",
+   "definition": "026_moe_expert_parallel_execution_with_weighted_aggregation",
+   "n_workloads": 16,
+   "task_chars": 12200,
+   "job_id": "j-ef514d3cbbdb",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1744192,
+     "completion_tokens": 36246,
+     "reasoning_tokens": 16656,
+     "total_tokens": 1780438,
+     "calls": 52,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__027_grouped_query_attention_with_yarn_rope_and_qk_norm": {
+   "problem": "L2__027_grouped_query_attention_with_yarn_rope_and_qk_norm",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__027_grouped_query_attention_with_yarn_rope_and_qk_norm",
+   "definition": "027_grouped_query_attention_with_yarn_rope_and_qk_norm",
+   "n_workloads": 16,
+   "task_chars": 13312,
+   "job_id": "j-3b5827c3ffc1",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2411379,
+     "completion_tokens": 54809,
+     "reasoning_tokens": 24426,
+     "total_tokens": 2466188,
+     "calls": 64,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__028_gqa_rotary_attention_core_backward": {
+   "problem": "L2__028_gqa_rotary_attention_core_backward",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__028_gqa_rotary_attention_core_backward",
+   "definition": "028_gqa_rotary_attention_core_backward",
+   "n_workloads": 16,
+   "task_chars": 15584,
+   "job_id": "j-2830268c528f",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 569236,
+     "completion_tokens": 30891,
+     "reasoning_tokens": 21420,
+     "total_tokens": 600127,
+     "calls": 29,
+     "failed_calls": 7
+    }
+   }
+  },
+  "L2__029_moe_sparse_routing_and_dispatch": {
+   "problem": "L2__029_moe_sparse_routing_and_dispatch",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__029_moe_sparse_routing_and_dispatch",
+   "definition": "029_moe_sparse_routing_and_dispatch",
+   "n_workloads": 9,
+   "task_chars": 10545,
+   "job_id": "j-e7a3c0c9667b",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1180067,
+     "completion_tokens": 25083,
+     "reasoning_tokens": 7200,
+     "total_tokens": 1205150,
+     "calls": 48,
+     "failed_calls": 7
+    }
+   }
+  },
+  "L2__030_flux_concatenated_sequence_processing_with_split": {
+   "problem": "L2__030_flux_concatenated_sequence_processing_with_split",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__030_flux_concatenated_sequence_processing_with_split",
+   "definition": "030_flux_concatenated_sequence_processing_with_split",
+   "n_workloads": 16,
+   "task_chars": 7483,
+   "job_id": "j-ba18ee293272",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2555239,
+     "completion_tokens": 53115,
+     "reasoning_tokens": 32364,
+     "total_tokens": 2608354,
+     "calls": 65,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__031_flux_timestep_guidance_projection_embedding": {
+   "problem": "L2__031_flux_timestep_guidance_projection_embedding",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__031_flux_timestep_guidance_projection_embedding",
+   "definition": "031_flux_timestep_guidance_projection_embedding",
+   "n_workloads": 16,
+   "task_chars": 9988,
+   "job_id": "j-cc531a65b07e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2904099,
+     "completion_tokens": 46830,
+     "reasoning_tokens": 17677,
+     "total_tokens": 2950929,
+     "calls": 64,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L2__032_dual_stream_attention_with_conditional_cross_attention": {
+   "problem": "L2__032_dual_stream_attention_with_conditional_cross_attention",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__032_dual_stream_attention_with_conditional_cross_attention",
+   "definition": "032_dual_stream_attention_with_conditional_cross_attention",
+   "n_workloads": 16,
+   "task_chars": 18849,
+   "job_id": "j-3b47b6829e34",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4044404,
+     "completion_tokens": 50041,
+     "reasoning_tokens": 7767,
+     "total_tokens": 4094445,
+     "calls": 86,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__033_multi_scale_feature_pyramid": {
+   "problem": "L2__033_multi_scale_feature_pyramid",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__033_multi_scale_feature_pyramid",
+   "definition": "033_multi_scale_feature_pyramid",
+   "n_workloads": 16,
+   "task_chars": 12578,
+   "job_id": "j-c29d80f8ac75",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1455208,
+     "completion_tokens": 43547,
+     "reasoning_tokens": 26949,
+     "total_tokens": 1498755,
+     "calls": 48,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__034_vision_language_cross_attention_fusion": {
+   "problem": "L2__034_vision_language_cross_attention_fusion",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__034_vision_language_cross_attention_fusion",
+   "definition": "034_vision_language_cross_attention_fusion",
+   "n_workloads": 16,
+   "task_chars": 15492,
+   "job_id": "j-26e2acb60e62",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2366771,
+     "completion_tokens": 47319,
+     "reasoning_tokens": 10294,
+     "total_tokens": 2414090,
+     "calls": 65,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__035_convnextv2_block_with_grn": {
+   "problem": "L2__035_convnextv2_block_with_grn",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__035_convnextv2_block_with_grn",
+   "definition": "035_convnextv2_block_with_grn",
+   "n_workloads": 16,
+   "task_chars": 8584,
+   "job_id": "j-96d1eb101318",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1315564,
+     "completion_tokens": 38672,
+     "reasoning_tokens": 21289,
+     "total_tokens": 1354236,
+     "calls": 48,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L2__036_convnextv2_layer_with_nhwc_persistence_backward": {
+   "problem": "L2__036_convnextv2_layer_with_nhwc_persistence_backward",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__036_convnextv2_layer_with_nhwc_persistence_backward",
+   "definition": "036_convnextv2_layer_with_nhwc_persistence_backward",
+   "n_workloads": 14,
+   "task_chars": 18206,
+   "job_id": "j-cffcfc3787d2",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2560468,
+     "completion_tokens": 46013,
+     "reasoning_tokens": 17934,
+     "total_tokens": 2606481,
+     "calls": 64,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__037_qk_norm_rope_attention_core_backward": {
+   "problem": "L2__037_qk_norm_rope_attention_core_backward",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__037_qk_norm_rope_attention_core_backward",
+   "definition": "037_qk_norm_rope_attention_core_backward",
+   "n_workloads": 16,
+   "task_chars": 18299,
+   "job_id": "j-d17e0d95b365",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2100330,
+     "completion_tokens": 35421,
+     "reasoning_tokens": 10569,
+     "total_tokens": 2135751,
+     "calls": 56,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__038_audio_relative_position_attention": {
+   "problem": "L2__038_audio_relative_position_attention",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__038_audio_relative_position_attention",
+   "definition": "038_audio_relative_position_attention",
+   "n_workloads": 14,
+   "task_chars": 15793,
+   "job_id": "j-898b4f2427c8",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2489191,
+     "completion_tokens": 29796,
+     "reasoning_tokens": 14257,
+     "total_tokens": 2518987,
+     "calls": 58,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L2__039_kv_shared_attention_with_rope": {
+   "problem": "L2__039_kv_shared_attention_with_rope",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__039_kv_shared_attention_with_rope",
+   "definition": "039_kv_shared_attention_with_rope",
+   "n_workloads": 16,
+   "task_chars": 13433,
+   "job_id": "j-f1c04465240f",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1379743,
+     "completion_tokens": 28186,
+     "reasoning_tokens": 1389,
+     "total_tokens": 1407929,
+     "calls": 46,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__040_altup_predict_correction_cycle_backward": {
+   "problem": "L2__040_altup_predict_correction_cycle_backward",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__040_altup_predict_correction_cycle_backward",
+   "definition": "040_altup_predict_correction_cycle_backward",
+   "n_workloads": 16,
+   "task_chars": 14811,
+   "job_id": "j-49fbeed9531f",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1524846,
+     "completion_tokens": 21616,
+     "reasoning_tokens": 6661,
+     "total_tokens": 1546462,
+     "calls": 49,
+     "failed_calls": 4
+    }
+   }
+  },
+  "L2__041_kv_shared_attention_with_dual_rope": {
+   "problem": "L2__041_kv_shared_attention_with_dual_rope",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__041_kv_shared_attention_with_dual_rope",
+   "definition": "041_kv_shared_attention_with_dual_rope",
+   "n_workloads": 16,
+   "task_chars": 14351,
+   "job_id": "j-b9264e95a2a1",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "failed",
+    "exit_code": 1,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 107924,
+     "completion_tokens": 839,
+     "reasoning_tokens": 80,
+     "total_tokens": 108763,
+     "calls": 13,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L2__042_ffn_gelu_projection_fused_backward": {
+   "problem": "L2__042_ffn_gelu_projection_fused_backward",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__042_ffn_gelu_projection_fused_backward",
+   "definition": "042_ffn_gelu_projection_fused_backward",
+   "n_workloads": 16,
+   "task_chars": 13687,
+   "job_id": "j-7cc71361a895",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1892896,
+     "completion_tokens": 24528,
+     "reasoning_tokens": 11568,
+     "total_tokens": 1917424,
+     "calls": 64,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L2__043_mamba_chunk_scan_with_segsum": {
+   "problem": "L2__043_mamba_chunk_scan_with_segsum",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__043_mamba_chunk_scan_with_segsum",
+   "definition": "043_mamba_chunk_scan_with_segsum",
+   "n_workloads": 16,
+   "task_chars": 15591,
+   "job_id": "j-f17b40ab3a79",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 524901,
+     "completion_tokens": 10936,
+     "reasoning_tokens": 3860,
+     "total_tokens": 535837,
+     "calls": 33,
+     "failed_calls": 9
+    }
+   }
+  },
+  "L2__044_mamba_discretization_and_segsum": {
+   "problem": "L2__044_mamba_discretization_and_segsum",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__044_mamba_discretization_and_segsum",
+   "definition": "044_mamba_discretization_and_segsum",
+   "n_workloads": 16,
+   "task_chars": 11041,
+   "job_id": "j-181973350aa0",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 665610,
+     "completion_tokens": 16463,
+     "reasoning_tokens": 7215,
+     "total_tokens": 682073,
+     "calls": 34,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L2__045_audio_encoder_to_language_model_multimodal_fusion": {
+   "problem": "L2__045_audio_encoder_to_language_model_multimodal_fusion",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__045_audio_encoder_to_language_model_multimodal_fusion",
+   "definition": "045_audio_encoder_to_language_model_multimodal_fusion",
+   "n_workloads": 16,
+   "task_chars": 17977,
+   "job_id": "j-23d69a8ffe35",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2670354,
+     "completion_tokens": 32863,
+     "reasoning_tokens": 13365,
+     "total_tokens": 2703217,
+     "calls": 65,
+     "failed_calls": 4
+    }
+   }
+  },
+  "L2__046_conformer_relative_position_attention": {
+   "problem": "L2__046_conformer_relative_position_attention",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__046_conformer_relative_position_attention",
+   "definition": "046_conformer_relative_position_attention",
+   "n_workloads": 16,
+   "task_chars": 10118,
+   "job_id": "j-56a6101849a5",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1992882,
+     "completion_tokens": 39975,
+     "reasoning_tokens": 11592,
+     "total_tokens": 2032857,
+     "calls": 63,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L2__047_moe_training_token_repeat_and_expert_computation": {
+   "problem": "L2__047_moe_training_token_repeat_and_expert_computation",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__047_moe_training_token_repeat_and_expert_computation",
+   "definition": "047_moe_training_token_repeat_and_expert_computation",
+   "n_workloads": 16,
+   "task_chars": 10948,
+   "job_id": "j-6be5a3a156a1",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4052579,
+     "completion_tokens": 36689,
+     "reasoning_tokens": 10013,
+     "total_tokens": 4089268,
+     "calls": 111,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L2__048_moe_expert_inference_batched_dispatch": {
+   "problem": "L2__048_moe_expert_inference_batched_dispatch",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__048_moe_expert_inference_batched_dispatch",
+   "definition": "048_moe_expert_inference_batched_dispatch",
+   "n_workloads": 16,
+   "task_chars": 11627,
+   "job_id": "j-5846f55fd5ac",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3575383,
+     "completion_tokens": 60295,
+     "reasoning_tokens": 10235,
+     "total_tokens": 3635678,
+     "calls": 81,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L2__049_group_limited_topk_routing": {
+   "problem": "L2__049_group_limited_topk_routing",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__049_group_limited_topk_routing",
+   "definition": "049_group_limited_topk_routing",
+   "n_workloads": 16,
+   "task_chars": 8631,
+   "job_id": "j-df71b375aeab",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3511608,
+     "completion_tokens": 66972,
+     "reasoning_tokens": 22863,
+     "total_tokens": 3578580,
+     "calls": 78,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L2__050_vae_decoder_mid_block_attention_resnet": {
+   "problem": "L2__050_vae_decoder_mid_block_attention_resnet",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__050_vae_decoder_mid_block_attention_resnet",
+   "definition": "050_vae_decoder_mid_block_attention_resnet",
+   "n_workloads": 11,
+   "task_chars": 13037,
+   "job_id": "j-019ed85d2dd4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2641573,
+     "completion_tokens": 63354,
+     "reasoning_tokens": 15841,
+     "total_tokens": 2704927,
+     "calls": 67,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__051_seqlen-finetuned-reconstructed_hyena_complete_forward_block": {
+   "problem": "L2__051_seqlen-finetuned-reconstructed_hyena_complete_forward_block",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__051_seqlen-finetuned-reconstructed_hyena_complete_forward_block",
+   "definition": "051_seqlen-finetuned-reconstructed_hyena_complete_forward_block",
+   "n_workloads": 16,
+   "task_chars": 15845,
+   "job_id": "j-eacae613e1d1",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3393223,
+     "completion_tokens": 49601,
+     "reasoning_tokens": 23584,
+     "total_tokens": 3442824,
+     "calls": 78,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__052_seqlen-finetuned-reconstructed_hyena_gating_and_output_projection": {
+   "problem": "L2__052_seqlen-finetuned-reconstructed_hyena_gating_and_output_projection",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__052_seqlen-finetuned-reconstructed_hyena_gating_and_output_projection",
+   "definition": "052_seqlen-finetuned-reconstructed_hyena_gating_and_output_projection",
+   "n_workloads": 16,
+   "task_chars": 7947,
+   "job_id": "j-ec33fb032149",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2812876,
+     "completion_tokens": 67558,
+     "reasoning_tokens": 27030,
+     "total_tokens": 2880434,
+     "calls": 65,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__053_text_decoder_layer_with_self_attention_and_mlp": {
+   "problem": "L2__053_text_decoder_layer_with_self_attention_and_mlp",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__053_text_decoder_layer_with_self_attention_and_mlp",
+   "definition": "053_text_decoder_layer_with_self_attention_and_mlp",
+   "n_workloads": 16,
+   "task_chars": 10982,
+   "job_id": "j-8592bde35ac2",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5388524,
+     "completion_tokens": 46860,
+     "reasoning_tokens": 13643,
+     "total_tokens": 5435384,
+     "calls": 101,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__054_vision_encoder_layer_with_gated_residuals": {
+   "problem": "L2__054_vision_encoder_layer_with_gated_residuals",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__054_vision_encoder_layer_with_gated_residuals",
+   "definition": "054_vision_encoder_layer_with_gated_residuals",
+   "n_workloads": 16,
+   "task_chars": 9954,
+   "job_id": "j-e150a044fc26",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4612508,
+     "completion_tokens": 59158,
+     "reasoning_tokens": 17006,
+     "total_tokens": 4671666,
+     "calls": 95,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__055_audio_encoder_conv_positional_layer_stack": {
+   "problem": "L2__055_audio_encoder_conv_positional_layer_stack",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__055_audio_encoder_conv_positional_layer_stack",
+   "definition": "055_audio_encoder_conv_positional_layer_stack",
+   "n_workloads": 15,
+   "task_chars": 14490,
+   "job_id": "j-6486c97156d6",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2667472,
+     "completion_tokens": 36784,
+     "reasoning_tokens": 13042,
+     "total_tokens": 2704256,
+     "calls": 77,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__056_language_model_decoder_prenorm_attention_ffn_residual_backward": {
+   "problem": "L2__056_language_model_decoder_prenorm_attention_ffn_residual_backward",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__056_language_model_decoder_prenorm_attention_ffn_residual_backward",
+   "definition": "056_language_model_decoder_prenorm_attention_ffn_residual_backward",
+   "n_workloads": 16,
+   "task_chars": 25217,
+   "job_id": "j-d94939d9aef7",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3822414,
+     "completion_tokens": 63113,
+     "reasoning_tokens": 27850,
+     "total_tokens": 3885527,
+     "calls": 87,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__057_residual_coupling_flow_block": {
+   "problem": "L2__057_residual_coupling_flow_block",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__057_residual_coupling_flow_block",
+   "definition": "057_residual_coupling_flow_block",
+   "n_workloads": 16,
+   "task_chars": 13616,
+   "job_id": "j-7a8186a26474",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5869383,
+     "completion_tokens": 62531,
+     "reasoning_tokens": 20151,
+     "total_tokens": 5931914,
+     "calls": 110,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L2__058_mamba2_selective_scan": {
+   "problem": "L2__058_mamba2_selective_scan",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__058_mamba2_selective_scan",
+   "definition": "058_mamba2_selective_scan",
+   "n_workloads": 16,
+   "task_chars": 16430,
+   "job_id": "j-0a3f3f10e5f9",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2484597,
+     "completion_tokens": 49428,
+     "reasoning_tokens": 17289,
+     "total_tokens": 2534025,
+     "calls": 62,
+     "failed_calls": 5
+    }
+   }
+  },
+  "L2__059_decoder_layer_full_block": {
+   "problem": "L2__059_decoder_layer_full_block",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__059_decoder_layer_full_block",
+   "definition": "059_decoder_layer_full_block",
+   "n_workloads": 16,
+   "task_chars": 10889,
+   "job_id": "j-61acd9daa205",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2495271,
+     "completion_tokens": 45106,
+     "reasoning_tokens": 9889,
+     "total_tokens": 2540377,
+     "calls": 57,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__060_chunk_gated_delta_rule_linear_attention": {
+   "problem": "L2__060_chunk_gated_delta_rule_linear_attention",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__060_chunk_gated_delta_rule_linear_attention",
+   "definition": "060_chunk_gated_delta_rule_linear_attention",
+   "n_workloads": 16,
+   "task_chars": 12211,
+   "job_id": "j-2f1c7c387d16",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1621753,
+     "completion_tokens": 28115,
+     "reasoning_tokens": 11382,
+     "total_tokens": 1649868,
+     "calls": 56,
+     "failed_calls": 6
+    }
+   }
+  },
+  "L2__061_sparse_moe_routing_and_experts": {
+   "problem": "L2__061_sparse_moe_routing_and_experts",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__061_sparse_moe_routing_and_experts",
+   "definition": "061_sparse_moe_routing_and_experts",
+   "n_workloads": 16,
+   "task_chars": 11717,
+   "job_id": "j-0aeb30d91435",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3926744,
+     "completion_tokens": 63390,
+     "reasoning_tokens": 16606,
+     "total_tokens": 3990134,
+     "calls": 86,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__062_decoder_complete_layer": {
+   "problem": "L2__062_decoder_complete_layer",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__062_decoder_complete_layer",
+   "definition": "062_decoder_complete_layer",
+   "n_workloads": 16,
+   "task_chars": 13764,
+   "job_id": "j-283c7417bc24",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "failed",
+    "exit_code": 1,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 280825,
+     "completion_tokens": 7234,
+     "reasoning_tokens": 3038,
+     "total_tokens": 288059,
+     "calls": 48,
+     "failed_calls": 31
+    }
+   }
+  },
+  "L2__063_encoder_layer_dual_residual_norm_chain": {
+   "problem": "L2__063_encoder_layer_dual_residual_norm_chain",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__063_encoder_layer_dual_residual_norm_chain",
+   "definition": "063_encoder_layer_dual_residual_norm_chain",
+   "n_workloads": 16,
+   "task_chars": 10492,
+   "job_id": "j-1455ffb19d2f",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 6358900,
+     "completion_tokens": 64215,
+     "reasoning_tokens": 11564,
+     "total_tokens": 6423115,
+     "calls": 105,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__064_multi_head_qkv_projection_with_rope_backward": {
+   "problem": "L2__064_multi_head_qkv_projection_with_rope_backward",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__064_multi_head_qkv_projection_with_rope_backward",
+   "definition": "064_multi_head_qkv_projection_with_rope_backward",
+   "n_workloads": 16,
+   "task_chars": 10122,
+   "job_id": "j-596fb8d5b462",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3237593,
+     "completion_tokens": 39469,
+     "reasoning_tokens": 17639,
+     "total_tokens": 3277062,
+     "calls": 75,
+     "failed_calls": 5
+    }
+   }
+  },
+  "L2__065_sparse_expert_dispatch_and_combine": {
+   "problem": "L2__065_sparse_expert_dispatch_and_combine",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__065_sparse_expert_dispatch_and_combine",
+   "definition": "065_sparse_expert_dispatch_and_combine",
+   "n_workloads": 16,
+   "task_chars": 11264,
+   "job_id": "j-d6fd8764b832",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2924399,
+     "completion_tokens": 46296,
+     "reasoning_tokens": 23098,
+     "total_tokens": 2970695,
+     "calls": 80,
+     "failed_calls": 4
+    }
+   }
+  },
+  "L2__066_resnet_block_with_time_embedding": {
+   "problem": "L2__066_resnet_block_with_time_embedding",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__066_resnet_block_with_time_embedding",
+   "definition": "066_resnet_block_with_time_embedding",
+   "n_workloads": 16,
+   "task_chars": 8606,
+   "job_id": "j-e215b99c096a",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4836702,
+     "completion_tokens": 59212,
+     "reasoning_tokens": 9606,
+     "total_tokens": 4895914,
+     "calls": 93,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__067_patch_embed_to_joint_attention_input": {
+   "problem": "L2__067_patch_embed_to_joint_attention_input",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__067_patch_embed_to_joint_attention_input",
+   "definition": "067_patch_embed_to_joint_attention_input",
+   "n_workloads": 16,
+   "task_chars": 10283,
+   "job_id": "j-8423b2b6189c",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4516484,
+     "completion_tokens": 52411,
+     "reasoning_tokens": 18106,
+     "total_tokens": 4568895,
+     "calls": 103,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__068_gelu_approximate_feedforward_backward": {
+   "problem": "L2__068_gelu_approximate_feedforward_backward",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__068_gelu_approximate_feedforward_backward",
+   "definition": "068_gelu_approximate_feedforward_backward",
+   "n_workloads": 16,
+   "task_chars": 9614,
+   "job_id": "j-a25c8d63048f",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5294313,
+     "completion_tokens": 52326,
+     "reasoning_tokens": 11458,
+     "total_tokens": 5346639,
+     "calls": 100,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__069_joint_transformer_block_residual_path": {
+   "problem": "L2__069_joint_transformer_block_residual_path",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__069_joint_transformer_block_residual_path",
+   "definition": "069_joint_transformer_block_residual_path",
+   "n_workloads": 16,
+   "task_chars": 15729,
+   "job_id": "j-7f167fbcaab1",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4745639,
+     "completion_tokens": 61447,
+     "reasoning_tokens": 29764,
+     "total_tokens": 4807086,
+     "calls": 97,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__070_basic_transformer_block": {
+   "problem": "L2__070_basic_transformer_block",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__070_basic_transformer_block",
+   "definition": "070_basic_transformer_block",
+   "n_workloads": 16,
+   "task_chars": 13097,
+   "job_id": "j-0ccf671bd674",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 8367611,
+     "completion_tokens": 55221,
+     "reasoning_tokens": 5192,
+     "total_tokens": 8422832,
+     "calls": 133,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__071_edit_consistency_loss_with_perceptual_weighting": {
+   "problem": "L2__071_edit_consistency_loss_with_perceptual_weighting",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__071_edit_consistency_loss_with_perceptual_weighting",
+   "definition": "071_edit_consistency_loss_with_perceptual_weighting",
+   "n_workloads": 16,
+   "task_chars": 15346,
+   "job_id": "j-9a9cee802afe",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1336693,
+     "completion_tokens": 26377,
+     "reasoning_tokens": 12033,
+     "total_tokens": 1363070,
+     "calls": 42,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__072_region_aware_self_attention_with_edit_bias_backward": {
+   "problem": "L2__072_region_aware_self_attention_with_edit_bias_backward",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__072_region_aware_self_attention_with_edit_bias_backward",
+   "definition": "072_region_aware_self_attention_with_edit_bias_backward",
+   "n_workloads": 16,
+   "task_chars": 16875,
+   "job_id": "j-83d57d8f050e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2946367,
+     "completion_tokens": 55576,
+     "reasoning_tokens": 16667,
+     "total_tokens": 3001943,
+     "calls": 80,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__073_feedforward_mlp_backward": {
+   "problem": "L2__073_feedforward_mlp_backward",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__073_feedforward_mlp_backward",
+   "definition": "073_feedforward_mlp_backward",
+   "n_workloads": 16,
+   "task_chars": 9827,
+   "job_id": "j-98ef43fde688",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3311290,
+     "completion_tokens": 57741,
+     "reasoning_tokens": 27156,
+     "total_tokens": 3369031,
+     "calls": 72,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__074_sam_hq_mask_decoder_iou_hypernetwork_fusion_backward": {
+   "problem": "L2__074_sam_hq_mask_decoder_iou_hypernetwork_fusion_backward",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__074_sam_hq_mask_decoder_iou_hypernetwork_fusion_backward",
+   "definition": "074_sam_hq_mask_decoder_iou_hypernetwork_fusion_backward",
+   "n_workloads": 16,
+   "task_chars": 19172,
+   "job_id": "j-75c077d661d6",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3178583,
+     "completion_tokens": 43931,
+     "reasoning_tokens": 13842,
+     "total_tokens": 3222514,
+     "calls": 80,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L2__075_sam_hq_mask_decoder_two_way_transformer": {
+   "problem": "L2__075_sam_hq_mask_decoder_two_way_transformer",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__075_sam_hq_mask_decoder_two_way_transformer",
+   "definition": "075_sam_hq_mask_decoder_two_way_transformer",
+   "n_workloads": 16,
+   "task_chars": 14416,
+   "job_id": "j-e8f8a8cf05db",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1668044,
+     "completion_tokens": 57990,
+     "reasoning_tokens": 35556,
+     "total_tokens": 1726034,
+     "calls": 44,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__076_sam_hq_vision_attention_with_relative_position_backward": {
+   "problem": "L2__076_sam_hq_vision_attention_with_relative_position_backward",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__076_sam_hq_vision_attention_with_relative_position_backward",
+   "definition": "076_sam_hq_vision_attention_with_relative_position_backward",
+   "n_workloads": 16,
+   "task_chars": 16661,
+   "job_id": "j-754796e846d5",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2042379,
+     "completion_tokens": 35263,
+     "reasoning_tokens": 18124,
+     "total_tokens": 2077642,
+     "calls": 63,
+     "failed_calls": 3
+    }
+   }
+  },
+  "L2__077_sam_hq_vision_encoder_window_partition_attention": {
+   "problem": "L2__077_sam_hq_vision_encoder_window_partition_attention",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__077_sam_hq_vision_encoder_window_partition_attention",
+   "definition": "077_sam_hq_vision_encoder_window_partition_attention",
+   "n_workloads": 16,
+   "task_chars": 12616,
+   "job_id": "j-a80deb378877",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 877969,
+     "completion_tokens": 20551,
+     "reasoning_tokens": 7684,
+     "total_tokens": 898520,
+     "calls": 42,
+     "failed_calls": 7
+    }
+   }
+  },
+  "L2__078_fused_final_layer_upsample_with_adaptive_norm": {
+   "problem": "L2__078_fused_final_layer_upsample_with_adaptive_norm",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__078_fused_final_layer_upsample_with_adaptive_norm",
+   "definition": "078_fused_final_layer_upsample_with_adaptive_norm",
+   "n_workloads": 16,
+   "task_chars": 13969,
+   "job_id": "j-0936fd85fd05",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2127235,
+     "completion_tokens": 35238,
+     "reasoning_tokens": 9768,
+     "total_tokens": 2162473,
+     "calls": 56,
+     "failed_calls": 4
+    }
+   }
+  },
+  "L2__079_git_vision_encoder_layer": {
+   "problem": "L2__079_git_vision_encoder_layer",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__079_git_vision_encoder_layer",
+   "definition": "079_git_vision_encoder_layer",
+   "n_workloads": 16,
+   "task_chars": 9505,
+   "job_id": "j-118f0a4d711f",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2127000,
+     "completion_tokens": 55290,
+     "reasoning_tokens": 18069,
+     "total_tokens": 2182290,
+     "calls": 61,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L2__080_moe_complete_layer_with_shared_expert_backward": {
+   "problem": "L2__080_moe_complete_layer_with_shared_expert_backward",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__080_moe_complete_layer_with_shared_expert_backward",
+   "definition": "080_moe_complete_layer_with_shared_expert_backward",
+   "n_workloads": 16,
+   "task_chars": 17388,
+   "job_id": "j-bb584cba85b5",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 1,
+    "is_error": false,
+    "state": "succeeded",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4309691,
+     "completion_tokens": 42060,
+     "reasoning_tokens": 16361,
+     "total_tokens": 4351751,
+     "calls": 90,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__081_moe_sparse_expert_dispatch": {
+   "problem": "L2__081_moe_sparse_expert_dispatch",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__081_moe_sparse_expert_dispatch",
+   "definition": "081_moe_sparse_expert_dispatch",
+   "n_workloads": 16,
+   "task_chars": 10950,
+   "job_id": "j-8ca4017f2cfb",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3873021,
+     "completion_tokens": 55160,
+     "reasoning_tokens": 15971,
+     "total_tokens": 3928181,
+     "calls": 83,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L2__082_moe_layer_complete_forward_with_residual": {
+   "problem": "L2__082_moe_layer_complete_forward_with_residual",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/L2__082_moe_layer_complete_forward_with_residual",
+   "definition": "082_moe_layer_complete_forward_with_residual",
+   "n_workloads": 16,
+   "task_chars": 11252,
+   "job_id": "j-82263905a343",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3253533,
+     "completion_tokens": 40468,
+     "reasoning_tokens": 13918,
+     "total_tokens": 3294001,
+     "calls": 89,
+     "failed_calls": 2
+    }
+   }
+  },
+  "Quant__001_fp8_attention_output_projection": {
+   "problem": "Quant__001_fp8_attention_output_projection",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__001_fp8_attention_output_projection",
+   "definition": "001_fp8_attention_output_projection",
+   "n_workloads": 16,
+   "task_chars": 16453,
+   "job_id": "j-4cfbde99c26a",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2885503,
+     "completion_tokens": 66454,
+     "reasoning_tokens": 26742,
+     "total_tokens": 2951957,
+     "calls": 69,
+     "failed_calls": 1
+    }
+   }
+  },
+  "Quant__002_fp8_attention_qkv_projection": {
+   "problem": "Quant__002_fp8_attention_qkv_projection",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__002_fp8_attention_qkv_projection",
+   "definition": "002_fp8_attention_qkv_projection",
+   "n_workloads": 16,
+   "task_chars": 18303,
+   "job_id": "j-49102d050f7c",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3256423,
+     "completion_tokens": 56303,
+     "reasoning_tokens": 24667,
+     "total_tokens": 3312726,
+     "calls": 82,
+     "failed_calls": 1
+    }
+   }
+  },
+  "Quant__003_fp8_mlp_gate_up_projection": {
+   "problem": "Quant__003_fp8_mlp_gate_up_projection",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__003_fp8_mlp_gate_up_projection",
+   "definition": "003_fp8_mlp_gate_up_projection",
+   "n_workloads": 16,
+   "task_chars": 18564,
+   "job_id": "j-8c8520c3c778",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2941683,
+     "completion_tokens": 67014,
+     "reasoning_tokens": 35596,
+     "total_tokens": 3008697,
+     "calls": 75,
+     "failed_calls": 1
+    }
+   }
+  },
+  "Quant__004_fp8_moe_expert_linear": {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__004_fp8_moe_expert_linear",
+   "definition": "004_fp8_moe_expert_linear",
+   "n_workloads": 16,
+   "task_chars": 18474,
+   "job_id": "j-c873b0ea61ac",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2738385,
+     "completion_tokens": 63950,
+     "reasoning_tokens": 33845,
+     "total_tokens": 2802335,
+     "calls": 69,
+     "failed_calls": 1
+    }
+   }
+  },
+  "Quant__005_fp8_moe_router_projection": {
+   "problem": "Quant__005_fp8_moe_router_projection",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__005_fp8_moe_router_projection",
+   "definition": "005_fp8_moe_router_projection",
+   "n_workloads": 16,
+   "task_chars": 18033,
+   "job_id": "j-61491360d122",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5196345,
+     "completion_tokens": 58132,
+     "reasoning_tokens": 18852,
+     "total_tokens": 5254477,
+     "calls": 99,
+     "failed_calls": 1
+    }
+   }
+  },
+  "Quant__006_fp8_vision_attention_output_projection": {
+   "problem": "Quant__006_fp8_vision_attention_output_projection",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__006_fp8_vision_attention_output_projection",
+   "definition": "006_fp8_vision_attention_output_projection",
+   "n_workloads": 16,
+   "task_chars": 17338,
+   "job_id": "j-ce4b98e722c3",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1882328,
+     "completion_tokens": 51431,
+     "reasoning_tokens": 23958,
+     "total_tokens": 1933759,
+     "calls": 54,
+     "failed_calls": 4
+    }
+   }
+  },
+  "Quant__007_fp8_vision_attention_qkv_projection": {
+   "problem": "Quant__007_fp8_vision_attention_qkv_projection",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__007_fp8_vision_attention_qkv_projection",
+   "definition": "007_fp8_vision_attention_qkv_projection",
+   "n_workloads": 16,
+   "task_chars": 16572,
+   "job_id": "j-e5939d5d1a68",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2471679,
+     "completion_tokens": 44165,
+     "reasoning_tokens": 15751,
+     "total_tokens": 2515844,
+     "calls": 70,
+     "failed_calls": 4
+    }
+   }
+  },
+  "Quant__010_fp8_attention_output_projection": {
+   "problem": "Quant__010_fp8_attention_output_projection",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__010_fp8_attention_output_projection",
+   "definition": "010_fp8_attention_output_projection",
+   "n_workloads": 16,
+   "task_chars": 16821,
+   "job_id": "j-afb13aa71df3",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2487239,
+     "completion_tokens": 64842,
+     "reasoning_tokens": 27948,
+     "total_tokens": 2552081,
+     "calls": 56,
+     "failed_calls": 1
+    }
+   }
+  },
+  "Quant__011_fp8_moe_gate_routing": {
+   "problem": "Quant__011_fp8_moe_gate_routing",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__011_fp8_moe_gate_routing",
+   "definition": "011_fp8_moe_gate_routing",
+   "n_workloads": 16,
+   "task_chars": 19541,
+   "job_id": "j-6c1e9d208fec",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2171360,
+     "completion_tokens": 55632,
+     "reasoning_tokens": 32461,
+     "total_tokens": 2226992,
+     "calls": 58,
+     "failed_calls": 3
+    }
+   }
+  },
+  "Quant__012_fp8_shared_expert_mlp": {
+   "problem": "Quant__012_fp8_shared_expert_mlp",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__012_fp8_shared_expert_mlp",
+   "definition": "012_fp8_shared_expert_mlp",
+   "n_workloads": 16,
+   "task_chars": 18650,
+   "job_id": "j-5b8c8669f84a",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1592223,
+     "completion_tokens": 63412,
+     "reasoning_tokens": 36718,
+     "total_tokens": 1655635,
+     "calls": 44,
+     "failed_calls": 2
+    }
+   }
+  },
+  "Quant__013_fp8_mla_kv_compression_projection": {
+   "problem": "Quant__013_fp8_mla_kv_compression_projection",
+   "gpu": [
+    4
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__013_fp8_mla_kv_compression_projection",
+   "definition": "013_fp8_mla_kv_compression_projection",
+   "n_workloads": 16,
+   "task_chars": 20754,
+   "job_id": "j-a2bbe4ce62b1",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4021318,
+     "completion_tokens": 59650,
+     "reasoning_tokens": 22762,
+     "total_tokens": 4080968,
+     "calls": 94,
+     "failed_calls": 0
+    }
+   }
+  },
+  "Quant__014_fp8_yarn_rope_embedding": {
+   "problem": "Quant__014_fp8_yarn_rope_embedding",
+   "gpu": [
+    1
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__014_fp8_yarn_rope_embedding",
+   "definition": "014_fp8_yarn_rope_embedding",
+   "n_workloads": 16,
+   "task_chars": 19236,
+   "job_id": "j-3ea36138ca86",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 395462,
+     "completion_tokens": 36462,
+     "reasoning_tokens": 26451,
+     "total_tokens": 431924,
+     "calls": 23,
+     "failed_calls": 6
+    }
+   }
+  },
+  "Quant__015_fp8_mla_attention_output_projection": {
+   "problem": "Quant__015_fp8_mla_attention_output_projection",
+   "gpu": [
+    6
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__015_fp8_mla_attention_output_projection",
+   "definition": "015_fp8_mla_attention_output_projection",
+   "n_workloads": 16,
+   "task_chars": 17863,
+   "job_id": "j-df22b7ce7bcd",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3423324,
+     "completion_tokens": 58611,
+     "reasoning_tokens": 20304,
+     "total_tokens": 3481935,
+     "calls": 80,
+     "failed_calls": 1
+    }
+   }
+  },
+  "Quant__016_fp8_multi_latent_attention_qkv_projection": {
+   "problem": "Quant__016_fp8_multi_latent_attention_qkv_projection",
+   "gpu": [
+    3
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__016_fp8_multi_latent_attention_qkv_projection",
+   "definition": "016_fp8_multi_latent_attention_qkv_projection",
+   "n_workloads": 16,
+   "task_chars": 21050,
+   "job_id": "j-ee6d26aa36a2",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3951157,
+     "completion_tokens": 64249,
+     "reasoning_tokens": 29268,
+     "total_tokens": 4015406,
+     "calls": 87,
+     "failed_calls": 0
+    }
+   }
+  },
+  "Quant__017_fp8_shared_expert_mlp": {
+   "problem": "Quant__017_fp8_shared_expert_mlp",
+   "gpu": [
+    0
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__017_fp8_shared_expert_mlp",
+   "definition": "017_fp8_shared_expert_mlp",
+   "n_workloads": 16,
+   "task_chars": 21024,
+   "job_id": "j-583f6dc67c92",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1717652,
+     "completion_tokens": 39674,
+     "reasoning_tokens": 26779,
+     "total_tokens": 1757326,
+     "calls": 56,
+     "failed_calls": 6
+    }
+   }
+  },
+  "Quant__021_fp8_mamba2_in_projection": {
+   "problem": "Quant__021_fp8_mamba2_in_projection",
+   "gpu": [
+    7
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__021_fp8_mamba2_in_projection",
+   "definition": "021_fp8_mamba2_in_projection",
+   "n_workloads": 16,
+   "task_chars": 16223,
+   "job_id": "j-3f78fefbd766",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1776334,
+     "completion_tokens": 64018,
+     "reasoning_tokens": 35317,
+     "total_tokens": 1840352,
+     "calls": 51,
+     "failed_calls": 2
+    }
+   }
+  },
+  "Quant__022_fp8_mamba2_out_projection": {
+   "problem": "Quant__022_fp8_mamba2_out_projection",
+   "gpu": [
+    2
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__022_fp8_mamba2_out_projection",
+   "definition": "022_fp8_mamba2_out_projection",
+   "n_workloads": 16,
+   "task_chars": 16380,
+   "job_id": "j-462652dacd3a",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5076847,
+     "completion_tokens": 61887,
+     "reasoning_tokens": 31794,
+     "total_tokens": 5138734,
+     "calls": 103,
+     "failed_calls": 1
+    }
+   }
+  },
+  "Quant__023_fp8_mamba2_ssm_discretization": {
+   "problem": "Quant__023_fp8_mamba2_ssm_discretization",
+   "gpu": [
+    5
+   ],
+   "sandbox": "/var/tmp/solbench/amdpilot/glm-sweep-2/Quant__023_fp8_mamba2_ssm_discretization",
+   "definition": "023_fp8_mamba2_ssm_discretization",
+   "n_workloads": 6,
+   "task_chars": 14780,
+   "job_id": "j-0c2ede25effa",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": 0,
+    "is_error": true,
+    "state": "cancelled",
+    "exit_code": 0,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3939560,
+     "completion_tokens": 53443,
+     "reasoning_tokens": 14225,
+     "total_tokens": 3993003,
+     "calls": 85,
+     "failed_calls": 2
+    }
+   }
+  }
+ },
+ "eval_settings": {
+  "iterations": 20,
+  "warmup": 5
+ },
+ "note": "Run through the amdpilot fleet: J2 backfill jobs placed by the real GPU Scheduler, each in its own container with one MI350X, driven by codex-cli against GLM-5.2 through the Model API front door. Trajectories are the front door's own record, not the harness's self-report."
+}

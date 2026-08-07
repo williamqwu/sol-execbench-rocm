@@ -1,0 +1,46 @@
+{
+ "_provenance": {
+  "task": "10-agent-eval",
+  "utc": "2026-08-07T10:44:37.215381+00:00",
+  "git_sha": null,
+  "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI350X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "7.1.1.31500000",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+  },
+  "f_lock_mhz": 1300,
+  "visible_devices": "5"
+ },
+ "workloads": 1,
+ "passed": 0,
+ "all_passed": false,
+ "per_workload": [
+  {
+   "index": 0,
+   "workload_uuid": "c3276419-ce70-5647-bab5-66e188551b0d",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "/python3.12/site-packages/torch/_dynamo/convert_frame.py\", line 1151, in _compile_inner\n    dynamo_output = compile_frame(\n                    ^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py\", line 1032, in compile_frame\n    bytecode, tracer_output = transform_code_object(code, transform)\n                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/bytecode_transformation.py\", line 1592, in transform_code_object\n    tracer_output = transformations(instructions, code_options)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py\", line 1004, in transform\n    tracer_output = trace_frame(\n                    ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/convert_frame.py\", line 333, in _fn\n    torch.cuda.set_rng_state(cuda_rng_state)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/cuda/random.py\", line 79, in set_rng_state\n    _lazy_call(cb)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/cuda/__init__.py\", line 341, in _lazy_call\n    callable()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/cuda/random.py\", line 75, in cb\n    idx = current_device()\n          ^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/cuda/__init__.py\", line 1070, in current_device\n    return torch._C._cuda_getDevice()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\ntorch._dynamo.exc.InternalTorchDynamoError: AcceleratorError: HIP error: an illegal memory access was encountered\nSearch for `hipErrorIllegalAddress' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__HIPRT__TYPES.html for more information.\nHIP kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\n\n"
+  }
+ ],
+ "ok": true,
+ "problem": "L2__026_moe_expert_parallel_execution_with_weighted_aggregation"
+}

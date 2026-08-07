@@ -1,0 +1,34 @@
+{
+ "_provenance": {
+  "task": "10-agent-eval",
+  "utc": "2026-08-07T20:43:29.491172+00:00",
+  "git_sha": "bf586afa38980b6b848f54bede2c752018673958-dirty",
+  "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI350X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "7.1.1.31500000",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+  },
+  "f_lock_mhz": 1300,
+  "visible_devices": "0"
+ },
+ "ok": false,
+ "error": "RuntimeError: no traces produced (rc=1)\nstderr:\n/var/tmp/solbench/solb_run_fxe2_ub6/_reference.py:31: UserWarning: expandable_segments not supported on this platform (Triggered internally at /pytorch/c10/hip/HIPAllocatorConfig.h:36.)\n  full_mask = torch.ones(\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_fxe2_ub6/eval_driver.py\", line 622, in <module>\n    _emit(\n  File \"/var/tmp/solbench/solb_run_fxe2_ub6/eval_driver.py\", line 322, in _emit\n    json.dumps(trace.model_dump(mode=\"json\"), allow_nan=False),\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 200, in encode\n    chunks = self.iterencode(o, _one_shot=True)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 258, in iterencode\n    return _iterencode(o, 0)\n           ^^^^^^^^^^^^^^^^^\nValueError: Out of range float values are not JSON compliant: nan\n[W807 20:43:29.342131987 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())\n\nstdout:\n",
+ "traceback": "Traceback (most recent call last):\n  File \"/work/scripts/agent_eval.py\", line 90, in main\n    traces = evaluate(definition, workloads, solution, config, timeout=a.timeout)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/work/scripts/runners/_common.py\", line 185, in evaluate\n    raise RuntimeError(\nRuntimeError: no traces produced (rc=1)\nstderr:\n/var/tmp/solbench/solb_run_fxe2_ub6/_reference.py:31: UserWarning: expandable_segments not supported on this platform (Triggered internally at /pytorch/c10/hip/HIPAllocatorConfig.h:36.)\n  full_mask = torch.ones(\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_fxe2_ub6/eval_driver.py\", line 622, in <module>\n    _emit(\n  File \"/var/tmp/solbench/solb_run_fxe2_ub6/eval_driver.py\", line 322, in _emit\n    json.dumps(trace.model_dump(mode=\"json\"), allow_nan=False),\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 200, in encode\n    chunks = self.iterencode(o, _one_shot=True)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 258, in iterencode\n    return _iterencode(o, 0)\n           ^^^^^^^^^^^^^^^^^\nValueError: Out of range float values are not JSON compliant: nan\n[W807 20:43:29.342131987 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())\n\nstdout:\n\n",
+ "workloads": 0,
+ "passed": 0,
+ "all_passed": false,
+ "per_workload": [],
+ "problem": "L1__028_hybrid_attention_mask_preparation"
+}

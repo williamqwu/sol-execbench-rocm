@@ -965,6 +965,20 @@ problems where the variant passed everything, which is what `all_passed` means.
 It is the workload column that is answering a different question than its
 heading.
 
+**Worked example**, `L1__062_kv_cache_update_with_rope_backward`, `v2_compile`:
+
+```
+artifact  workloads=16  passed=15  all_passed=False
+          latency_ms_by_workload: 15 entries      failures: 1
+          overlap between them: 0   <- a timing exists only where it passed
+board     15 rows, all FAILED, all score NULL, all with a latency
+          e.g. 0d847216  FAILED  score None  0.31154 ms
+               in latency_ms_by_workload: True   in failures: False
+```
+
+Fifteen workloads that were measured passing, on the board as fifteen failures,
+because a sixteenth failed.
+
 The residue after the fix is a real result and not a gap: `v2_compile` fails
 **523 workloads on `INCORRECT_NUMERICAL`** and never produces a timing for 23
 more; `v3` fails 581 (571 numerical, 10 `RUNTIME_ERROR`) and misses 106. That
@@ -987,8 +1001,40 @@ one. At the authoritative sweep's measured rate — **217 problems in 323.3 min,
 ~1.5 min/problem** (`artifacts/06/logs/authoritative.log`) — re-timing all 89 is
 **about 2¼ hours on GPU 0**, and a full re-derivation from scratch is ~5.4 h.
 
-Not fixed here. Recorded, with the numbers, so the fix is a re-ingest against a
-stated target rather than a rediscovery.
+**"Re-ingest" means re-running `leaderboard/ingest.py`.** It reads JSON that
+already exists and writes SQLite. No GPU, no kernel runs, no re-measurement,
+and *nothing converts from fail to success* — the 1,239 rows were recorded as
+passing on the day they were measured and have been mislabelled in the view
+ever since. The three things that sound alike and are not:
+
+| | what it is | GPU cost |
+|---|---|---|
+| re-ingest | read `failures` per workload instead of the problem flag | none |
+| authoritative re-time (89 problems) | these workloads already pass; their timing on record came from a sweep GPU, not GPU 0 | ~2¼ h |
+| the genuine gaps (129 workloads) | never measured at all — no timing exists | see below |
+
+Only the third is a run. It is **129 workloads across 8 problems** where the
+task-06 sweep recorded fewer workloads than the problem has: `v2_compile` 23
+across 2, `v3_compile_max_autotune` 106 across 8. Causes are visible in the
+artifacts and are not all the same — `L1__094` timed out at 3600 s, `L2__012`
+died with `rc=-6` and no traces, and `L2__055`/`L2__059` recorded
+`all_passed=True` over 3 and 5 workloads respectively while the problem has 15
+and 16, which is a driver that stopped early and declared victory over what it
+had reached.
+
+Re-timed 2026-08-07 into **`artifacts/06/candidates-gapfill/`**, GPUs 1–7,
+inside `env/solb`, 50 iterations — deliberately *not* into
+`artifacts/06/candidates/`. That directory is frozen input to manifest v1, and
+`T_b` is the fastest variant per workload: a new `v3` timing landing there
+could lower `T_b`, which moves the bound, which moves every score on that
+workload. Filling these gaps is a v1.1 change, and it needs the manifest
+regenerated and re-published, not an artifact edited underneath it.
+
+A first attempt at this ran the runner on the **host** rather than through
+`env/solb` — python 3.11.7, ROCm 7.15, `torch.available: false` against the
+pinned 3.12.3 / 7.2.0 / torch 2.9.1. Caught on the provenance stamp of the
+first output file, and those artifacts were deleted rather than kept. This is
+exactly what prime directive 6 is about and it took one command to get wrong.
 
 ### D29 — the external fleet ran 34 jobs on GPU 0
 
@@ -1041,6 +1087,53 @@ resolves to an `id="x"` in the body, that the nav is in document order (the spy
 assumes it), that no `h2` is missing from the nav, and that a page passing no
 `toc` still renders single-column. Two files with no compiler between them
 would otherwise drift into links that render, look live, and scroll nowhere.
+
+### One score, two scopes: the board's headline is now a switch
+
+The board printed two four-decimal numbers side by side — `benchmark score` and
+`mean (attempted)` — ranked by the first and read as either. Two denominators
+under adjacent headings is not a disclosure; it is a thing to misread. Replaced
+by **one score column whose denominator is a state of the table**, selected by
+a segmented control above it:
+
+* **what it ran** (default) — divided by the workloads the submission was
+  actually given. A failed attempt is still a zero; only workloads it never saw
+  leave the denominator.
+* **whole benchmark** — divided by all 3,717. Never-attempted counts as zero
+  exactly like failed, and the row carries the `*` Partial mark.
+
+Both numbers, both ranks and both coverage figures are rendered server-side
+into the same cells; the switch changes which is shown, re-points `data-sort`
+so a column sort still sorts what is on screen, and restores that scope's
+ordering. With JavaScript off the default scope is fully rendered and the
+switch does nothing. The denominator is never computed in the browser — that
+would be a second implementation of the score, disagreeing in the fourth
+decimal.
+
+The `problems` column now counts **problems attempted**, with problems swept
+clean on the sub-line. It counted only the clean sweeps, so `torch.compile`
+read as having seen 149 problems when it had run 218.
+
+**This changes the default ranking, and the change is worth looking at
+directly.** Under *what it ran*, the four-problem Opus-5 run sits at #1 with
+0.7011 and `PyTorch eager` at #4 with 0.4541; under *whole benchmark* those are
+#6 with 0.0111 and #1 with 0.4528. Neither order is wrong and neither makes the
+rows comparable — a 59-workload denominator and a 3,717-workload one are
+different questions, and the short one is usually the easier one. The page says
+so in the scope note and again below the table, and coverage sits in the next
+column in both scopes. What it no longer does is print both numbers at once and
+leave the reader to work out which one the rank came from.
+
+`/api/v1/leaderboard` is unchanged in shape and **still ordered by `rank`**, the
+full-benchmark scope: a consumer reading position N must not start getting a
+different row because a page default moved. `rank_attempted`,
+`problems_attempted` and `coverage_attempted` are additive.
+
+`tests/leaderboard/test_score_scope.py` (8 tests): the two scopes are the same
+sum over different denominators, recomputed from the parts; both rank orders
+are dense from 1; the API keeps its ordering; every score cell carries both
+numbers with `data-sort` pointing at the displayed one; the Partial star
+appears only in the full scope, where it means something.
 
 ### The grid ramp: distribution and contrast, closed
 

@@ -212,6 +212,38 @@ h3{font-size:14px;margin:24px 0 10px;color:var(--dim);text-transform:uppercase;
   border-radius:8px;padding:6px 13px;font-size:13px;cursor:pointer}
 .filters button:hover{border-color:var(--dim)}
 
+/* ------------------------------------------------------- score-scope switch */
+/* A segmented control, squared off to match the part switch in the header --
+   the two do the same kind of thing (select which dataset a number is about)
+   and should not look like different mechanisms.
+   The active segment is a filled slab rather than a tint, because the thing it
+   is announcing is the denominator of every number below it: too quiet and the
+   reader takes the default as "the score" and never learns there is another. */
+.scopebar{margin:22px 0 4px}
+.scopeswitch{display:inline-flex;border:1px solid var(--line2);border-radius:8px;
+  overflow:hidden}
+.scopeswitch .scope-opt{background:transparent;border:none;cursor:pointer;
+  color:var(--dim);font:12.5px/1 var(--sans);padding:8px 15px;
+  border-right:1px solid var(--line2);white-space:nowrap}
+.scopeswitch .scope-opt:last-child{border-right:none}
+.scopeswitch .scope-opt:hover{background:var(--panel2);color:var(--fg)}
+.scopeswitch .scope-opt.on{background:var(--accent);color:#fff;font-weight:600}
+.scopeswitch .scope-opt:focus-visible{outline:2px solid var(--link);outline-offset:-2px}
+/* Both notes are in the DOM so the switch needs no round trip, and so the page
+   still says what its default denominator is with JS off. */
+.scope-note{max-width:88ch;margin:10px 0 0;display:none}
+.scopebar[data-scope="attempted"] [data-scope-note="attempted"],
+.scopebar[data-scope="full"] [data-scope-note="full"]{display:block}
+.scopebar:not([data-scope]) [data-scope-note="attempted"]{display:block}
+/* Same idea inside the table: one cell holds both numbers, and which is shown
+   is a property of the table, not of the cell. */
+.board .sc{display:none}
+.board[data-scope="attempted"] .sc-attempted,
+.board[data-scope="full"] .sc-full{display:inline}
+.board td.cov .sc{display:none}
+.board[data-scope="attempted"] td.cov .sc-attempted,
+.board[data-scope="full"] td.cov .sc-full{display:block}
+
 /* ---------------------------------------------------------------- tables */
 table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}

@@ -798,11 +798,32 @@ def ingest_depth(conn, sub_id: int, run_dir: Path, problems: list[str]) -> dict:
                         j = json.loads(line)
                     except Exception:
                         continue
+                    # Two harnesses, two record shapes, counted into the same
+                    # two numbers. Neither file is rewritten to match the
+                    # other: the transcript is served verbatim and a
+                    # translation shown under that word would be a different
+                    # artifact wearing its name.
+                    #
+                    #   claude-code : {"type":"assistant",
+                    #                  "message":{"content":[{"type":"tool_use",
+                    #                                         "name":...}]}}
+                    #   codex       : {"type":"item.completed",
+                    #                  "item":{"type":"assistant_message"
+                    #                          | "command_execution"
+                    #                          | "file_change" | ...}}
                     if j.get("type") == "assistant":
                         n_turns += 1
                     for c in (j.get("message") or {}).get("content") or []:
                         if isinstance(c, dict) and c.get("type") == "tool_use":
                             tools[c.get("name")] = tools.get(c.get("name"), 0) + 1
+                    item = j.get("item")
+                    if j.get("type") == "item.completed" and isinstance(item, dict):
+                        kind = item.get("type")
+                        if kind in ("assistant_message", "agent_message",
+                                    "reasoning"):
+                            n_turns += int(kind != "reasoning")
+                        elif kind:
+                            tools[kind] = tools.get(kind, 0) + 1
         except OSError:
             continue
         conn.execute(

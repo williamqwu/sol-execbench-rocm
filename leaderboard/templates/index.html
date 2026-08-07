@@ -30,67 +30,110 @@
   {% endfor %}
 </div>
 
+{# One score, two scopes, and a switch -- not two score columns. Printing both
+   at once was the confusion this replaces: two four-decimal numbers under
+   adjacent headings, ranked by the right-hand one and read as the left. The
+   switch makes the denominator a state of the table, so whatever is on screen
+   there is exactly one score and its scope is named above it. #}
+<div class="scopebar" data-scope="attempted">
+  <div class="scopeswitch" role="group" aria-label="Score denominator">
+    <button type="button" class="scope-opt on" data-scope="attempted"
+            aria-pressed="true"
+            title="Divide by the workloads this submission was actually run on. A workload it attempted and failed still counts as zero; only ones it never saw leave the denominator.">what it ran</button>
+    <button type="button" class="scope-opt" data-scope="full"
+            aria-pressed="false"
+            title="Divide by all {{ meta.scoreable_workloads }} scoreable workloads. A workload never attempted counts as zero exactly like one that failed.">whole benchmark</button>
+  </div>
+  <p class="sub scope-note" data-scope-note="attempted">
+    Scores divide by the <b>{{ '{:,}'.format(meta.scoreable_workloads|int) }}-workload
+    benchmark minus whatever a row never attempted</b>. Failures still count as
+    zero. <b>This is not a ranking of submissions against each other</b> &mdash;
+    a row that ran 59 workloads and one that ran 3,717 are being asked different
+    questions, and the narrower one is easier. Read the coverage column with it,
+    every time.
+  </p>
+  <p class="sub scope-note" data-scope-note="full">
+    Scores divide by all <b>{{ '{:,}'.format(meta.scoreable_workloads|int) }}</b>
+    scoreable workloads. A workload that was never attempted counts as zero
+    exactly like one that failed, so a <span class="star">*</span>&nbsp;<b>Partial</b>
+    row's number is a floor and not a measurement of what it can do. This is the
+    scope in which the rows are comparable.
+  </p>
+</div>
+
 <p class="sub hint">Click any column heading to sort by it.</p>
 
-<table class="board sortable">
+<table class="board sortable" data-scope="attempted">
   <thead>
     <tr>
-      <th class="r" title="Rank by benchmark score. Sort by this column to restore the default order.">#</th>
+      <th class="r" title="Rank under the scope selected above. Sort by this column to restore that order.">#</th>
       <th>submission</th>
       <th>kind</th>
-      {# meta.scoreable_workloads, not the literal 3717 these two tooltips
-         carried. The denominator is the manifest's, and v1.1 restoring the 15
-         deferred NVFP4 problems moves it -- at which point a hardcoded 3717
-         would state the wrong denominator for the headline number, in the one
-         place a reader goes to find out what the denominator is. The footnote
-         eight lines below already reads it from meta. #}
-      <th class="r" title="Sum of per-workload scores over EVERY scoreable workload in the benchmark, divided by all {{ meta.scoreable_workloads }} of them. A workload that failed, and a workload that was never attempted, both contribute zero.">benchmark&nbsp;score</th>
-      <th class="r" title="Sum of scores divided by the workloads this submission ATTEMPTED. An attempt that failed counts as zero; a workload never attempted is excluded. Read it together with coverage.">mean&nbsp;(attempted)</th>
-      <th class="r" title="Workloads passed, out of all {{ meta.scoreable_workloads }} scoreable workloads.">coverage</th>
-      <th class="r" title="Problems where every scoreable workload passed.">problems</th>
+      {# meta.scoreable_workloads, not the literal 3717 this tooltip carried.
+         The denominator is the manifest's, and v1.1 restoring the 15 deferred
+         NVFP4 problems moves it -- at which point a hardcoded 3717 would state
+         the wrong denominator for the headline number, in the one place a
+         reader goes to find out what the denominator is. #}
+      <th class="r" title="Sum of per-workload scores, divided by the scope selected above.">score</th>
+      <th class="r" title="Workloads passed, over the scope selected above.">coverage</th>
+      <th class="r" title="Problems this submission has at least one result on. The sub-line is how many of them it swept clean.">problems&nbsp;attempted</th>
       <th class="r" title="Workloads the verifier rejected as reward hacking (status REWARD_HACK): output accepted without the work being done. Zero so far across every submission — a dash here means the check ran and found nothing, not that it was not run.">flagged</th>
     </tr>
   </thead>
   <tbody>
   {% for s in board %}
-    <tr class="kind-{{ s.kind }}">
-      <td class="r rank" data-sort="{{ s.rank }}">{{ s.rank }}</td>
+    <tr class="kind-{{ s.kind }}" data-rank-attempted="{{ s.rank_attempted }}"
+        data-rank-full="{{ s.rank }}">
+      <td class="r rank" data-sort="{{ s.rank_attempted }}"
+          data-v-attempted="{{ s.rank_attempted }}" data-v-full="{{ s.rank }}">{{ s.rank_attempted }}</td>
       <td data-sort="{{ s.name|lower }}"><a href="{{ part_url('/submissions/' ~ s.slug) }}">{{ s.name }}</a>
           {% if s.model %}<span class="model">{{ s.model }}</span>{% endif %}</td>
       <td data-sort="{{ s.kind }}"><span class="tag tag-{{ s.kind }}">{{ s.kind.replace('_',' ') }}</span></td>
-      {# The star marks a score whose denominator includes workloads this
-         submission was never run on. Without it the headline is silently
-         unfair in a way the number itself cannot show: an agent that solved
-         four problems well and a baseline that ran the whole benchmark are
-         both just "a number", and the small one looks like weakness rather
-         than absence. #}
-      <td class="r big" data-sort="{{ s.benchmark_score }}">{{ '%.4f'|format(s.benchmark_score) }}{%
-        if s.partial %}<span class="star" title="Partial: not run on all {{ s.workloads_total }} scoreable workloads. {{ s.workloads_untested }} were never attempted and count as zero in this score. See 'mean (attempted)' for the score over what was actually run.">*</span>{% endif %}</td>
+      {# Both numbers are rendered; the switch chooses which is shown. Server-
+         side, because they must agree with the ranks computed there and with
+         /api/v1 -- a denominator applied in the browser is a second
+         implementation of the score. #}
+      <td class="r big" data-sort="{{ s.mean_score_attempted }}"
+          data-s-attempted="{{ s.mean_score_attempted }}" data-s-full="{{ s.benchmark_score }}">
+        <span class="sc sc-attempted">{{ '%.4f'|format(s.mean_score_attempted) }}</span>
+        {# The star belongs to the full scope alone: under "what it ran" nothing
+           is missing from the denominator, so there is nothing to warn about.
+           Under the whole benchmark it is the difference between a weak result
+           and an absent one. #}
+        <span class="sc sc-full">{{ '%.4f'|format(s.benchmark_score) }}{%
+          if s.partial %}<span class="star" title="Partial: {{ '{:,}'.format(s.workloads_untested) }} of the {{ '{:,}'.format(s.workloads_total) }} scoreable workloads were never attempted and count as zero here. Switch to 'what it ran' for the score over what it was actually given.">*</span>{% endif %}</span>
+      </td>
       {# `cov` too, not just for the coverage column: it is what puts the
          sub-line on its own row instead of letting it wrap only when the
          column happens to be narrow enough. #}
-      <td class="r cov" data-sort="{{ s.mean_score_attempted }}">{{ '%.4f'|format(s.mean_score_attempted) }}
-        <span class="sub cov-n">{{ s.workloads_attempted }} attempted{% if s.workloads_failed %}, {{ s.workloads_failed }} scored 0{% endif %}</span></td>
-      <td class="r cov" data-sort="{{ s.coverage }}">
-        <span class="bar"><span style="width:{{ (s.coverage*100)|round(1) }}%"></span></span>{{ '%.1f'|format(s.coverage*100) }}%
-        <span class="sub cov-n">{{ s.workloads_passed }}/{{ s.workloads_total }}</span>
+      <td class="r cov" data-sort="{{ s.coverage_attempted }}"
+          data-s-attempted="{{ s.coverage_attempted }}" data-s-full="{{ s.coverage }}">
+        <span class="sc sc-attempted">
+          <span class="bar"><span style="width:{{ (s.coverage_attempted*100)|round(1) }}%"></span></span>{{ '%.1f'|format(s.coverage_attempted*100) }}%
+          <span class="sub cov-n">{{ '{:,}'.format(s.workloads_passed) }}/{{ '{:,}'.format(s.workloads_attempted) }} run</span>
+        </span>
+        <span class="sc sc-full">
+          <span class="bar"><span style="width:{{ (s.coverage*100)|round(1) }}%"></span></span>{{ '%.1f'|format(s.coverage*100) }}%
+          <span class="sub cov-n">{{ '{:,}'.format(s.workloads_passed) }}/{{ '{:,}'.format(s.workloads_total) }}</span>
+        </span>
       </td>
-      <td class="r" data-sort="{{ s.problems_complete }}">{{ s.problems_complete }}<span class="sub">/{{ s.problems_total }}</span></td>
+      <td class="r cov" data-sort="{{ s.problems_attempted }}">{{ s.problems_attempted }}<span class="sub">/{{ s.problems_total }}</span>
+        <span class="sub cov-n">{{ s.problems_complete }} swept clean</span></td>
       <td class="r" data-sort="{{ s.n_flagged }}">{% if s.n_flagged %}<span class="flag">{{ s.n_flagged }}</span>{% else %}&mdash;{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
 </table>
 
-<p class="sub footnote">
-  <span class="star">*</span> <b>Partial.</b> The benchmark score always divides
-  by all {{ meta.scoreable_workloads }} scoreable workloads, so a workload that
-  was never attempted counts as zero exactly like one that failed. A starred row
-  was not run on the whole benchmark, and its headline is a floor, not a
-  measurement of what that submission can do. <b>No row is unstarred today</b>
-  &mdash; even the eager-PyTorch sweep is missing a handful of workloads &mdash;
-  so read the star as "how much is missing", in the two counts under
-  <i>mean&nbsp;(attempted)</i>, rather than as a pass/fail mark.
+<p class="note">
+  <b>Neither scope makes two rows with different coverage comparable.</b>
+  Under <i>what it ran</i> the denominators are different sets of problems, and
+  a short one is usually an easier one. Under <i>the whole benchmark</i> the
+  denominator is shared, but everything a row never attempted is scored as a
+  failure it never had. There is no denominator that turns a partial run into a
+  full one; the switch lets you see which of the two distortions you are
+  looking at, and the coverage column is how you tell whether either matters
+  for the pair you are comparing.
 </p>
 
 <p class="note">
@@ -117,4 +160,64 @@
      artifacts while the hardware ran at ~1860 MHz. #}
 </p>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* The score-scope switch. Everything it needs is already in the DOM -- both
+   numbers, both ranks, both coverage figures -- so this only swaps which is
+   visible, restores that scope's ordering, and re-points `data-sort` so the
+   column-sort handler in base.html keeps sorting the number on screen rather
+   than the hidden one.
+ *
+ * With JS off the table stays in its default scope, fully readable, and the
+ * switch simply does nothing. That is why the default is rendered by the
+ * server and not chosen here.
+ *
+ * Not persisted. A remembered denominator is a denominator the next reader
+ * does not know is set, and this one silently changes the ranking. */
+(function(){
+  var bar = document.querySelector(".scopebar");
+  var table = document.querySelector("table.board");
+  if(!bar || !table) return;
+  var tb = table.tBodies[0];
+
+  function apply(scope){
+    bar.setAttribute("data-scope", scope);
+    table.setAttribute("data-scope", scope);
+    bar.querySelectorAll(".scope-opt").forEach(function(b){
+      var on = b.getAttribute("data-scope") === scope;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    /* Every cell that holds two values re-points at this scope's. */
+    table.querySelectorAll("td[data-s-" + scope + "]").forEach(function(td){
+      td.setAttribute("data-sort", td.getAttribute("data-s-" + scope));
+    });
+    var rankKey = scope === "full" ? "data-v-full" : "data-v-attempted";
+    table.querySelectorAll("td.rank").forEach(function(td){
+      var v = td.getAttribute(rankKey);
+      td.textContent = v;
+      td.setAttribute("data-sort", v);
+    });
+    /* Back to this scope's ranking. A manual column sort is deliberately
+       discarded: it was a sort of the other scope's numbers. */
+    Array.from(tb.rows)
+      .sort(function(a,b){
+        var k = scope === "full" ? "rankFull" : "rankAttempted";
+        return (+a.dataset[k]) - (+b.dataset[k]);
+      })
+      .forEach(function(tr){ tb.appendChild(tr); });
+    table.querySelectorAll("th").forEach(function(th){
+      th.classList.remove("sort-asc","sort-desc");
+    });
+  }
+
+  bar.querySelectorAll(".scope-opt").forEach(function(b){
+    b.addEventListener("click", function(){
+      apply(b.getAttribute("data-scope"));
+    });
+  });
+})();
+</script>
 {% endblock %}
