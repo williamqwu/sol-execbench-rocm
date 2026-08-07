@@ -496,30 +496,37 @@ def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
                                  AND w.uuid=r.workload_uuid
                  WHERE r.submission_id=? AND w.scoreable=1 {where_cat}""",
             (s["id"], *cat_arg)).fetchone()[0]
-        complete = conn.execute(
-            f"""SELECT COUNT(*) FROM (
-                  SELECT p.key, p.n_scoreable,
-                         SUM(CASE WHEN r.status='PASSED' THEN 1 ELSE 0 END) AS ok
-                    FROM problem p
-                    JOIN workload w ON w.problem_key=p.key AND w.scoreable=1
-                    LEFT JOIN result r ON r.problem_key=w.problem_key
-                                      AND r.workload_uuid=w.uuid
-                                      AND r.submission_id=?
-                   WHERE p.n_scoreable > 0 {'AND p.category = ?' if category else ''}
-                   GROUP BY p.key
-                  HAVING ok = p.n_scoreable AND ok > 0)""",
-            (s["id"], *((category,) if category else ()))).fetchone()[0]
-        # Problems TOUCHED, not solved. `complete` answers "how many did it get
-        # right"; this answers "how many did it try", and the board's problems
-        # column asks the second question -- a run that attempted 89 and swept
-        # 21 of them was reading as if it had only ever seen 21.
-        touched = conn.execute(
-            f"""SELECT COUNT(DISTINCT r.problem_key)
-                  FROM result r
-                  JOIN workload w ON w.problem_key=r.problem_key
-                                 AND w.uuid=r.workload_uuid
-                 WHERE r.submission_id=? AND w.scoreable=1 {where_cat}""",
-            (s["id"], *cat_arg)).fetchone()[0]
+        # Every scoreable problem, in one of four states, adding up to the whole
+        # benchmark. This replaces the old `coverage` + `problems` pair, which
+        # asked overlapping questions in incompatible units -- one counted
+        # workloads out of 3,717, the other counted problems the submission had
+        # swept clean, and neither said how many problems it had tried and
+        # failed. A reader could not get "how much of the benchmark is this"
+        # out of them at all.
+        #
+        # LEFT JOIN from `problem`, so a problem with no results is still a row
+        # and lands in `untouched`. Grouping the other way round can only ever
+        # count problems that produced something.
+        buckets = conn.execute(
+            f"""SELECT SUM(CASE WHEN seen = 0 THEN 1 ELSE 0 END) AS untouched,
+                       SUM(CASE WHEN seen > 0 AND ok = 0 THEN 1 ELSE 0 END) AS failed,
+                       SUM(CASE WHEN ok > 0 AND ok < n_scoreable THEN 1 ELSE 0 END) AS partial,
+                       SUM(CASE WHEN ok > 0 AND ok = n_scoreable THEN 1 ELSE 0 END) AS clean,
+                       COUNT(*) AS n
+                  FROM (
+                    SELECT p.key, p.n_scoreable,
+                           COUNT(r.workload_uuid) AS seen,
+                           SUM(CASE WHEN r.status='PASSED' THEN 1 ELSE 0 END) AS ok
+                      FROM problem p
+                      JOIN workload w ON w.problem_key=p.key AND w.scoreable=1
+                      LEFT JOIN result r ON r.problem_key=w.problem_key
+                                        AND r.workload_uuid=w.uuid
+                                        AND r.submission_id=?
+                     WHERE p.n_scoreable > 0 {'AND p.category = ?' if category else ''}
+                     GROUP BY p.key)""",
+            (s["id"], *((category,) if category else ()))).fetchone()
+        clean = buckets["clean"] or 0
+        touched = (buckets["n"] or 0) - (buckets["untouched"] or 0)
 
         out.append({
             **s,
@@ -534,8 +541,17 @@ def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
             "workloads_failed": attempted - agg["n_passed"],
             "partial": attempted < total,
             "problems_total": total_problems,
-            "problems_complete": complete,
+            "problems_complete": clean,
             "problems_attempted": touched,
+            # The four states of the coverage bar, over problems, summing to
+            # `problems_total`. Percentages are not precomputed: the bar wants
+            # them of the whole benchmark and the tooltip wants the counts, and
+            # a rounded percentage that no longer sums to 100 is the classic way
+            # for a stacked bar to end with a 1px gap nobody can explain.
+            "problems_clean": clean,
+            "problems_partial": buckets["partial"] or 0,
+            "problems_failed": buckets["failed"] or 0,
+            "problems_untouched": buckets["untouched"] or 0,
             # ONE score, two scopes, and the board switches between them rather
             # than printing both side by side -- see the `scope` note below.
             #

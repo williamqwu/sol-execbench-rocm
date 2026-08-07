@@ -107,6 +107,19 @@ class LeaderboardRow(BaseModel):
         default=0,
         description="Problems this submission has at least one result on. "
                     "`problems_complete` is the subset it swept clean.")
+    # The four states the board's coverage bar draws. Disjoint, and they sum to
+    # problems_total -- which is the property that makes the bar readable and
+    # the one to assert if these are ever recomputed.
+    problems_clean: int = Field(
+        default=0, description="Every scoreable workload passed.")
+    problems_partial: int = Field(
+        default=0, description="Some workloads passed, some did not.")
+    problems_failed: int = Field(
+        default=0, description="Attempted, and no workload passed. NOT the "
+                               "same as never attempted, which is the next "
+                               "field.")
+    problems_untouched: int = Field(
+        default=0, description="No result of any kind. Never run on it.")
     rank: int = Field(
         default=0,
         description="Rank under the full-benchmark scope (`benchmark_score`).")

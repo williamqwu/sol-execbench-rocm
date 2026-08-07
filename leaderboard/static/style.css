@@ -127,10 +127,18 @@ header .wrap{display:flex;align-items:center;gap:20px;height:58px}
    distinction is visible in the switch itself, not only on the page it lands on. */
 .partswitch .part-opt.empty .p-n{color:var(--warn)}
 .partswitch .part-opt.empty .p-name{opacity:.75}
-nav{display:flex;gap:4px;margin-left:auto}
-nav a{color:var(--dim);font-size:14px;padding:6px 11px;border-radius:7px}
-nav a:hover{color:var(--fg);background:var(--panel2);text-decoration:none}
-nav a.on{color:var(--fg);background:var(--panel2);font-weight:500}
+/* `header nav`, not a bare `nav`. These four rules were written when the site
+   had exactly one <nav> and they matched it by element name; the section nav
+   added later is also a <nav>, inherited `display:flex` and `margin-left:auto`,
+   and laid seven block links out in a row inside a 210px column -- which then
+   overflowed into a horizontal scrollbar and showed two of the seven. The page
+   was unreadable at every window size and nothing in the sidenav's own rules
+   was wrong. An element selector on a landmark element is a trap: the second
+   one of them always arrives. */
+header nav{display:flex;gap:4px;margin-left:auto}
+header nav a{color:var(--dim);font-size:14px;padding:6px 11px;border-radius:7px}
+header nav a:hover{color:var(--fg);background:var(--panel2);text-decoration:none}
+header nav a.on{color:var(--fg);background:var(--panel2);font-weight:500}
 
 .theme-toggle{background:transparent;border:1px solid var(--line2);color:var(--dim);
   width:32px;height:32px;border-radius:8px;cursor:pointer;display:inline-flex;
@@ -154,16 +162,26 @@ html[data-theme="light"] .i-moon{display:block}
    minimum size is its content, so without it the widest table (the per-workload
    bounds grid, eleven columns) sets the column width and pushes the layout past
    the viewport instead of scrolling inside its own `.scroll`. */
-.main.withnav{display:grid;grid-template-columns:210px minmax(0,1fr);gap:38px;
-  align-items:start}
+/* The nav column is fluid, not 210px. A fixed sidebar next to an elastic page
+   is fine at the width it was eyeballed at and wrong either side of it: at a
+   narrow window it eats a quarter of the content, and at a wide one the labels
+   wrap for no reason while 300px of margin sits idle. `clamp` ties it to the
+   viewport with both ends pinned. */
+.main.withnav{display:grid;
+  grid-template-columns:clamp(9.5rem,15vw,14rem) minmax(0,1fr);
+  gap:clamp(20px,3vw,38px);align-items:start}
 .main.withnav .maincol{min-width:0}
 /* 59px is the sticky header: 58px of `header .wrap` plus its 1px border. Both
    offsets here and the `scroll-margin-top` below are derived from it, because a
    nav that sticks at 0 slides under the header and a heading that scrolls to 0
    lands behind it -- the second is the one nobody notices, since the section
    does arrive, just with its title hidden. */
-.sidenav{position:sticky;top:calc(59px + 18px);overflow-y:auto;padding-top:4px;
+.sidenav{position:sticky;top:calc(59px + 18px);overflow:auto;padding-top:4px;
   max-height:calc(100vh - 59px - 36px)}
+/* Stated, not inherited. This element is a <nav> and the header's rules used to
+   reach it; they are scoped now, but the sidenav should not depend on that
+   staying true -- a landmark element attracts element selectors. */
+.sidenav nav{display:block;margin:0;gap:0}
 .sidenav .toc-h{font:11px/1 var(--mono);letter-spacing:.6px;text-transform:uppercase;
   color:var(--dim);margin:0 0 10px;padding-left:11px}
 .sidenav a{display:block;padding:5px 11px;font-size:13px;color:var(--fg2);
@@ -176,12 +194,17 @@ html[data-theme="light"] .i-moon{display:block}
 .maincol [id]{scroll-margin-top:calc(59px + 14px)}
 @media (max-width:1080px){
   /* Below this the two columns leave the tables too narrow to be worth it, so
-     the nav goes back inline above the content rather than shrinking. */
+     the nav goes inline above the content rather than shrinking further.
+     Wrapping row of chips, and it must be able to wrap: this laid out as a
+     non-wrapping row once, and a row of seven section titles in a column that
+     cannot grow is how the desktop bug looked too. */
   .main.withnav{display:block}
-  .sidenav{position:static;max-height:none;margin-bottom:24px}
-  .sidenav nav{display:flex;flex-wrap:wrap;gap:2px 0}
-  .sidenav a{border-left:none;border-bottom:2px solid var(--line)}
-  .sidenav a.on{border-bottom-color:var(--accent)}
+  .sidenav{position:static;max-height:none;margin-bottom:24px;overflow:visible}
+  .sidenav nav{display:flex;flex-wrap:wrap;gap:6px}
+  .sidenav .toc-h{width:100%;padding-left:0}
+  .sidenav a{border-left:none;border:1px solid var(--line);border-radius:99px;
+    padding:5px 12px}
+  .sidenav a.on{border-color:var(--accent)}
 }
 
 h1{font-size:28px;margin:0 0 10px;letter-spacing:-.4px}
@@ -249,6 +272,48 @@ h3{font-size:14px;margin:24px 0 10px;color:var(--dim);text-transform:uppercase;
 .board td.cov .sc{display:none}
 .board[data-scope="attempted"] td.cov .sc-attempted,
 .board[data-scope="full"] td.cov .sc-full{display:block}
+
+/* ------------------------------------------------------------ coverage bar */
+/* One bar per row, in PROBLEMS, over the whole benchmark. Every row's track is
+   the same width and the segments sum to it, so the grey tail is directly
+   comparable by eye across rows -- which is the question the old two columns
+   could not answer: "how much of this benchmark has that submission seen".
+   Deliberately NOT tied to the score switch. What a run was given is a fact
+   about the run; only the denominator the score divides by changes. */
+.covbar-cell{min-width:230px;width:32%}
+.covbar{display:flex;height:11px;border-radius:6px;overflow:hidden;
+  background:var(--bar-bg);border:1px solid var(--line)}
+.covbar .cs{display:block;height:100%}
+/* The three outcome colours are the board's existing ok / warn / bad, so a
+   green segment here and a green cell in the workload grid mean the same
+   thing. Never-attempted is the page background, not a fourth hue: it is the
+   absence of a measurement and should not read as a result. */
+.cs-clean{background:var(--ok)}
+.cs-partial{background:var(--warn)}
+.cs-failed{background:var(--bad)}
+.cs-none{background:var(--bar-bg)}
+.covlegend{display:flex;gap:9px;align-items:baseline;margin-top:5px;
+  font:11.5px/1 var(--mono);color:var(--dim)}
+/* A number is not a colour key. Each count carries a dot in its segment's
+   colour so the row reads without going back to the header -- and the counts
+   stay legible to a reader who cannot separate the hues, which the bar alone
+   would not be. */
+.covlegend .cn::before{content:"";display:inline-block;width:7px;height:7px;
+  border-radius:2px;margin-right:4px;vertical-align:baseline}
+.covlegend .cn{color:var(--fg2)}
+.cn-clean::before{background:var(--ok)}
+.cn-partial::before{background:var(--warn)}
+.cn-failed::before{background:var(--bad)}
+.cn-none::before{background:var(--bar-bg);border:1px solid var(--line2)}
+/* The key above the table, stating the same four in words, once. */
+.covkey{display:flex;flex-wrap:wrap;gap:14px;margin:0;font-size:12px;
+  color:var(--dim)}
+.covkey span::before{content:"";display:inline-block;width:9px;height:9px;
+  border-radius:2px;margin-right:5px}
+.covkey .k-clean::before{background:var(--ok)}
+.covkey .k-partial::before{background:var(--warn)}
+.covkey .k-failed::before{background:var(--bad)}
+.covkey .k-none::before{background:var(--bar-bg);border:1px solid var(--line2)}
 
 /* ---------------------------------------------------------------- tables */
 table{border-collapse:collapse;width:100%;font-size:14px}

@@ -1003,6 +1003,40 @@ one. At the authoritative sweep's measured rate — **217 problems in 323.3 min,
 ~1.5 min/problem** (`artifacts/06/logs/authoritative.log`) — re-timing all 89 is
 **about 2¼ hours on GPU 0**, and a full re-derivation from scratch is ~5.4 h.
 
+#### Fixed 2026-08-07, and the published baseline numbers moved
+
+`ingest_variants()` now builds a row per workload from **both** halves of the
+artifact — `latency_ms_by_workload` for the passes, `failures` for the rest,
+each carrying the status the harness recorded. A variant that died before
+measuring anything (`error`, neither list) gets an `ERROR` row per workload of
+that problem, because it was still run on them.
+
+| variant | what it ran | whole benchmark | problems attempted |
+|---|---|---|---|
+| PyTorch eager | 0.4541 → 0.4536 | 0.4528 → **0.4536** | 220 → 220 |
+| eager + contiguous | 0.4553 → 0.4518 | 0.4517 → **0.4518** | 219 → **220** |
+| torch.compile | 0.4002 → **0.4216** | 0.3414 → **0.4190** | 218 → **220** |
+| max-autotune | 0.3880 → **0.4104** | 0.3174 → **0.4034** | 213 → **220** |
+
+**No measurement changed.** Every number above moved because rows that were
+mislabelled `FAILED` are now labelled with what actually happened, and the
+scored ones carry the score they always had.
+
+The problems column is the second half of the same defect and it is the one
+that was easiest to misread: `latency_ms_by_workload` holds only passes, so a
+problem where a variant passed **nothing** produced no rows and read as *never
+attempted*. All four variants were run on all 220 problems. The board said
+`torch.compile: 218` and `max-autotune: 213` because they passed nothing on 2
+and 7 problems respectively — `L2__036`, `L2__037`, `Quant__011`, `L1__094`,
+`L2__012`, `L2__070`, `L2__077`.
+
+One thing this dislodged: `v5_compile_contiguous` is excluded from the board
+because it passed zero workloads, and the exclusion tested "produced no rows".
+That was the same statement only while failures were discarded — the moment
+they were kept, v5 acquired 3,717 rows and walked back on with a score of
+0.0000. The test is now "passed nothing". The ingest's own drop guard caught
+the intermediate build that had published it, which is what that guard is for.
+
 **"Re-ingest" means re-running `leaderboard/ingest.py`.** It reads JSON that
 already exists and writes SQLite. No GPU, no kernel runs, no re-measurement,
 and *nothing converts from fail to success* — the 1,239 rows were recorded as
@@ -1184,6 +1218,59 @@ Trajectory, transcripts and effort came across via
 `scripts/import_fleet_depth.py`: 189 trajectories, 1,264 evaluation steps,
 1,052 of them scored, 189 transcripts. Every score cell on this run's pages now
 has the sequence of `./evaluate` calls that produced it behind it.
+
+### D32 — the section nav was laid out by the header's CSS
+
+`style.css` carried `nav{display:flex;gap:4px;margin-left:auto}` and three
+sibling rules, written when the site had exactly one `<nav>` and matched by
+element name. The section nav added the day before is also a `<nav>`. It
+inherited all four, laid seven block links out in a **row** inside a 210px
+grid column, overflowed, and showed two of the seven behind a horizontal
+scrollbar — on both pages, at every window size. Nothing in the sidenav's own
+rules was wrong and none of its tests could see it: they assert the served
+HTML, and the HTML was correct.
+
+Scoped to `header nav`, with `.sidenav nav{display:block}` stated rather than
+assumed, because a landmark element attracts element selectors and the second
+one always arrives. `tests/leaderboard/test_coverage_bar.py` greps the served
+stylesheet for a bare `^nav {` — the only mechanical check available here for a
+cascade collision, and enough for this one.
+
+Two sizing faults went with it. `.sidenav` had `overflow-y:auto`, so its
+`overflow-x` computed to `auto` and produced that scrollbar — the same CSS
+Overflow §3 rule as D30, twice in two days. And the column was a fixed 210px
+against an elastic page: a quarter of the content at a narrow window, labels
+wrapping for no reason at a wide one. Now `clamp(9.5rem, 15vw, 14rem)`, with
+the sub-1080px layout a wrapping row of chips.
+
+### The board's coverage: one bar, in problems, over the whole benchmark
+
+`coverage` and `problems` asked overlapping questions in incompatible units —
+workloads passed out of 3,717, and problems swept clean out of 220 — and
+between them could not answer "how much of this benchmark has that submission
+seen". Worse, coverage was rendered twice, once per score scope, which implied
+that what a run was given depends on how you divide its score. It does not.
+
+One stacked bar per row now, always over all 220 problems, four states:
+**swept clean · partly passed · attempted and nothing passed · never
+attempted**, the last in the track colour at the right end so the grey tail is
+the unrun benchmark and is comparable by eye down the column. Counts sit under
+it with a colour dot each, and the key is stated once above the table. Widths
+come from the counts unrounded: four widths rounded to one decimal do not sum
+to 100%, and the remainder shows as a hairline of track at the end of a bar
+that should be full. Verified: every row sums to exactly 100.000000%.
+
+`flagged` is deleted from the board. Every cell was a dash, the column carried
+no explanation of what a flag would mean, and a column that has never once been
+non-empty is a column the reader has to decode for nothing. The reward-hack
+count is unchanged in `/api/v1` and on the per-problem pages, where it has the
+space to say what it is.
+
+`tests/leaderboard/test_coverage_bar.py` (9 tests): the four states partition
+the benchmark exactly; `attempted == total − untouched` both ways; every
+reference variant has `untouched == 0`; every bar sums to 100% with no
+zero-width segment; the bar carries no scope-keyed markup; the key is present;
+`flagged` is out of the header and still in the API.
 
 ### One score, two scopes: the board's headline is now a switch
 

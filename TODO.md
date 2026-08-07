@@ -142,14 +142,16 @@ anchor-verified, so it has no `S` to publish.
 * **15 NVFP4 Quant problems**, deferred with evidence for v1.1. Not a gap in the
   port: NVFP4 has no ROCm kernel path, and an MXFP4 twin is a re-specification,
   not a translation. `tasks/07`, `artifacts/deferred.json`.
-* **D28 — the board under-reports 1,239 passing baseline workloads.** Not a gap
-  in what was measured: `ingest_variants()` paints every workload of a problem
-  `FAILED` when the variant's per-problem `all_passed` is false, discarding the
-  per-workload `failures` list the artifacts already carry. `torch.compile`
-  really passed 3171 of 3694, not 2586 of 3717. Fixing the read costs no GPU
-  time; putting the recovered rows on the board wants an authoritative re-time
-  for the 89 problems that never got one, **≈2¼ h on GPU 0** at the measured
-  1.5 min/problem. Full detail and the per-variant table in `STATE.md` D28.
+* **~~D28 — the board under-reports 1,239 passing baseline workloads.~~
+  Fixed 2026-08-07.** `ingest_variants()` now reads the per-workload `failures`
+  list instead of painting a problem with its `all_passed` flag. torch.compile
+  went 0.3414 → 0.4190 on the whole-benchmark scope and max-autotune 0.3174 →
+  0.4034; all four variants now show the 220 problems they actually attempted,
+  where two of them read as 218 and 213. No measurement changed. **What is
+  still open**: 89 problems have passing workloads whose only timing came off a
+  sweep GPU rather than GPU 0, so the board now scores some sweep timings
+  alongside authoritative ones — labelled per row in `note`, but a re-time
+  would remove the mixture. **≈2¼ h on GPU 0** at the measured 1.5 min/problem.
 
 ## Unexplained
 

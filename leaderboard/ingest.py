@@ -447,7 +447,28 @@ def ingest_variants(conn, manifest: dict, part: str) -> dict:
     """
     b = bounds(manifest)
     prov = manifest.get("_provenance", {})
+    # Every scoreable workload of each problem, so a variant that produced no
+    # per-workload record at all can still be shown as having been run on them.
+    by_problem: dict[str, list[str]] = {}
+    for pkey, uuid in b:
+        by_problem.setdefault(pkey, []).append(uuid)
 
+    # PER WORKLOAD, from both halves of the artifact.
+    #
+    # `latency_ms_by_workload` holds exactly the workloads that PASSED; the ones
+    # that did not are in `failures`, with a status each. This used to read only
+    # the first and stamp the whole problem with the variant's `all_passed`
+    # flag, which got two separate things wrong and neither was visible:
+    #
+    #   * 1,239 workloads that passed were published as FAILED with no score,
+    #     because some OTHER workload of the same problem failed (D28);
+    #   * a problem where the variant passed nothing produced no rows at all,
+    #     so it read as NEVER ATTEMPTED. That is the whole of the board's
+    #     "torch.compile: 213/220 problems" -- it ran all 220 and passed
+    #     nothing on 7 of them.
+    #
+    # Failed workloads now get a row carrying the status the harness recorded
+    # and no latency, because none was measured for them.
     per_variant: dict[str, dict] = {}
     for src, label in ((CANDIDATES, "sweep gpu1-7"), (AUTHORITATIVE, "authoritative gpu0")):
         if not src.exists():
@@ -456,11 +477,24 @@ def ingest_variants(conn, manifest: dict, part: str) -> dict:
             doc = json.loads(f.read_text())
             pkey = doc.get("problem") or f.stem
             for vname, v in (doc.get("variants") or {}).items():
-                lat = v.get("latency_ms_by_workload") or {}
                 store = per_variant.setdefault(vname, {})
-                for uuid, ms in lat.items():
+                for fail in v.get("failures") or []:
+                    uuid = fail.get("workload_uuid")
+                    if uuid:
+                        store[(pkey, uuid)] = (
+                            None, label, fail.get("status") or "FAILED")
+                for uuid, ms in (v.get("latency_ms_by_workload") or {}).items():
                     # authoritative overwrites sweep, by iteration order
-                    store[(pkey, uuid)] = (ms, label, bool(v.get("all_passed")))
+                    store[(pkey, uuid)] = (ms, label, "PASSED")
+                # A variant that died before measuring anything -- a timeout, a
+                # crashed driver -- records an `error` and neither list. It was
+                # still run on every workload of the problem, and saying so is
+                # the difference between "this variant cannot do it" and "this
+                # variant was never tried", which are not the same claim.
+                if (v.get("error") and not v.get("failures")
+                        and not v.get("latency_ms_by_workload")):
+                    for uuid in by_problem.get(pkey, []):
+                        store.setdefault((pkey, uuid), (None, label, "ERROR"))
 
     excluded: list[str] = []
     for vname, entries in sorted(per_variant.items()):
@@ -469,7 +503,12 @@ def ingest_variants(conn, manifest: dict, part: str) -> dict:
         # coverage and no score is noise on a leaderboard, but dropping it
         # silently would hide a variant that was actually run -- so it is
         # excluded here and recorded in `meta`.
-        if not entries:
+        #
+        # The test is "passed nothing", not "produced no rows". It used to be
+        # the latter and that was the same statement only because failures were
+        # being discarded; the moment they were kept, v5 acquired 3,717 rows and
+        # walked back onto the board with a score of 0.0000.
+        if not any(st == "PASSED" for _ms, _lab, st in entries.values()):
             excluded.append(vname)
             print(f"  {vname}: 0 scored workloads -- excluded, recorded in meta")
             continue
@@ -491,11 +530,12 @@ def ingest_variants(conn, manifest: dict, part: str) -> dict:
             # manifest's part by definition, not by inference.
             part=part)
         rows = []
-        for (pkey, uuid), (ms, label, all_passed) in entries.items():
+        for (pkey, uuid), (ms, label, status) in entries.items():
             bound = b.get((pkey, uuid))
-            if not bound or ms is None:
+            if not bound:
                 continue
             t_sol, t_b = bound
+            passed = status == "PASSED"
             # Score ONLY on a pass. A variant that failed the correctness check
             # still has a latency -- and `sol_score` will happily turn it into a
             # 0.4956 -- but that number is the speed of computing the wrong
@@ -507,8 +547,9 @@ def ingest_variants(conn, manifest: dict, part: str) -> dict:
             # submission x problem view put "FAILED ... S=0.4956" on one row.
             # Fixed here rather than in the templates so that every consumer,
             # including /api, gets the same answer.
-            rows.append((sub_id, pkey, uuid, "PASSED" if all_passed else "FAILED",
-                         ms, sol_score(ms, t_b, t_sol) if all_passed else None,
+            rows.append((sub_id, pkey, uuid, status,
+                         ms if passed else None,
+                         sol_score(ms, t_b, t_sol) if (passed and ms) else None,
                          0, label))
         conn.executemany(
             """INSERT OR REPLACE INTO result

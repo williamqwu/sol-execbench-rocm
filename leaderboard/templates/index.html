@@ -61,7 +61,14 @@
   </p>
 </div>
 
-<p class="sub hint">Click any column heading to sort by it.</p>
+<p class="covkey" style="margin:16px 0 4px">
+  <span class="k-clean">every workload passed</span>
+  <span class="k-partial">some passed</span>
+  <span class="k-failed">attempted, none passed</span>
+  <span class="k-none">never attempted</span>
+</p>
+<p class="sub hint">Coverage is the same in both scopes &mdash; the switch above
+  changes only what the score is divided by. Click any column heading to sort.</p>
 
 <table class="board sortable" data-scope="attempted">
   <thead>
@@ -75,9 +82,11 @@
          the wrong denominator for the headline number, in the one place a
          reader goes to find out what the denominator is. #}
       <th class="r" title="Sum of per-workload scores, divided by the scope selected above.">score</th>
-      <th class="r" title="Workloads passed, over the scope selected above.">coverage</th>
-      <th class="r" title="Problems this submission has at least one result on. The sub-line is how many of them it swept clean.">problems&nbsp;attempted</th>
-      <th class="r" title="Workloads the verifier rejected as reward hacking (status REWARD_HACK): output accepted without the work being done. Zero so far across every submission — a dash here means the check ran and found nothing, not that it was not run.">flagged</th>
+      {# One bar, not a coverage column and a problems column. Coverage does NOT
+         follow the score switch: what a submission was run on is a fact about
+         the submission, and only the denominator the score is divided by
+         changes. Showing two coverage figures implied otherwise. #}
+      <th class="nosort cov-h" title="All {{ meta.scoreable_problems }} scoreable problems, left to right: swept clean, partly passed, attempted and nothing passed, never attempted.">coverage &mdash; all {{ meta.scoreable_problems }} problems</th>
     </tr>
   </thead>
   <tbody>
@@ -103,23 +112,32 @@
         <span class="sc sc-full">{{ '%.4f'|format(s.benchmark_score) }}{%
           if s.partial %}<span class="star" title="Partial: {{ '{:,}'.format(s.workloads_untested) }} of the {{ '{:,}'.format(s.workloads_total) }} scoreable workloads were never attempted and count as zero here. Switch to 'what it ran' for the score over what it was actually given.">*</span>{% endif %}</span>
       </td>
-      {# `cov` too, not just for the coverage column: it is what puts the
-         sub-line on its own row instead of letting it wrap only when the
-         column happens to be narrow enough. #}
-      <td class="r cov" data-sort="{{ s.coverage_attempted }}"
-          data-s-attempted="{{ s.coverage_attempted }}" data-s-full="{{ s.coverage }}">
-        <span class="sc sc-attempted">
-          <span class="bar"><span style="width:{{ (s.coverage_attempted*100)|round(1) }}%"></span></span>{{ '%.1f'|format(s.coverage_attempted*100) }}%
-          <span class="sub cov-n">{{ '{:,}'.format(s.workloads_passed) }}/{{ '{:,}'.format(s.workloads_attempted) }} run</span>
-        </span>
-        <span class="sc sc-full">
-          <span class="bar"><span style="width:{{ (s.coverage*100)|round(1) }}%"></span></span>{{ '%.1f'|format(s.coverage*100) }}%
-          <span class="sub cov-n">{{ '{:,}'.format(s.workloads_passed) }}/{{ '{:,}'.format(s.workloads_total) }}</span>
-        </span>
+      {# The bar is drawn in problems, over the whole benchmark, and every row's
+         segments sum to the same width -- so the grey tail IS the part of the
+         benchmark this submission has never been run on, comparable by eye
+         across rows. Percentages come straight from the counts rather than
+         being rounded first; four rounded widths do not sum to 100%, and the
+         gap shows up as a hairline of background inside the track. #}
+      <td class="covbar-cell" data-sort="{{ s.problems_clean }}">
+        <div class="covbar" role="img"
+             aria-label="{{ s.problems_clean }} clean, {{ s.problems_partial }} partial, {{ s.problems_failed }} all failed, {{ s.problems_untouched }} never attempted, of {{ s.problems_total }}">
+          {% for seg, n, lbl in [
+                ('clean',   s.problems_clean,     'every workload passed'),
+                ('partial', s.problems_partial,   'some workloads passed'),
+                ('failed',  s.problems_failed,    'attempted, nothing passed'),
+                ('none',    s.problems_untouched, 'never attempted')] %}
+            {%- if n %}<span class="cs cs-{{ seg }}" style="width:{{ 100 * n / s.problems_total }}%"
+              title="{{ n }} problem{{ 's' if n != 1 }} &mdash; {{ lbl }}"></span>{% endif -%}
+          {% endfor %}
+        </div>
+        <div class="covlegend">
+          <span class="cn cn-clean">{{ s.problems_clean }}</span>
+          <span class="cn cn-partial">{{ s.problems_partial }}</span>
+          <span class="cn cn-failed">{{ s.problems_failed }}</span>
+          <span class="cn cn-none">{{ s.problems_untouched }}</span>
+          <span class="sub">of {{ s.problems_total }}</span>
+        </div>
       </td>
-      <td class="r cov" data-sort="{{ s.problems_attempted }}">{{ s.problems_attempted }}<span class="sub">/{{ s.problems_total }}</span>
-        <span class="sub cov-n">{{ s.problems_complete }} swept clean</span></td>
-      <td class="r" data-sort="{{ s.n_flagged }}">{% if s.n_flagged %}<span class="flag">{{ s.n_flagged }}</span>{% else %}&mdash;{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
