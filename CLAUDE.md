@@ -91,10 +91,28 @@ benchmark's validity, and the damage is not visible in the output.
 ```
 
 All ten `tasks/NN-*.md` are `done`; they remain the specification of what each
-acceptance check means, and `verify_artifacts.py --task NN` still runs. Two
-checks fail today and both are known: task 01 (no MI350X clock preset) and task
-03 (the wrong bounds, D18/D21). **A third failure is a regression** — find out
-what you broke before doing anything else.
+acceptance check means, and `verify_artifacts.py --task NN` still runs. Exactly
+**one check fails today** and it is known: task 03's `check D: no measurement
+beats its T_SOL` (the wrong bounds, D18/D21). Every other task is 0 failed.
+**A second failure is a regression** — find out what you broke before doing
+anything else.
+
+Task 01 passes (11 checks, 0 failed) and has since commit 2cdb7b0. If you find
+a document claiming otherwise, that document is stale; the gate is the
+authority. Full matrix, re-run 2026-08-06:
+
+| Task | Result |
+|---|---|
+| 00 | 13 checks, 0 failed, 1 judgement (dataset census) |
+| 01 | 11 checks, 0 failed, 0 judgement (1 WARN: per-GPU floor spread) |
+| 02 | 12 checks, 0 failed, 0 judgement |
+| 03 | 13 checks, **1 failed**, 2 judgement |
+| 04 | 5 checks, 0 failed, 1 judgement (divergence tails) |
+| 05 | 10 checks, 0 failed, 1 judgement (>2× tolerances) |
+| 06 | 10 checks, 0 failed, 1 judgement (1 WARN: D15 re-time band) |
+| 07 | 4 checks, 0 failed, 0 judgement (1 WARN: no FP8 write-up) |
+| 08 | 4 checks, 0 failed, 0 judgement |
+| 09 | 9 checks, 0 failed, 0 judgement |
 
 `STATE.md` is the single source of truth for progress and is the handoff between
 sessions. Update it as you go, not at the end — a session can be interrupted.
@@ -162,9 +180,11 @@ believe it is wrong, write a failing test first.
 * **Three T_SOL bounds are known wrong** and ship in v1 anyway, marked
   everywhere they appear (D18, D21). Do not treat scores on those problems as
   results, and do not "fix" a score by adjusting a bound without re-deriving it.
-* **`CLOCK_LOCK_PRESETS` has no MI350X entry**, so every artifact stamps
-  `f_lock_mhz: null` even though F_LOCK was measured. This is the one remaining
-  task-01 gate failure.
+* **Some artifacts stamp `f_lock_mhz: null`** even though F_LOCK was measured.
+  This is *not* a missing clock preset — `CLOCK_LOCK_PRESETS` has had an
+  MI350X entry (`gpu_clk_mhz=1600`, `achieved_gpu_clk_mhz=1300`) since 2cdb7b0
+  and task 01 passes. Two unrelated causes, neither of which invalidates a
+  measurement; see TODO.md.
 * **Nothing is measured on MI355X.** The port needs no work; every number does.
 * **D20 is unexplained** — 0.13% of matmul iterations cost 3.9–4.5×. The clock
   hypothesis was tested and falsified. Two upstream tests are skipped behind it.
@@ -210,12 +230,22 @@ it is listed there.
   **resumable** — assume the session dies mid-sweep, because it will.
 - Python: repo code targets 3.12 to match upstream's `requires-python`.
 - Run `pytest tests/` before and after touching anything in `src/`. Expect
-  **503 passed, 56 skipped** in the container; the skips are CUPTI-only tests,
-  NVIDIA-only example languages, the two D20 variance tests, and the leaderboard
-  suite (which needs fastapi and so runs in `leaderboard/.venv` instead).
+  **503 passed, 65 skipped** in the container, re-run 2026-08-07: 43 in
+  `sol_execbench` (CUPTI-only tests, the two D20 variance tests), 12 in
+  `examples` (NVIDIA-only solution languages), and one collection-time skip per
+  leaderboard module — each needs fastapi, so that suite runs in
+  `leaderboard/.venv` instead: `leaderboard/.venv/bin/python -m pytest
+  tests/leaderboard`, all passing, 91 as of 2026-08-07. Do not read either
+  skip count as a gate: one leaderboard module added moves both by one, which
+  is how the old figure of 56 here went stale. Only a drop in *passed*, or a
+  skip whose reason is not one of the four above, is a regression.
 - The leaderboard is a *view*. Never edit `leaderboard/solbench.db`; change the
-  artifact and re-ingest. If a run lives outside the repo, pass `--agent-runs`
-  every single time — omitting it silently deletes that run from the board.
+  artifact and re-ingest. Runs that live outside the repo go in
+  `leaderboard/sources.json` (untracked; see `sources.json.example`), which
+  `ingest.py` reads by default — `--agent-runs` **overrides** that list rather
+  than adding to it, so passing it is now the way to get the omission, not the
+  way to avoid it. Either way the ingest refuses to publish a board that has
+  lost a submission the current one has, unless `--allow-drop` says so.
 
 ## 8. If the dataset is missing
 

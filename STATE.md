@@ -76,6 +76,28 @@ What a consumer needs to know before using it:
 
 Status vocabulary: `not-started` · `in-progress` · `blocked` · `done` · `deferred`
 
+**All ten gates re-run 2026-08-06** (`verify_artifacts.py --task NN`, in
+`env/solb`). Recorded here because three documents were claiming a task-01
+failure that has not existed since 2cdb7b0:
+
+| Task | checks | failed | judgement | WARNs |
+|---|---|---|---|---|
+| 00 | 13 | 0 | 1 — dataset census | — |
+| 01 | 11 | **0** | 0 | per-GPU floor spread 1335–1400 |
+| 02 | 12 | 0 | 0 | — |
+| 03 | 13 | **1** | 2 | — |
+| 04 | 5 | 0 | 1 — divergence tails | — |
+| 05 | 10 | 0 | 1 — >2× tolerances | — |
+| 06 | 10 | 0 | 1 — node conditions | D15 re-time band 336/349 |
+| 07 | 4 | 0 | 0 | no FP8 write-up |
+| 08 | 4 | 0 | 0 | — |
+| 09 | 9 | 0 | 0 | — |
+
+The single failure is task 03's `check D: no measurement beats its T_SOL` —
+31 of 519 measured workloads faster than T_SOL, worst 0.29×, across
+`FlashInfer-Bench__019`, `L1__005` and `L1__035`. That is D18/D21, known and
+carried deliberately. **A second failure anywhere is a regression.**
+
 ### Task 00 acceptance output (2026-08-03, MI350X)
 
 ```
@@ -796,6 +818,145 @@ across a rebuild and reports a drop rather than trusting the exit code.
 The durable fix is for the roots to live in a config the ingest reads by
 default, so that "rebuild" cannot mean two different things. Not done.
 
+### D25 — `f_lock_mhz: null` was blamed on a preset that exists
+
+Three documents (`CLAUDE.md` §3 and §5b, `TODO.md`, `leaderboard/DESIGN-v2.md`
+§6) stated that `CLOCK_LOCK_PRESETS` has no MI350X entry, that this is why some
+artifacts stamp `f_lock_mhz: null`, and that it is the one remaining task-01
+gate failure. All three claims were false. `HANDOFF.md` §1 says the same thing
+and is *not* wrong — it was written before the entry existed and is marked
+superseded — but it is the sentence a grep lands on, so it now carries an
+inline correction. The entry was added in **2cdb7b0**, 2026-08-03 20:36 UTC,
+and `--task 01` reports 11 checks, 0 failed.
+
+The null is real, and it has two causes — neither of which is a missing preset,
+and neither of which loses a measurement. 28 artifacts carry it:
+
+**20 predate the preset.** All of `artifacts/00/` (2) and `artifacts/01/` (18),
+written 18:53–20:30 UTC on 2026-08-03, i.e. *before* 20:36. Their provenance
+records `torch.available: true` and eight MI350X devices, so
+`get_clock_preset()` ran and correctly returned `None`: the table had no entry
+yet because task 01 was in the middle of producing the number that would go in
+it. Correct as history.
+
+**8 were written by the host interpreter, after the preset existed.**
+`artifacts/10/{pilot8,glm-run1,submitted-apitest}/scored.json`,
+`artifacts/10/pilot8/{run,cost-report}.json`, and
+`artifacts/02/timing-{variance-amd,stall-probe,stall-clock}.json`. All eight
+stamp `python: 3.11.7`, `torch: {"available": false}`, `rocm.version: 7.15.0`
+— the host, not the pinned container (`3.12.3` / `torch 2.9.1+rocm7.2.0` /
+`rocm 7.2.0`). `provenance.f_lock_mhz()` resolves the preset through
+`torch.cuda.get_device_name(0)`, `import torch` raises `ModuleNotFoundError` on
+this host, and the function's `except Exception` returns `None`. Confirmed both
+directions: bare host call returns `None`; the same call with
+`SOLEXBENCH_F_LOCK_MHZ=1300` returns `1300`.
+
+Host execution is by design. `agent_score.py`, `agent_cost_report.py` and
+`agent_baseline.py` orchestrate and never touch a GPU — `agent_score.py` loads
+`sol_score.py` by file path specifically because host python has no pydantic,
+and each kernel is shelled into the container through `env/solb`. So the
+timings are stamped and the roll-up is not: every
+`artifacts/10/*/retimed/*.json`, written inside the container by
+`agent_eval.py`, carries `f_lock_mhz: 1300`, `python: 3.12.3`,
+`visible_devices: "0"`. `meta.f_lock_mhz` in the leaderboard database is
+`'1300'`, from the manifest, so nothing published is affected.
+
+Fix is in `TODO.md`. The tempting non-fix — defaulting `stamp()` to 1300 — is
+prime directive 2 in miniature: it would make a roll-up written on MI355X claim
+a clock it was never measured at, undetectably.
+
+The lesson is not about clocks. A wrong *explanation* propagates faster than a
+wrong number, because nothing runs it and nothing checks it. This one survived
+into a `TODO.md` whose own header says it was rewritten to remove stale items —
+and the gate that refutes it runs in seconds.
+
+### D26 — three tables ranked means with different denominators
+
+`AVG(score)` skips NULL, and a `PASSED` result stores `score IS NULL` when the
+kernel beat `T_SOL` — the bound is invalid there, so no score is defensible.
+The denominator therefore varies per row, and the leaderboard put such rows
+next to each other under one `mean S` heading, in a **sortable** column.
+
+The real instance: `agent-pilot8` on
+`FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1` passes
+38 of 38 workloads, 25 of which beat the bound. Its mean was printed as
+**0.9899 over 13 workloads**, directly above `agent-glm-run1`'s **0.9430 over
+all 38** — so the run with a third of the evidence sorted to the top. Same
+shape in `problem_detail()`, the submission page, and the `peers` query.
+
+All 31 such results repo-wide were traced and they map exactly onto defects
+already recorded: **25 to D18** (paged-attention `declared_traffic`
+over-counting) and **6 to D21** (`L1__005` 4/16, `L1__035` 2/16). Nothing new
+was found and no bound was silently adjusted.
+
+**No number was changed.** Every mean is arithmetically correct and stays as
+it was; what was missing is the count it was divided by, which is now printed
+under each one (`over 13 of 38 — bound beaten on 25`). Changing the mean was
+the tempting alternative and it is unavailable in both directions: scoring a
+beaten bound as 0 punishes a kernel for the bound being wrong, and dropping
+the workload inflates the run. Publishing the denominator is the only move
+that does not invent a number.
+
+The trial switcher had the opposite bug and was fixed the other way: it used
+`AVG(score)` where the run card used `score_sum / attempted` with
+`COALESCE(score, 0)`, so the two disagreed on exactly these rows. The switcher
+now matches the card and says why a clean sweep can still score low.
+
+Guarded by `tests/leaderboard/test_score_denominator.py` (6 tests). The
+denominator is printed on **every** row, not only the short ones — a caveat
+shown only when it applies is indistinguishable from one nobody checked.
+
+### D27 — the code pane had no test at all
+
+`leaderboard/static/highlight.js` (syntax highlighting, copy button) and the
+`<pre>` that feeds it were untested. The pane is the only place a reader sees
+the kernel that produced a number, and the copy button hands `pre.textContent`
+to the clipboard — so a template that mangles the source does not look wrong,
+it *exports* something that was never run. Escaped-once and escaped-twice
+render identically for most sources; the check has to be mechanical.
+
+Added `tests/leaderboard/test_code_pane.py` (4 tests): unescape the served
+pane and compare byte-for-byte against the database, on a constructed hostile
+source and on every real kernel. Verified against the built board — **36/36
+panes byte-identical, and all 36 stored `sha256` values match their own
+source.** Mutation-checked: removing the protective leading newline after
+`<pre>` and adding a `|trim` filter each fail it.
+
+Two things are asserted here and two are not:
+
+* **Not** the tokenizer. This node has no JavaScript runtime (`node`, `deno`,
+  `qjs`, `d8` all absent), so `highlight.js` is unexecuted. Its guarantees are
+  structural in that file — every emitted chunk passes through `esc()`, sticky
+  regexes that cannot match ahead of the offset, a total fallback branch, and
+  `data-hl` so a block is never scanned twice — and were read, not run.
+* **Not** the `hip` branch of language detection. `run.html` picks `hip` when
+  the source starts with `#include` and `python` otherwise. Checked against an
+  independent signal (`__global__`, `extern "C"`, `#pragma unroll`,
+  `template<` vs `import`/`def`/`class`): **36 of 36 kernels and all 1175
+  `variant_source` rows are Python, 0 disagreements.** So the heuristic is
+  correct on everything the board holds and the `hip` path has never been
+  exercised by real data. The first HIP kernel submitted is the test.
+
+### The grid ramp: distribution and contrast, closed
+
+Both halves of the earlier bunching finding are now measured rather than
+eyeballed.
+
+**Distribution**, over 12,883 scored results: u5 9.0 · u4 9.0 · u3 13.3 ·
+u2 19.5 · u1 17.1 · b1 29.3 · b2 0.6 · b3 0.6 · b4 0.7 · b5 0.9 %. The prior
+89%-in-two-buckets bunching is gone. b1's 29.3% is structural, not a binning
+error: the reference variant that wins `T_b` scores exactly S = 0.5 there by
+construction.
+
+**Contrast**, recomputed independently from the tokens in `style.css`: every
+ratio the file documents reproduces to the digit — dark beat 2.70/3.68/5.03/
+6.96/9.47 and under 2.70/3.67/5.06/6.87/9.36 against `--panel #161a21`; light
+beat 1.74/2.18/2.76/3.44/4.36 and under 1.74/2.24/2.86/3.68/4.68 against
+`#ffffff`. The light floor of 1.74:1 is below WCAG 1.4.11's 3:1 for non-text
+objects and is carried by the border on every scored cell instead, measured at
+3.44:1 and 3.68:1. Polarity is never on colour: `.g-u*` are circles, `.g-b*`
+squares, and a `forced-colors` block restates all of it in system colours.
+
 ---
 
 ## Fixes to scripts on first contact
@@ -1098,4 +1259,17 @@ Produced: restored src/sol_execbench/core/data (D6 — never committed)
           reference/tb-candidates/variants.py — generic T_b variant set
           methodology + compute-partition recorded on every trace
           smi lockout, stream policy, static source screen (task 08 defenses)
+
+### 2026-08-06/07 — session 3  (node: gbt350-odcdh1-a08-1, 8x MI350X)
+Worked: leaderboard only — no GPU work, no measurement taken or changed.
+Produced: D25 (f_lock null misattributed), D26 (mean-S denominator),
+          D27 (code pane untested), grid ramp distribution + contrast closed
+          tests/leaderboard/ — 11 files, 91 passed, was 0 before this session
+          MI350X<->MI355X part switch: db/solbench-<PART>.db, TODO-MI355X.md
+Verified: container `pytest tests/` 503 passed / 66 skipped (65 -> 66 is
+          test_code_pane.py's module-level importorskip, not a regression)
+          /api/v1/leaderboard byte-identical to the pre-session baseline on
+          every field the baseline records — six runs, six ranks, unchanged
+Open:     nothing committed; the HTML explainer stack (a separate repo,
+          branch qwu-dev/solrocm-bench) was still being written at session end
 ```

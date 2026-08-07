@@ -31,6 +31,13 @@ air-cooled part with a materially lower power budget.** Same CDNA4 die, same
 `gfx950` ISA target, same 256 MiB Infinity Cache — but the sustained clock
 floor is a property of the part *and its chassis*, not of the architecture.
 
+> **No longer true, and this is the sentence people grep to.** The entry was
+> added in **2cdb7b0** once task 01 had measured the clock:
+> `ClockPreset(gpu_clk_mhz=1600, dram_clk_mhz=None, achieved_gpu_clk_mhz=1300)`.
+> `--task 01` passes, 11 checks, 0 failed. The paragraph below is preserved
+> because the *reasoning* — refuse rather than guess — is what earned the 1300,
+> and is what an MI355X session must repeat.
+
 `CLOCK_LOCK_PRESETS` therefore has **no MI350X entry**, deliberately. With no
 entry, `lock_clocks()` logs `No GPU clock preset` and returns `False` unless
 `SOL_EXECBENCH_GPU_CLK_MHZ` is set explicitly. That is a loud stop, and it is
@@ -143,7 +150,7 @@ Done:
 Not done — next actions, in order:
 
 1. Re-run `tasks/01` → new F_LOCK → add the MI350X entry to
-   `CLOCK_LOCK_PRESETS`.
+   `CLOCK_LOCK_PRESETS`. *(Done: 1300 MHz, commit 2cdb7b0.)*
 2. Write `scripts/runners/run_reference.py` (contract in
    `scripts/runners/README.md`: `--problem <dir> --out <file>`, and **on
    failure still write an output file recording the error** — a missing file
