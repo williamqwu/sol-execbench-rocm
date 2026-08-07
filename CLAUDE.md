@@ -230,12 +230,12 @@ it is listed there.
   **resumable** — assume the session dies mid-sweep, because it will.
 - Python: repo code targets 3.12 to match upstream's `requires-python`.
 - Run `pytest tests/` before and after touching anything in `src/`. Expect
-  **503 passed, 67 skipped** in the container, re-run 2026-08-07: 43 in
+  **503 passed, 68 skipped** in the container, re-run 2026-08-07: 43 in
   `sol_execbench` (CUPTI-only tests, the two D20 variance tests), 12 in
   `examples` (NVIDIA-only solution languages), and one collection-time skip per
   leaderboard module — each needs fastapi, so that suite runs in
   `leaderboard/.venv` instead: `leaderboard/.venv/bin/python -m pytest
-  tests/leaderboard`, all passing, 98 as of 2026-08-07. Do not read either
+  tests/leaderboard`, all passing, 106 as of 2026-08-07. Do not read either
   skip count as a gate: one leaderboard module added moves both by one, which
   is how the old figure of 56 here went stale. Only a drop in *passed*, or a
   skip whose reason is not one of the four above, is a regression.

@@ -1,0 +1,34 @@
+{
+ "_provenance": {
+  "task": "10-agent-eval",
+  "utc": "2026-08-07T22:16:06.700222+00:00",
+  "git_sha": "fca9dbde3e597422a915b3ac0c16e9d9b537d05d-dirty",
+  "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI350X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "7.1.1.31500000",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+  },
+  "f_lock_mhz": 1300,
+  "visible_devices": "0"
+ },
+ "ok": false,
+ "error": "RuntimeError: no traces produced (rc=-6)\nstderr:\n/var/tmp/solbench/solb_run_0yu63dgy/_reference.py:16: UserWarning: expandable_segments not supported on this platform (Triggered internally at /pytorch/c10/hip/HIPAllocatorConfig.h:36.)\n  hidden_states = torch.randn(batch_seq_len, hidden_size, device=device, dtype=torch.float16)\nMemory access fault by GPU node-2 (Agent handle: 0xc536f50) on address 0x7ee31b830000. Reason: Unknown.\nGPU coredump: System pipe patterns not supported in containers.\nFalling back to file-based dump. Use custom pattern (HSA_COREDUMP_FILE) to override.\n\nstdout:\n",
+ "traceback": "Traceback (most recent call last):\n  File \"/work/scripts/agent_eval.py\", line 90, in main\n    traces = evaluate(definition, workloads, solution, config, timeout=a.timeout)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/work/scripts/runners/_common.py\", line 185, in evaluate\n    raise RuntimeError(\nRuntimeError: no traces produced (rc=-6)\nstderr:\n/var/tmp/solbench/solb_run_0yu63dgy/_reference.py:16: UserWarning: expandable_segments not supported on this platform (Triggered internally at /pytorch/c10/hip/HIPAllocatorConfig.h:36.)\n  hidden_states = torch.randn(batch_seq_len, hidden_size, device=device, dtype=torch.float16)\nMemory access fault by GPU node-2 (Agent handle: 0xc536f50) on address 0x7ee31b830000. Reason: Unknown.\nGPU coredump: System pipe patterns not supported in containers.\nFalling back to file-based dump. Use custom pattern (HSA_COREDUMP_FILE) to override.\n\nstdout:\n\n",
+ "workloads": 0,
+ "passed": 0,
+ "all_passed": false,
+ "per_workload": [],
+ "problem": "L2__047_moe_training_token_repeat_and_expert_computation"
+}

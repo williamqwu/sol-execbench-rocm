@@ -979,11 +979,13 @@ board     15 rows, all FAILED, all score NULL, all with a latency
 Fifteen workloads that were measured passing, on the board as fifteen failures,
 because a sixteenth failed.
 
-The residue after the fix is a real result and not a gap: `v2_compile` fails
-**523 workloads on `INCORRECT_NUMERICAL`** and never produces a timing for 23
-more; `v3` fails 581 (571 numerical, 10 `RUNTIME_ERROR`) and misses 106. That
-is torch.compile disagreeing with eager beyond tolerance on this part, which is
-worth publishing accurately rather than rounding into a coverage number.
+The residue after the fix is `v2_compile` failing **523 workloads on
+`INCORRECT_NUMERICAL`** with no timing for 23 more, and `v3` failing 581 (571
+numerical, 10 `RUNTIME_ERROR`) and missing 106. The obvious reading is
+torch.compile disagreeing with eager beyond tolerance on this part — but see
+the gap-fill result below before publishing it that way. Six of the failures
+re-run so far flipped to passing, so how much of that 523 is the compiler and
+how much is the sweep is **not currently known**.
 
 `v1_eager`'s one non-clean problem is
 `L2__051_seqlen-finetuned-reconstructed_hyena_complete_forward_block`: 6 of 16
@@ -1036,6 +1038,44 @@ pinned 3.12.3 / 7.2.0 / torch 2.9.1. Caught on the provenance stamp of the
 first output file, and those artifacts were deleted rather than kept. This is
 exactly what prime directive 6 is about and it took one command to get wrong.
 
+#### And the gap-fill found something worse than a gap
+
+**10 of the 32 variant×problem cells re-run did not reproduce.** Not "produced
+a slightly different latency" — changed verdict:
+
+```
+L1__094  v2_compile                16/9  -> timeout   WORSE
+L2__037  v2_compile                 6/0  ->  6/6      verdict flipped
+L2__037  v3_compile_max_autotune    6/0  ->  6/6      verdict flipped
+L2__059  v3_compile_max_autotune    5/5  -> 16/16     coverage recovered
+L2__070  v2_compile                16/8  -> 16/16     verdict flipped
+L2__070  v3_compile_max_autotune     1/0 ->  1/1      verdict flipped
+L2__077  v2_compile                16/8  -> 16/16     verdict flipped
+L2__077  v3_compile_max_autotune     3/0 ->  3/3      verdict flipped
+Quant__011 v2_compile               3/0  -> 16/16     coverage recovered
+Quant__011 v3_compile_max_autotune  3/0  -> 16/16     coverage recovered
+
+reproduced identically       22
+same workloads, more passes   6   <- the verdict changed, not the coverage
+more workloads measured       3
+got worse                     1
+```
+
+Six cells went from *failing* to *passing every workload* at identical
+coverage, and one went from nine passes to a timeout. So on these problems a
+recorded `INCORRECT_NUMERICAL` is not always a verdict about the kernel; some
+of it is the run. `Quant__011` is the clearest: `passed=0 over 3 workloads`
+was a driver that died after three, not a variant that failed.
+
+**Do not generalise this to the whole sweep.** These 8 problems were *selected*
+for having incomplete coverage — they are the already-suspect ones, and a 31%
+non-reproduction rate among them says nothing directly about the 212 that
+recorded full coverage. What it does say is that the 523 `v2` and 581 `v3`
+numerical failures in D28 have not been shown to be stable, and the D28 rewrite
+should not describe them as "torch.compile disagreeing with eager beyond
+tolerance" until a repeat run says they reproduce. Establishing that is a
+second sweep, not a re-ingest.
+
 ### D29 — the external fleet ran 34 jobs on GPU 0
 
 `dash-overlay`'s J2 backfill sweep places one agent per GPU and takes a
@@ -1087,6 +1127,63 @@ resolves to an `id="x"` in the body, that the nav is in document order (the spy
 assumes it), that no `h2` is missing from the nav, and that a page passing no
 `toc` still renders single-column. Two files with no compiler between them
 would otherwise drift into links that render, look live, and scroll nowhere.
+
+### D31 — the first near-full-benchmark agent run, and 7 more bad bounds
+
+`agent-glm-sweep-2`: **192 of 220 scoreable problems**, GLM-5.2 driven by
+codex-cli through the amdpilot fleet, one MI350X per job, re-timed on an idle
+GPU 0 at 50 iterations. **2,760 workloads scored, mean S = 0.5975**, 0 flagged.
+It is the largest agent run on the board by a factor of eight and the first
+that is not a pilot — `TODO.md`'s "no full-benchmark agent baseline" is now
+87% closed rather than 10%.
+
+On the board it sits at **#3 in both scopes** — 0.5451 over what it ran, 0.4366
+over the whole benchmark — ahead of both `torch.compile` variants and just
+under the two eager baselines on the shared denominator.
+
+**Its 44 bound violations name 7 problems that were not previously known to
+have a wrong T_SOL**: `L1__006`, `L1__057`, `L2__030`, `L2__035`, `L2__045`,
+`L2__068`, `L2__073`, alongside the known `L1__005` and `L1__035` (D21). Total
+across all runs on the board is now **10**, against the 3 that v1 ships marked.
+This is the mechanism CLAUDE.md already names — a self-consistent bound and
+anchor cannot detect a shared error, and only an independent kernel separates
+them — firing seven more times as soon as a real optimizer was pointed at the
+rest of the benchmark. Their scores are excluded from the mean, not zeroed:
+including them would report 0.6135.
+
+**A capped session is not a failed one.** 154 of the 192 jobs were SIGTERM'd at
+the fleet's 3,600 s wall clock rather than stopping on their own, and on the
+authoritative re-times they score *higher* than the ones that finished:
+
+```
+stopped by the 1 h cap    154 problems   139 scored   mean S 0.6072
+stopped on their own       38 problems    38 scored   mean S 0.5579
+
+final kernel == reference  41 problems               mean S 0.4685
+final kernel modified     151 problems               mean S 0.6352
+
+every workload passed  172     partial 5     nothing passed 15
+workloads 2760/2977 passed
+```
+
+The capped sessions used the whole hour, and it shows. This is the opposite of
+pilot8, whose cap produced survivorship — there the mean was over the fraction
+that finished, here every problem was attempted and every kernel scored,
+including the ones that score 0. So it is on the board, with the cap stated in
+its notes and recorded as its trial constraint.
+
+One real cost of the cap, not visible in the numbers above: the prompt's rule
+is "whatever is in `kernel.py` when you stop is your submission", and SIGTERM
+does not wait for a good moment. **36 final kernels are broken or were never
+evaluated, and 27 of those have a passing snapshot in `evals/` that is
+discarded.** No substitution was made — best-of-N over a session's snapshots is
+a different protocol and would have to be declared, not quietly applied — but
+it means this run's score is a floor by roughly 27 problems' worth.
+
+Trajectory, transcripts and effort came across via
+`scripts/import_fleet_depth.py`: 189 trajectories, 1,264 evaluation steps,
+1,052 of them scored, 189 transcripts. Every score cell on this run's pages now
+has the sequence of `./evaluate` calls that produced it behind it.
 
 ### One score, two scopes: the board's headline is now a switch
 

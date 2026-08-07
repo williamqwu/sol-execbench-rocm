@@ -358,9 +358,16 @@ def run_constraint(run_dir: Path, sessions: dict | None) -> tuple[str | None, st
     "$8 / problem" because its `run.json` says `budget_usd_per_session: 8.0`,
     and if a future rerun changes that number the label changes with it.
 
-    The harness also takes a `--timeout` (agent_baseline.py, default 3600s) and
-    writes it nowhere, so there is no `timeout_s` key here. An explicit null
-    would read as "no timeout", which is a different claim from "not recorded".
+    `agent_baseline.py` also takes a `--timeout` and writes it nowhere, so a
+    run of that harness still gets no cap here. An explicit null would read as
+    "no timeout", which is a different claim from "not recorded".
+
+    A *fleet* run is the other case, and it is capped in seconds rather than
+    dollars: `scripts/import_fleet_depth.py` copies `spec.eta_s` out of the J2
+    job spec into `wall_cap_seconds`, and the daemon SIGTERMs at exactly that.
+    It is the same fact as pilot8's dollar budget said in the units it was
+    imposed in, and it earns a label for the same reason -- a session that was
+    stopped did not choose when to stop.
     """
     doc: dict = {}
     for name in ("cost-report.json", "run.json"):
@@ -370,9 +377,16 @@ def run_constraint(run_dir: Path, sessions: dict | None) -> tuple[str | None, st
                 doc = json.loads(f.read_text())
             except Exception:
                 continue
-            if doc.get("budget_usd_per_session") is not None:
+            if (doc.get("budget_usd_per_session") is not None
+                    or doc.get("wall_cap_seconds") is not None):
                 break
     budget = doc.get("budget_usd_per_session")
+    wall_cap = doc.get("wall_cap_seconds")
+    if budget is None and wall_cap is not None:
+        hours = wall_cap / 3600
+        label = (f"{hours:g} h / problem" if wall_cap % 3600 == 0
+                 else f"{wall_cap:g} s / problem")
+        return label, json.dumps({"wall_cap_seconds": wall_cap})
     if budget is None:
         return None, None
     # The field says "per session". These harnesses open exactly one session
@@ -813,7 +827,14 @@ def ingest_depth(conn, sub_id: int, run_dir: Path, problems: list[str]) -> dict:
                     #                          | "file_change" | ...}}
                     if j.get("type") == "assistant":
                         n_turns += 1
-                    for c in (j.get("message") or {}).get("content") or []:
+                    # `message` is a dict in the claude-code record and a bare
+                    # string in some codex ones (`{"type":"error","message":
+                    # "Model metadata for `GLM-5.2` not found..."}`). Reading
+                    # `.get` off it raised AttributeError mid-ingest and took
+                    # the whole board rebuild down with it -- one malformed
+                    # line in one transcript, and nothing publishes.
+                    msg = j.get("message")
+                    for c in (msg.get("content") if isinstance(msg, dict) else None) or []:
                         if isinstance(c, dict) and c.get("type") == "tool_use":
                             tools[c.get("name")] = tools.get(c.get("name"), 0) + 1
                     item = j.get("item")

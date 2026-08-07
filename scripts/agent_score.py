@@ -61,6 +61,16 @@ def bounds() -> dict:
 
 SCRATCH = Path(os.environ.get("SOLEXBENCH_SCRATCH", "/var/tmp/solbench"))
 
+# `run.json.harness` -> what to call it on the board. A harness not listed here
+# is printed as it named itself rather than mapped to a default: an unknown
+# harness is a fact about the run, and the old default ("Claude Code agent")
+# was applied to every run this script ever scored, including one that was not.
+HARNESS_NAMES = {
+    "claude-code": "Claude Code agent",
+    "codex": "codex-cli agent",
+    "codex-cli": "codex-cli agent",
+}
+
 
 def retime(problem_key: str, kernel: Path, out: Path, gpu: int,
            iterations: int, warmup: int, timeout: int) -> dict:
@@ -258,19 +268,51 @@ def main() -> int:
     total_cost = sum((s.get("session", {}) or {}).get("total_cost_usd") or 0
                      for s in sessions.values())
 
+    # How much of the benchmark this run was pointed at, and whether its
+    # sessions chose when to stop. Both read from artifacts; absent when
+    # nothing recorded them, rather than defaulted to a flattering value.
+    n_problems = run.get("n_problems") or len(sessions)
+    n_scoreable = len({k for k, _ in b}) or None
+    effort = {}
+    cost_report = a.run / "cost-report.json"
+    if cost_report.exists():
+        try:
+            effort = json.loads(cost_report.read_text())
+        except json.JSONDecodeError:
+            effort = {}
+    cap_seconds = effort.get("wall_cap_seconds")
+    capped = sum(1 for p in (effort.get("per_problem") or []) if p.get("capped"))
+
     payload = {
         **stamp("10-agent-scored"),
         "run_id": run.get("run_id"),
         "model": run.get("model"),
-        "display_name": f"Claude Code agent ({run.get('model')})",
+        # The harness, from the run, not "Claude Code" asserted. glm-sweep-2 is
+        # codex-cli, and calling it Claude Code would both misattribute it and
+        # give it a name indistinguishable from `agent-glm-run1`, which really
+        # is Claude Code on the same model -- two different harnesses under one
+        # label on a board whose whole job is telling runs apart.
+        "display_name": f"{HARNESS_NAMES.get(run.get('harness'), run.get('harness') or 'Agent')} "
+                        f"({run.get('model')})",
         "author": "claude-code",
+        # Described, not asserted. This used to end "Coverage is deliberately
+        # partial -- this is a cost study, not a full-benchmark submission",
+        # hardcoded, on every run it ever wrote. True of the three pilots it
+        # was written for and false of the first 192-problem sweep, where it
+        # would have told the reader to discount a run that was trying to cover
+        # the benchmark. The coverage sentence is now derived from the coverage,
+        # and the harness's own account of itself is quoted when it left one.
         "notes": (
-            f"Pilot over {run.get('n_problems')} problems, selected by stratified "
-            f"sample across category and headroom. Agents optimized on GPUs "
-            f"{run.get('gpus_used_by_agents')}; every score here is a re-time on an "
-            f"idle GPU {a.gpu} at {a.iterations} iterations, the same settings T_b "
-            f"was measured at. Coverage is deliberately partial -- this is a cost "
-            f"study, not a full-benchmark submission."),
+            f"{n_problems} of {n_scoreable} scoreable problems"
+            + (f" ({100 * n_problems / n_scoreable:.0f}%)"
+               if n_scoreable else "")
+            + f". Agents optimized on GPUs {run.get('gpus_used_by_agents')}; "
+            f"every score here is a re-time on an idle GPU {a.gpu} at "
+            f"{a.iterations} iterations, the same settings T_b was measured at."
+            + (f" {capped} of them were stopped by the harness's "
+               f"{cap_seconds:g}s wall-clock cap rather than by the agent "
+               f"deciding it was done." if capped else "")
+            + (f" {run['note']}" if run.get("note") else "")),
         "leaderboard": not a.exclude_from_leaderboard,
         "authoritative_gpu": a.gpu,
         "iterations": a.iterations, "warmup": a.warmup,

@@ -10,6 +10,12 @@
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --radius:10px;
   --accent:#ed1c24;                       /* AMD red, both themes */
+  /* The same red is 4.38:1 against white -- under WCAG AA's 4.5:1, and the one
+     place it carries 12.5px text rather than a 1px border is the filled
+     segment of the score-scope switch. Darkened until it clears: measured
+     5.68:1. One value for both themes, because the fill is white-on-red in
+     both and a token that changes would be two ratios to keep true. */
+  --accent-fill:#cc1520;
 }
 
 html[data-theme="dark"]{
@@ -227,7 +233,7 @@ h3{font-size:14px;margin:24px 0 10px;color:var(--dim);text-transform:uppercase;
   border-right:1px solid var(--line2);white-space:nowrap}
 .scopeswitch .scope-opt:last-child{border-right:none}
 .scopeswitch .scope-opt:hover{background:var(--panel2);color:var(--fg)}
-.scopeswitch .scope-opt.on{background:var(--accent);color:#fff;font-weight:600}
+.scopeswitch .scope-opt.on{background:var(--accent-fill);color:#fff;font-weight:600}
 .scopeswitch .scope-opt:focus-visible{outline:2px solid var(--link);outline-offset:-2px}
 /* Both notes are in the DOM so the switch needs no round trip, and so the page
    still says what its default denominator is with JS off. */
