@@ -24,6 +24,14 @@ easy to game:
   PyTorch's 0.4548, purely because the 585 workloads it raised on vanish from
   the denominator instead of scoring zero. Both denominators are defensible in
   isolation, but only one of them cannot be improved by attempting less.
+
+One database per part, and the part is not a filter over one dataset — it
+*selects* the dataset. A score measured on MI350X and one measured on MI355X
+differ in power cap, sustained clock and therefore F_LOCK, T_SOL and T_b, so
+putting them in one table would be the most damaging kind of wrong: every
+number plausible, nothing detectably broken. Keeping them in separate files
+means no query can mix them by accident, only a deliberate join across two
+connections could.
 """
 
 from __future__ import annotations
@@ -31,23 +39,42 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import sys
+from datetime import datetime
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import inputs
 import submit
 
-from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request, Response
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
                                PlainTextResponse)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from jinja2 import pass_context
 
-from models import (Health, LeaderboardRow, ProblemDetail, ProblemSummary,
-                    RunDetail, Stats, SubmissionDetail)
+from models import (Health, LeaderboardRow, PartInfo, ProblemDetail,
+                    ProblemSummary, RunDetail, Stats, SubmissionDetail)
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-DB = Path(os.environ.get("SOLBENCH_DB", HERE / "solbench.db"))
+
+# The part registry, from the port itself rather than a second list here: a
+# name that is not in `PARTS` is not a part this benchmark knows how to
+# measure, and two copies of that fact would drift. `src` is not installed in
+# the leaderboard venv -- it deliberately holds only fastapi, uvicorn and
+# jinja2, so that serving the board cannot perturb the measurement image -- so
+# the path goes on `sys.path` instead of becoming a packaging dependency.
+# Appended, not prepended: nothing in `src` should ever shadow the stdlib or
+# the venv, and this is the web app, not the measurement environment.
+sys.path.append(str(ROOT / "src"))
+from solexbench_rocm.parts import PARTS   # noqa: E402
+
+DB_DIR = HERE / "db"
+LEGACY_DB = HERE / "solbench.db"
+DEFAULT_PART = "MI350X"
+PART_COOKIE = "part"
 
 app = FastAPI(title="SOL-ExecBench-ROCm leaderboard", docs_url="/api/docs")
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
@@ -56,22 +83,279 @@ templates = Jinja2Templates(directory=str(HERE / "templates"))
 templates.env.filters["from_json"] = lambda s: json.loads(s) if s else []
 
 
-def db() -> sqlite3.Connection:
-    if not DB.exists():
-        raise HTTPException(503, f"database not built: run leaderboard/ingest.py ({DB})")
-    conn = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+# --------------------------------------------------------------------------
+# parts — which dataset a request is about
+# --------------------------------------------------------------------------
+
+class NoDataForPart(Exception):
+    """A known part with no database. Not an error: an honest empty state.
+
+    Raised rather than returned so that a page handler does not have to guard
+    every query. It is answered by `no_data_for_part()` below with the empty
+    state for pages and a 503 for the API -- never a 404, which would say the
+    part does not exist, and never a 500, which would say something broke.
+    """
+
+    def __init__(self, part: str):
+        super().__init__(part)
+        self.part = part
+
+
+def known_parts() -> list[str]:
+    """The parts this port targets, in display order.
+
+    Filtered on the ISA, not on a hardcoded name list: SOL-ExecBench-ROCm is a
+    CDNA4 port, so gfx950 is exactly the set. MI300X is in `PARTS` because
+    other tooling in the repo knows about it, but it is CDNA3 (gfx942, fnuz
+    FP8, a different MAC/cycle table) and nothing here has ever been measured
+    on it -- offering it in the switch would advertise a dataset that cannot
+    exist without a separate port.
+    """
+    return sorted(name for name, p in PARTS.items() if p.gfx == "gfx950")
+
+
+_meta_cache: dict[tuple[str, int], str | None] = {}
+_count_cache: dict[tuple[str, int], int] = {}
+_mismatch_cache: dict[tuple[str, int], list[dict]] = {}
+
+
+def _cached(cache: dict, path: Path, compute):
+    """Memoise a cheap per-database fact, keyed by path AND mtime.
+
+    `ingest.py` swaps a new file in with `os.replace`, so the mtime changes on
+    every rebuild and a stale entry cannot survive one. Keyed by mtime rather
+    than invalidated on a timer for that reason: the answer is only ever as old
+    as the file it came from.
+
+    The connection carries the same `row_factory` as `db()`. Without it a
+    *compute* built on `rows()` works on every empty result and raises on the
+    first non-empty one -- which for `part_mismatches` means it would pass
+    every test on a clean board and fail only on the board it exists to warn
+    about.
+    """
+    try:
+        key = (str(path), path.stat().st_mtime_ns)
+    except OSError:
+        return None
+    if key not in cache:
+        try:
+            conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+            conn.row_factory = sqlite3.Row
+            try:
+                cache[key] = compute(conn)
+            finally:
+                conn.close()
+        except sqlite3.Error:
+            return None
+    return cache[key]
+
+
+def db_part(path: Path) -> str | None:
+    """The part a database says it holds, from its own `meta`."""
+    return _cached(_meta_cache, path, lambda c: (
+        (c.execute("SELECT value FROM meta WHERE key='part'").fetchone() or [None])[0]))
+
+
+def db_n_results(path: Path) -> int | None:
+    """Measured workload results in a database — the switch's "count" figure."""
+    return _cached(_count_cache, path, lambda c: (
+        c.execute("SELECT COUNT(*) FROM result").fetchone()[0]))
+
+
+def part_databases() -> dict[str, Path]:
+    """Every part that has data, and the file holding it.
+
+    Three sources, in this order:
+
+    * `SOLBENCH_DB` pins one database and collapses the world to it. The tests
+      and `worker.py` depend on that, and it must keep meaning "serve exactly
+      this file" -- so a pin does not make the *other* parts resolve to it,
+      which would be the mixing this whole split exists to prevent.
+    * `db/solbench-<PART>.db`, the layout `ingest.py` writes today.
+    * `leaderboard/solbench.db`, the single-file layout that predates the
+      split, under whatever part its own `meta` names -- never under an
+      assumed one -- and only for a part the per-part layout has not produced,
+      so a fresh build always wins over a leftover.
+    """
+    pin = os.environ.get("SOLBENCH_DB")
+    if pin:
+        p = Path(pin)
+        if not p.is_file():
+            return {}
+        # A pinned file with no `meta.part` is served under the default. That
+        # is an operator's explicit choice of file, not an inference about
+        # where its numbers came from; every database `ingest.py` writes names
+        # its part.
+        return {db_part(p) or DEFAULT_PART: p}
+
+    out: dict[str, Path] = {}
+    for name in known_parts():
+        f = DB_DIR / f"solbench-{name}.db"
+        if f.is_file():
+            out[name] = f
+    if LEGACY_DB.is_file():
+        legacy = db_part(LEGACY_DB)
+        if legacy and legacy not in out:
+            out[legacy] = LEGACY_DB
+    return out
+
+
+def resolve_part(request: Request | None = None, explicit: str | None = None) -> str:
+    """Which part's dataset this request is about (DESIGN-v2 §6).
+
+    Query > cookie > `SOLBENCH_PART` > the only part with a database > MI350X.
+
+    An unknown name in the query is a 400: silently serving MI350X to someone
+    who asked for something else is how a reader ends up comparing two parts
+    without knowing it. An unknown name in the *cookie* is ignored instead --
+    a cookie outlives a rename, and one stale value should not brick every
+    page for that browser. An unknown `SOLBENCH_PART` is server misconfigura-
+    tion and fails loudly, because nobody is going to notice a warning.
+    """
+    known = known_parts()
+    if explicit is not None:
+        if explicit not in known:
+            raise HTTPException(
+                400, f"unknown part {explicit!r}: this build knows {known}")
+        return explicit
+    if request is not None:
+        cookie = request.cookies.get(PART_COOKIE)
+        if cookie in known:
+            return cookie
+    env = os.environ.get("SOLBENCH_PART")
+    if env:
+        if env not in known:
+            raise HTTPException(
+                500, f"SOLBENCH_PART={env!r} is not a part this build knows: {known}")
+        return env
+    dbs = part_databases()
+    if len(dbs) == 1:
+        return next(iter(dbs))
+    return DEFAULT_PART
+
+
+def part_infos(request: Request | None, active: str | None = None) -> list[dict]:
+    """The switch's own data: every targeted part, whether it has anything.
+
+    `n_results` is None where there is no database, never 0. "Not measured" and
+    "measured nothing" are different statements and the switch has to be able
+    to say which one it means.
+    """
+    dbs = part_databases()
+    out = []
+    for name in known_parts():
+        path = dbs.get(name)
+        out.append({
+            "name": name,
+            "available": path is not None,
+            "n_results": db_n_results(path) if path else None,
+            "active": name == active,
+            "url": switch_url(request, name),
+        })
+    return out
+
+
+def switch_url(request: Request | None, part: str) -> str:
+    """This same page, on another part: path and query preserved, `part` set."""
+    if request is None:
+        return _with_query("/", part, {})
+    return _with_query(request.url.path, part,
+                       dict(parse_qsl(request.url.query, keep_blank_values=True)))
+
+
+def _with_query(path: str, part: str | None, params: dict) -> str:
+    split = urlsplit(path)
+    q = dict(parse_qsl(split.query, keep_blank_values=True))
+    q.update({k: v for k, v in params.items() if v is not None})
+    if part:
+        q["part"] = part
+    return urlunsplit(("", "", split.path, urlencode(q), split.fragment))
+
+
+@pass_context
+def part_url(ctx, path: str, **params) -> str:
+    """Jinja global: an internal link that carries the active part forward.
+
+    Context-aware rather than bound per request, so a template never has to
+    pass the part explicitly and cannot forget to. A link that drops `?part=`
+    lands the reader back on the default dataset with no indication that the
+    part changed under them -- which is the same failure as mixing the two
+    datasets, just one click later.
+    """
+    return _with_query(path, params.pop("part", None) or ctx.get("part"), params)
+
+
+templates.env.globals["part_url"] = part_url
+
+
+@app.middleware("http")
+async def sticky_part(request: Request, call_next):
+    """`?part=` sets the cookie, so the choice survives the next click.
+
+    One place rather than in each handler: "whenever the query parameter is
+    used" includes the API and the empty state, and a handler that forgot it
+    would give a switch that silently springs back. A session cookie, not a
+    dated one -- the URL is the durable, shareable form of the choice.
+    """
+    response = await call_next(request)
+    want = request.query_params.get("part")
+    if want and want in known_parts():
+        response.set_cookie(PART_COOKIE, want, path="/", samesite="lax")
+    return response
+
+
+def db(part: str | None = None) -> sqlite3.Connection:
+    part = part or resolve_part()
+    path = part_databases().get(part)
+    if path is None:
+        pin = os.environ.get("SOLBENCH_DB")
+        if pin and not Path(pin).is_file():
+            raise HTTPException(
+                503, f"database not built: run leaderboard/ingest.py ({pin})")
+        raise NoDataForPart(part)
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def meta() -> dict:
-    with db() as conn:
+def meta(part: str | None = None) -> dict:
+    part = part or resolve_part()
+    with db(part) as conn:
         m = {r["key"]: r["value"] for r in conn.execute("SELECT key,value FROM meta")}
-    m["freshness"] = freshness(m)
+    m["freshness"] = freshness(m, part_databases().get(part))
     return m
 
 
-def freshness(m: dict) -> dict:
+def empty_meta(part: str) -> dict:
+    """`meta` for a part with no database: the part, and nothing invented.
+
+    Every other key is absent rather than blank, so the footer's F_LOCK, ROCm
+    and torch line renders empty instead of showing the *other* part's values
+    under this part's heading.
+    """
+    return {"part": part, "freshness": None}
+
+
+@app.exception_handler(NoDataForPart)
+def no_data_for_part(request: Request, exc: NoDataForPart) -> Response:
+    if request.url.path.startswith("/api"):
+        return JSONResponse(
+            {"detail": f"nothing has been measured on {exc.part}; there is no "
+                       f"database for it. The port needs no work for this "
+                       f"part; the measurements do."}, status_code=503)
+    infos = part_infos(request, exc.part)
+    return templates.TemplateResponse(
+        request, "part_missing.html",
+        {"meta": empty_meta(exc.part), "part": exc.part, "parts": infos,
+         "other_parts": [i for i in infos if i["name"] != exc.part],
+         # Stated, not omitted: this page extends the same base as every other
+         # one, and the empty list is the honest answer -- a part with no
+         # database holds no submissions to be measured on the wrong part.
+         "part_mismatch": [],
+         "todo_path": f"TODO-{exc.part}.md", "nav": None})
+
+
+def freshness(m: dict, path: Path | None = None) -> dict:
     """Is the database still a faithful view of the artifacts it was built from?
 
     It is a *derived* store, so it goes stale the moment those artifacts move,
@@ -98,7 +382,17 @@ def freshness(m: dict) -> dict:
         # `ingest.py` re-reads only artifacts/10, so following the banner
         # literally would silently drop every run kept outside the repo --
         # turning a freshness warning into a way to lose a submission.
-        out["rebuild_command"] = "python leaderboard/ingest.py" + (
+        #
+        # It must also name the file being SERVED. A bare `ingest.py` now
+        # writes `db/solbench-<PART>.db`; run against a board served from the
+        # legacy single-file path or from `SOLBENCH_DB`, it would rebuild a
+        # different database and leave the stale banner up with nothing to
+        # show for it. `--db` is emitted only where the two differ, so the
+        # ordinary case keeps the short command.
+        cmd = "python leaderboard/ingest.py"
+        if path is not None and path != DB_DIR / f"solbench-{m.get('part')}.db":
+            cmd += f" --db {path}"
+        out["rebuild_command"] = cmd + (
             " --agent-runs " + " ".join(str(p) for p in extra) if extra else "")
     except Exception as exc:                             # never 500 a page over this
         out["reasons"] = []
@@ -114,10 +408,60 @@ def rows(conn, sql: str, args=()) -> list[dict]:
 # queries
 # --------------------------------------------------------------------------
 
+def conn_part(conn) -> str | None:
+    """The part this connection's database says it holds, from its own `meta`."""
+    row = conn.execute("SELECT value FROM meta WHERE key='part'").fetchone()
+    return row[0] if row else None
+
+
+def part_mismatches(conn) -> list[dict]:
+    """Submissions whose own part disagrees with the database they are stored in.
+
+    This should always be empty: `ingest.py` refuses to write a run measured on
+    one part into another part's database. It is checked again here because
+    ranking is where that mistake would do its damage — an MI355X T_k scored
+    against MI350X bounds is a plausible number with nothing detectably wrong,
+    which §6 of DESIGN-v2 calls the most damaging kind of error this board can
+    make. `leaderboard_rows()` drops such a row; this is what makes the drop
+    visible, because a row that silently vanishes from a ranking is its own
+    failure mode.
+    """
+    want = conn_part(conn)
+    if want is None:
+        return []
+    return rows(conn, """SELECT slug, name, part AS submission_part
+                           FROM submission
+                          WHERE part IS NOT NULL AND part <> ?
+                          ORDER BY id""", (want,))
+
+
+def part_mismatches_for(part: str) -> list[dict]:
+    """`part_mismatches()` for a part, for callers holding no connection.
+
+    Cached on (path, mtime) like the other per-database facts, because every
+    page render asks and the answer only changes when `ingest.py` swaps a new
+    file in. A part with no database has no submissions and so no mismatch --
+    `[]` rather than a raise, since the empty state is a page too.
+    """
+    path = part_databases().get(part)
+    if path is None:
+        return []
+    return _cached(_mismatch_cache, path, part_mismatches) or []
+
+
 def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
     """One row per submission. Missing workloads score zero, by construction."""
     where_cat = "AND w.problem_key LIKE ?" if category else ""
     cat_arg = (f"{category}__%",) if category else ()
+
+    # Defence in depth against a part mix, paired with `part_mismatches()`
+    # above, which is what tells the reader a row was dropped. A NULL `part` is
+    # not a disagreement — it is a run whose artifacts never named one — and
+    # treating it as one would silently empty the board of every submission
+    # ingested before the column existed.
+    want_part = conn_part(conn)
+    part_guard = "AND (part IS NULL OR part = ?)" if want_part else ""
+    part_arg = (want_part,) if want_part else ()
 
     total = conn.execute(
         f"SELECT COUNT(*) FROM workload w WHERE w.scoreable=1 {where_cat}",
@@ -128,7 +472,13 @@ def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
         (category,) if category else ()).fetchone()[0]
 
     out = []
-    for s in rows(conn, "SELECT * FROM submission ORDER BY id"):
+    # `board_visible = 0` is read HERE and nowhere in the ingest of results, so
+    # hiding a run cannot move a visible run's number. pilot8 is the case: it
+    # really ran and its evidence is reachable, but every one of its sessions
+    # was stopped by the budget cap, so its mean is survivorship over whatever
+    # happened to finish and ranking it would invite a comparison nobody made.
+    for s in rows(conn, f"SELECT * FROM submission WHERE board_visible=1 "
+                        f"{part_guard} ORDER BY id", part_arg):
         agg = conn.execute(
             f"""SELECT COUNT(*) AS n_passed,
                        COALESCE(SUM(r.score),0) AS score_sum,
@@ -190,11 +540,25 @@ def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
 
 
 def problem_rows(conn, category: str | None = None) -> list[dict]:
+    # Headline numbers, so `board_visible = 0` is excluded from both. These are
+    # the figures a reader ranks problems by; an off-board run may be read but
+    # it may not be the number at the top of a page. pilot8 is the case that
+    # forced this: every one of its sessions was stopped by its $8 cap, so it
+    # is a cost measurement rather than a score measurement, and unfiltered it
+    # took L1__053's best from 0.5 to 0.9788 and FlashInfer-Bench__019's from
+    # 0.99685 to 0.99977 -- the latter against a bound already known wrong
+    # (D18). It still appears in the per-problem submissions table below,
+    # flagged: declining to rank a run and deleting its evidence are different
+    # decisions and only the first one was made.
     sql = """SELECT p.*,
                     (SELECT MAX(r.score) FROM result r
-                      WHERE r.problem_key=p.key AND r.status='PASSED') AS best_score,
+                       JOIN submission s ON s.id = r.submission_id
+                      WHERE r.problem_key=p.key AND r.status='PASSED'
+                        AND s.board_visible=1) AS best_score,
                     (SELECT COUNT(DISTINCT r.submission_id) FROM result r
-                      WHERE r.problem_key=p.key AND r.status='PASSED') AS n_submissions
+                       JOIN submission s ON s.id = r.submission_id
+                      WHERE r.problem_key=p.key AND r.status='PASSED'
+                        AND s.board_visible=1) AS n_submissions
                FROM problem p"""
     args: tuple = ()
     if category:
@@ -205,10 +569,16 @@ def problem_rows(conn, category: str | None = None) -> list[dict]:
 
 
 def problem_detail(conn, key: str) -> dict:
+    # "Best score recorded" is the page's headline, so it reads the ranked
+    # runs only -- same rule as `problem_rows()` above, and for the same
+    # reason. The evidence paths below (per-workload results, the per-
+    # submission table) still carry the off-board runs, flagged.
     p = conn.execute("""
         SELECT p.*,
                (SELECT MAX(r.score) FROM result r
-                 WHERE r.problem_key=p.key AND r.status='PASSED') AS best_score
+                  JOIN submission s ON s.id = r.submission_id
+                 WHERE r.problem_key=p.key AND r.status='PASSED'
+                   AND s.board_visible=1) AS best_score
           FROM problem p WHERE p.key=?""", (key,)).fetchone()
     if p is None:
         raise HTTPException(404, f"no such problem: {key}")
@@ -225,17 +595,34 @@ def problem_detail(conn, key: str) -> dict:
         # deferred problem pages -- the exact pages a reader follows to find out
         # why the row shows 0.
         w["headroom"] = (w["t_b_ms"] / w["t_sol_ms"]) if (w["t_sol_ms"] and w["t_b_ms"]) else None
+        # Off-board submissions are included here, and carry the flag that says
+        # so. `board_visible=0` takes a run out of the RANKING; its per-workload
+        # timings are still measurements that happened, and dropping them from
+        # the problem page would be deleting the evidence rather than declining
+        # to rank it -- the distinction the flag exists to preserve. The row
+        # says which, so no reader mistakes one for a ranked result.
         w["results"] = rows(conn, """
-            SELECT r.*, s.slug, s.name AS submission_name, s.kind
+            SELECT r.*, s.slug, s.name AS submission_name, s.kind,
+                   s.board_visible, s.exclusion_reason
               FROM result r JOIN submission s ON s.id=r.submission_id
              WHERE r.problem_key=? AND r.workload_uuid=?
              ORDER BY (r.score IS NULL), r.score DESC""", (key, w["uuid"]))
 
     # No FILTER and no NULLS LAST: the system SQLite here is 3.26, which
     # predates both (3.30). They parse as syntax errors, not as ignored hints.
+    #
+    # `scored` is not decoration. AVG() skips NULL, and a PASSED result scores
+    # NULL when the kernel beat T_SOL -- the bound is invalid, so there is no
+    # defensible score. That makes AVG's denominator vary per row: on
+    # FlashInfer-Bench__019, pilot8's mean is over 13 workloads (D18 voided the
+    # other 25) while every other run's is over all 38. Printing both means
+    # side by side under one "mean S" heading ranks 13 against 38. Nothing
+    # here changes a number; it says what each one was divided by.
     per_sub = rows(conn, """
-        SELECT s.slug, s.name, s.kind, s.model,
+        SELECT s.slug, s.name, s.kind, s.model, s.board_visible, s.exclusion_reason,
                SUM(CASE WHEN r.status='PASSED' THEN 1 ELSE 0 END) AS passed,
+               SUM(CASE WHEN r.status='PASSED' AND r.score IS NOT NULL
+                        THEN 1 ELSE 0 END) AS scored,
                AVG(CASE WHEN r.status='PASSED' THEN r.score END) AS mean_score,
                MIN(CASE WHEN r.status='PASSED' THEN r.latency_ms END) AS best_latency,
                SUM(r.flagged) AS flagged
@@ -247,16 +634,92 @@ def problem_detail(conn, key: str) -> dict:
     return {"problem": p, "workloads": wls, "submissions": per_sub}
 
 
+def trials(conn, s: dict, key: str | None = None) -> list[dict]:
+    """Every trial of this submission's setup — the same setup, run again.
+
+    A trial is a whole run, so the group is a set of `submission` rows and this
+    is a query over them, not an extra dimension on `result`. Ungrouped
+    submissions get an empty list: a group of one is not a trial, and the UI
+    shows the switcher only when there is something to switch to.
+
+    With a *key*, each trial also carries its outcome on that one problem. The
+    trials are not merged and no aggregate spans them: two runs under different
+    budgets are two measurements, and averaging them would invent a third.
+    """
+    if not s.get("group_slug"):
+        return []
+    # `touched` is not `attempted > 0`. A kernel whose re-time timed out
+    # produces no result rows at all (D23, glm-run1 on FlashInfer-Bench__014),
+    # and rendering that as "not in this trial" would turn a failed measurement
+    # into a problem the trial never opened.
+    #
+    # The denominator is ATTEMPTED SCOREABLE workloads and the numerator sums
+    # scores with a missing one contributing zero -- exactly what the run
+    # page's own summary computes for `mean_attempted`, deliberately, because
+    # the switcher and the card sit six lines apart on the same page and must
+    # not print two different numbers under one label. `AVG(score)` was the bug:
+    # SQL skips NULLs, and a bound-invalid row stores NULL, so pilot8 on
+    # FlashInfer-Bench__019 read 0.9899 in the switcher against 0.3387 in the
+    # card. The NULL there is not a missing measurement to be averaged around;
+    # it is a workload whose bound is wrong, which earns nothing.
+    out = rows(conn, """
+        SELECT t.slug, t.name, t.trial_label, t.trial_n, t.constraint_json,
+               t.board_visible, t.exclusion_reason,
+               SUM(CASE WHEN w.uuid IS NOT NULL THEN 1 ELSE 0 END) AS attempted,
+               SUM(CASE WHEN w.uuid IS NOT NULL AND r.status='PASSED'
+                        THEN 1 ELSE 0 END) AS passed,
+               SUM(CASE WHEN w.uuid IS NOT NULL AND r.status='PASSED'
+                        THEN COALESCE(r.score, 0) ELSE 0 END) AS score_sum,
+               -- Counted so the switcher can say why "38/38 passed" sits next
+               -- to a mean of 0.34: the zeroes are beaten bounds, not failures.
+               SUM(CASE WHEN w.uuid IS NOT NULL AND r.status='PASSED'
+                        AND r.score IS NULL THEN 1 ELSE 0 END) AS unbounded,
+               EXISTS(SELECT 1 FROM run_kernel k
+                       WHERE k.submission_id=t.id AND k.problem_key=?) AS has_kernel
+          FROM submission t
+          LEFT JOIN result r ON r.submission_id=t.id AND r.problem_key=?
+          LEFT JOIN workload w ON w.problem_key=r.problem_key
+                              AND w.uuid=r.workload_uuid AND w.scoreable=1
+         WHERE t.group_slug=?
+         GROUP BY t.id
+         ORDER BY (t.trial_n IS NULL), t.trial_n, t.id""",
+                (key or "", key or "", s["group_slug"]))
+    for t in out:
+        score_sum = t.pop("score_sum") or 0.0
+        t["mean_score"] = (score_sum / t["attempted"]) if t["attempted"] else None
+        t["constraint"] = json.loads(t.pop("constraint_json") or "{}")
+        t["is_current"] = t["slug"] == s["slug"]
+        t["url"] = (f"/submissions/{t['slug']}/problems/{key}" if key
+                    else f"/submissions/{t['slug']}")
+        if key is None:
+            # No problem in context, so there is no per-problem outcome to
+            # report. None, not zero: this trial did not score nothing here.
+            t["touched"] = t["attempted"] = t["passed"] = t["mean_score"] = None
+        else:
+            t["touched"] = bool(t["attempted"] or t["has_kernel"])
+        t.pop("has_kernel", None)
+    return out
+
+
 def submission_detail(conn, slug: str) -> dict:
     s = conn.execute("SELECT * FROM submission WHERE slug=?", (slug,)).fetchone()
     if s is None:
         raise HTTPException(404, f"no such submission: {slug}")
     s = dict(s)
     s["provenance"] = json.loads(s.pop("provenance_json") or "{}")
+    # The constraint this trial ran under, as its own artifact recorded it.
+    # `board_visible` and `exclusion_reason` come through in the `SELECT *`:
+    # a run that is off the ranking says so on its own page, or the reader has
+    # no way to tell why it is not on the board.
+    s["constraint"] = json.loads(s.pop("constraint_json") or "{}")
     per_problem = rows(conn, """
         SELECT p.key, p.category, p.name, p.n_scoreable,
                SUM(CASE WHEN r.status='PASSED' THEN 1 ELSE 0 END) AS passed,
                COUNT(*) AS attempted,
+               -- See `scored` in problem_detail(): AVG skips the NULL score a
+               -- beaten bound produces, so the denominator is per-row.
+               SUM(CASE WHEN r.status='PASSED' AND r.score IS NOT NULL
+                        THEN 1 ELSE 0 END) AS scored,
                AVG(CASE WHEN r.status='PASSED' THEN r.score END) AS mean_score,
                SUM(r.flagged) AS flagged,
                e.cost_usd, e.wall_seconds, e.turns, e.harness_evals
@@ -281,7 +744,8 @@ def submission_detail(conn, slug: str) -> dict:
                               AND r.problem_key = k.problem_key)
          ORDER BY k.problem_key""", (s["id"],))
 
-    return {"submission": s, "problems": per_problem, "unmeasured": unmeasured}
+    return {"submission": s, "problems": per_problem, "unmeasured": unmeasured,
+            "trials": trials(conn, s)}
 
 
 def run_detail(conn, slug: str, key: str) -> dict:
@@ -307,6 +771,7 @@ def run_detail(conn, slug: str, key: str) -> dict:
         raise HTTPException(404, f"no such problem: {key}")
     s, p = dict(s), dict(p)
     s["provenance"] = json.loads(s.pop("provenance_json") or "{}")
+    s["constraint"] = json.loads(s.pop("constraint_json") or "{}")
     for f in ("axes_json", "inputs_json", "outputs_json"):
         p.pop(f, None)
 
@@ -320,6 +785,20 @@ def run_detail(conn, slug: str, key: str) -> dict:
                             AND r.submission_id = ?
          WHERE w.problem_key = ?
          ORDER BY w.rowid""", (s["id"], key))
+
+    kernel = conn.execute(
+        """SELECT source, n_lines, sha256, retime_ok, retime_error
+             FROM run_kernel WHERE submission_id=? AND problem_key=?""",
+        (s["id"], key)).fetchone()
+    # D23. A kernel exists for this problem and its authoritative re-time did
+    # not complete, so none of its workloads have result rows. "Tried, could
+    # not be measured" is not "did not try", and `retime_ok` exists precisely
+    # to keep the two apart -- without this the grid draws thirty cells reading
+    # "not attempted" directly above a banner saying a kernel was submitted and
+    # its re-time hit TimeoutExpired (glm-run1 on FlashInfer-Bench__014).
+    # `retime_ok == 0` and not `not retime_ok`: NULL means the ingest recorded
+    # nothing about the re-time, which is a third state and not this one.
+    retime_failed = kernel is not None and kernel["retime_ok"] == 0
 
     n_att = n_pass = 0
     score_sum = 0.0
@@ -343,6 +822,7 @@ def run_detail(conn, slug: str, key: str) -> dict:
         # an empty cell, or the page reads as a missing measurement.
         w["bound_invalid"] = (w["passed"] and w["score"] is None
                               and bool(w["latency_ms"]))
+        w["unmeasured"] = retime_failed and not w["attempted"]
         if w["attempted"] and w["scoreable"]:
             n_att += 1
             if w["passed"]:
@@ -369,18 +849,18 @@ def run_detail(conn, slug: str, key: str) -> dict:
     }
 
     peers = rows(conn, """
-        SELECT s.slug, s.name, s.kind,
+        SELECT s.slug, s.name, s.kind, s.board_visible, s.exclusion_reason,
                SUM(CASE WHEN r.status='PASSED' THEN 1 ELSE 0 END) AS passed,
+               -- See `scored` in problem_detail(). This is the column a reader
+               -- most naturally reads as a ranking of peers, so it is the one
+               -- where an unstated denominator does the most damage.
+               SUM(CASE WHEN r.status='PASSED' AND r.score IS NOT NULL
+                        THEN 1 ELSE 0 END) AS scored,
                AVG(CASE WHEN r.status='PASSED' THEN r.score END) AS mean_score
           FROM result r JOIN submission s ON s.id = r.submission_id
          WHERE r.problem_key = ?
          GROUP BY s.id
          ORDER BY (mean_score IS NULL), mean_score DESC""", (key,))
-
-    kernel = conn.execute(
-        """SELECT source, n_lines, sha256, retime_ok, retime_error
-             FROM run_kernel WHERE submission_id=? AND problem_key=?""",
-        (s["id"], key)).fetchone()
 
     # Which T_b formulations actually anchored this problem, and on how many
     # workloads. Not "the baseline", plural: T_b is chosen per workload, so a
@@ -406,6 +886,7 @@ def run_detail(conn, slug: str, key: str) -> dict:
           FROM trajectory_eval
          WHERE submission_id=? AND problem_key=? ORDER BY n""", (s["id"], key))
     _mark_regressions(traj)
+    _label_times(traj)
 
     effort = conn.execute(
         "SELECT * FROM run_effort WHERE submission_id=? AND problem_key=?",
@@ -417,6 +898,13 @@ def run_detail(conn, slug: str, key: str) -> dict:
     return {
         "submission": s, "problem": p, "workloads": wls,
         "summary": summary, "peers": peers,
+        "trials": trials(conn, s, key),
+        "window": run_window(conn, s["id"], key),
+        # The part this RUN was measured on, from its own re-time provenance --
+        # NULL where its artifacts recorded none. Not the database's part: that
+        # is a fact about the bounds, and substituting it here would give every
+        # run a part whether or not anything says so.
+        "part": s.get("part"),
         "kernel": dict(kernel) if kernel else None,
         "variants": variants,
         "reference": p.get("reference"),
@@ -430,6 +918,61 @@ def run_detail(conn, slug: str, key: str) -> dict:
                        if tr else None),
         "depth_note": s.get("depth_note"),
     }
+
+
+def run_window(conn, sub_id: int, key: str) -> dict | None:
+    """When this run worked on this problem, and by whose clock.
+
+    `source` travels with the numbers and is never dropped: `first_last_eval`
+    is a window *inside* the session (the agent was working before its first
+    eval and after its last), `retime_only` is when the kernel was scored on
+    GPU 0, not when it was worked on. Rendering either as "the session" is the
+    kind of wrong that looks right.
+
+    No row means no timestamp evidence, and that is the answer -- there is no
+    `unknown` source to fall back to, because absence already says it.
+    `elapsed_seconds` is likewise None unless both ends are real; a one-ended
+    window has no duration, and computing one from "now" would invent it.
+    """
+    row = conn.execute(
+        """SELECT started_utc, finished_utc, source FROM run_window
+            WHERE submission_id=? AND problem_key=?""", (sub_id, key)).fetchone()
+    if row is None:
+        return None
+    w = dict(row)
+    a, b = _parse_utc(w["started_utc"]), _parse_utc(w["finished_utc"])
+    w["elapsed_seconds"] = (b - a).total_seconds() if a and b else None
+    return w
+
+
+def _parse_utc(s: str | None):
+    """ISO-8601 as `provenance.py` writes it. `Z` because JSON in the wild has
+    it and `fromisoformat` did not accept it before 3.11."""
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _label_times(traj: list[dict]) -> None:
+    """Pre-render the two nullable clock fields, so absence cannot render as data.
+
+    `minutes_in` and `utc` are both nullable — the harness-eval series is what
+    dates an eval, and an eval it did not date has neither. Handed to a
+    template raw, the first becomes an invented "+0 min" the moment anyone
+    writes `minutes_in or 0`, and the second interpolates as the literal string
+    "None". Both read as measurements. So the API emits the rendered form and
+    it is None, not a placeholder, when there is nothing to render: a caller
+    substituting a dash is making a display choice, a caller printing "+0m" is
+    making a claim.
+    """
+    for e in traj:
+        m = e.get("minutes_in")
+        e["at_label"] = f"+{m:.0f}m" if m is not None else None
+        u = e.get("utc")
+        e["utc_label"] = f"{u[11:16]} UTC" if u and len(u) >= 16 else None
 
 
 def _mark_regressions(traj: list[dict]) -> None:
@@ -480,51 +1023,70 @@ def _mark_regressions(traj: list[dict]) -> None:
 # shapes and a client can be generated from it. The unversioned routes below
 # predate that and are left in place only because things already call them;
 # they return the same objects with no schema attached.
+#
+# `part` is a query parameter on every data route rather than a header or a
+# path segment, so that a URL a reader copies out of the address bar carries
+# the dataset it was read from. Omitted, it resolves exactly as the pages do.
 # --------------------------------------------------------------------------
 
 V1 = APIRouter(prefix="/api/v1", tags=["v1"])
 
 
+@V1.get("/parts", response_model=list[PartInfo])
+def v1_parts(request: Request, part: str | None = None):
+    """Every part this port targets, and whether anything has been measured.
+
+    `?part=` goes through the same resolver as every other route. Ignoring it
+    here made this the one endpoint that answered 200 for a part the build does
+    not know — where the rest answer 400 — and marked the *resolved* part
+    active rather than the requested one, so the switch's own data was the only
+    thing on the site that disagreed with the URL it was asked for.
+    """
+    return part_infos(request, resolve_part(request, part))
+
+
 @V1.get("/stats", response_model=Stats)
-def v1_stats():
-    return api_stats()
+def v1_stats(request: Request, part: str | None = None):
+    return api_stats(request, part)
 
 
 @V1.get("/leaderboard", response_model=list[LeaderboardRow])
-def v1_leaderboard(category: str | None = None):
-    with db() as conn:
+def v1_leaderboard(request: Request, category: str | None = None,
+                   part: str | None = None):
+    with db(resolve_part(request, part)) as conn:
         return leaderboard_rows(conn, category)
 
 
 @V1.get("/problems", response_model=list[ProblemSummary])
-def v1_problems(category: str | None = None):
-    with db() as conn:
+def v1_problems(request: Request, category: str | None = None,
+                part: str | None = None):
+    with db(resolve_part(request, part)) as conn:
         return problem_rows(conn, category)
 
 
 @V1.get("/problems/{key}", response_model=ProblemDetail)
-def v1_problem(key: str):
-    with db() as conn:
+def v1_problem(request: Request, key: str, part: str | None = None):
+    with db(resolve_part(request, part)) as conn:
         return problem_detail(conn, key)
 
 
 @V1.get("/submissions/{slug}", response_model=SubmissionDetail)
-def v1_submission(slug: str):
-    with db() as conn:
+def v1_submission(request: Request, slug: str, part: str | None = None):
+    with db(resolve_part(request, part)) as conn:
         return submission_detail(conn, slug)
 
 
 @V1.get("/submissions/{slug}/problems/{key}", response_model=RunDetail)
-def v1_run(slug: str, key: str):
-    with db() as conn:
+def v1_run(request: Request, slug: str, key: str, part: str | None = None):
+    with db(resolve_part(request, part)) as conn:
         return run_detail(conn, slug, key)
 
 
 @V1.get("/submissions/{slug}/problems/{key}/kernel",
         response_class=PlainTextResponse)
-def v1_kernel(slug: str, key: str):
+def v1_kernel(request: Request, slug: str, key: str, part: str | None = None):
     """The submitted kernel as source, for diffing without unwrapping JSON."""
-    with db() as conn:
+    with db(resolve_part(request, part)) as conn:
         row = conn.execute(
             """SELECT k.source FROM run_kernel k
                  JOIN submission s ON s.id = k.submission_id
@@ -535,7 +1097,7 @@ def v1_kernel(slug: str, key: str):
 
 
 @V1.get("/submissions/{slug}/problems/{key}/transcript")
-def v1_transcript(slug: str, key: str):
+def v1_transcript(request: Request, slug: str, key: str, part: str | None = None):
     """Stream the agent transcript from disk.
 
     Transcripts are 2 MB of JSONL each and are deliberately NOT in the
@@ -544,7 +1106,7 @@ def v1_transcript(slug: str, key: str):
     slug and key are only ever used as lookup keys, and the resolved path is
     re-checked against the indexed value before the file is opened.
     """
-    with db() as conn:
+    with db(resolve_part(request, part)) as conn:
         row = conn.execute(
             """SELECT t.path FROM transcript t
                  JOIN submission s ON s.id = t.submission_id
@@ -560,8 +1122,8 @@ def v1_transcript(slug: str, key: str):
 
 
 @app.get("/api/stats")
-def api_stats():
-    with db() as conn:
+def api_stats(request: Request, part: str | None = None):
+    with db(resolve_part(request, part)) as conn:
         m = {r["key"]: r["value"] for r in conn.execute("SELECT key,value FROM meta")}
         by_cat = rows(conn, """SELECT category, COUNT(*) AS n,
                                       SUM(CASE WHEN deferred=1 THEN 1 ELSE 0 END) AS deferred
@@ -570,32 +1132,34 @@ def api_stats():
 
 
 @app.get("/api/leaderboard")
-def api_leaderboard(category: str | None = None):
-    with db() as conn:
+def api_leaderboard(request: Request, category: str | None = None,
+                    part: str | None = None):
+    with db(resolve_part(request, part)) as conn:
         return leaderboard_rows(conn, category)
 
 
 @app.get("/api/problems")
-def api_problems(category: str | None = None):
-    with db() as conn:
+def api_problems(request: Request, category: str | None = None,
+                 part: str | None = None):
+    with db(resolve_part(request, part)) as conn:
         return problem_rows(conn, category)
 
 
 @app.get("/api/problems/{key}")
-def api_problem(key: str):
-    with db() as conn:
+def api_problem(request: Request, key: str, part: str | None = None):
+    with db(resolve_part(request, part)) as conn:
         return problem_detail(conn, key)
 
 
 @app.get("/api/submissions/{slug}")
-def api_submission(slug: str):
-    with db() as conn:
+def api_submission(request: Request, slug: str, part: str | None = None):
+    with db(resolve_part(request, part)) as conn:
         return submission_detail(conn, slug)
 
 
 @app.get("/api/submissions/{slug}/problems/{key}")
-def api_run(slug: str, key: str):
-    with db() as conn:
+def api_run(request: Request, slug: str, key: str, part: str | None = None):
+    with db(resolve_part(request, part)) as conn:
         return run_detail(conn, slug, key)
 
 
@@ -603,24 +1167,47 @@ def api_run(slug: str, key: str):
 # pages
 # --------------------------------------------------------------------------
 
-def page(request: Request, name: str, **ctx) -> HTMLResponse:
-    return templates.TemplateResponse(request, name, {"meta": meta(), **ctx})
+def page(request: Request, name: str, part: str, **ctx) -> HTMLResponse:
+    """Render *name* with the per-request context every template can rely on.
+
+    `part` is threaded through explicitly rather than resolved here, so a
+    handler cannot query one part's database and then render another part's
+    header over it.
+
+    `part_mismatch` is filled in here, not by each handler, because the banner
+    that consumes it is in `base.html` -- so a handler that forgets it does not
+    get a page without a banner, it gets a page whose banner CANNOT fire, and
+    Jinja resolves the missing name to undefined rather than raising. That was
+    the state: only `/` passed it, so a reader landing straight on a problem
+    page, a submission page or the methodology saw nothing, while `/healthz`
+    reported the same database as not ok. A handler may still pass its own --
+    `index()` does, off the connection it already holds -- and `setdefault`
+    leaves it alone.
+    """
+    ctx.setdefault("part_mismatch", part_mismatches_for(part))
+    return templates.TemplateResponse(request, name, {
+        "meta": meta(part), "part": part, "parts": part_infos(request, part),
+        **ctx})
 
 
 @app.get("/", response_class=HTMLResponse)
-def index(request: Request, category: str | None = None):
-    with db() as conn:
+def index(request: Request, category: str | None = None, part: str | None = None):
+    active = resolve_part(request, part)
+    with db(active) as conn:
         board = leaderboard_rows(conn, category)
+        mismatch = part_mismatches(conn)
         cats = rows(conn, """SELECT category, COUNT(*) AS n,
                                     SUM(CASE WHEN deferred=1 THEN 1 ELSE 0 END) AS deferred
                                FROM problem GROUP BY category ORDER BY category""")
-    return page(request, "index.html", board=board, categories=cats,
-                category=category, nav="board")
+    return page(request, "index.html", active, board=board, categories=cats,
+                category=category, nav="board", part_mismatch=mismatch)
 
 
 @app.get("/problems", response_class=HTMLResponse)
-def problems(request: Request, category: str | None = None, q: str | None = None):
-    with db() as conn:
+def problems(request: Request, category: str | None = None, q: str | None = None,
+             part: str | None = None):
+    active = resolve_part(request, part)
+    with db(active) as conn:
         items = problem_rows(conn, category)
         cats = rows(conn, "SELECT DISTINCT category FROM problem ORDER BY category")
     if q:
@@ -628,23 +1215,25 @@ def problems(request: Request, category: str | None = None, q: str | None = None
         items = [p for p in items
                  if needle in p["key"].lower()
                  or needle in (p["description"] or "").lower()]
-    return page(request, "problems.html", problems=items,
+    return page(request, "problems.html", active, problems=items,
                 categories=[c["category"] for c in cats], category=category,
                 q=q or "", nav="problems")
 
 
 @app.get("/problems/{key}", response_class=HTMLResponse)
-def problem(request: Request, key: str):
-    with db() as conn:
+def problem(request: Request, key: str, part: str | None = None):
+    active = resolve_part(request, part)
+    with db(active) as conn:
         d = problem_detail(conn, key)
-    return page(request, "problem.html", **d)
+    return page(request, "problem.html", active, **d)
 
 
 @app.get("/submissions/{slug}", response_class=HTMLResponse)
-def submission(request: Request, slug: str):
-    with db() as conn:
+def submission(request: Request, slug: str, part: str | None = None):
+    active = resolve_part(request, part)
+    with db(active) as conn:
         d = submission_detail(conn, slug)
-    return page(request, "submission.html", **d)
+    return page(request, "submission.html", active, **d)
 
 
 def trajectory_chart(traj: list[dict], w: int = 720, h: int = 190) -> dict | None:
@@ -659,11 +1248,18 @@ def trajectory_chart(traj: list[dict], w: int = 720, h: int = 190) -> dict | Non
     fixed y = 0.5 gridline, so "crossed the anchor" is visible as a line
     crossing rather than something the reader has to work out.
     """
-    pts = [e for e in traj if e.get("mean_score") is not None]
+    # An eval with no recorded time cannot be placed on a time axis, and the
+    # previous `minutes_in or 0` placed it at the origin — drawing a point at
+    # minute zero for an eval nothing timed, and dragging the polyline back
+    # through it. It is dropped from the plot instead and counted, so the page
+    # can say how many evals are not shown rather than showing them wrongly.
+    timed = [e for e in traj if e.get("minutes_in") is not None]
+    n_untimed = len(traj) - len(timed)
+    pts = [e for e in timed if e.get("mean_score") is not None]
     if len(pts) < 2:
         return None
     pad_l, pad_r, pad_t, pad_b = 44, 12, 12, 26
-    xs = [e.get("minutes_in") or 0.0 for e in pts]
+    xs = [e["minutes_in"] for e in pts]
     x_max = max(xs) or 1.0
     ys = [e["mean_score"] for e in pts]
     # Always include the 0.5 anchor in the visible range, or a run that never
@@ -678,15 +1274,16 @@ def trajectory_chart(traj: list[dict], w: int = 720, h: int = 190) -> dict | Non
     def py(s):
         return pad_t + (1 - (s - y_lo) / (y_hi - y_lo)) * (h - pad_t - pad_b)
 
-    points = [{"x": round(px(e.get("minutes_in") or 0.0), 1),
+    points = [{"x": round(px(e["minutes_in"]), 1),
                "y": round(py(e["mean_score"]), 1), **e} for e in pts]
     # Evals with no score still happened, and hiding them would make a run that
     # broke twice look monotonic. Drawn on the axis as marks, not as points.
-    marks = [{"x": round(px(e.get("minutes_in") or 0.0), 1),
+    marks = [{"x": round(px(e["minutes_in"]), 1),
               "n": e["n"], "harness_error": e.get("harness_error"),
               "regression": e.get("regression")}
-             for e in traj if e.get("mean_score") is None]
+             for e in timed if e.get("mean_score") is None]
     return {"w": w, "h": h, "points": points, "marks": marks,
+            "n_untimed": n_untimed,
             "path": " ".join(f"{'M' if i == 0 else 'L'}{p['x']},{p['y']}"
                              for i, p in enumerate(points)),
             "y_anchor": round(py(0.5), 1) if y_lo <= 0.5 <= y_hi else None,
@@ -696,10 +1293,17 @@ def trajectory_chart(traj: list[dict], w: int = 720, h: int = 190) -> dict | Non
 
 
 @app.get("/submissions/{slug}/problems/{key}", response_class=HTMLResponse)
-def run(request: Request, slug: str, key: str):
-    with db() as conn:
+def run(request: Request, slug: str, key: str, part: str | None = None):
+    active = resolve_part(request, part)
+    with db(active) as conn:
         d = run_detail(conn, slug, key)
-    return page(request, "run.html", chart=trajectory_chart(d["trajectory"]), **d)
+    # `part` means two different things here and they must not collide: in a
+    # RunDetail it is the part this run was MEASURED on, in a page context it
+    # is the dataset being viewed, which is what `part_url()` reads off the
+    # context to build links. The run's own goes under `run_part`.
+    d["run_part"] = d.pop("part")
+    return page(request, "run.html", active,
+                chart=trajectory_chart(d["trajectory"]), **d)
 
 
 app.include_router(V1)
@@ -707,8 +1311,9 @@ app.include_router(submit.router)
 
 
 @app.get("/methodology", response_class=HTMLResponse)
-def methodology(request: Request):
-    with db() as conn:
+def methodology(request: Request, part: str | None = None):
+    active = resolve_part(request, part)
+    with db(active) as conn:
         bounds = json.loads(dict(
             (r["key"], r["value"]) for r in conn.execute("SELECT key,value FROM meta")
         ).get("bound_sources") or "{}")
@@ -733,17 +1338,28 @@ def methodology(request: Request):
             if row:
                 invalid_bound_info[k] = {"n_workloads": row["n_workloads"],
                                          "headroom": row["median_headroom"]}
-    return page(request, "methodology.html", bound_sources=bounds,
+    return page(request, "methodology.html", active, bound_sources=bounds,
                 deferred=deferred, excluded=excluded, nav="methodology",
                 invalid_bound_info=invalid_bound_info)
 
 
 @app.get("/healthz", response_model=Health)
-def healthz():
-    if not DB.exists():
-        return JSONResponse({"ok": False, "db": str(DB), "error": "not built"},
+def healthz(request: Request, part: str | None = None):
+    active = resolve_part(request, part)
+    path = part_databases().get(active)
+    if path is None:
+        return JSONResponse({"ok": False, "db": None, "part": active,
+                             "error": f"no database for {active}"},
                             status_code=503)
-    m = meta()
-    return JSONResponse({"ok": True, "db": str(DB), "part": m.get("part"),
+    m = meta(active)
+    # The part guard reported where a monitor will see it. `leaderboard_rows()`
+    # drops a mismatched submission from the ranking, which is the safe
+    # behaviour and also the invisible one; a non-empty list here means the
+    # ingest guard was bypassed and the database needs rebuilding, not that the
+    # board needs reading more carefully.
+    with db(active) as conn:
+        mismatch = part_mismatches(conn)
+    return JSONResponse({"ok": not mismatch, "db": str(path), "part": m.get("part"),
                          "manifest_version": m.get("manifest_version"),
-                         "freshness": m["freshness"]})
+                         "freshness": m["freshness"],
+                         "part_mismatch": mismatch})

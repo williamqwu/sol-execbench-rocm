@@ -10,6 +10,7 @@
 
 PRAGMA journal_mode = WAL;
 
+DROP TABLE IF EXISTS run_window;
 DROP TABLE IF EXISTS transcript;
 DROP TABLE IF EXISTS trajectory_eval;
 DROP TABLE IF EXISTS run_effort;
@@ -93,7 +94,38 @@ CREATE TABLE submission (
     -- the broadest submission, and an empty section reads as a missing feature
     -- rather than as a harness that never wrote the file.
     depth_note      TEXT,
-    depth_json      TEXT
+    depth_json      TEXT,
+    -- Trials: the same setup run more than once, under different constraints.
+    -- A trial is a whole run -- its own kernels, trajectory and cost -- which
+    -- is exactly what a submission row already is, so the trial dimension goes
+    -- HERE and not on `result`. Grouping is a hardcoded table in ingest.py,
+    -- never inferred from the model name: two runs of the same model under
+    -- different harnesses are not the same setup, and guessing that they are
+    -- would put a comparison on the page that nobody made.
+    group_slug      TEXT,      -- the setup, e.g. 'agent-opus5'. NULL = a group of one.
+    group_name      TEXT,      -- 'Claude-Opus-5 - agent sandbox harness'
+    trial_label     TEXT,      -- what distinguishes this trial: '$8 / problem'
+    trial_n         INTEGER,   -- 1-based within the group, by created_utc
+    constraint_json TEXT,      -- the constraint, as the run's own artifact recorded it
+    -- Off the ranking, still in the database. `leaderboard_rows()` filters on
+    -- this; nothing in the ingest of results reads it, so hiding a run cannot
+    -- move a visible run's score. pilot8 is the case this exists for: it was
+    -- really run and docs/agent-baseline.md sends readers to its trajectory,
+    -- but its sessions were all stopped by the budget cap, so its mean is
+    -- survivorship and ranking it would invite a comparison that is not there
+    -- to be made. Excluding a run from the ranking and deleting its evidence
+    -- are different decisions; only the first one was made.
+    board_visible   INTEGER NOT NULL DEFAULT 1,
+    exclusion_reason TEXT,     -- why, in full, when board_visible=0
+    -- The part this run was MEASURED on, from its own re-time provenance --
+    -- not from the manifest, and not from the database it lands in. A score
+    -- from MI350X and one from MI355X are not comparable (different power cap
+    -- -> different F_LOCK -> different T_SOL and T_b), so a row that cannot
+    -- name its part is a row nothing may rank. `ingest.py` therefore never
+    -- writes a value here that disagrees with `meta.part`, or a NULL: a run
+    -- whose re-time provenance names another part, or names none, is refused
+    -- outright rather than landing unmarked in the wrong part's board.
+    part            TEXT
 );
 
 CREATE TABLE result (
@@ -209,5 +241,37 @@ CREATE TABLE transcript (
     n_lines       INTEGER,
     n_turns       INTEGER,
     tools_json    TEXT,
+    PRIMARY KEY (submission_id, problem_key)
+);
+
+-- When a submission worked on a problem -- and, just as importantly, on whose
+-- clock. No artifact records "this session started at T": what exists is the
+-- harness-eval series (`eval-<epoch_ns>.json`) and the authoritative re-time's
+-- provenance stamp. Those are different quantities, so `source` is NOT NULL
+-- and the UI must print it. Rendering an eval-to-eval window as if it were the
+-- session, or a re-time stamp as if it were work time, is the kind of wrong
+-- that looks right: every number plausible, nothing detectably off.
+--
+-- A submission with no timestamp evidence gets NO ROW. That is the correct
+-- answer and the only honest one; a window derived from file mtimes or from
+-- neighbouring runs would be a measurement nobody made.
+CREATE TABLE run_window (
+    submission_id INTEGER NOT NULL REFERENCES submission(id),
+    problem_key   TEXT NOT NULL,
+    started_utc   TEXT,        -- NULL where the source carries only an end
+    finished_utc  TEXT,
+    source        TEXT NOT NULL CHECK (source IN (
+        -- first and last harness evaluation the agent ran. A window INSIDE
+        -- the session, not the session: the agent was working before its
+        -- first eval and after its last, so this is a lower bound.
+        'first_last_eval',
+        -- the harness recorded a real session start/end. Nothing does today;
+        -- the value exists so that a harness which starts to cannot be
+        -- mistaken for one that does not.
+        'session',
+        -- the only stamp is the authoritative re-time on GPU 0 -- when the
+        -- kernel was SCORED, not when it was worked on. Written at the end of
+        -- the re-time, so it is a finish with no start.
+        'retime_only')),
     PRIMARY KEY (submission_id, problem_key)
 );

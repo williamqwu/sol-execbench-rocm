@@ -1,0 +1,25 @@
+{
+  "_README": [
+    "Copy to leaderboard/sources.json (machine-local, gitignored) and list the",
+    "agent-run roots that do not live in this repo. ingest.py reads it BY",
+    "DEFAULT, so a bare `python leaderboard/ingest.py` builds the same board as",
+    "`ingest.py --agent-runs <those roots>`.",
+    "",
+    "This file exists because the alternative kept failing. Every caller that",
+    "shelled out to a bare ingest -- the staleness banner, worker.py after",
+    "scoring a submission, a human following the README -- dropped every",
+    "out-of-repo run off the board without saying so, four separate times",
+    "(STATE.md D24). Patching each call site does not fix it: the next caller",
+    "has not been written yet.",
+    "",
+    "A root is either a directory of runs (<root>/<run>/scored.json) or a single",
+    "run directory (<root>/scored.json). artifacts/10 is always read and does",
+    "not belong here. Relative paths resolve against the repo root.",
+    "",
+    "Keys beginning with _ are ignored; JSON has no comments."
+  ],
+  "agent_run_roots": [
+    "/absolute/path/to/an/out-of-repo/run-collection",
+    "runs/kept-inside-the-repo-but-outside-artifacts-10"
+  ]
+}

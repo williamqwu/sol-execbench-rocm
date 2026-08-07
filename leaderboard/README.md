@@ -15,7 +15,7 @@ First run creates the venv and builds the database; after that it just serves.
 
 | layer | choice | why |
 |---|---|---|
-| database | SQLite, `leaderboard/solbench.db` | Rebuildable view over `artifacts/`. Gitignored. |
+| database | SQLite, `leaderboard/db/solbench-<PART>.db` | Rebuildable view over `artifacts/`. **One file per part** — see below. Gitignored. |
 | backend | FastAPI + uvicorn, `app.py` | Server-rendered pages plus a typed JSON API under `/api/v1/`. |
 | contract | `models.py`, pydantic | Every `/api/v1` route declares a response model, so `/openapi.json` is a real schema and a client can be generated from it. |
 | frontend | Jinja2 + one stylesheet | No build step, no npm. The node has no node. |
@@ -28,10 +28,41 @@ That last row is the load-bearing one. Adding fastapi to
 this repo was measured under, which prime directive 6 forbids. The web app
 never touches a GPU, so it has no business in that image.
 
+## One database per part
+
+A score measured on MI350X and one measured on MI355X are **not comparable**:
+different power cap, different sustained clock, so a different F_LOCK and
+therefore a different T_SOL and T_b. So the part is not a filter over one
+dataset — it selects the dataset, and the split is enforced by the filesystem
+so that no query can mix two parts by accident:
+
+    leaderboard/db/solbench-MI350X.db     <- the measured board
+    leaderboard/db/solbench-MI355X.db     <- does not exist, and must not be faked
+
+`ingest.py` names the file after the part the **manifest** says it was measured
+on. `--part` *asserts* that value and errors if it disagrees; it cannot relabel
+a build, because `solbench-MI355X.db` full of MI350X timings is exactly the
+failure the split exists to prevent.
+
+Which part a request is about resolves in this order: `?part=` → the `part`
+cookie → `SOLBENCH_PART` → the only part with a database → `MI350X`. An unknown
+name is a 400. A part the port targets that has no database is a first-class
+page saying nothing has been measured on it — not a 404, not an empty table —
+and `/api/v1` answers 503 there. `run.sh` prints the same fact at startup:
+
+```
+serving MI355X, which has no database -- the board will show its empty state.
+```
+
+`SOLBENCH_DB` still pins one file and collapses the board to it; `run.sh` and
+`worker.py` build *that* file when it is set, so the pin means one thing
+everywhere. `leaderboard/solbench.db`, the pre-split single-file layout, is
+still read if a leftover is there, but nothing writes it any more.
+
 ## Rebuilding
 
 ```bash
-leaderboard/.venv/bin/python leaderboard/ingest.py
+leaderboard/.venv/bin/python leaderboard/ingest.py     # -> db/solbench-<PART>.db
 ```
 
 `ingest.py` builds a **new** database beside the old one and `os.replace()`s it
@@ -40,15 +71,35 @@ window -- measured at 0.30s, and caught serving `rows=0` on the first attempt --
 where the API returned 200 with an empty leaderboard. Not an error a client
 could detect: indistinguishable from "nobody has submitted".
 
-If a run lives outside the repo, pass it every time:
+### Runs kept outside the repo
 
-```bash
-leaderboard/.venv/bin/python leaderboard/ingest.py --agent-runs /path/to/runs
+List them once, in `leaderboard/sources.json` (machine-local and gitignored;
+copy `sources.json.example`), which `ingest.py` reads **by default**:
+
+```json
+{"agent_run_roots": ["/path/to/an/out-of-repo/run-collection"]}
 ```
 
-Omitting it silently drops those submissions. The staleness banner prints the
-roots the current build used, and `worker.py` reads them back out of `meta`
-before it rebuilds, because both have already been caught getting this wrong.
+`--agent-runs` still works and *overrides* the config; `SOLEXBENCH_AGENT_RUNS`
+adds to whichever won. Every root is printed with where it came from, because
+"which roots did this build read" is the question behind every instance of this
+going wrong.
+
+STATE.md D24 records three instances of this, always the same way: something
+shelled a bare `ingest.py`, the out-of-repo runs were not in it, and the board
+came back smaller with nothing saying so. The fix for the second one — a
+drop-guard in `worker.py` — then quietly stopped working when the database moved
+to `db/solbench-<PART>.db`, because the guard was still reading
+`leaderboard/solbench.db`: it compared an empty set against an empty set and
+reported success.
+
+Patching each caller does not fix it; the next caller has not been written yet.
+So ingest itself now **refuses to publish a board with fewer submissions than
+the one it replaces**, leaving the existing board untouched and naming the roots
+the two builds disagree about. `--allow-drop` is how you retire a run on
+purpose. `run.sh` and `worker.py` ask `app.py` which file is served rather than
+spelling a path, so there is one notion of "the database"; and because the
+config exists, `worker.py` no longer passes `--agent-runs` at all.
 
 `ingest.py` recreates every table from:
 
@@ -86,13 +137,13 @@ skipping the hard problems.
 
 ## Things the board is careful about
 
-* **One part per board.** Every score is `MI350X` at F_LOCK 1300 MHz, and the
-  header says so. T_SOL in milliseconds, T_b and F_LOCK all differ by part, so
-  a score from another part cannot be ranked against these —
+* **One part per board.** Every score on the built board is `MI350X` at F_LOCK
+  1300 MHz, and the header says so. T_SOL in milliseconds, T_b and F_LOCK all
+  differ by part, so a score from another part cannot be ranked against these —
   `scripts/score_solutions.py` refuses that comparison rather than rescaling it.
-  The MI355X port on `feat/agent-scoreboard` is deliberately **not** merged in:
-  its T_b is not anchor-verified, its agent runs are scored on headroom and
-  speedup rather than S, and it has no S to publish. It needs its own board.
+  The part switch selects a whole database (above); it never joins two. MI355X
+  is in the switch and has **no** database, because nothing has been measured on
+  it — the port needs no work there, every number does. See `TODO-MI355X.md`.
 * **Reference variants are labelled as such.** The four PyTorch formulations are
   what T_b is *derived from* — the winner of each workload scores exactly 0.5
   there by construction. They calibrate the scale rather than compete on it.

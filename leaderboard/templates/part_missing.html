@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ part }} &middot; nothing measured &middot; SOL-ExecBench-ROCm{% endblock %}
+{% block content %}
+
+{# A part the port targets, with no database behind it. This is a page, not a
+   404 and not an empty table: the part exists, the benchmark knows how to
+   measure it, and nobody has. Saying that plainly is the whole job here --
+   an empty table would read as "measured, scored zero", and a 404 would read
+   as "no such part", and both are false. #}
+<div class="empty-part">
+  <div class="big-part">{{ part }}</div>
+  <h1>Nothing has been measured on {{ part }}.</h1>
+
+  <p>There is no database for this part, so there is no board, no problem
+    list and no bounds to show. That is the honest state and it is deliberate:
+    a score is only meaningful against T<sub>SOL</sub> and T<sub>b</sub>
+    derived at the F<sub>LOCK</sub> of the part it ran on, and none of those
+    exist here yet.</p>
+
+  <p><b>The port itself needs no work for this part.</b> The harness, the
+    bounds generator and the scoring manifest are all part-parameterised
+    already. What is missing is measurement time on the hardware &mdash; the
+    clock calibration first, because every T<sub>SOL</sub> and every
+    T<sub>b</sub> below it depends on the achieved clock, and it is measured
+    rather than assumed. The runbook is
+    <code>{{ todo_path }}</code> in the repository.</p>
+
+  <p>Numbers from another part are not a stand-in. A different power cap gives
+    a different sustained clock, therefore a different F<sub>LOCK</sub>,
+    therefore different bounds and a different S for the same kernel. Showing
+    one part's figures under another's heading would be the most damaging kind
+    of wrong: every number plausible, nothing detectably broken.</p>
+
+  {% if other_parts %}
+  <p>Measured today:</p>
+  <ol>
+    {% for p in other_parts %}
+    <li><a href="{{ p.url }}">{{ p.name }}</a> &mdash;
+      {% if p.n_results is not none %}{{ '{:,}'.format(p.n_results) }} workload
+        results{% else %}also not measured{% endif %}</li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+</div>
+
+{% endblock %}

@@ -18,8 +18,18 @@ artifacts/golden/*.pt
 uv.lock
 .uv-cache/
 
-# Leaderboard database: a rebuildable view over artifacts/, not a source of truth.
+# Leaderboard databases: a rebuildable view over artifacts/, not a source of
+# truth. One file per part, ~17 MB of binary each, regenerated in under a
+# second by `leaderboard/ingest.py`.
+leaderboard/db/
+# The pre-split single-file layout. Nothing writes it any more; `app.py` still
+# reads a leftover one so an old checkout does not go blank.
 leaderboard/solbench.db*
+
+# Which out-of-repo agent-run roots this machine's board is built from. The
+# paths are machine-local, so the tracked file is `sources.json.example` --
+# which does not match this pattern and stays in the tree.
+leaderboard/sources.json
 
 # torch TunableOp writes its tuning results to CWD when an agent enables it.
 tunableop_results*.csv

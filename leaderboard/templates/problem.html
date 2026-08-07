@@ -2,7 +2,9 @@
 {% block title %}{{ problem.key }} &middot; SOL-ExecBench-ROCm{% endblock %}
 {% block content %}
 
-<div class="crumb"><a href="/problems">Problems</a> / <a href="/problems?category={{ problem.category }}">{{ problem.category }}</a> / {{ problem.name }}</div>
+<div class="crumb"><a href="{{ part_url('/problems') }}">Problems</a> /
+  <a href="{{ part_url('/problems', category=problem.category) }}">{{ problem.category }}</a> /
+  {{ problem.name }}</div>
 
 <h1 class="mono">{{ problem.name }}</h1>
 {% if problem.deferred %}
@@ -15,10 +17,14 @@
        This is a recorded decision, not a sweep that failed to run: nothing was
        measured because there was nothing valid to measure against.</p>
     {% if problem.deferred_error %}
-      <pre class="code sm" style="margin:0">{{ problem.deferred_error }}</pre>
+      {# The newline after `>` is deliberate: a parser drops a single LF right
+         after <pre>, so text whose first character is a newline loses that
+         line. Give it one of ours to drop instead of the content's. #}
+      <pre class="code sm" style="margin:0">
+{{ problem.deferred_error }}</pre>
     {% endif %}
     <p class="sub" style="margin:7px 0 0">Ledger: <code>artifacts/deferred.json</code>
-       &middot; <a href="/methodology#deferred">all {{ meta.total_problems|int - meta.scoreable_problems|int }} deferrals</a></p>
+       &middot; <a href="{{ part_url('/methodology#deferred') }}">all {{ meta.total_problems|int - meta.scoreable_problems|int }} deferrals</a></p>
   </div>
 {% endif %}
 <p class="lede">{{ problem.description }}</p>
@@ -27,8 +33,19 @@
 <div class="cards">
   <div class="card"><div class="num">{{ problem.n_scoreable }}<span class="of">/{{ problem.n_workloads }}</span></div><div class="lbl">scoreable workloads</div></div>
   <div class="card"><div class="num">{% if problem.median_headroom %}{{ '%.1f'|format(problem.median_headroom) }}&times;{% else %}&mdash;{% endif %}</div><div class="lbl">median headroom T<sub>b</sub>/T<sub>SOL</sub></div></div>
-  <div class="card"><div class="num">{% if problem.best_score %}{{ '%.3f'|format(problem.best_score) }}{% else %}&mdash;{% endif %}</div><div class="lbl">best score recorded</div></div>
-  <div class="card"><div class="num">{{ submissions|length }}</div><div class="lbl">submissions</div></div>
+  <div class="card"><div class="num">{% if problem.best_score %}{{ '%.3f'|format(problem.best_score) }}{% else %}&mdash;{% endif %}</div>
+    {# problem_detail()'s best_score joins board_visible=1, so this is the
+       maximum over the RANKED runs only. Saying "every run recorded" here was
+       wrong in the direction that matters: the table immediately below lists
+       the off-ranking runs, so a reader who takes this card as the maximum has
+       a visible contradiction and no way to resolve it. #}
+    <div class="lbl" title="The maximum over the runs that are on the ranking. A run that is off the ranking keeps its measurements and is listed in the table below, but it does not set this figure — so a submission in that table can show a higher number than this card.">best score recorded</div></div>
+  {# Every run with results here, ranked or not -- which is the table below,
+     and deliberately NOT the same count as the `submissions` column on
+     /problems, whose subquery is board_visible=1 and PASSED. On L1__053 that
+     is 5 against 4. Two counts under one word need the difference said, or the
+     smaller one reads as a run having gone missing. #}
+  <div class="card"><div class="num" title="Every run with a result on this problem, including runs that are off the ranking — the table below. The `submissions` column on the Problems listing counts only ranked runs that passed at least one workload, so it can be lower.">{{ submissions|length }}</div><div class="lbl">submissions</div></div>
 </div>
 
 <h2>Scoring bounds, per workload</h2>
@@ -84,14 +101,26 @@
   <tbody>
   {% for s in submissions %}
     <tr>
-      <td><a href="/submissions/{{ s.slug }}">{{ s.name }}</a>
-          {% if s.model %}<span class="model">{{ s.model }}</span>{% endif %}</td>
+      <td><a href="{{ part_url('/submissions/' ~ s.slug) }}">{{ s.name }}</a>
+          {% if s.model %}<span class="model">{{ s.model }}</span>{% endif %}
+          {# Off the RANKING, not off the record: its timings are real
+             measurements and are listed here. Saying so stops a reader
+             inferring a rank from a table that never ranked it, and the reason
+             travels with the flag -- an exclusion nobody can audit is
+             indistinguishable from data that went missing. #}
+          {%- if not s.board_visible %} <span class="flag"
+            title="{{ s.exclusion_reason or 'No reason was recorded, which is itself a defect.' }}">off the ranking</span>{% endif %}</td>
       <td><span class="tag tag-{{ s.kind }}">{{ s.kind.replace('_',' ') }}</span></td>
       <td class="r" data-sort="{{ s.passed }}">{{ s.passed }}<span class="sub">/{{ problem.n_scoreable }}</span></td>
-      <td class="r big" data-sort="{{ s.mean_score if s.mean_score is not none else '' }}">{{ '%.4f'|format(s.mean_score) if s.mean_score else '&mdash;'|safe }}</td>
+      {# The count this was divided by. A passing workload that beat T_SOL has
+         no score, so it is not in the average, so the denominator is per-row
+         and two rows under one heading are not the same statistic. #}
+      <td class="r big" data-sort="{{ s.mean_score if s.mean_score is not none else '' }}">{{ '%.4f'|format(s.mean_score) if s.mean_score else '&mdash;'|safe }}
+        {%- if s.mean_score %}<span class="sub den{% if s.scored < s.passed %} den-short{% endif %}"
+          {%- if s.scored < s.passed %} title="{{ s.passed - s.scored }} of this run's {{ s.passed }} passing workloads beat T_SOL here. The bound is invalid on those, so no score exists and they are not in this average -- it is over {{ s.scored }}, not {{ s.passed }}."{% endif %}>over {{ s.scored }}{% if s.scored < s.passed %} of {{ s.passed }}{% endif %}</span>{% endif %}</td>
       <td class="r mono">{{ '%.5f'|format(s.best_latency) if s.best_latency else '&mdash;'|safe }}</td>
       <td class="r" data-sort="{{ s.flagged or 0 }}">{% if s.flagged %}<span class="flag">{{ s.flagged }}</span>{% else %}&mdash;{% endif %}</td>
-      <td class="sm"><a href="/submissions/{{ s.slug }}/problems/{{ problem.key }}">this run &rarr;</a></td>
+      <td class="sm"><a href="{{ part_url('/submissions/' ~ s.slug ~ '/problems/' ~ problem.key) }}">this run &rarr;</a></td>
     </tr>
   {% endfor %}
   </tbody>
@@ -109,7 +138,9 @@
   {% for w in workloads %}{% for r in w.results %}
     <tr>
       <td class="mono sm">{{ w.uuid[:8] }}</td>
-      <td class="sm"><a href="/submissions/{{ r.slug }}/problems/{{ problem.key }}">{{ r.submission_name }}</a></td>
+      <td class="sm"><a href="{{ part_url('/submissions/' ~ r.slug ~ '/problems/' ~ problem.key) }}">{{ r.submission_name }}</a>
+          {%- if not r.board_visible %} <span class="flag"
+            title="{{ r.exclusion_reason or 'No reason was recorded, which is itself a defect.' }}">off the ranking</span>{% endif %}</td>
       <td class="sm">{% if r.status == 'PASSED' %}<span class="ok">PASSED</span>{% else %}<span class="bad">{{ r.status }}</span>{% endif %}
           {% if r.flagged %}<span class="flag">flagged</span>{% endif %}</td>
       <td class="r mono">{{ '%.5f'|format(r.latency_ms) if r.latency_ms else '&mdash;'|safe }}</td>
@@ -165,6 +196,8 @@
 <h2>Reference implementation</h2>
 <p class="sub">This is what a submission must match numerically, and what the
   T<sub>b</sub> variants are formulations of.</p>
-<pre class="code">{{ problem.reference }}</pre>
+{# Leading newline: see the note on the deferred-error pane above. #}
+<pre class="code">
+{{ problem.reference }}</pre>
 
 {% endblock %}

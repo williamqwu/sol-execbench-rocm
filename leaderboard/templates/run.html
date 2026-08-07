@@ -2,19 +2,156 @@
 {% block title %}{{ submission.name }} on {{ problem.name }} &middot; SOL-ExecBench-ROCm{% endblock %}
 {% block content %}
 
+{# ONE source for the sign of a delta. The table and the chart tooltip render
+   the same number in two places, and they used to decide its colour
+   independently -- Jinja `< 0` on the float, JavaScript `< 0` on the printed
+   string. A delta of -6.7e-6 prints as "-0.0000", and `parseFloat("-0.0000")`
+   is negative ZERO, for which `-0 < 0` is false: the same eval came out red in
+   the table and green in the tooltip. The class is decided here, once, from
+   the float, and travels to the client as an attribute. #}
+{%- macro delta_cls(v) -%}
+{%- if v is none %}{% elif v < 0 %}bad{% elif v > 0 %}ok{% endif -%}
+{%- endmacro -%}
+
 <div class="crumb">
-  <a href="/">Leaderboard</a> /
-  <a href="/submissions/{{ submission.slug }}">{{ submission.name }}</a> /
-  <a href="/problems/{{ problem.key }}">{{ problem.name }}</a>
+  <a href="{{ part_url('/') }}">Leaderboard</a> /
+  <a href="{{ part_url('/submissions/' ~ submission.slug) }}">{{ submission.name }}</a> /
+  <a href="{{ part_url('/problems/' ~ problem.key) }}">{{ problem.name }}</a>
 </div>
 
 <h1 class="mono">{{ problem.name }}</h1>
 <p>
   <span class="tag tag-{{ submission.kind }}">{{ submission.kind.replace('_',' ') }}</span>
-  <a href="/submissions/{{ submission.slug }}">{{ submission.name }}</a>
+  <a href="{{ part_url('/submissions/' ~ submission.slug) }}">{{ submission.name }}</a>
   {% if submission.model %}<span class="model">{{ submission.model }}</span>{% endif %}
   <span class="sub">&middot; {{ problem.category }}</span>
+  {# `run_part`, not `part`: the page context's `part` is the dataset being
+     viewed, which is what part_url() builds links from. This is the part this
+     run was MEASURED on, from its own re-time provenance -- null where its
+     artifacts recorded none, and not substituted from the database. #}
+  {% if run_part %}<span class="tag" title="The part this run was measured on, from its own re-time provenance.">{{ run_part }}</span>{% endif %}
 </p>
+
+{% if run_part and meta.part and run_part != meta.part %}
+  {# Two parts have different power caps, therefore different F_LOCK, therefore
+     different T_SOL and T_b. A run measured on one, shown against the other's
+     bounds, is a page of plausible numbers that mean nothing. #}
+  <div class="banner warn">
+    <b>This run was measured on {{ run_part }}, but the bounds on this
+    page come from the {{ meta.part }} dataset.</b> The two are not comparable:
+    different power cap, different sustained clock, therefore different
+    T<sub>SOL</sub> and T<sub>b</sub>. Treat nothing here as a score.
+  </div>
+{% endif %}
+
+{% if not submission.board_visible %}
+  {# Off the ranking, still in the database. Excluding a run from the board and
+     deleting its evidence are different decisions; only the first was made. #}
+  <div class="banner warn">
+    <b>This run is not on the leaderboard.</b>
+    {{ submission.exclusion_reason or 'No reason was recorded, which is itself a defect — a run is excluded for a reason or not at all.' }}
+  </div>
+{% endif %}
+
+{# ------------------------------------------------------------- the trials #}
+{% if trials and trials|length > 1 %}
+{# The same setup run more than once. Links, never a merge: two runs under two
+   different constraints are two measurements, and averaging them would invent
+   a third that nobody made. #}
+<div class="trials">
+  <div class="th"><b>{{ submission.group_name or 'This setup' }}</b> was run
+    {{ trials|length }} times under different constraints. Each trial is a whole
+    run &mdash; its own kernels, its own trajectory, its own cost &mdash; and
+    they are shown side by side rather than combined.</div>
+  <div class="row">
+  {% for t in trials %}
+    {%- if t.touched -%}
+    <a class="trial{% if t.is_current %} on{% endif %}" href="{{ part_url(t.url) }}">
+    {%- else -%}
+    <span class="trial absent" aria-disabled="true"
+          title="This trial exists and did not cover this problem. It is shown so that its absence is visible.">
+    {%- endif %}
+      <span class="t-n">trial {{ t.trial_n or '?' }}{% if t.is_current %} &middot; you are here{% endif %}</span>
+      <span class="t-lbl">{{ t.trial_label or 'constraint not recorded' }}</span>
+      <span class="t-out">
+        {%- if not t.touched %}not in this trial
+        {%- elif t.mean_score is not none %}{{ t.passed }}/{{ summary.n_scoreable }} passed &middot; mean S {{ '%.4f'|format(t.mean_score) }}
+          {%- if t.unbounded %}<span class="t-warn" title="{{ t.unbounded }} of these passing workloads ran faster than T_SOL. The bound is invalid there, so no score is defined and each contributes zero to this mean -- which is why a run that passed everything can still read low. That is a defect in the bound, not in the kernel.">&mdash; {{ t.unbounded }} bound{{ 's' if t.unbounded != 1 }} beaten, scored 0</span>{% endif %}
+        {%- elif t.attempted %}{{ t.attempted }} workloads attempted, none passed
+        {%- else %}kernel submitted, never measured{% endif %}
+      </span>
+      {%- if not t.board_visible %}<span class="t-out t-hidden">off the ranking</span>{% endif %}
+    {%- if t.touched %}</a>{% else %}</span>{% endif %}
+  {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# ---------------------------------------------------------- when it ran #}
+{% if window %}
+{# Rendered in UTC and labelled, then converted client side -- the server does
+   not know the reader's timezone and must not guess. `source` travels with the
+   numbers because the three sources are three different quantities and only
+   one of them (which nothing produces today) is actually "the session". #}
+<div class="window">
+  <div class="w">
+    <div class="w-k">started</div>
+    <div class="w-v">{% if window.started_utc %}<time class="localtime" data-fmt="seconds"
+      datetime="{{ window.started_utc }}">{{ window.started_utc[:19]|replace('T',' ') }} UTC</time>{%
+      else %}<span class="sub">not recorded</span>{% endif %}</div>
+  </div>
+  <div class="w">
+    <div class="w-k">finished</div>
+    <div class="w-v">{% if window.finished_utc %}<time class="localtime" data-fmt="seconds"
+      datetime="{{ window.finished_utc }}">{{ window.finished_utc[:19]|replace('T',' ') }} UTC</time>{%
+      else %}<span class="sub">not recorded</span>{% endif %}</div>
+  </div>
+  <div class="w">
+    <div class="w-k">elapsed</div>
+    <div class="w-v">
+      {%- if window.elapsed_seconds is not none -%}
+        {%- set mins = (window.elapsed_seconds / 60)|round|int -%}
+        {{ '%d h %02d min'|format(mins // 60, mins % 60) if mins >= 60 else '%d min'|format(mins) }}
+      {%- else %}<span class="sub">&mdash;</span>{% endif %}
+    </div>
+  </div>
+  <div class="w" style="flex:1 1 320px">
+    <div class="w-k">what these timestamps are</div>
+    <div class="sub" style="margin-top:2px">
+      {%- if window.source == 'first_last_eval' %}
+        <code>first_last_eval</code> &mdash; the first and last harness evaluation
+        the agent ran. This is a window <i>inside</i> the session, not the
+        session: it was working before its first eval and after its last, so the
+        elapsed figure is a lower bound.
+      {%- elif window.source == 'retime_only' %}
+        <code>retime_only</code> &mdash; the only timestamp is the authoritative
+        re-time on GPU 0, so this is when the kernel was <i>scored</i>, not when
+        it was worked on. There is no start, and none was invented.
+      {%- elif window.source == 'session' %}
+        <code>session</code> &mdash; the harness recorded a real session start
+        and end.
+      {%- else %}<code>{{ window.source }}</code>{% endif %}
+    </div>
+  </div>
+</div>
+{% if window.elapsed_seconds == 0 and window.source == 'first_last_eval' %}
+<p class="sub">The window has no width because there was exactly one harness
+  eval: first and last are the same timestamp. It is not a zero-length session.</p>
+{% endif %}
+{# `is not none`, not truthy: a zero-width window (one eval) against 20 minutes
+   of wall time is the case where showing both matters most. #}
+{% if effort and effort.wall_seconds and window.elapsed_seconds is not none %}
+  {%- set drift = (effort.wall_seconds - window.elapsed_seconds)|abs / effort.wall_seconds -%}
+  {% if drift > 0.05 %}
+  <p class="sub">Wall time for this problem was
+    {{ '%.0f'|format(effort.wall_seconds / 60) }} min, against
+    {{ '%.0f'|format(window.elapsed_seconds / 60) }} min between the first and
+    last eval. Both are shown because they measure different things: the window
+    is eval-to-eval, wall time is the whole session including everything before
+    the first eval and after the last.</p>
+  {% endif %}
+{% endif %}
+{% endif %}
 
 {% if problem.deferred %}
   <div class="banner warn">
@@ -22,7 +159,7 @@
     None of its {{ problem.n_workloads }} workloads are scoreable, so no
     submission can score on it and nothing here was run.
     {% if problem.deferred_mechanism %} {{ problem.deferred_mechanism }}{% endif %}
-    <span class="sub">&middot; <a href="/methodology#deferred">why</a></span>
+    <span class="sub">&middot; <a href="{{ part_url('/methodology#deferred') }}">why</a></span>
   </div>
 {% endif %}
 
@@ -64,6 +201,130 @@
 </p>
 
 <h2>Per-workload</h2>
+
+{# One cell per workload, in the manifest's own order, rendered here rather
+   than by script: "view source" shows the data, and the grid is present before
+   anything executes. Colour is never the only carrier -- each state has its
+   own shape or pattern -- because this has to survive colour blindness, a
+   greyscale printout and forced-colours mode.
+
+   Intensity is distance from the T_b anchor and hue is which side of it, so
+   the two ramps together read as one diverging scale with S = 0.5 at the
+   neutral midpoint: the same reading as the .solbar's tick, deliberately in
+   the same colours.
+
+   THE STEP EDGES ARE NON-UNIFORM, and cut from the distribution this board
+   actually holds: all 12,883 scored cells in db/solbench-MI350X.db as of
+   2026-08-06 (7 submissions x 235 problems). Uniform 0.1-wide steps put 89.1%
+   of them (11,480) into the two floor steps, which is not a scale, it is a
+   flat field -- and it is structural rather than accidental: four of the seven
+   submissions are reference variants, which sit at S = 0.5 BY CONSTRUCTION
+   (3,744 cells are exactly 0.5), and the agent runs cluster just under the
+   anchor. So the edges are tight where the mass is.
+
+     under (S < 0.5), by d = 0.5 - S     beat (S >= 0.5)
+       u1  d < 0.001        2199 17.1%     b1  S < 0.505     3781 29.3%
+       u2  0.001 <= d < .005 2514 19.5%    b2  0.505..0.55     72  0.6%
+       u3  0.005 <= d < .02  1709 13.3%    b3  0.55 ..0.70     79  0.6%
+       u4  0.02  <= d < .10  1161  9.0%    b4  0.70 ..0.90     94  0.7%
+       u5  d >= 0.10         1157  9.0%    b5  S >= 0.90      117  0.9%
+
+   The two sides are cut differently on purpose. The under side's mass lies
+   within 0.02 of the anchor, so its edges have to be sub-percent; the beat
+   side's non-anchor tail is spread all the way to the roofline, so its top
+   step keeps meaning "near T_SOL", which is what the legend claims. Polarity
+   is carried by shape, not by colour, so the two ramps do not have to agree on
+   what a step is worth.
+
+   These edges are tuned to today's data and have a shelf life. A run that
+   lands a hundred kernels between 0.6 and 0.9 makes b2..b4 the interesting
+   region and this cut the wrong one -- recut it from the distribution then,
+   and say so here again. #}
+{%- set U_EDGES = [0.499, 0.495, 0.48, 0.40] -%}
+{%- set B_EDGES = [0.505, 0.55, 0.70, 0.90] -%}
+{# A kernel was submitted for this problem and the authoritative re-time never
+   completed, so there are no result rows at all. Its workloads are NOT "never
+   attempted": the attempt was real and only the measurement is missing, which
+   is the distinction run_kernel.retime_ok exists to record (D23). Rendering 30
+   cells as "not attempted" under a banner that says a kernel was submitted
+   made the page contradict itself. #}
+{%- set retime_failed = kernel and kernel.retime_ok == 0 -%}
+<div class="wl-grid" role="group"
+     aria-label="Every workload of this problem, one cell each, in manifest order">
+{%- for w in workloads %}
+  {%- set s = w.score -%}
+  {%- if not w.scoreable -%}
+    {%- set cls, state = 'g-nosc', 'not scoreable' -%}
+    {%- set foot = 'No submission can score on this workload; it is outside the manifest.' -%}
+  {%- elif w.bound_invalid -%}
+    {%- set cls, state = 'g-inv', 'bound invalid' -%}
+    {%- set foot = 'T_k came in below T_SOL, which nothing can do. The bound is wrong, so no score is stored rather than one above 1.0.' -%}
+  {%- elif not w.attempted and retime_failed -%}
+    {%- set cls, state = 'g-unmeasured', 'submitted, never measured' -%}
+    {%- set foot = 'A kernel was submitted for this problem and the authoritative re-time did not complete, so this workload has no measurement. It counts as zero in the benchmark score, exactly like one never attempted — but it is not one.' -%}
+  {%- elif not w.attempted -%}
+    {%- set cls, state = 'g-miss', 'not attempted' -%}
+    {%- set foot = 'No kernel was run here. It still counts as zero in the benchmark score.' -%}
+  {%- elif s is not none -%}
+    {%- if s >= 0.5 -%}
+      {%- set ns = namespace(k=1) -%}
+      {%- for e in B_EDGES %}{% if s >= e %}{% set ns.k = ns.k + 1 %}{% endif %}{% endfor -%}
+      {%- set cls = 'g-b' ~ ns.k -%}
+      {%- set state = 'passed, faster than the T_b anchor' -%}
+    {%- else -%}
+      {%- set ns = namespace(k=1) -%}
+      {%- for e in U_EDGES %}{% if s < e %}{% set ns.k = ns.k + 1 %}{% endif %}{% endfor -%}
+      {%- set cls = 'g-u' ~ ns.k -%}
+      {%- set state = 'passed, slower than the T_b anchor' -%}
+    {%- endif -%}
+    {%- set foot = none -%}
+  {%- else -%}
+    {%- set cls, state = 'g-fail', w.status|lower -%}
+    {%- set foot = 'A kernel ran and did not pass. That is not the same as one that was never written.' -%}
+  {%- endif -%}
+  {%- set axes = w.axes.items()|map('join','=')|join(' ') -%}
+  <button type="button" class="cell {{ cls }}" data-i="{{ loop.index }}"
+          data-uuid="{{ w.uuid }}" data-row="wl-{{ loop.index }}"
+          data-axes="{{ axes }}" data-state="{{ state }}"
+          {% if w.t_sol_ms %}data-tsol="{{ '%.5f'|format(w.t_sol_ms) }}"{% endif %}
+          {% if w.t_b_ms %}data-tb="{{ '%.5f'|format(w.t_b_ms) }}"{% endif %}
+          {% if w.latency_ms %}data-tk="{{ '%.5f'|format(w.latency_ms) }}"{% endif %}
+          {% if w.speedup_vs_tb %}data-speedup="{{ '%.2f'|format(w.speedup_vs_tb) }}×"{% endif %}
+          {% if s is not none %}data-s="{{ '%.4f'|format(s) }}"{% endif %}
+          {% if s is not none and s >= 0.5 %}data-beat="1"{% endif %}
+          {% if foot %}data-foot="{{ foot }}"{% endif %}
+          title="workload {{ loop.index }} of {{ workloads|length }}{% if axes %} · {{ axes }}{% endif %} · {{ state }}{% if s is not none %} · S = {{ '%.4f'|format(s) }}{% endif %}{% if w.speedup_vs_tb %} · {{ '%.2f'|format(w.speedup_vs_tb) }}× vs T_b{% endif %}"></button>
+{%- endfor %}
+</div>
+<div class="grid-legend">
+  {# Steps are not equal widths -- see the edge table above -- so the legend
+     says where each ramp's steps fall rather than implying a linear scale. #}
+  <span class="k">
+    <span class="ramp"><i class="cell g-u5"></i><i class="cell g-u4"></i><i class="cell g-u3"></i><i class="cell g-u2"></i><i class="cell g-u1"></i></span>
+    S &lt; 0.5, slower than T<sub>b</sub> (circle)
+    <span class="edges" title="Step edges, cut from the observed distribution of all 12,883 scored cells on this board as of 2026-08-06, rather than spaced evenly. They are tuned to that distribution and do not move when it does.">&lt;0.40 &middot; 0.48 &middot; 0.495 &middot; 0.499 &middot; &lt;0.5</span>
+  </span>
+  <span class="k">
+    <span class="ramp"><i class="cell g-b1"></i><i class="cell g-b2"></i><i class="cell g-b3"></i><i class="cell g-b4"></i><i class="cell g-b5"></i></span>
+    S &ge; 0.5, faster (square; brightest approaches T<sub>SOL</sub>)
+    <span class="edges" title="Step edges, cut from the observed distribution of all 12,883 scored cells on this board as of 2026-08-06, rather than spaced evenly. They are tuned to that distribution and do not move when it does.">0.5 &middot; 0.505 &middot; 0.55 &middot; 0.70 &middot; 0.90+</span>
+  </span>
+  <span class="k"><i class="cell g-fail"></i> failed</span>
+  <span class="k"><i class="cell g-unmeasured"></i> submitted, never measured</span>
+  <span class="k"><i class="cell g-miss"></i> not attempted</span>
+  <span class="k"><i class="cell g-nosc"></i> not scoreable</span>
+  <span class="k"><i class="cell g-inv"></i> bound invalid</span>
+</div>
+
+{# The table is the numbers and stays authoritative; the grid is the shape.
+   <details> opens without script, so with JS off this is one click, not a
+   dead end. #}
+<details class="wl-details">
+  <summary>All {{ workloads|length }} workloads as a table, with T<sub>SOL</sub>,
+    T<sub>b</sub>, T<sub>k</sub> and S</summary>
+{# The .solbar legend lives HERE, next to the bars it describes. Above the grid
+   it was the first of two stacked legends -- ten entries before any datum --
+   and it explained a widget that only exists inside this closed <details>. #}
 <div class="scale-legend">
   <span class="k">S scale: 0 &mdash; T<sub>b</sub> at the tick (S&nbsp;=&nbsp;0.5) &mdash; T<sub>SOL</sub> at the right edge (S&nbsp;=&nbsp;1)</span>
   <span class="k"><i class="swatch beat"></i> faster than optimized PyTorch</span>
@@ -87,11 +348,15 @@
   </thead>
   <tbody>
   {% for w in workloads %}
-    <tr class="{% if not w.attempted %}miss{% elif not w.scoreable %}dim{% endif %}">
+    {# `id` is what a grid cell jumps to; `loop.index` and not the uuid so the
+       two orderings cannot drift apart. #}
+    <tr id="wl-{{ loop.index }}" class="{% if not w.attempted %}miss{% elif not w.scoreable %}dim{% endif %}">
       <td class="mono sm" data-sort="{{ loop.index }}">{{ w.uuid[:8] }}</td>
       <td class="sm">{% for k,v in w.axes.items() %}<span class="ax">{{ k }}={{ v }}</span>{% endfor %}</td>
       <td class="sm" data-sort="{{ w.status or 'zzz' }}">
         {%- if not w.scoreable %}<span class="sub">not scoreable</span>
+        {%- elif not w.attempted and retime_failed %}<span class="sub"
+          title="A kernel was submitted; the authoritative re-time did not complete.">submitted, never measured</span>
         {%- elif not w.attempted %}<span class="sub">not attempted</span>
         {%- elif w.passed %}<span class="ok">PASSED</span>
         {%- else %}<span class="bad">{{ w.status }}</span>{% endif %}
@@ -114,6 +379,9 @@
           </span>
         {%- elif w.attempted %}
           <span class="sub">no score &mdash; {{ w.status|lower }}</span>
+        {%- elif retime_failed %}
+          <span class="sub">no measurement &mdash; the re-time did not complete.
+            Counts as zero, like a workload never attempted, and is not one.</span>
         {%- else %}
           <span class="sub">counts as zero in the benchmark score</span>
         {%- endif %}
@@ -123,6 +391,7 @@
   </tbody>
 </table>
 </div>
+</details>
 
 {% if workloads and workloads[0].note %}
 <p class="sub">Timing note: {{ workloads[0].note }}.</p>
@@ -137,13 +406,30 @@
       completed.</b> That is why this problem contributes nothing to the score
       and shows no workloads: the attempt was real, only the measurement is
       missing. Never-attempted and could-not-be-measured are different facts.
-      <pre class="code sm" style="margin:8px 0 0">{{ kernel.retime_error }}</pre>
+      {# The newline after `>` is deliberate and is repeated at every code pane
+         on this page. An HTML parser DROPS a single LF immediately after
+         <pre>, so a source whose first character is a newline loses that line
+         -- from the rendered pane, from `pre.textContent`, and therefore from
+         what the copy button puts on the clipboard. Emitting one of our own
+         gives the parser something to drop that is not the source. No kernel
+         in the corpus starts with a newline today, which is exactly why this
+         has to be structural rather than left to hold by luck. #}
+      <pre class="code sm" data-lang="text" style="margin:8px 0 0">
+{{ kernel.retime_error }}</pre>
     </div>
   {% endif %}
   <p class="sub">
     {{ kernel.n_lines }} lines &middot; <code class="sm">{{ kernel.sha256[:12] }}</code>
-    &middot; <a href="/api/v1/submissions/{{ submission.slug }}/problems/{{ problem.key }}/kernel">raw</a>
+    &middot; <a href="{{ part_url('/api/v1/submissions/' ~ submission.slug ~ '/problems/' ~ problem.key ~ '/kernel') }}">raw</a>
   </p>
+
+  {# What language a pane holds, decided from the source rather than assumed.
+     Every kernel in the corpus today is Python -- Triton, torch.compile or
+     ctypes into hipBLASLt -- but a hand-written HIP translation unit is a
+     legitimate submission, and highlighting one as the other is the sort of
+     wrong output the tokenizer exists to avoid. A miss here costs colour and
+     nothing else. #}
+  {% set klang = 'hip' if kernel.source.lstrip().startswith('#include') else 'python' %}
 
   {# Tabs, not a line diff. A 168-line handwritten HIP kernel against a
      52-line torch.compile wrapper shares almost no lines, so a unified diff
@@ -158,7 +444,9 @@
     {% if reference %}<button class="tab" data-tab="k-reference">reference</button>{% endif %}
   </div>
 
-  <div class="tabpane on" id="k-submitted"><pre class="code sm">{{ kernel.source }}</pre></div>
+  {# Leading newline: see the note on the retime_error pane above. #}
+  <div class="tabpane on" id="k-submitted"><pre class="code sm" data-lang="{{ klang }}">
+{{ kernel.source }}</pre></div>
   {% for v in variants %}
     <div class="tabpane" id="k-{{ v.variant }}">
       <p class="sub">This formulation was the fastest PyTorch on
@@ -166,21 +454,24 @@
         T<sub>b</sub> those workloads are scored against. It is generated as a
         source transform of the reference below &mdash; the same transform task 06
         compiled and timed.</p>
-      <pre class="code sm">{{ v.source }}</pre>
+      <pre class="code sm" data-lang="python">
+{{ v.source }}</pre>
     </div>
   {% endfor %}
   {% if reference %}
     <div class="tabpane" id="k-reference">
       <p class="sub">What a submission must match numerically.</p>
-      <pre class="code sm">{{ reference }}</pre>
+      <pre class="code sm" data-lang="python">
+{{ reference }}</pre>
     </div>
   {% endif %}
 {% else %}
   <p class="sub">No kernel was recorded for this submission on this problem.
     {% if submission.kind == 'reference_variant' %}
       Reference variants are source transforms of the problem's own reference,
-      not authored kernels &mdash; see the <a href="/problems/{{ problem.key }}">problem
-      page</a> for the reference and the anchor.
+      not authored kernels &mdash; see the
+      <a href="{{ part_url('/problems/' ~ problem.key) }}">problem page</a> for
+      the reference and the anchor.
     {% endif %}</p>
 {% endif %}
 
@@ -198,17 +489,54 @@
     <line x1="{{ chart.pad_l }}" y1="{{ chart.x_axis }}" x2="{{ chart.w }}" y2="{{ chart.x_axis }}" class="axis"/>
     <text x="{{ chart.w }}" y="{{ chart.h - 6 }}" class="ax-lbl" text-anchor="end">{{ chart.x_max_min }} min</text>
     <path d="{{ chart.path }}" class="traj-line"/>
+    {# Each mark is a group: a transparent hit shape and the visible one. A
+       3.5px circle and an 8px hairline are not pointer targets, and a tooltip
+       that has to be aimed for is a tooltip nobody opens.
+
+       The <title> children stay. They are the no-JS tooltip and the accessible
+       name; static/run.js moves each to `aria-label` on the group so the
+       native popup does not fire alongside the HTML one. #}
+    {# Every data-* here is emitted only when the harness actually recorded the
+       value. `or 0` on a NULL `minutes_in` prints "+0 min", a number nothing
+       measured, and a NULL `utc` interpolates the literal string "None" into
+       the tooltip. Neither is reachable in today's 70 trajectory rows, and
+       "the harness did not record it" is precisely the case this UI exists to
+       state -- so it states it by leaving the attribute off, which run.js
+       already treats as absent. #}
     {% for m in chart.marks %}
-      <line x1="{{ m.x }}" y1="{{ chart.x_axis - 8 }}" x2="{{ m.x }}" y2="{{ chart.x_axis }}"
-            class="mark-{{ 'err' if m.harness_error else 'reg' }}">
+      {%- set e = (trajectory|selectattr('n','equalto',m.n)|first) -%}
+      <g data-eval="{{ m.n }}"
+         {%- if e %}
+         {% if e.minutes_in is not none %}data-at="{{ '%.0f'|format(e.minutes_in) }}"{% endif %}
+         {% if e.utc %}data-utc="{{ e.utc }}"{% endif %}
+         {% if e.passed is not none and e.workloads is not none %}data-passed="{{ e.passed }}/{{ e.workloads }}"{% endif %}
+         {%- endif %}
+         data-note="{{ 'the harness did not run — nothing was measured at this eval' if m.harness_error else 'this eval produced no score' }}">
         <title>eval {{ m.n }}: {{ 'harness did not run' if m.harness_error else 'no score' }}</title>
-      </line>
+        <line class="hit" x1="{{ m.x }}" y1="{{ chart.x_axis - 8 }}" x2="{{ m.x }}" y2="{{ chart.x_axis }}"/>
+        <line x1="{{ m.x }}" y1="{{ chart.x_axis - 8 }}" x2="{{ m.x }}" y2="{{ chart.x_axis }}"
+              class="mark-{{ 'err' if m.harness_error else 'reg' }}"/>
+      </g>
     {% endfor %}
     {% for p in chart.points %}
-      <circle cx="{{ p.x }}" cy="{{ p.y }}" r="{{ 4.5 if p.regression else 3.5 }}"
-              class="pt {% if p.regression %}pt-reg{% endif %}">
-        <title>eval {{ p.n }} at +{{ '%.0f'|format(p.minutes_in or 0) }} min — S = {{ '%.4f'|format(p.mean_score) }}, {{ p.passed }}/{{ p.workloads }} passed</title>
-      </circle>
+      <g data-eval="{{ p.n }}"
+         {% if p.minutes_in is not none %}data-at="{{ '%.0f'|format(p.minutes_in) }}"{% endif %}
+         {% if p.utc %}data-utc="{{ p.utc }}"{% endif %}
+         data-s="{{ '%.4f'|format(p.mean_score) }}"
+         {%- if p.delta_vs_best is not none %}
+         data-delta="{{ '%+.4f'|format(p.delta_vs_best) }}"
+         {# The colour of this delta is decided server-side, from the float, and
+            shipped as a class name. The tooltip must not re-derive it from the
+            printed string: see the delta_cls macro at the top of this file. #}
+         data-delta-cls="{{ delta_cls(p.delta_vs_best) }}"{% endif %}
+         {% if p.passed is not none and p.workloads is not none %}data-passed="{{ p.passed }}/{{ p.workloads }}"{% endif %}
+         {% if p.kernel_lines %}data-lines="{{ p.kernel_lines }} lines"{% endif %}
+         {% if p.regression %}data-note="correctness regression: fewer workloads passed than at an earlier eval"{% endif %}>
+        <title>eval {{ p.n }}{% if p.minutes_in is not none %} at +{{ '%.0f'|format(p.minutes_in) }} min{% endif %} — S = {{ '%.4f'|format(p.mean_score) }}{% if p.passed is not none and p.workloads is not none %}, {{ p.passed }}/{{ p.workloads }} passed{% endif %}</title>
+        <circle class="hit" cx="{{ p.x }}" cy="{{ p.y }}" r="9"/>
+        <circle cx="{{ p.x }}" cy="{{ p.y }}" r="{{ 4.5 if p.regression else 3.5 }}"
+                class="pt {% if p.regression %}pt-reg{% endif %}"/>
+      </g>
     {% endfor %}
   </svg>
   <p class="sub">
@@ -216,6 +544,8 @@
     ran. The horizontal line is T<sub>b</sub> (S&nbsp;=&nbsp;0.5): above it the
     kernel is faster than the best PyTorch formulation. Ticks on the axis are
     evals that produced no score.
+    <span class="sub">Hover or focus a point &mdash; arrow keys walk them
+      &mdash; to see that eval and light up its row in the table below.</span>
   </p>
   {% endif %}
 
@@ -229,13 +559,24 @@
     </tr></thead>
     <tbody>
     {% for e in trajectory %}
-      <tr class="{% if e.harness_error %}miss{% endif %}">
+      <tr data-eval="{{ e.n }}" class="{% if e.harness_error %}miss{% endif %}">
         <td class="mono">{{ e.n }}</td>
-        <td class="r mono sm">+{{ '%.0f'|format(e.minutes_in or 0) }}m</td>
-        <td class="r" data-sort="{{ e.passed if e.passed is not none else '' }}">{{ e.passed }}<span class="sub">/{{ e.workloads }}</span></td>
+        {# Minutes into the run stay the sort key: they are the axis the chart
+           is drawn on. The wall-clock time sits underneath, in UTC and
+           labelled, for the reader who is matching this against a log. #}
+        {# "not recorded", never "+0m": an eval the harness gave no offset for
+           is not an eval at minute zero. #}
+        <td class="r mono sm" data-sort="{{ e.minutes_in if e.minutes_in is not none else '' }}">{%
+          if e.minutes_in is not none %}+{{ '%.0f'|format(e.minutes_in) }}m{%
+          else %}<span class="sub">not recorded</span>{% endif %}
+          {%- if e.utc %}<span class="sub" style="display:block"><time class="localtime" data-fmt="time"
+            datetime="{{ e.utc }}">{{ e.utc[11:16] }} UTC</time></span>{% endif %}</td>
+        <td class="r" data-sort="{{ e.passed if e.passed is not none else '' }}">{%
+          if e.passed is not none %}{{ e.passed }}<span class="sub">/{{ e.workloads if e.workloads is not none else '?' }}</span>{%
+          else %}<span class="sub">&mdash;</span>{% endif %}</td>
         <td class="r mono">{{ '%.3f'|format(e.geomean_speedup) + '×' if e.geomean_speedup else '—' }}</td>
         <td class="r mono big">{{ '%.4f'|format(e.mean_score) if e.mean_score is not none else '&mdash;'|safe }}</td>
-        <td class="r mono {% if e.delta_vs_best and e.delta_vs_best < 0 %}bad{% elif e.delta_vs_best and e.delta_vs_best > 0 %}ok{% endif %}">{{
+        <td class="r mono {{ delta_cls(e.delta_vs_best) }}">{{
           '%+.4f'|format(e.delta_vs_best) if e.delta_vs_best is not none else '—' }}</td>
         <td class="r mono sm">{{ e.kernel_lines ~ ' ln' if e.kernel_lines else '—' }}</td>
         <td class="sm">
@@ -295,7 +636,7 @@
   {{ (transcript.bytes / 1048576)|round(1) }} MB &middot;
   tool calls: {% for t, n in transcript.tools.items() %}<span class="ax">{{ t }} {{ n }}</span>{% endfor %}
 </p>
-<p><a class="chip" href="{{ transcript.url }}">download the full transcript (JSONL)</a></p>
+<p><a class="chip" href="{{ part_url(transcript.url) }}">download the full transcript (JSONL)</a></p>
 <p class="sub">Served from disk, not from the database. It carries gateway
   hostnames and key prefixes in its provenance records &mdash; internal viewers
   only.</p>
@@ -305,16 +646,34 @@
 {% if peers %}
 <table class="grid sortable">
   <thead><tr><th>submission</th><th>kind</th>
-             <th class="r">workloads passed</th><th class="r">mean S (passes)</th><th class="nosort"></th></tr></thead>
+             <th class="r">workloads passed</th>
+             <th class="r" title="Averaged over the workloads that have a score. A workload whose bound was beaten has no defensible score and is not in this average, so the count it was divided by is printed beneath it.">mean S</th>
+             <th class="nosort"></th></tr></thead>
   <tbody>
   {% for s in peers %}
+    {%- set peer_url = part_url('/submissions/' ~ s.slug ~ '/problems/' ~ problem.key) -%}
     <tr {% if s.slug == submission.slug %}class="self"{% endif %}>
       <td>{% if s.slug == submission.slug %}<b>{{ s.name }}</b> <span class="sub">(this run)</span>
-          {% else %}<a href="/submissions/{{ s.slug }}/problems/{{ problem.key }}">{{ s.name }}</a>{% endif %}</td>
+          {% else %}<a href="{{ peer_url }}">{{ s.name }}</a>{% endif %}
+        {# A run that is off the ranking is still a real measurement and still
+           reachable. Saying so here stops the reader inferring a rank from a
+           table that never ranked it. #}
+        {%- if not s.board_visible %} <span class="flag"
+          title="{{ s.exclusion_reason }}">off the ranking</span>{% endif %}</td>
       <td><span class="tag tag-{{ s.kind }}">{{ s.kind.replace('_',' ') }}</span></td>
       <td class="r">{{ s.passed }}<span class="sub">/{{ problem.n_scoreable }}</span></td>
-      <td class="r big">{{ '%.4f'|format(s.mean_score) if s.mean_score is not none else '&mdash;'|safe }}</td>
-      <td class="sm">{% if s.slug != submission.slug %}<a href="/submissions/{{ s.slug }}/problems/{{ problem.key }}">this run &rarr;</a>{% endif %}</td>
+      {# The denominator, always, not only when it differs -- a reader cannot
+         tell that "over 38" is the normal case unless the normal case says so.
+         When a bound was beaten the shortfall is named, because the cause is a
+         defect in the bound and not anything this run did. #}
+      <td class="r big" data-sort="{{ s.mean_score if s.mean_score is not none else '' }}">
+        {{ '%.4f'|format(s.mean_score) if s.mean_score is not none else '&mdash;'|safe }}
+        {%- if s.mean_score is not none %}
+        <span class="sub den{% if s.scored < s.passed %} den-short{% endif %}"
+          {%- if s.scored < s.passed %} title="{{ s.passed - s.scored }} of this run's {{ s.passed }} passing workloads beat T_SOL, so the bound is invalid there and no score is defined. Those workloads are not in this average -- it is over {{ s.scored }}, not {{ s.passed }}."{% endif %}>over {{ s.scored }}{% if s.scored < s.passed %} of {{ s.passed }} &mdash; bound beaten on {{ s.passed - s.scored }}{% endif %}</span>
+        {%- endif %}
+      </td>
+      <td class="sm">{% if s.slug != submission.slug %}<a href="{{ peer_url }}">this run &rarr;</a>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
@@ -328,7 +687,14 @@
   T<sub>b</sub> above are the same for every submission, which is what makes the
   column comparable down the page. Their derivation, and the reference
   implementation a kernel has to match, are on the
-  <a href="/problems/{{ problem.key }}">problem page</a>.
+  <a href="{{ part_url('/problems/' ~ problem.key) }}">problem page</a>.
 </p>
 
+{% endblock %}
+
+{% block scripts %}
+{# The grid's hover cards, the chart's tooltip and the links between the two.
+   Every one of them is an enhancement: the cells carry `title`, the chart
+   keeps its <title> elements, and the workload table is a <details>. #}
+<script src="/static/run.js?v=2" defer></script>
 {% endblock %}

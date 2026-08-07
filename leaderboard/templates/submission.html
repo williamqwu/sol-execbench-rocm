@@ -2,13 +2,47 @@
 {% block title %}{{ submission.name }} &middot; SOL-ExecBench-ROCm{% endblock %}
 {% block content %}
 
-<div class="crumb"><a href="/">Leaderboard</a> / {{ submission.name }}</div>
+<div class="crumb"><a href="{{ part_url('/') }}">Leaderboard</a> / {{ submission.name }}</div>
 <h1>{{ submission.name }}</h1>
 <p><span class="tag tag-{{ submission.kind }}">{{ submission.kind.replace('_',' ') }}</span>
    {% if submission.model %}<span class="model">{{ submission.model }}</span>{% endif %}
-   {% if submission.author %}<span class="sub">by {{ submission.author }}</span>{% endif %}</p>
+   {% if submission.author %}<span class="sub">by {{ submission.author }}</span>{% endif %}
+   {% if submission.part %}<span class="tag" title="The part this run was measured on, from its own provenance.">{{ submission.part }}</span>{% endif %}
+   {% if submission.created_utc %}<span class="sub">&middot; <time class="localtime"
+      datetime="{{ submission.created_utc }}">{{ submission.created_utc[:16]|replace('T',' ') }} UTC</time></span>{% endif %}</p>
+
+{% if not submission.board_visible %}
+{# Ingested, kept, reachable -- and off the ranking. Excluding a run from the
+   board and deleting its evidence are different decisions, and only the first
+   one was made. The reason is printed in full: an exclusion a reader cannot
+   audit is indistinguishable from data that went missing. #}
+<div class="banner warn">
+  <b>This run is not on the leaderboard.</b>
+  {{ submission.exclusion_reason or 'No reason was recorded, which is itself a defect — a run is excluded for a stated reason or not at all.' }}
+</div>
+{% endif %}
 
 {% if submission.notes %}<div class="banner">{{ submission.notes }}</div>{% endif %}
+
+{% if trials and trials|length > 1 %}
+{# The same setup, run more than once under different constraints. Separate
+   measurements, shown separately: averaging two budgets would invent a third
+   run that nobody made. #}
+<div class="trials">
+  <div class="th"><b>{{ submission.group_name or 'This setup' }}</b> was run
+    {{ trials|length }} times. Each trial is a whole run with its own kernels,
+    trajectory and cost.</div>
+  <div class="row">
+  {% for t in trials %}
+    <a class="trial{% if t.is_current %} on{% endif %}" href="{{ part_url(t.url) }}">
+      <span class="t-n">trial {{ t.trial_n or '?' }}{% if t.is_current %} &middot; you are here{% endif %}</span>
+      <span class="t-lbl">{{ t.trial_label or 'constraint not recorded' }}</span>
+      {%- if not t.board_visible %}<span class="t-out t-hidden">off the ranking</span>{% endif %}
+    </a>
+  {% endfor %}
+  </div>
+</div>
+{% endif %}
 
 <div class="cards">
   <div class="card"><div class="num">{{ problems|length }}</div><div class="lbl">problems with results</div></div>
@@ -32,15 +66,19 @@
       {# Links to the RUN, not the problem: from inside a submission the
          question is "how did this submission do here", and the problem page
          answers a different one. The problem itself is one hop further. #}
-      <td><a class="mono" href="/submissions/{{ submission.slug }}/problems/{{ p.key }}">{{ p.name }}</a></td>
+      <td><a class="mono" href="{{ part_url('/submissions/' ~ submission.slug ~ '/problems/' ~ p.key) }}">{{ p.name }}</a></td>
       <td class="sm">{{ p.category }}</td>
       <td class="r" data-sort="{{ p.passed }}">{{ p.passed }}<span class="sub">/{{ p.n_scoreable }}</span></td>
-      <td class="r big" data-sort="{{ p.mean_score if p.mean_score is not none else '' }}">{{ '%.4f'|format(p.mean_score) if p.mean_score else '&mdash;'|safe }}</td>
+      {# See problem.html: AVG skips a beaten bound's NULL score, so this
+         column's denominator varies by row and has to be printed. #}
+      <td class="r big" data-sort="{{ p.mean_score if p.mean_score is not none else '' }}">{{ '%.4f'|format(p.mean_score) if p.mean_score else '&mdash;'|safe }}
+        {%- if p.mean_score %}<span class="sub den{% if p.scored < p.passed %} den-short{% endif %}"
+          {%- if p.scored < p.passed %} title="{{ p.passed - p.scored }} of the {{ p.passed }} passing workloads on this problem beat T_SOL. The bound is invalid there, so those have no score and are not in this average -- it is over {{ p.scored }}, not {{ p.passed }}."{% endif %}>over {{ p.scored }}{% if p.scored < p.passed %} of {{ p.passed }}{% endif %}</span>{% endif %}</td>
       <td class="r" data-sort="{{ p.flagged or 0 }}">{% if p.flagged %}<span class="flag">{{ p.flagged }}</span>{% else %}&mdash;{% endif %}</td>
       <td class="r mono" data-sort="{{ p.cost_usd or '' }}">{{ '$%.2f'|format(p.cost_usd) if p.cost_usd else '&mdash;'|safe }}</td>
       <td class="r" data-sort="{{ p.turns or '' }}">{{ p.turns or '&mdash;'|safe }}</td>
       <td class="r" data-sort="{{ p.harness_evals or '' }}">{{ p.harness_evals or '&mdash;'|safe }}</td>
-      <td class="sm"><a href="/problems/{{ p.key }}">problem &rarr;</a></td>
+      <td class="sm"><a href="{{ part_url('/problems/' ~ p.key) }}">problem &rarr;</a></td>
     </tr>
   {% endfor %}
   </tbody>
@@ -64,7 +102,7 @@
   <tbody>
   {% for u in unmeasured %}
     <tr>
-      <td><a class="mono" href="/submissions/{{ submission.slug }}/problems/{{ u.key }}">{{ u.name }}</a></td>
+      <td><a class="mono" href="{{ part_url('/submissions/' ~ submission.slug ~ '/problems/' ~ u.key) }}">{{ u.name }}</a></td>
       <td class="sm">{{ u.category }}</td>
       <td class="r mono sm">{{ u.n_lines }} ln</td>
       <td class="sm"><code>{{ (u.retime_error or 'not recorded')[:120] }}</code></td>
@@ -80,7 +118,11 @@
 
 {% if submission.provenance %}
 <h2>Provenance</h2>
-<pre class="code sm">{{ submission.provenance | tojson(indent=2) }}</pre>
+{# Leading newline: an HTML parser drops a single LF straight after <pre>, so
+   content that begins with one loses that line from the pane, from
+   `pre.textContent`, and therefore from the copy button. #}
+<pre class="code sm" data-lang="text">
+{{ submission.provenance | tojson(indent=2) }}</pre>
 {% endif %}
 
 {% endblock %}

@@ -21,6 +21,28 @@ html[data-theme="dark"]{
   --row-hover:#171c25;
   --shadow:0 1px 2px rgba(0,0,0,.4);
   --bar-bg:#232935;
+  /* Five steps per side of the S=0.5 anchor, for the workload grid. Stepped
+     by hand per theme rather than derived with opacity: a translucent fill
+     over a dark panel and over a light one are two different ramps, and one
+     of them always ends up with its bottom step invisible.
+     Step 5 of each is the theme's own --accent2 / --warn, so the grid and the
+     .solbar cannot drift apart.
+
+     RE-STEPPED with the floor raised. The old step 1 sat at 1.94:1 (beat) and
+     1.49:1 (under) against --panel, and after the grid's edges were recut it
+     is the step 46% of all cells land in -- a near-invisible fill under half
+     the data. The ramp is now geometric in WCAG contrast from 2.70:1 to the
+     pinned top, which costs adjacent separation (OKLab dE x100 falls from
+     9.1-12.3 to 7.2-8.7) and buys the floor. Beat-vs-under at equal step is
+     11.4-18.0 normal, 8.4-13.5 under simulated deuteranopia -- which is why
+     the square/circle distinction carries the polarity and colour only ever
+     carries magnitude.
+     Measured against --panel #161a21: beat 2.70 3.68 5.03 6.96 9.47,
+     under 2.70 3.67 5.06 6.87 9.36. */
+  --beat1:#286a4c; --beat2:#31815d; --beat3:#3d9a70; --beat4:#4fb687; --beat5:#67d3a0;
+  --under1:#795908; --under2:#956c00; --under3:#b28200; --under4:#d19908; --under5:#f0b429;
+  --tok-kw:#d18ee2; --tok-str:#8fce9b; --tok-com:#6b7686;
+  --tok-num:#e0a86b; --tok-def:#7aa2f7; --tok-lit:#e5949b;
 }
 html[data-theme="light"]{
   --bg:#f7f8fa; --bg2:#ffffff; --panel:#ffffff; --panel2:#f0f2f6;
@@ -31,6 +53,23 @@ html[data-theme="light"]{
   --row-hover:#f0f3f8;
   --shadow:0 1px 2px rgba(16,24,40,.06);
   --bar-bg:#e2e6ec;
+  /* Re-stepped for this surface, not lightened from the dark set: on white the
+     top two greens collapsed to dE 3.4, which is one step the reader cannot
+     see. Floor raised the same way as the dark set, but only to 1.74:1 rather
+     than 2.70:1, and this is the reason: against white, contrast RISES as the
+     fill darkens, so the whole ramp has to fit between the floor and the top
+     step -- and the top step is pinned to --accent2 / --warn at 4.36:1 and
+     4.68:1. Driving the floor to 3:1 would squeeze five steps into a 1.45x
+     band and drop adjacent dE to 4.8, which trades a visible floor for four
+     steps nobody can tell apart. The border added on every scored cell (see
+     .cell.g-b*/.g-u* below) carries the 3:1 here instead.
+     Measured against --panel #ffffff: beat 1.74 2.18 2.76 3.44 4.36,
+     under 1.74 2.24 2.86 3.68 4.68; adjacent dE 5.7-7.2, beat-vs-under
+     18.4-22.2 normal and 9.4-11.6 under deuteranopia. */
+  --beat1:#43dd9f; --beat2:#36c68d; --beat3:#2ab07d; --beat4:#1d9d6d; --beat5:#0f8a5f;
+  --under1:#ffb64e; --under2:#f09a37; --under3:#d68727; --under4:#be7417; --under5:#a86400;
+  --tok-kw:#8250df; --tok-str:#0a7d4b; --tok-com:#7a8494;
+  --tok-num:#96550a; --tok-def:#1a56b8; --tok-lit:#a3384f;
 }
 
 *{box-sizing:border-box}
@@ -59,6 +98,29 @@ header .wrap{display:flex;align-items:center;gap:20px;height:58px}
 .part-pill{font-family:var(--mono);font-size:11px;letter-spacing:.3px;
   border:1px solid var(--line2);color:var(--dim);border-radius:99px;
   padding:2px 9px;cursor:help;white-space:nowrap}
+
+/* The part switch. Not a filter over one dataset -- it SELECTS the dataset,
+   because a score measured at one power cap and one F_LOCK cannot be compared
+   with a score measured at another. A segmented control says "one of these at
+   a time" where a pair of chips would read as "show both". Each option carries
+   its measurement count, so a part with nothing behind it says so before it is
+   clicked rather than after. */
+.partswitch{display:inline-flex;border:1px solid var(--line2);border-radius:9px;
+  overflow:hidden;flex:none}
+.partswitch .part-opt{display:block;padding:3px 11px 4px;color:var(--dim);
+  border-right:1px solid var(--line2);line-height:1.15;text-align:left;
+  background:transparent;white-space:nowrap}
+.partswitch .part-opt:last-child{border-right:none}
+.partswitch .part-opt:hover{background:var(--panel2);color:var(--fg);text-decoration:none}
+.partswitch .part-opt.on{background:var(--panel2);color:var(--fg)}
+.partswitch .part-opt.on .p-name{color:var(--accent)}
+.partswitch .p-name{display:block;font-family:var(--mono);font-size:11.5px;
+  font-weight:600;letter-spacing:.2px}
+.partswitch .p-n{display:block;font-size:9.5px;color:var(--dim);letter-spacing:.2px}
+/* "not measured" is not "measured nothing". It gets the warning colour so the
+   distinction is visible in the switch itself, not only on the page it lands on. */
+.partswitch .part-opt.empty .p-n{color:var(--warn)}
+.partswitch .part-opt.empty .p-name{opacity:.75}
 nav{display:flex;gap:4px;margin-left:auto}
 nav a{color:var(--dim);font-size:14px;padding:6px 11px;border-radius:7px}
 nav a:hover{color:var(--fg);background:var(--panel2);text-decoration:none}
@@ -197,6 +259,118 @@ html[data-theme="light"] .tag-memory{border-color:#2d5bbf;color:#2d5bbf}
 .swatch.under{background:var(--warn)}
 .swatch.none{background:var(--bar-bg)}
 
+/* ------------------------------------------------------- workload grid */
+/* One cell per workload, in manifest order. A table of 43 rows buries the
+   shape of a result; 43 cells show it in one glance and keep the table one
+   click away for the numbers.
+ *
+ * Colour is never the only carrier. The five states are separated by SHAPE and
+ * PATTERN first -- filled square, filled circle, crossed box, dashed empty
+ * box, barred box, slashed box -- so the grid survives deuteranopia, a
+ * greyscale printout and forced-colours mode, where the whole ramp collapses.
+ * The ramp then adds magnitude within the two scored states, which is the only
+ * job colour is doing here.
+ *
+ * Beat and under are two hues either side of the S=0.5 anchor, which makes
+ * this a diverging scale with the anchor as its midpoint -- the same reading
+ * as the .solbar's tick, and deliberately the same colours. */
+.wl-grid{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 10px;
+  padding:12px;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius)}
+/* Not scoped to `.wl-grid`: the legend draws the same cells, and a legend
+   whose swatches are built some other way is a legend that can disagree with
+   the thing it explains. */
+.cell{display:inline-block;width:16px;height:16px;padding:0;flex:none;
+  border:1px solid transparent;border-radius:3px;background:var(--bar-bg);
+  background-repeat:no-repeat;background-position:center;vertical-align:middle}
+.wl-grid .cell{cursor:pointer}
+.wl-grid .cell:focus-visible,.wl-grid .cell.hot{outline:2px solid var(--link);
+  outline-offset:2px}
+
+/* Scored, at or above the anchor: a filled square, five steps. */
+.cell.g-b1{background:var(--beat1)} .cell.g-b2{background:var(--beat2)}
+.cell.g-b3{background:var(--beat3)} .cell.g-b4{background:var(--beat4)}
+.cell.g-b5{background:var(--beat5)}
+/* Scored, below the anchor: a filled CIRCLE, five steps. The shape is what
+   carries "slower than optimized PyTorch" when the hues cannot. */
+.cell.g-u1,.cell.g-u2,.cell.g-u3,.cell.g-u4,.cell.g-u5{border-radius:50%}
+.cell.g-u1{background:var(--under1)} .cell.g-u2{background:var(--under2)}
+.cell.g-u3{background:var(--under3)} .cell.g-u4{background:var(--under4)}
+.cell.g-u5{background:var(--under5)}
+/* Every scored cell is BOUNDED, in step 4 of its own ramp. Until this, the
+   scored states were the only ones on the grid with no border at all, so the
+   floor step -- where 46% of cells land -- had nothing but its fill to be seen
+   by, at 1.28:1 on white. Step 4 clears 3:1 against the panel in both themes
+   (dark 6.96 / 6.87, light 3.44 / 3.68), and being the SAME border on all five
+   steps it adds nothing to the magnitude reading, which stays the fill's job. */
+.cell.g-b1,.cell.g-b2,.cell.g-b3,.cell.g-b4,.cell.g-b5{border-color:var(--beat4)}
+.cell.g-u1,.cell.g-u2,.cell.g-u3,.cell.g-u4,.cell.g-u5{border-color:var(--under4)}
+/* Failed: a crossed box. The kernel exists and is wrong. */
+.cell.g-fail{border-color:var(--bad);background-color:var(--bar-bg);
+  background-image:
+    linear-gradient(45deg,transparent 42%,var(--bad) 42%,var(--bad) 58%,transparent 58%),
+    linear-gradient(-45deg,transparent 42%,var(--bad) 42%,var(--bad) 58%,transparent 58%)}
+/* Not attempted: an empty dashed box. No kernel ran here. Deliberately the
+   emptiest cell on the grid -- it must not read as a small failure. */
+.cell.g-miss{background:transparent;border:1px dashed var(--line2)}
+/* Submitted, never measured: a SOLID outline with a dot at its centre. A
+   kernel exists for this problem and the authoritative re-time did not
+   complete, so there is no measurement -- which is not the same fact as "no
+   kernel was written", and rendering it as g-miss made the grid contradict the
+   banner three sections down that says a kernel was submitted (D23). The
+   distinction is drawn the way the two facts differ: the box is closed rather
+   than dashed because something is there, and the middle is a dot rather than
+   a fill because nothing was measured to put in it. */
+.cell.g-unmeasured{background-color:transparent;border:1px solid var(--dim);
+  background-image:radial-gradient(circle at center,var(--dim) 0 2.4px,
+    transparent 2.4px)}
+/* Not scoreable: barred out. Nothing could have been scored here by anyone. */
+.cell.g-nosc{border-color:var(--line2);background-color:transparent;opacity:.75;
+  background-image:linear-gradient(to bottom,transparent 45%,var(--dim) 45%,
+    var(--dim) 55%,transparent 55%)}
+/* Bound invalid: one slash, in the warning colour. T_k came in under T_SOL,
+   which nothing can do, so the bound is wrong and no score is stored. */
+.cell.g-inv{border-color:var(--warn);background-color:var(--bar-bg);
+  background-image:linear-gradient(45deg,transparent 42%,var(--warn) 42%,
+    var(--warn) 58%,transparent 58%)}
+
+.grid-legend{display:flex;gap:16px;align-items:center;color:var(--dim);
+  font-size:12px;margin:0 0 14px;flex-wrap:wrap}
+.grid-legend .k{display:inline-flex;align-items:center;gap:6px}
+.grid-legend .cell{cursor:default}
+.grid-legend .ramp{display:inline-flex;gap:2px}
+.grid-legend .ramp .cell{width:12px;height:12px}
+/* The step edges are non-uniform -- cut from the observed distribution, not
+   spaced evenly -- so the legend prints them. A ramp with hidden edges reads
+   as linear, and this one is not. */
+.grid-legend .edges{font-family:var(--mono);font-size:10.5px;opacity:.8;
+  white-space:nowrap}
+
+.wl-details{margin:6px 0 4px}
+.wl-details>summary{cursor:pointer;color:var(--dim);font-size:13px;
+  padding:6px 0;user-select:none;list-style-position:outside}
+.wl-details>summary:hover{color:var(--fg)}
+/* A row the grid pointed at. `.hot` is the hover link, `.flash` is the landing
+   after a click -- separate so releasing the hover does not cancel the jump. */
+tr.hot>td{background:var(--row-hover)}
+tr.hot>td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+tr.flash>td{background:var(--panel2);transition:background-color 1.2s ease}
+
+/* ----------------------------------------------------------- tooltip */
+.tip{position:absolute;z-index:60;max-width:340px;pointer-events:none;
+  background:var(--panel);border:1px solid var(--line2);border-radius:8px;
+  padding:8px 10px;box-shadow:0 6px 20px rgba(0,0,0,.28);font-size:12px;
+  color:var(--fg2)}
+.tip[hidden]{display:none}
+.tip .tip-h{color:var(--fg);font-weight:600;margin-bottom:5px;
+  font-family:var(--mono);font-size:11.5px}
+.tip .tip-r{display:flex;gap:12px;justify-content:space-between;line-height:1.5}
+.tip .tip-k{color:var(--dim)}
+.tip .tip-v{font-family:var(--mono);text-align:right}
+.tip .tip-v.ok{color:var(--ok)} .tip .tip-v.bad{color:var(--bad)}
+.tip .tip-f{margin-top:5px;padding-top:5px;border-top:1px solid var(--line);
+  color:var(--dim);max-width:300px}
+
 /* ------------------------------------------------------------------ tabs */
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0;border-bottom:1px solid var(--line)}
 .tab{background:transparent;border:1px solid transparent;border-bottom:none;color:var(--dim);
@@ -221,6 +395,19 @@ html[data-theme="light"] .tag-memory{border-color:#2d5bbf;color:#2d5bbf}
 .traj .pt-reg{fill:var(--bad)}
 .traj .mark-err{stroke:var(--dim);stroke-width:2}
 .traj .mark-reg{stroke:var(--bad);stroke-width:2}
+/* Linked to the trajectory table, both directions. Each mark is a <g> holding
+   a transparent hit shape and the visible one, because a 3.5px circle is not a
+   pointer target and an axis tick is 8px of hairline -- and a tooltip you have
+   to aim for does not get used. `fill:transparent` rather than `fill:none`:
+   `none` is not painted and takes no pointer events. */
+.traj [data-eval]{cursor:pointer}
+.traj [data-eval]:focus{outline:none}
+.traj circle.hit{fill:transparent;stroke:none}
+.traj line.hit{stroke:transparent;stroke-width:16}
+.traj [data-eval].hot .pt,.traj [data-eval]:focus-visible .pt{
+  stroke:var(--fg);stroke-width:2.5}
+.traj [data-eval].hot line,.traj [data-eval]:focus-visible line{stroke:var(--fg)}
+.traj [data-eval].hot line.hit,.traj [data-eval]:focus-visible line.hit{stroke:transparent}
 
 tr.self{background:var(--panel2)}
 tr.miss td{opacity:.5}
@@ -241,6 +428,84 @@ pre.code{background:var(--panel2);border:1px solid var(--line);border-radius:var
   line-height:1.6;color:var(--fg2)}
 pre.code.sm{font-size:11.5px}
 
+/* ------------------------------------------------------------ code panes */
+/* Line numbers and the copy button are added by static/highlight.js, so this
+   only styles what it builds. The gutter is `user-select:none` so dragging a
+   selection over a kernel does not drag the numbers in with it; the copy
+   button sidesteps the question entirely by holding the raw source. */
+.codewrap{position:relative}
+.codewrap .copy{position:absolute;top:8px;right:10px;z-index:2;
+  background:var(--panel);border:1px solid var(--line2);color:var(--dim);
+  border-radius:7px;font:11px/1 var(--mono);padding:5px 9px;cursor:pointer;
+  opacity:.55;transition:opacity .12s ease}
+.codewrap:hover .copy,.codewrap .copy:focus{opacity:1;color:var(--fg)}
+.codewrap .copy.ok{color:var(--ok);border-color:var(--ok);opacity:1}
+/* Vertical scrolling belongs to the <pre> so the gutter travels with the code;
+   horizontal scrolling belongs to the code column alone so a 200-column line
+   does not push the numbers off the left edge. */
+pre.code.has-ln{display:flex;gap:12px;overflow-x:hidden;overflow-y:auto}
+.tabpane pre.code.has-ln{overflow-x:hidden;overflow-y:auto}
+pre.code.has-ln .gutter{flex:none;text-align:right;white-space:pre;
+  color:var(--dim);opacity:.6;border-right:1px solid var(--line);
+  padding-right:11px;user-select:none;-webkit-user-select:none}
+pre.code.has-ln .src{display:block;flex:1 1 auto;min-width:0;overflow-x:auto;
+  white-space:pre}
+.t-kw{color:var(--tok-kw)}
+.t-str{color:var(--tok-str)}
+.t-com{color:var(--tok-com);font-style:italic}
+.t-num{color:var(--tok-num)}
+.t-def{color:var(--tok-def)}
+.t-lit{color:var(--tok-lit)}
+
+/* ------------------------------------------------------------ local time */
+/* The server emits UTC and labels it; the browser rewrites it into the
+   reader's timezone and keeps the UTC value in `title`. The dotted underline
+   marks the ones that were converted -- without it there is no way to tell a
+   local time from a UTC one, which is the whole failure this avoids. */
+time.localtime{white-space:nowrap}
+time.localtime.localized{border-bottom:1px dotted var(--line2);cursor:help}
+
+/* ---------------------------------------------------------------- trials */
+/* The same setup, run again under a different constraint. Links, not a merge:
+   two runs under two budgets are two measurements, and averaging them would
+   invent a third. */
+.trials{border:1px solid var(--line);background:var(--panel);
+  border-radius:var(--radius);padding:12px 14px;margin:18px 0 6px}
+.trials .th{font-size:12px;color:var(--dim);margin-bottom:9px}
+.trials .row{display:flex;gap:10px;flex-wrap:wrap}
+.trial{display:block;border:1px solid var(--line2);border-radius:9px;
+  padding:8px 12px;min-width:210px;color:var(--fg2)}
+.trial:hover{border-color:var(--dim);text-decoration:none;background:var(--panel2)}
+.trial.on{border-color:var(--accent);background:var(--panel2)}
+.trial .t-lbl{font-family:var(--mono);font-size:12px;color:var(--fg)}
+.trial .t-out{font-size:12px;color:var(--dim);margin-top:3px}
+/* A trial that never touched this problem is shown, disabled, rather than
+   hidden: the reader needs to know the trial exists and did not cover it. */
+.trial.absent{opacity:.6;cursor:not-allowed}
+.trial.absent:hover{border-color:var(--line2);background:transparent}
+.trial .t-n{font-size:10.5px;color:var(--dim);letter-spacing:.3px;
+  text-transform:uppercase}
+.trial .t-hidden{color:var(--warn)}
+
+/* --------------------------------------------------------- run timestamps */
+.window{display:flex;gap:26px;flex-wrap:wrap;margin:14px 0 4px;
+  padding:11px 14px;border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--panel)}
+.window .w{min-width:150px}
+.window .w-k{font-size:11px;color:var(--dim);text-transform:uppercase;
+  letter-spacing:.4px}
+.window .w-v{font-family:var(--mono);font-size:13px;margin-top:2px}
+
+/* --------------------------------------------------- part with no database */
+.empty-part{max-width:74ch;margin:44px auto 60px;text-align:center}
+.empty-part h1{font-size:24px}
+.empty-part .big-part{font-family:var(--mono);font-size:13px;color:var(--warn);
+  border:1px solid var(--warn);border-radius:99px;padding:3px 12px;
+  display:inline-block;margin-bottom:14px}
+.empty-part p{color:var(--fg2);text-align:left}
+.empty-part ol{color:var(--fg2);text-align:left;max-width:70ch}
+.empty-part li{margin:5px 0}
+
 /* Why a problem shows "0 scoreable": the reason, inline, not a bare zero. */
 .why{color:var(--warn);font-size:12px;margin-top:3px;max-width:74ch;
   display:block;line-height:1.45}
@@ -253,7 +518,43 @@ pre.code.sm{font-size:11.5px}
   nav{gap:0}
   nav a{padding:6px 8px;font-size:13px}
   .part-pill{display:none}
+  /* The switch stays -- which dataset is on screen is not a detail that can be
+     dropped on a narrow window. Only the count goes. */
+  .partswitch .p-n{display:none}
+  .window{gap:14px}
+}
+
+/* Forced-colours mode replaces every background and border with the user's own
+   palette, which erases the ramp entirely. The five states survive it because
+   they were never colour alone -- but the pattern gradients go too, so shape
+   and border style are re-stated here in terms the mode keeps. */
+@media (forced-colors:active){
+  .cell{border:1px solid CanvasText;forced-color-adjust:none;background:Canvas}
+  /* `border-color` too, not just the fill: `.cell.g-b1` outranks the `.cell`
+     rule above, and with forced-color-adjust:none the ramp's own --beat4 would
+     survive into a mode that is supposed to have no palette but the user's. */
+  .cell.g-b1,.cell.g-b2,.cell.g-b3,.cell.g-b4,.cell.g-b5{background:CanvasText;
+    border-color:CanvasText}
+  .cell.g-u1,.cell.g-u2,.cell.g-u3,.cell.g-u4,.cell.g-u5{background:CanvasText;
+    border-color:CanvasText}
+  .cell.g-fail{border-width:3px;border-style:double}
+  .cell.g-miss{border-style:dashed}
+  /* Solid and thick: the one state whose whole point is that it is NOT g-miss
+     has to stay distinguishable from it after the gradients are dropped. */
+  .cell.g-unmeasured{border-width:3px;border-style:solid;background:Canvas}
+  .cell.g-nosc{border-style:dotted}
+  .cell.g-inv{border-style:double}
 }
 
 footer{border-top:1px solid var(--line);padding:16px 0;color:var(--dim);font-size:12px}
 footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+
+/* The denominator under a mean. Always shown, never only on the odd row: if it
+   appeared only when it differed, a reader could not tell whether its absence
+   meant "the usual denominator" or "nobody checked". `den-short` marks the case
+   where a beaten bound removed workloads from the average -- warn-coloured
+   because the number above it is over a smaller set than its neighbours, which
+   is a caveat on a comparison and not a property of the run. */
+.den{display:block;font-size:11px;font-weight:400;line-height:1.3;color:var(--dim)}
+.den-short{color:var(--warn);cursor:help;border-bottom:1px dotted var(--warn)}
+.t-warn{color:var(--warn);cursor:help}

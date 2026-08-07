@@ -17,11 +17,15 @@
   <div class="card"><div class="num">{{ meta.methodology }}</div><div class="lbl">timing methodology</div></div>
 </div>
 
+{# part_url() on every one of these. The cookie hides the bug in ordinary
+   browsing, but a category chip that drops `?part=` hands a reader on an
+   explicitly pinned listing a link to the default dataset -- and that is what
+   gets shared, opened in a second tab, or fetched by a cookie-less client. #}
 <div class="filters">
-  <a class="chip {% if not category %}on{% endif %}" href="/">all categories</a>
+  <a class="chip {% if not category %}on{% endif %}" href="{{ part_url('/') }}">all categories</a>
   {% for c in categories %}
     <a class="chip {% if category == c.category %}on{% endif %}"
-       href="/?category={{ c.category }}">{{ c.category }}
+       href="{{ part_url('/', category=c.category) }}">{{ c.category }}
        <span class="chip-n">{{ c.n - c.deferred }}</span></a>
   {% endfor %}
 </div>
@@ -34,9 +38,15 @@
       <th class="r" title="Rank by benchmark score. Sort by this column to restore the default order.">#</th>
       <th>submission</th>
       <th>kind</th>
-      <th class="r" title="Sum of per-workload scores over EVERY scoreable workload in the benchmark, divided by all 3717 of them. A workload that failed, and a workload that was never attempted, both contribute zero.">benchmark&nbsp;score</th>
+      {# meta.scoreable_workloads, not the literal 3717 these two tooltips
+         carried. The denominator is the manifest's, and v1.1 restoring the 15
+         deferred NVFP4 problems moves it -- at which point a hardcoded 3717
+         would state the wrong denominator for the headline number, in the one
+         place a reader goes to find out what the denominator is. The footnote
+         eight lines below already reads it from meta. #}
+      <th class="r" title="Sum of per-workload scores over EVERY scoreable workload in the benchmark, divided by all {{ meta.scoreable_workloads }} of them. A workload that failed, and a workload that was never attempted, both contribute zero.">benchmark&nbsp;score</th>
       <th class="r" title="Sum of scores divided by the workloads this submission ATTEMPTED. An attempt that failed counts as zero; a workload never attempted is excluded. Read it together with coverage.">mean&nbsp;(attempted)</th>
-      <th class="r" title="Workloads passed, out of all 3717 scoreable workloads.">coverage</th>
+      <th class="r" title="Workloads passed, out of all {{ meta.scoreable_workloads }} scoreable workloads.">coverage</th>
       <th class="r" title="Problems where every scoreable workload passed.">problems</th>
       <th class="r" title="Workloads the verifier rejected as reward hacking (status REWARD_HACK): output accepted without the work being done. Zero so far across every submission — a dash here means the check ran and found nothing, not that it was not run.">flagged</th>
     </tr>
@@ -45,7 +55,7 @@
   {% for s in board %}
     <tr class="kind-{{ s.kind }}">
       <td class="r rank" data-sort="{{ s.rank }}">{{ s.rank }}</td>
-      <td data-sort="{{ s.name|lower }}"><a href="/submissions/{{ s.slug }}">{{ s.name }}</a>
+      <td data-sort="{{ s.name|lower }}"><a href="{{ part_url('/submissions/' ~ s.slug) }}">{{ s.name }}</a>
           {% if s.model %}<span class="model">{{ s.model }}</span>{% endif %}</td>
       <td data-sort="{{ s.kind }}"><span class="tag tag-{{ s.kind }}">{{ s.kind.replace('_',' ') }}</span></td>
       {# The star marks a score whose denominator includes workloads this
@@ -95,10 +105,16 @@
   {{ meta.f_lock_mhz }} MHz.</b> T<sub>SOL</sub> in milliseconds, T<sub>b</sub> and
   F<sub>LOCK</sub> all differ between parts, so a score measured on one cannot be
   ranked against a score measured on another &mdash; the scorer refuses that
-  comparison rather than rescaling it. A second port
-  (MI355X, F<sub>LOCK</sub> 1640) is in progress on <code>feat/agent-scoreboard</code>
-  and is <em>not</em> shown: its T<sub>b</sub> is not yet anchor-verified, so it has
-  no S to publish.
+  comparison rather than rescaling it. The other part this port targets,
+  <b>MI355X</b>, is in the switch above with nothing behind it: nothing has been
+  measured there, so it has no F<sub>LOCK</sub>, and without F<sub>LOCK</sub> no
+  T<sub>SOL</sub> in milliseconds, no T<sub>b</sub> and no S. Selecting it lands
+  on that empty state rather than on a table.
+  {# No clock is quoted for MI355X. This paragraph used to carry "F_LOCK 1640",
+     which was never measured on any part: the preset for that device requests
+     1650 and declares no `achieved_gpu_clk_mhz`, and `--setperfdeterminism X`
+     does not give you X. STATE.md records that same 1640 being stamped on 143
+     artifacts while the hardware ran at ~1860 MHz. #}
 </p>
 
 {% endblock %}

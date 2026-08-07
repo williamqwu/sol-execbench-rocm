@@ -17,17 +17,21 @@
   implementation itself raises on ROCm, before any submission is involved. Each one
   prints its reason below; the machine&#8209;readable ledger is
   <code>artifacts/deferred.json</code>, and every published count quotes it.
-  <a href="/methodology">Methodology &rarr;</a>
+  <a href="{{ part_url('/methodology') }}">Methodology &rarr;</a>
 </div>
 {% endif %}
 
+{# part_url() on the links, and a hidden field for the form: a GET form builds
+   its own query string from its controls, so submitting a search on an
+   explicitly pinned listing would drop `?part=` exactly like a bare href does. #}
 <form class="filters" method="get" action="/problems">
-  <a class="chip {% if not category %}on{% endif %}" href="/problems">all</a>
+  <a class="chip {% if not category %}on{% endif %}" href="{{ part_url('/problems') }}">all</a>
   {% for c in categories %}
-    <a class="chip {% if category == c %}on{% endif %}" href="/problems?category={{ c }}">{{ c }}</a>
+    <a class="chip {% if category == c %}on{% endif %}" href="{{ part_url('/problems', category=c) }}">{{ c }}</a>
   {% endfor %}
   <input type="search" name="q" value="{{ q }}" placeholder="search name or description">
   {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+  {% if part %}<input type="hidden" name="part" value="{{ part }}">{% endif %}
   <button type="submit">search</button>
 </form>
 
@@ -40,7 +44,7 @@
   <tbody>
   {% for p in problems %}
     <tr class="{% if p.deferred %}dim{% endif %}">
-      <td><a class="mono" href="/problems/{{ p.key }}">{{ p.name }}</a>
+      <td><a class="mono" href="{{ part_url('/problems/' ~ p.key) }}">{{ p.name }}</a>
           <div class="sub trunc">{{ p.description }}</div>
           {% if p.deferred %}
           <span class="why"><b>Not scoreable:</b>
@@ -59,5 +63,23 @@
   {% endfor %}
   </tbody>
 </table>
+
+{# Both columns come from problem_rows(), whose subqueries join
+   `submission.board_visible = 1`. So they are HEADLINE figures and an
+   off-ranking run cannot set one -- the opposite of what this footnote said
+   until the filter was added, and the opposite is the reading a stale sentence
+   invites. Which rows are affected cannot be said here: problem_rows() returns
+   one row per problem and carries no submission, so this states the scope of
+   the columns rather than marking rows it has no field to identify. #}
+<p class="sub footnote">
+  <b>Best score</b> and <b>submissions</b> count only the runs that are on the
+  ranking. A run that is
+  <a href="{{ part_url('/methodology') }}">off the ranking</a> is still
+  ingested and still readable &mdash; excluding a run and deleting its
+  measurements are different decisions, and only the first was made &mdash; but
+  it does not set a figure that problems are ranked by. So a problem's best
+  score here can be lower than a number listed in that problem's own
+  submissions table, which is where the excluded run appears, flagged.
+</p>
 
 {% endblock %}

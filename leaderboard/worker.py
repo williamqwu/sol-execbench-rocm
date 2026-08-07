@@ -46,6 +46,9 @@ from submit import queue_db, spool_path      # noqa: E402
 SCRATCH = Path(os.environ.get("SOLEXBENCH_SCRATCH", "/var/tmp/solbench"))
 LOCK = SCRATCH / "leaderboard-worker.lock"
 AGENT_RUNS = ROOT / "artifacts" / "10"
+# The ingest's own source configuration. Its presence, not a flag, is what
+# tells this worker that ingest knows where the runs live -- see `ingest_cmd()`.
+SOURCES = HERE / "sources.json"
 
 
 def now() -> str:
@@ -172,6 +175,44 @@ def harvest(run: Path, job: dict) -> dict:
     }
 
 
+def served_db() -> Path | None:
+    """The database the app will actually serve, asked of the app itself.
+
+    Not re-derived here, and that is the whole point. This file used to spell
+    the path `leaderboard/solbench.db`, which `ingest.py` stopped writing when
+    the board split one database per part (`db/solbench-<PART>.db`). Nothing
+    raised: `extra_roots()` found no roots in a file that was not there and
+    rebuilt without them, and the guard in `reingest()` compared an empty set
+    against an empty set and reported success. Two independent notions of "the
+    database" is how that happened, so there is now one, in `app.py`, and it is
+    the same one `run.sh` probes.
+
+    Imported inside the function because importing `app` builds the FastAPI
+    application, mounts `static/` and puts `src` on `sys.path` -- side effects
+    that claiming and scoring a job has no use for. It is not a way to run
+    without the web stack: `submit`, imported at the top of this file, already
+    needs fastapi, so worker.py does not start outside `leaderboard/.venv`.
+    """
+    try:
+        import app                                    # leaderboard/.venv only
+    except ImportError as exc:
+        # Do not fall back to a guessed path -- a second guess is the bug. Say
+        # it out loud; `reingest()` turns the resulting None into an error.
+        print(f"cannot resolve the served database: {exc} -- worker.py must "
+              f"run under leaderboard/.venv", flush=True)
+        return None
+    try:
+        return app.part_databases().get(app.resolve_part())
+    except Exception as exc:
+        # `resolve_part()` raises on a misconfigured SOLBENCH_PART, where it is
+        # an HTTP 500 for a request. Here it would unwind out of `reingest()`
+        # after the score was already measured and kill the loop before the job
+        # row is updated -- so it becomes None, which `reingest()` reports as a
+        # rebuild failure against a job that keeps its score.
+        print(f"cannot resolve the served database: {exc}", flush=True)
+        return None
+
+
 def extra_roots() -> list[str]:
     """The `--agent-runs` roots the CURRENT board was built from.
 
@@ -185,8 +226,8 @@ def extra_roots() -> list[str]:
     Read back out of the database's own `meta` rather than configured here, so
     the roots cannot drift from the ones the last build actually used.
     """
-    db = Path(os.environ.get("SOLBENCH_DB", HERE / "solbench.db"))
-    if not db.is_file():
+    db = served_db()
+    if db is None or not db.is_file():
         return []
     try:
         conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
@@ -198,12 +239,47 @@ def extra_roots() -> list[str]:
         return []
 
 
-def reingest() -> str | None:
-    """Rebuild the board so the new score is visible. Atomic; never blanks it."""
-    roots = extra_roots()
+def ingest_cmd() -> list[str]:
+    """How to shell `ingest.py` so the rebuild keeps everything the board had.
+
+    Two eras, and this worker has to be correct in both:
+
+    * With `leaderboard/sources.json`, ingest reads its own roots and refuses
+      to publish a board that lost a submission. Pass nothing: `--agent-runs`
+      *overrides* the config rather than adding to it, so handing it the older
+      list read out of the last build's `meta` would switch ingest back to the
+      stale copy -- the exact drift the config exists to end.
+    * Without it, a bare ingest reads only `artifacts/10` and drops every run
+      kept outside the repo, so the roots the last build used are replayed.
+
+    Mirrors `ingest.SOURCES` by path rather than importing it, so scoring a job
+    does not depend on the ingest module being importable in this process.
+    """
     cmd = [str(HERE / ".venv" / "bin" / "python"), str(HERE / "ingest.py")]
+    # An operator who pins SOLBENCH_DB has named the file the app serves, so
+    # rebuild that one. Unpinned, ingest's own per-part default is canonical and
+    # naming it here would just be this file holding an opinion about the path
+    # again. `run.sh` makes the same call for the same reason.
+    pin = os.environ.get("SOLBENCH_DB")
+    if pin:
+        cmd += ["--db", pin]
+    if SOURCES.is_file():
+        return cmd
+    roots = extra_roots()
     if roots:
         cmd += ["--agent-runs", *roots]
+    return cmd
+
+
+def reingest() -> str | None:
+    """Rebuild the board so the new score is visible. Atomic; never blanks it.
+
+    `ingest.py` now refuses to publish a board that lost a submission, so the
+    usual failure arrives as a non-zero exit. The check below is the one it
+    cannot make: whether the file it published is the file this app serves.
+    """
+    before = _current_submissions()
+    cmd = ingest_cmd()
     p = subprocess.run(cmd, capture_output=True, text=True, timeout=600,
                        cwd=str(ROOT))
     if p.returncode != 0:
@@ -211,23 +287,41 @@ def reingest() -> str | None:
     # A rebuild that silently loses submissions is worse than one that fails:
     # the board still renders, still looks complete, and the missing entry is
     # only noticed by whoever submitted it.
-    lost = _submissions_before - set(_current_submissions())
-    return (f"rebuild dropped {sorted(lost)} from the board -- check the "
-            f"--agent-runs roots ({roots})") if lost else None
+    after = _current_submissions()
+    if after is None:
+        # Two causes, and this cannot tell them apart from here: ingest wrote
+        # somewhere nothing reads, or the part does not resolve (a bad
+        # SOLBENCH_PART). Either way the drop-guard did not run, so the rebuild
+        # is not something to report as clean.
+        return (f"ingest reported success but no served database is resolvable "
+                f"afterwards, so the drop-guard could not run -- ingest wrote "
+                f"somewhere nothing reads, or the part does not resolve. "
+                f"Command: {' '.join(cmd)}")
+    if before is None:
+        return None            # nothing to compare against; not a loss
+    lost = before - after
+    return (f"rebuild dropped {sorted(lost)} from the board -- it did not read "
+            f"every agent-run root. Command: {' '.join(cmd)}") if lost else None
 
 
-def _current_submissions() -> set[str]:
-    db = Path(os.environ.get("SOLBENCH_DB", HERE / "solbench.db"))
+def _current_submissions() -> set[str] | None:
+    """Slugs on the served board, or None when there is no board to read.
+
+    None rather than an empty set, because the caller subtracts these: with a
+    missing or unreadable database `set() - set()` is indistinguishable from
+    "nothing was lost", and that is precisely how the drop-guard passed while a
+    run fell off the board.
+    """
+    db = served_db()
+    if db is None or not db.is_file():
+        return None
     try:
         conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
         out = {r[0] for r in conn.execute("SELECT slug FROM submission")}
         conn.close()
         return out
     except Exception:
-        return set()
-
-
-_submissions_before: set[str] = set()
+        return None
 
 
 def process(job: dict, timeout: int) -> dict:
@@ -253,8 +347,6 @@ def process(job: dict, timeout: int) -> dict:
     out = harvest(run, job)
     if out.get("error"):
         return {"state": "failed", **out}
-    global _submissions_before
-    _submissions_before = _current_submissions()
     err = reingest()
     if err:
         # The score is real and on disk; only the board is behind. Saying

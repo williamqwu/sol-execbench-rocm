@@ -4,7 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}SOL-ExecBench-ROCm{% endblock %}</title>
-<link rel="stylesheet" href="/static/style.css?v=5">
+<link rel="stylesheet" href="/static/style.css?v=8">
+{# Deferred, and opt-in per pane: it enhances only `pre.code[data-lang]`, so a
+   page that has not said what a block holds is served exactly as rendered. #}
+<script src="/static/highlight.js?v=1" defer></script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>&#9889;</text></svg>">
 <script>
 /* Applied before first paint. Reading the stored theme in <body> instead makes
@@ -21,7 +24,7 @@
 <body>
 <header>
   <div class="wrap">
-    <a class="brand" href="/">
+    <a class="brand" href="{{ part_url('/') }}">
       <span class="spark">&#9889;</span>
       {# One flex item, not two. `.brand` is an inline-flex with `gap:8px` to
          space the bolt off the wordmark, and a bare text node followed by
@@ -30,11 +33,42 @@
          Wrapping the whole wordmark keeps the gap where it was meant to be. #}
       <span class="word">SOL&#8209;ExecBench<span class="amd">&#8209;ROCm</span></span>
     </a>
-    {% if meta.part %}<span class="part-pill" title="Every T_SOL, T_b and F_LOCK on this board was measured on this part. Scores from another part are not comparable.">{{ meta.part }}</span>{% endif %}
+    {# The part switch SELECTS the dataset; it does not filter one. Different
+       power cap -> different sustained clock -> different F_LOCK -> different
+       T_SOL and T_b, so two parts' scores are not comparable and must not
+       share a table. Each option carries its own measurement count, and a part
+       with no database says "not measured" here rather than after the click.
+
+       Falls back to the old pill if a view does not supply `parts`, so a page
+       can never end up not saying which part it is showing. #}
+    {% if parts %}
+    <div class="partswitch" role="group"
+         aria-label="Measurement part — selects which dataset is shown"
+         title="Every T_SOL, T_b and F_LOCK on this board was measured on the selected part. Scores from another part are not comparable, so this switches datasets rather than filtering one.">
+      {% for p in parts %}
+      <a class="part-opt{% if p.active %} on{% endif %}{% if not p.available %} empty{% endif %}"
+         href="{{ p.url }}"{% if p.active %} aria-current="true"{% endif %}>
+        <span class="p-name">{{ p.name }}</span>
+        <span class="p-n">{% if p.n_results is not none %}{{ '{:,}'.format(p.n_results) }} results{% else %}not measured{% endif %}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% elif meta.part %}<span class="part-pill" title="Every T_SOL, T_b and F_LOCK on this board was measured on this part. Scores from another part are not comparable.">{{ meta.part }}</span>{% endif %}
+    {# Every internal link carries the active part. The cookie makes the
+       choice sticky, but a link that drops `?part=` is still a link that can
+       land the reader on the other dataset -- and the URL is the shareable,
+       durable form of the choice.
+
+       `/api/docs` is the ONE deliberate exception on this whole site, and it is
+       left bare on purpose rather than overlooked: it is the OpenAPI schema
+       browser, it renders no measurement, and Swagger UI does not read the
+       parameter -- so part_url() there would attach a query string that nothing
+       consumes and imply the docs are per-part. The part-scoped thing is each
+       `/api/v1` request, which carries `?part=` of its own. #}
     <nav>
-      <a href="/" {% if nav == 'board' %}class="on"{% endif %}>Leaderboard</a>
-      <a href="/problems" {% if nav == 'problems' %}class="on"{% endif %}>Problems</a>
-      <a href="/methodology" {% if nav == 'methodology' %}class="on"{% endif %}>Methodology</a>
+      <a href="{{ part_url('/') }}" {% if nav == 'board' %}class="on"{% endif %}>Leaderboard</a>
+      <a href="{{ part_url('/problems') }}" {% if nav == 'problems' %}class="on"{% endif %}>Problems</a>
+      <a href="{{ part_url('/methodology') }}" {% if nav == 'methodology' %}class="on"{% endif %}>Methodology</a>
       <a href="/api/docs">API</a>
     </nav>
     <button id="theme-toggle" class="theme-toggle" type="button"
@@ -62,23 +96,95 @@
 </div>
 {% endif %}
 
+{# Runs that sit in this part's database but were measured on another one.
+   Here rather than on one page, because whichever view surfaces the list, the
+   consequence is the same everywhere: the bounds on screen are this part's and
+   those runs were not scored against them. Different power cap -> different
+   sustained clock -> different F_LOCK -> different T_SOL and T_b. #}
+{% if part_mismatch %}
+<div class="wrap">
+  <div class="banner warn">
+    <b>{{ part_mismatch|length }} run{{ 's' if part_mismatch|length != 1 else '' }}
+    in this {{ meta.part or 'part' }} dataset
+    {{ 'were' if part_mismatch|length != 1 else 'was' }} measured on another
+    part.</b> Their numbers are not comparable with the rest of this page and
+    are not a score against these bounds.
+    <ul style="margin:6px 0 0">
+      {% for m in part_mismatch %}
+      <li><a href="{{ part_url('/submissions/' ~ m.slug) }}">{{ m.name }}</a>
+        &mdash; measured on
+        <b>{{ m.submission_part or 'a part its artifacts did not record' }}</b></li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
 <div class="wrap main">
 {% block content %}{% endblock %}
 </div>
 
 <footer>
   <div class="wrap">
+    {# This line describes the ACTIVE part's own database, so it has to be
+       absent rather than borrowed when that part has none: MI350X's F_LOCK
+       printed under an MI355X heading is exactly the mixing the part switch
+       exists to prevent. #}
+    {% if meta.rocm_version or meta.device %}
     <span>{{ meta.device or 'AMD Instinct' }} &middot; {{ meta.n_devices }}&times; &middot;
-      F<sub>LOCK</sub> {{ meta.f_lock_mhz }} MHz &middot;
+      {# Not "CLOCK_LOCK_PRESETS has no entry" -- it has had an MI350X entry
+         since 2cdb7b0 and the task-01 gate passes. Where an artifact still
+         stamps null it is because provenance.f_lock_mhz() resolves the preset
+         through torch.cuda.get_device_name(), and that artifact was produced
+         in a process with no torch. Different cause, different fix. #}
+      F<sub>LOCK</sub> {% if meta.f_lock_mhz %}{{ meta.f_lock_mhz }} MHz{% else %}<span title="This part's artifacts stamped no F_LOCK. The clock was measured; the artifact was written by a process without torch, so provenance.f_lock_mhz() could not resolve the device name to its clock preset. Nothing here substitutes a value for it.">not stamped</span>{% endif %} &middot;
       ROCm {{ meta.rocm_version }} &middot; torch {{ meta.torch_version }}</span>
-    <span class="right">manifest {{ meta.manifest_version }} &middot;
+    {% else %}
+    <span>{{ meta.part or 'this part' }} &middot; nothing measured &mdash; no
+      device, F<sub>LOCK</sub>, ROCm or torch version to report</span>
+    {% endif %}
+    <span class="right">
+      {%- if meta.manifest_version %}manifest {{ meta.manifest_version }} &middot;
       <code>{{ (meta.git_sha or '')[:12] }}</code> &middot;
-      {{ (meta.manifest_utc or '')[:19] }}Z
-      {% if meta.db_built_utc %}&middot; indexed {{ meta.db_built_utc[:19] }}Z{% endif %}</span>
+      <time class="localtime" datetime="{{ meta.manifest_utc or '' }}">{{ (meta.manifest_utc or '')[:16]|replace('T',' ') }} UTC</time>
+      {%- if meta.db_built_utc %} &middot; indexed
+      <time class="localtime" datetime="{{ meta.db_built_utc }}">{{ meta.db_built_utc[:16]|replace('T',' ') }} UTC</time>{% endif %}
+      {%- else %}no manifest for this part{% endif %}</span>
   </div>
 </footer>
 
 <script>
+/* Every timestamp on this site is rendered by the server in UTC and LABELLED
+   as UTC, then rewritten here into the reader's own timezone. Two reasons it
+   is done in this order and not the other:
+
+   - The server does not know the viewer's timezone and must not guess. A
+     guessed timezone is a wrong timestamp that looks right.
+   - With JS off the page must still show a time that says what it is. An
+     unlabelled timestamp reads as local, which would be a silent lie about
+     when something was measured -- the same class of error as an unlabelled
+     number anywhere else on this board.
+
+   The UTC value stays reachable in `title` after conversion, so nothing is
+   lost, and `.localized` marks which ones were converted. */
+document.querySelectorAll("time.localtime").forEach(function(t){
+  var iso = t.getAttribute("datetime");
+  if(!iso) return;
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return;         /* unparseable: leave the UTC text */
+  var fmt = t.getAttribute("data-fmt");
+  var opts = fmt === "time"
+    ? {hour:"2-digit", minute:"2-digit"}
+    : fmt === "seconds"
+    ? {year:"numeric", month:"short", day:"numeric",
+       hour:"2-digit", minute:"2-digit", second:"2-digit"}
+    : {year:"numeric", month:"short", day:"numeric",
+       hour:"2-digit", minute:"2-digit"};
+  t.title = t.textContent.trim();
+  t.textContent = d.toLocaleString(undefined, opts);
+  t.classList.add("localized");
+});
+
 document.getElementById("theme-toggle").addEventListener("click", function(){
   var el = document.documentElement;
   var next = el.getAttribute("data-theme") === "dark" ? "light" : "dark";
@@ -152,5 +258,8 @@ document.querySelectorAll("table.sortable th").forEach(function(th){
   });
 });
 </script>
+{# Page-specific behaviour, after the DOM and after the shared handlers above.
+   Nothing here is required to read the page -- see static/run.js. #}
+{% block scripts %}{% endblock %}
 </body>
 </html>

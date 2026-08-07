@@ -2,12 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 """Rebuild the leaderboard database from the artifacts.
 
-    python leaderboard/ingest.py --db leaderboard/solbench.db
+    python leaderboard/ingest.py            # -> leaderboard/db/solbench-<PART>.db
+
+One database per part, named after the part the manifest was measured on. A
+score from MI350X and one from MI355X are not comparable, and keeping them in
+separate files means no query can mix them by accident. `--db` still names an
+explicit path for a scratch build or the legacy `leaderboard/solbench.db`.
 
 The database is disposable. Everything in it comes from
 `artifacts/09/manifest-v1.json`, the dataset definitions, the task 06 variant
-sweep and any agent runs under `artifacts/10/`. Rerun this after any artifact
-changes; never edit the database by hand.
+sweep, any agent runs under `artifacts/10/`, and any further run roots listed in
+`leaderboard/sources.json` (read by default -- see `sources.json.example`).
+Rerun this after any artifact changes; never edit the database by hand.
+
+Two things it will refuse to do, both loudly:
+
+* ingest a run measured on a part other than the manifest's, because scoring an
+  MI355X latency against MI350X bounds is wrong in a way no reader can see; and
+* publish a board that has lost a submission the previous one had, unless
+  `--allow-drop` says the retirement is deliberate.
 
 Scores are computed with the repo's own `sol_score`, not a reimplementation,
 so the leaderboard cannot drift from the scoring the harness applies.
@@ -39,6 +52,16 @@ DEFERRED = ROOT / "artifacts" / "deferred.json"
 CANDIDATES = ROOT / "artifacts" / "06" / "candidates"
 AUTHORITATIVE = ROOT / "artifacts" / "06" / "authoritative"
 AGENT_RUNS = ROOT / "artifacts" / "10"
+# Machine-local config, read BY DEFAULT, listing the agent-run roots that do not
+# live in the repo. It is the fix for a defect that has now been introduced four
+# times (STATE.md D24): every caller that shelled out to a bare `ingest.py` --
+# the staleness banner, `worker.py`, a human following the README -- silently
+# dropped every out-of-repo run off the board. Patching call sites does not
+# work, because the next caller is not written yet. Making the default
+# non-lossy does: after this, `ingest.py` and `ingest.py --agent-runs <the same
+# roots>` are the same build, so "rebuild" cannot mean two different things.
+# Not tracked (paths are machine-local); `sources.json.example` is.
+SOURCES = Path(__file__).parent / "sources.json"
 
 VARIANT_LABELS = {
     "v1_eager": "PyTorch eager",
@@ -67,6 +90,62 @@ BOARD_EXCLUSIONS = {
               "artifacts/10/submitted-apitest/ and as jobs 1-2 in the queue. "
               "Delete this entry to put it on the board.",
 }
+
+# Of the exclusions above, the ones that are nevertheless INGESTED and merely
+# hidden (`submission.board_visible = 0`). Their results, kernels, trajectory,
+# effort and transcripts all land; only `leaderboard_rows()` skips them.
+#
+# Excluding a run from the ranking and deleting its evidence are two decisions
+# and only the first was ever made. `docs/agent-baseline.md` walks a reader to
+# pilot8's trajectory and its 25 bound violations, and until this the link led
+# to a database that had never heard of it. Nothing on the board moves: the
+# flag is read by the board query, not by the ingest of results.
+#
+# `submitted-apitest` stays fully out. It is not a run of the benchmark -- the
+# "kernel" for each of its two problems is that problem's own reference -- so
+# there is no evidence in it for a reader to follow, only a write-path check.
+INGESTED_BUT_HIDDEN = {"pilot8"}
+
+# The setup a run belongs to, hardcoded because inferring "same setup" from a
+# model name is a guess: two runs of one model under different harnesses are
+# not trials of the same thing. A run absent from this table is a group of one
+# and gets no switcher.
+TRIAL_GROUPS = {
+    "pilot8":            ("agent-opus5", "Claude-Opus-5 · agent sandbox harness"),
+    "opus5-budget100":   ("agent-opus5", "Claude-Opus-5 · agent sandbox harness"),
+}
+
+
+def load_sources(path: Path) -> list[Path]:
+    """The extra agent-run roots from `sources.json`. Absent file -> no roots.
+
+    Malformed is a hard error, never an empty list. A config that silently
+    resolves to nothing is worse than no config at all: it looks like it is
+    being honoured, and the symptom -- a run missing from the board -- is the
+    exact symptom this file exists to prevent.
+
+    Relative paths resolve against the repo root, not the CWD, because the
+    worker, the tests and a human all invoke this from different directories
+    and a root that means three things is not a config.
+    """
+    if not path.exists():
+        return []
+    try:
+        doc = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"{path}: not valid JSON ({exc}). Refusing to build a "
+                         f"board from a config that cannot be read; fix it, or "
+                         f"pass a bare --agent-runs to build from artifacts/10 "
+                         f"alone.")
+    roots = doc.get("agent_run_roots")
+    if roots is None:
+        raise SystemExit(
+            f"{path}: no 'agent_run_roots' key; found {sorted(doc)}. See "
+            f"{SOURCES.name}.example.")
+    if not isinstance(roots, list) or not all(isinstance(r, str) for r in roots):
+        raise SystemExit(f"{path}: 'agent_run_roots' must be a list of path "
+                         f"strings, found {type(roots).__name__}.")
+    return [Path(r) if Path(r).is_absolute() else (ROOT / r) for r in roots]
 
 
 def connect(db: Path) -> sqlite3.Connection:
@@ -100,7 +179,21 @@ def part_of(device: str | None) -> str | None:
     return None
 
 
-def ingest_meta(conn, manifest: dict, extra_roots: list[Path] | None = None) -> None:
+def manifest_part(manifest: dict) -> str | None:
+    """The part the manifest itself was measured on.
+
+    v1 carries no explicit `_provenance.part`, so it comes from the device
+    string; a future manifest that states it wins. This is what `--part` is
+    checked against and what names the database file, so an unresolvable part
+    is a hard stop rather than a database called `solbench-None.db`.
+    """
+    prov = manifest.get("_provenance", {})
+    device = ((prov.get("torch") or {}).get("devices") or [None])[0]
+    return prov.get("part") or part_of(device)
+
+
+def ingest_meta(conn, manifest: dict, part: str,
+                extra_roots: list[Path] | None = None) -> None:
     prov = manifest.get("_provenance", {})
     device = ((prov.get("torch") or {}).get("devices") or [None])[0]
     rows = {
@@ -115,7 +208,10 @@ def ingest_meta(conn, manifest: dict, extra_roots: list[Path] | None = None) -> 
         "driver_version": (prov.get("rocm") or {}).get("driver"),
         "torch_version": (prov.get("torch") or {}).get("version"),
         "device": device,
-        "part": prov.get("part") or part_of(device),
+        # The part this whole database is about. One database per part, because
+        # the two parts' numbers are not comparable and a filter over one table
+        # is one bad WHERE clause away from mixing them.
+        "part": part,
         "n_devices": (prov.get("torch") or {}).get("device_count"),
         # Freshness. The database is a view of the artifacts and goes stale the
         # moment they move; without this it goes stale *silently*, which is the
@@ -220,16 +316,114 @@ def add_submission(conn, **kw) -> int:
     cur = conn.execute(
         """INSERT OR REPLACE INTO submission
            (slug,name,kind,author,model,created_utc,notes,provenance_json,
-            cost_usd,wall_seconds,gpu)
+            cost_usd,wall_seconds,gpu,group_slug,group_name,trial_label,
+            constraint_json,board_visible,exclusion_reason,part)
            VALUES (:slug,:name,:kind,:author,:model,:created_utc,:notes,
-                   :provenance_json,:cost_usd,:wall_seconds,:gpu)""",
+                   :provenance_json,:cost_usd,:wall_seconds,:gpu,:group_slug,
+                   :group_name,:trial_label,:constraint_json,:board_visible,
+                   :exclusion_reason,:part)""",
+        # `trial_n` is deliberately not settable here: it is a position within
+        # a group and cannot be known until every member of the group has been
+        # read. `assign_trial_numbers()` fills it once, at the end.
         {"author": None, "model": None, "created_utc": None, "notes": None,
          "provenance_json": None, "cost_usd": None, "wall_seconds": None,
-         "gpu": None, **kw})
+         "gpu": None, "group_slug": None, "group_name": None,
+         "trial_label": None, "constraint_json": None, "board_visible": 1,
+         "exclusion_reason": None, "part": None, **kw})
     return cur.lastrowid
 
 
-def ingest_variants(conn, manifest: dict) -> dict:
+def assign_trial_numbers(conn) -> None:
+    """`trial_n`: 1-based within the group, in `created_utc` order.
+
+    Ordered in SQL on the ISO-8601 string, which is chronological because every
+    stamp is UTC in the same format (`provenance.py` writes no other). `id`
+    breaks ties so the numbering is stable across rebuilds rather than
+    depending on directory iteration order.
+    """
+    groups = [r[0] for r in conn.execute(
+        "SELECT DISTINCT group_slug FROM submission WHERE group_slug IS NOT NULL")]
+    for group in groups:
+        ids = [r[0] for r in conn.execute(
+            "SELECT id FROM submission WHERE group_slug=? ORDER BY created_utc, id",
+            (group,))]
+        conn.executemany("UPDATE submission SET trial_n=? WHERE id=?",
+                         [(n, i) for n, i in enumerate(ids, 1)])
+
+
+def run_constraint(run_dir: Path, sessions: dict | None) -> tuple[str | None, str | None]:
+    """The constraint that distinguishes one trial of a setup from another.
+
+    Read from the run's own artifact, never from the group table: pilot8 is
+    "$8 / problem" because its `run.json` says `budget_usd_per_session: 8.0`,
+    and if a future rerun changes that number the label changes with it.
+
+    The harness also takes a `--timeout` (agent_baseline.py, default 3600s) and
+    writes it nowhere, so there is no `timeout_s` key here. An explicit null
+    would read as "no timeout", which is a different claim from "not recorded".
+    """
+    doc: dict = {}
+    for name in ("cost-report.json", "run.json"):
+        f = run_dir / name
+        if f.exists():
+            try:
+                doc = json.loads(f.read_text())
+            except Exception:
+                continue
+            if doc.get("budget_usd_per_session") is not None:
+                break
+    budget = doc.get("budget_usd_per_session")
+    if budget is None:
+        return None, None
+    # The field says "per session". These harnesses open exactly one session
+    # per problem -- `run.json.sessions` is keyed by problem key -- so "per
+    # problem" is the same cap said in the reader's units. A harness that ever
+    # runs two sessions on one problem gets the field's own wording instead.
+    per = "problem" if sessions and set(sessions) == {
+        s.get("problem") for s in sessions.values()} else "session"
+    return f"${budget:g} / {per}", json.dumps({"budget_usd_per_session": budget})
+
+
+def run_part(run_dir: Path) -> str | None:
+    """The part a run was measured on, from the re-time that produced its scores.
+
+    The `retimed/*.json` files are the only source: they are written by the
+    authoritative GPU-0 evaluation, so their `torch.devices` is the device the
+    numbers came off. `scored.json`'s own provenance is written by the driver
+    process, which frequently has no torch at all (pilot8, glm-run1 and
+    opus5-budget100 all record `torch.available false`), and the manifest's part
+    is a fact about the bounds, not about this run -- taking either as a
+    stand-in is how a run acquires a part it was never measured on.
+
+    That is not hypothetical: this function used to end by reading
+    `scored.json`'s provenance, which is exactly what the paragraph above
+    forbids. It never fired on any run in the tree -- all four carry re-time
+    provenance -- but it was one torch-bearing driver process away from
+    labelling a run with the host it was *scored on* instead of the host it was
+    *measured on*. Removed rather than documented, since a rule that has to be
+    remembered at the call site is not a rule.
+
+    None means "this run does not say", which is not the same as "MI350X" and
+    the caller must refuse it rather than assume.
+    """
+    parts = set()
+    for f in sorted((run_dir / "retimed").glob("*.json")):
+        try:
+            prov = (json.loads(f.read_text()).get("_provenance") or {})
+        except Exception:
+            continue
+        for dev in (prov.get("torch") or {}).get("devices") or []:
+            parts.add(part_of(dev))
+    parts.discard(None)
+    if len(parts) > 1:
+        raise SystemExit(
+            f"{run_dir}: re-timed on more than one part {sorted(parts)}. The "
+            f"workloads in this run are not comparable to each other, let "
+            f"alone to the board; refusing to ingest it under either part.")
+    return parts.pop() if parts else None
+
+
+def ingest_variants(conn, manifest: dict, part: str) -> dict:
     """The four PyTorch variants, from the task 06 sweep.
 
     Authoritative (GPU 0) timings win where they exist; the wider sweep on GPUs
@@ -278,7 +472,10 @@ def ingest_variants(conn, manifest: dict) -> dict:
                    "scores exactly 0.5 there by construction. These are not agent "
                    "submissions and are not comparable to one."),
             provenance_json=json.dumps(prov),
-            gpu="0 (authoritative) / 1-7 (sweep)")
+            gpu="0 (authoritative) / 1-7 (sweep)",
+            # The variants are the manifest's own timings, so their part is the
+            # manifest's part by definition, not by inference.
+            part=part)
         rows = []
         for (pkey, uuid), (ms, label, all_passed) in entries.items():
             bound = b.get((pkey, uuid))
@@ -309,13 +506,52 @@ def ingest_variants(conn, manifest: dict) -> dict:
                "(torch.compile raises during tracing)." for v in excluded}
 
 
-def ingest_agent_runs(conn, extra_roots: list[Path] | None = None) -> dict:
+def check_run_part(run_dir: Path, run_id: str, measured: str | None,
+                   part: str) -> str:
+    """Refuse a run that was not measured on this database's part.
+
+    The most damaging error this project can make, because it is invisible
+    downstream: MI355X has a different power cap, so a different F_LOCK, so a
+    different T_SOL and a different T_b. An MI355X latency scored against
+    MI350X bounds produces a plausible number on every row and a rank nobody
+    can tell is wrong. A reviewer demonstrated it -- relabelling glm-run1 as
+    MI355X left it sitting at #5 on the MI350X board, unmarked.
+
+    So it fails here, at the earliest point that knows both parts, and it fails
+    hard. A warning would be read once and scrolled past; a skip would remove
+    the run from the board without removing it from the reader's expectations,
+    which is D24 wearing a different hat. Build the other part's database from
+    the other part's manifest instead -- that is what one-database-per-part is
+    for.
+    """
+    if measured is None:
+        raise SystemExit(
+            f"{run_dir}: run '{run_id}' does not say which part it was measured "
+            f"on -- no `retimed/*.json` carries a torch device name. Its scores "
+            f"cannot be shown to belong on the {part} board, and assuming they "
+            f"do is the error this check exists to prevent. Re-time it on the "
+            f"target part, or drop the run directory.")
+    if measured != part:
+        raise SystemExit(
+            f"{run_dir}: run '{run_id}' was measured on {measured}, but this "
+            f"database is built from a {part} manifest ({MANIFEST.name}). "
+            f"Different part -> different F_LOCK -> different T_SOL and T_b, so "
+            f"its latencies are not scoreable against these bounds and every "
+            f"number it produced here would look plausible. Build the {measured} "
+            f"database from a {measured} manifest instead.")
+    return measured
+
+
+def ingest_agent_runs(conn, part: str, extra_roots: list[Path] | None = None) -> dict:
     """Any `<root>/<run>/scored.json` written by `agent_score.py`.
 
     Extra roots matter because a run directory does not have to live in the
     repo -- a scratch experiment under $HOME is a legitimate place for one, and
     globbing only `artifacts/10` silently omits it from the board rather than
     reporting that it was skipped.
+
+    `part` is the manifest's part, and every run read here must match it; see
+    `check_run_part`.
     """
     roots = [AGENT_RUNS, *(extra_roots or [])]
     scored_files = []
@@ -351,11 +587,23 @@ def ingest_agent_runs(conn, extra_roots: list[Path] | None = None) -> dict:
             excluded[run_id] = doc.get("excluded_reason") or "validation run"
             print(f"  agent {run_id}: excluded from board ({excluded[run_id]})")
             continue
-        if run_id in BOARD_EXCLUSIONS:
+        hidden = run_id in BOARD_EXCLUSIONS
+        if hidden:
             excluded[run_id] = BOARD_EXCLUSIONS[run_id]
-            print(f"  agent {run_id}: excluded from board (smoke test), "
-                  f"recorded in meta")
-            continue
+            if run_id not in INGESTED_BUT_HIDDEN:
+                print(f"  agent {run_id}: excluded from board (smoke test), "
+                      f"recorded in meta")
+                continue
+            print(f"  agent {run_id}: off the board (board_visible=0), "
+                  f"ingested in full; reason recorded in meta")
+        # Before anything is written for this run, not after: a part mismatch
+        # invalidates every row the run would produce, so there is no partial
+        # ingest worth keeping.
+        measured_part = check_run_part(
+            scored.parent, run_id, run_part(scored.parent), part)
+        group_slug, group_name = TRIAL_GROUPS.get(run_id, (None, None))
+        trial_label, constraint_json = run_constraint(
+            scored.parent, (run_json(scored.parent) or {}).get("sessions"))
         sub_id = add_submission(
             conn,
             slug=f"agent-{run_id}",
@@ -366,6 +614,11 @@ def ingest_agent_runs(conn, extra_roots: list[Path] | None = None) -> dict:
             created_utc=(doc.get("_provenance") or {}).get("utc"),
             notes=doc.get("notes"),
             provenance_json=json.dumps(doc.get("_provenance") or {}),
+            group_slug=group_slug, group_name=group_name,
+            trial_label=trial_label, constraint_json=constraint_json,
+            board_visible=0 if hidden else 1,
+            exclusion_reason=BOARD_EXCLUSIONS[run_id] if hidden else None,
+            part=measured_part,
             # A run reporting exactly 0 alongside a null wall time did not cost
             # nothing -- nothing recorded it. Storing 0 asserts "free" and puts
             # a $0 in a column next to a real $250; NULL asserts "unknown",
@@ -399,6 +652,10 @@ def ingest_agent_runs(conn, extra_roots: list[Path] | None = None) -> dict:
         print(f"    depth: {found['kernels']} kernels, {found['trajectory']} "
               f"trajectories, {found['effort']} effort, "
               f"{found['transcripts']} transcripts")
+        windows = ingest_run_window(conn, sub_id, scored.parent)
+        print("    window: " + (", ".join(f"{n} {src}" for src, n
+                                          in sorted(windows.items()))
+                                or "no timestamp evidence, no rows"))
 
         bad = sorted({r["problem"] for r in doc.get("results", [])
                       if r.get("bound_violation")})
@@ -559,6 +816,71 @@ def ingest_depth(conn, sub_id: int, run_dir: Path, problems: list[str]) -> dict:
     return found
 
 
+def ingest_run_window(conn, sub_id: int, run_dir: Path) -> dict[str, int]:
+    """When this run worked on each problem, and on whose clock.
+
+    Two sources, in precedence order, and never anything else:
+
+    1. `first_last_eval` -- MIN/MAX over the trajectory rows JUST ingested, so
+       the window can never disagree with the series the page plots next to it.
+       It is a window inside the session: the agent was working before its
+       first eval and after its last, which is why the source travels with the
+       number instead of being resolved here.
+    2. `retime_only` -- the authoritative GPU-0 re-time's provenance stamp,
+       written when the re-time FINISHED (`agent_eval.py` stamps on write), so
+       it is a finish with no start. It says when the kernel was scored, not
+       when it was worked on. `INSERT OR IGNORE` makes it a fallback: a problem
+       that has evals keeps them.
+
+    A harness with neither gets no row. `run_window` has no "unknown" source
+    because there is nothing for one to mean: absence already says it.
+    """
+    conn.execute(
+        """INSERT OR REPLACE INTO run_window
+             (submission_id,problem_key,started_utc,finished_utc,source)
+           SELECT submission_id, problem_key, MIN(utc), MAX(utc), 'first_last_eval'
+             FROM trajectory_eval
+            WHERE submission_id=? AND utc IS NOT NULL
+            GROUP BY problem_key""", (sub_id,))
+
+    # Driven by the kernels this run left behind rather than by the results,
+    # for the reason `ingest_depth` unions them: glm-run1's FlashInfer-Bench__014
+    # produced no result rows at all because its re-time timed out, and the
+    # timestamp of that failed attempt is exactly the evidence that it WAS
+    # attempted. A retimed file for a problem with no kernel would be a stale
+    # leftover and gets no row.
+    attempted = [r[0] for r in conn.execute(
+        "SELECT problem_key FROM run_kernel WHERE submission_id=?", (sub_id,))]
+    for key in attempted:
+        f = run_dir / "retimed" / f"{key}.json"
+        if not f.exists():
+            continue
+        try:
+            utc = (json.loads(f.read_text()).get("_provenance") or {}).get("utc")
+        except Exception:
+            continue
+        if not utc:
+            continue
+        conn.execute(
+            """INSERT OR IGNORE INTO run_window
+               (submission_id,problem_key,started_utc,finished_utc,source)
+               VALUES (?,?,NULL,?,'retime_only')""", (sub_id, key, utc))
+
+    return {r[0]: r[1] for r in conn.execute(
+        """SELECT source, COUNT(*) FROM run_window
+            WHERE submission_id=? GROUP BY source""", (sub_id,))}
+
+
+def run_json(run_dir: Path) -> dict | None:
+    f = run_dir / "run.json"
+    if not f.exists():
+        return None
+    try:
+        return json.loads(f.read_text())
+    except Exception:
+        return None
+
+
 def depth_note(found: dict, n_problems: int) -> str | None:   # noqa: D401
     """One sentence naming what this harness did not write down.
 
@@ -631,18 +953,66 @@ def _parse_utc(s: str):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--db", type=Path, default=Path(__file__).parent / "solbench.db")
+    ap.add_argument("--db", type=Path, default=None,
+                    help="explicit output path. Defaults to "
+                         "leaderboard/db/solbench-<PART>.db.")
+    ap.add_argument("--part", default=None,
+                    help="assert the part this manifest was measured on. Not an "
+                         "override: a value that disagrees with the manifest is "
+                         "an error.")
     ap.add_argument("--agent-runs", type=Path, nargs="*", default=None,
                     help="extra directories holding <run>/scored.json, for runs "
-                         "kept outside the repo. Also read from "
-                         "SOLEXBENCH_AGENT_RUNS (colon-separated).")
+                         "kept outside the repo. OVERRIDES leaderboard/"
+                         "sources.json. Also read from SOLEXBENCH_AGENT_RUNS "
+                         "(colon-separated), which is additive.")
+    ap.add_argument("--sources", type=Path, default=SOURCES,
+                    help=f"config listing the extra agent-run roots. Read by "
+                         f"default from {SOURCES}; a missing file is fine, a "
+                         f"malformed one is an error.")
+    ap.add_argument("--allow-drop", action="store_true",
+                    help="permit the rebuild to publish a board with fewer "
+                         "submissions than the one it replaces. Required to "
+                         "retire a run on purpose; without it, a rebuild that "
+                         "would lose a submission refuses.")
     a = ap.parse_args()
 
-    extra = list(a.agent_runs or [])
-    env_roots = os.environ.get("SOLEXBENCH_AGENT_RUNS", "")
-    extra += [Path(p) for p in env_roots.split(":") if p.strip()]
+    # Precedence: an explicit --agent-runs replaces the config (it is the
+    # narrower, more deliberate statement), the environment adds to whichever
+    # won. Every root is printed with where it came from, because "which roots
+    # did this build read" is the question behind every instance of D24.
+    if a.agent_runs is not None:
+        extra = [(p, "--agent-runs") for p in a.agent_runs]
+    else:
+        extra = [(p, str(a.sources)) for p in load_sources(a.sources)]
+    extra += [(Path(p), "SOLEXBENCH_AGENT_RUNS")
+              for p in os.environ.get("SOLEXBENCH_AGENT_RUNS", "").split(":")
+              if p.strip()]
+    for p, src in extra:
+        print(f"extra agent-run root: {p}  (from {src})")
+    extra = [p for p, _ in extra]
 
     manifest = json.loads(MANIFEST.read_text())
+
+    # One database per part, named after the part, because the two parts'
+    # numbers are not comparable and the safest place to enforce that is the
+    # filesystem: a query cannot accidentally join across two files.
+    #
+    # `--part` asserts rather than sets. Letting it relabel the manifest would
+    # produce `solbench-MI355X.db` full of MI350X timings -- every number
+    # plausible, nothing detectably wrong, which is precisely the failure the
+    # per-part split exists to prevent.
+    part = manifest_part(manifest)
+    if part is None:
+        raise SystemExit(
+            f"{MANIFEST}: cannot tell which part this was measured on "
+            f"(_provenance.part absent and no MI* device name). Refusing to "
+            f"build a database that cannot name its part.")
+    if a.part and a.part != part:
+        raise SystemExit(
+            f"--part {a.part} disagrees with the manifest, which was measured "
+            f"on {part}. --part asserts, it does not relabel; measure on "
+            f"{a.part} and build from that manifest instead.")
+    db = a.db or Path(__file__).parent / "db" / f"solbench-{part}.db"
 
     # Build into a side file and swap it in at the end. The old path deleted the
     # live database and rebuilt in place, which gave every reader a window --
@@ -652,22 +1022,45 @@ def main() -> int:
     # window is short but it is a wrong answer, and it grows with every run
     # added. `os.replace` is atomic on POSIX, so a reader sees the whole old
     # database or the whole new one and never a half-built one.
-    tmp = a.db.with_name(a.db.name + f".build-{os.getpid()}")
+    tmp = db.with_name(db.name + f".build-{os.getpid()}")
     for stale in _db_files(tmp):
         stale.unlink(missing_ok=True)
+    try:
+        return build(a, manifest, part, extra, db, tmp)
+    except BaseException:
+        # A build that refuses -- or crashes -- must leave nothing behind. The
+        # half-built file is never published, but `solbench-MI350X.db.build-123`
+        # sitting next to the live board is one `mv` away from being, and it
+        # contains exactly the rows the refusal said must not be published.
+        for stale in _db_files(tmp):
+            stale.unlink(missing_ok=True)
+        raise
+
+
+def build(a, manifest: dict, part: str, extra: list[Path],
+          db: Path, tmp: Path) -> int:
     conn = connect(tmp)
     conn.executescript((Path(__file__).parent / "schema.sql").read_text())
 
-    ingest_meta(conn, manifest, extra)
+    ingest_meta(conn, manifest, part, extra)
     ingest_problems(conn, manifest)
     n_vs = ingest_variant_sources(
         conn, {r["key"]: r["reference"]
                for r in conn.execute("SELECT key,reference FROM problem")})
     print(f"variant sources: {n_vs} regenerated from problem references")
     print("variants:")
-    excluded = ingest_variants(conn, manifest)
+    excluded = ingest_variants(conn, manifest, part)
     print("agent runs:")
-    excluded.update(ingest_agent_runs(conn, extra))
+    excluded.update(ingest_agent_runs(conn, part, extra))
+    assign_trial_numbers(conn)
+    for g in conn.execute("""SELECT group_slug, COUNT(*) FROM submission
+                              WHERE group_slug IS NOT NULL
+                              GROUP BY group_slug""").fetchall():
+        print(f"  trial group {g[0]}: {g[1]} trial(s) -- " + ", ".join(
+            f"#{r[0]} {r[1]} ({r[2] or 'constraint not recorded'})"
+            for r in conn.execute(
+                """SELECT trial_n, slug, trial_label FROM submission
+                    WHERE group_slug=? ORDER BY trial_n""", (g[0],))))
     if excluded:
         conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)",
                      ("excluded_submissions", json.dumps(excluded)))
@@ -675,7 +1068,9 @@ def main() -> int:
 
     counts = {t: conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
               for t in ("problem", "workload", "submission", "result",
-                        "run_kernel", "run_effort", "trajectory_eval", "transcript")}
+                        "run_kernel", "run_effort", "trajectory_eval", "transcript",
+                        "run_window")}
+    built_slugs = {r[0] for r in conn.execute("SELECT slug FROM submission")}
 
     # Fold the WAL back into the single file before swapping. `os.replace` moves
     # one inode; a `-wal` sidecar left under the build name would strand
@@ -686,17 +1081,67 @@ def main() -> int:
     conn.execute("PRAGMA journal_mode=DELETE")
     conn.close()
 
-    os.replace(tmp, a.db)
+    lost = published_slugs(db) - built_slugs
+    if lost and not a.allow_drop:
+        for stale in _db_files(tmp):
+            stale.unlink(missing_ok=True)
+        raise SystemExit(
+            f"refusing to publish {db}: this build has no {sorted(lost)}, which "
+            f"the board it would replace does have. The usual cause is a rebuild "
+            f"that did not read the roots the last one did -- this build read "
+            f"{[str(p) for p in extra] or 'no extra roots'}; the published board "
+            f"was built from "
+            f"{json.loads(published_meta(db).get('input_extra_roots') or '[]')}. "
+            f"Add them to {SOURCES} (see {SOURCES.name}.example), or pass "
+            f"--allow-drop if the run is being retired on purpose. The existing "
+            f"board is untouched.")
+    if lost:
+        print(f"\n--allow-drop: dropping {sorted(lost)} from the board")
+
+    os.replace(tmp, db)
     # SQLite keys sidecars to the FILE NAME, not the inode, so a `-wal` left by
     # the previous database now sits next to a new one that has nothing to do
     # with it. The new header says DELETE so it would be ignored, but leaving it
     # to be ignored forever is worse than removing it. Readers still holding the
     # old inode keep their open fds; unlink does not break them.
-    for stale in _db_files(a.db)[1:]:
+    for stale in _db_files(db)[1:]:
         stale.unlink(missing_ok=True)
 
-    print(f"\n{a.db}: " + ", ".join(f"{n} {t}s" for t, n in counts.items() if n))
+    print(f"\n{db}: " + ", ".join(f"{n} {t}s" for t, n in counts.items() if n))
     return 0
+
+
+def published_slugs(db: Path) -> set[str]:
+    """The submissions on the board being replaced. Missing board -> empty set.
+
+    Read read-only and defensively: this guard must never be the reason a first
+    build, or a build over a truncated file, fails. It exists to catch the
+    opposite case -- a complete board quietly becoming a smaller one.
+    """
+    if not db.is_file():
+        return set()
+    try:
+        conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        try:
+            return {r[0] for r in conn.execute("SELECT slug FROM submission")}
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return set()
+
+
+def published_meta(db: Path) -> dict:
+    """`meta` of the board being replaced, for the refusal message only."""
+    if not db.is_file():
+        return {}
+    try:
+        conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        try:
+            return {r[0]: r[1] for r in conn.execute("SELECT key,value FROM meta")}
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return {}
 
 
 def _db_files(db: Path) -> list[Path]:

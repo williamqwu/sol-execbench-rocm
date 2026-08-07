@@ -69,7 +69,7 @@
   <thead><tr><th>problem</th><th class="r">workloads</th><th>reason</th></tr></thead>
   <tbody>
   {% for d in deferred %}
-    <tr><td class="mono sm"><a href="/problems/{{ d.key }}">{{ d.key }}</a></td>
+    <tr><td class="mono sm"><a href="{{ part_url('/problems/' ~ d.key) }}">{{ d.key }}</a></td>
         <td class="r sm">0<span class="sub">/{{ d.n_workloads }}</span></td>
         <td class="sm">
           <span class="tag tag-deferred">{{ d.deferred_reason or 'deferred' }}</span>
@@ -103,11 +103,24 @@
      and F<sub>LOCK</sub> all differ by part, so a score measured on another part
      cannot be ranked against these &mdash; <code>scripts/score_solutions.py</code>
      refuses that rather than rescaling.</p>
-  <p style="margin:0">A second port to <b>MI355X</b> (F<sub>LOCK</sub> 1640, 8&times;1400 W)
-     is in progress on <code>feat/agent-scoreboard</code> and is deliberately absent:
-     its T<sub>b</sub> is not yet anchor-verified, so its agent runs are scored on a
-     weaker basis (headroom and speedup, not S) and it has no S to publish. When that
-     lands it needs its own board, not extra rows on this one.</p>
+  <p style="margin:0">The other part this port targets, <b>MI355X</b> (the
+     liquid-cooled 1400 W CDNA4 part), is in the part switch with <b>nothing
+     behind it</b>. Selecting it lands on an empty state, and that is the
+     accurate page: no clock has been measured on it, so it has no
+     F<sub>LOCK</sub>, and without F<sub>LOCK</sub> there is no T<sub>SOL</sub>
+     in milliseconds, no T<sub>b</sub> and no S. The port itself needs no work
+     for it &mdash; every number does. The runbook is
+     <code>TODO-MI355X.md</code>, and when it has been executed that part gets
+     its own database, not extra rows on this one.</p>
+  <p style="margin:8px 0 0" class="sub">This paragraph used to print
+     &ldquo;F<sub>LOCK</sub> 1640&rdquo; for MI355X. No such measurement exists:
+     that part's clock preset <i>requests</i> 1650 and declares no
+     <code>achieved_gpu_clk_mhz</code>, and <code>--setperfdeterminism X</code>
+     does not give you X &mdash; on MI350X it yields about 0.83&middot;X, and
+     whether that ratio holds at 1400 W has never been asked. The same 1640 is
+     recorded in <code>STATE.md</code> as the stamp on 143 artifacts that were
+     really running near 1860 MHz. A requested clock is not an achieved one, so
+     no clock is quoted here for a part nobody has measured.</p>
 </div>
 
 {% if meta.problems_with_invalid_bound %}
@@ -130,7 +143,7 @@
   <thead><tr><th>problem</th><th class="r">workloads</th><th>headroom T<sub>b</sub>/T<sub>SOL</sub></th></tr></thead>
   <tbody>
   {% for k in meta.problems_with_invalid_bound|from_json %}
-    <tr><td class="mono sm"><a href="/problems/{{ k }}">{{ k }}</a></td>
+    <tr><td class="mono sm"><a href="{{ part_url('/problems/' ~ k) }}">{{ k }}</a></td>
         <td class="r sm">{{ invalid_bound_info.get(k, {}).get('n_workloads', '&mdash;') }}</td>
         <td class="sm mono">{% if invalid_bound_info.get(k, {}).get('headroom') %}{{ '%.3f'|format(invalid_bound_info[k]['headroom']) }}&times;{% else %}&mdash;{% endif %}</td></tr>
   {% endfor %}
@@ -160,7 +173,18 @@
   <li><b>Flagged</b> counts workloads the harness's anti-reward-hack check
       rejected &mdash; <code>status == REWARD_HACK</code>, an output accepted
       without the work being done. A flagged workload scores zero and is still
-      displayed. The count is <b>0 across all 14,077 recorded results</b>: the
+      displayed.
+      {# The sample size is read from this part's own database, not typed in.
+         It was a literal 14,077 and had already gone stale: that is the count
+         from before pilot8 was ingested, and a run kept off the RANKING still
+         contributes its results here. The one claim on this page that is a
+         negative is the one whose evidence must not silently stop growing. #}
+      {%- set n_rec = parts | default([], true) | selectattr('active')
+                            | rejectattr('n_results', 'none')
+                            | map(attribute='n_results') | first %}
+      The count is <b>0 across
+      {%- if n_rec is not none %} all {{ '{:,}'.format(n_rec) }} recorded
+      results{% else %} every recorded result{% endif %}</b>: the
       dash on every row means the check ran and caught nothing, not that it was
       never run. It is kept as a column precisely so that a first non-zero is
       visible the moment it happens.</li>
