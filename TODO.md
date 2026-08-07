@@ -119,6 +119,14 @@ anchor-verified, so it has no `S` to publish.
 * **15 NVFP4 Quant problems**, deferred with evidence for v1.1. Not a gap in the
   port: NVFP4 has no ROCm kernel path, and an MXFP4 twin is a re-specification,
   not a translation. `tasks/07`, `artifacts/deferred.json`.
+* **D28 — the board under-reports 1,239 passing baseline workloads.** Not a gap
+  in what was measured: `ingest_variants()` paints every workload of a problem
+  `FAILED` when the variant's per-problem `all_passed` is false, discarding the
+  per-workload `failures` list the artifacts already carry. `torch.compile`
+  really passed 3171 of 3694, not 2586 of 3717. Fixing the read costs no GPU
+  time; putting the recovered rows on the board wants an authoritative re-time
+  for the 89 problems that never got one, **≈2¼ h on GPU 0** at the measured
+  1.5 min/problem. Full detail and the per-variant table in `STATE.md` D28.
 
 ## Unexplained
 
@@ -149,6 +157,16 @@ anchor-verified, so it has no `S` to publish.
   boundary, not a security one: submitted kernels run as the invoking user with
   the repo bind-mounted read-write. Authenticated internal users only; do not
   expose the port. `leaderboard/submit.py` states the boundary in full.
+* **D29 — the external fleet's GPU-0 hold does not hold.** `dash-overlay`'s J2
+  sweep placed 34 jobs on GPU 0 despite taking a scheduler reservation on it.
+  Nothing published is affected — no authoritative timing overlapped them — but
+  the property is unenforced, so the next overlap will be silent.
+* **Nothing publishes an external run to the board.** The `dash-overlay` fleet
+  writes the leaderboard's address into every job's payload, which reads as a
+  pipeline and is not one: `sbt collect` → `scripts/agent_score.py` →
+  `ingest.py` are three manual steps, and until all three are run the kernels
+  exist only in `~/.jobd/jobs/<id>/kernel.py` — 281 of them on disk as of
+  2026-08-07, none of them on the board.
 * **Agent evaluation times the reference on every call.** `agent_eval.py` sets
   `benchmark_reference=True` so the agent can see its speedup. Measuring the
   reference once per sandbox would roughly halve every evaluation, which is what

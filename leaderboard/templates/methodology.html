@@ -4,7 +4,7 @@
 
 <h1>Methodology</h1>
 
-<h2>The score</h2>
+<h2 id="score">The score</h2>
 <p class="lede"><code>{{ meta.score_formula }}</code></p>
 <p>Two anchors, both measured on this part:</p>
 <ul>
@@ -15,7 +15,7 @@
     of the reference, measured on an idle GPU 0 under a locked clock. <code>S = 0.5</code>.</li>
 </ul>
 
-<h2>Where the bounds came from</h2>
+<h2 id="bounds">Where the bounds came from</h2>
 <p>T<sub>SOL</sub> is computed in cycles, which is architectural and therefore
    independent of the clock, then divided by F<sub>LOCK</sub> = {{ meta.f_lock_mhz }} MHz.
    Two derivations run independently and are combined with <code>max</code>:</p>
@@ -40,7 +40,7 @@
    measured is self-refuting, so it is rejected rather than averaged in. That
    rejection is recorded per workload rather than smoothed away.</p>
 
-<h2>What is measured, and on what</h2>
+<h2 id="measured">What is measured, and on what</h2>
 <table class="grid">
   <tbody>
     <tr><td>device</td><td class="mono">{{ meta.device }} &times; {{ meta.n_devices }}</td></tr>
@@ -53,7 +53,7 @@
   </tbody>
 </table>
 
-<h2>Coverage</h2>
+<h2 id="coverage">Coverage</h2>
 <p>{{ meta.scoreable_problems }} of {{ meta.total_problems }} problems are scoreable in
    manifest {{ meta.manifest_version }}, covering {{ meta.scoreable_workloads }} workload
    instances. Category totals: <code>{{ meta.expected_by_category }}</code>.</p>
@@ -95,7 +95,7 @@
 </table>
 {% endif %}
 
-<h2>What this board does not cover</h2>
+<h2 id="not-covered">What this board does not cover</h2>
 <div class="banner">
   <p style="margin:0 0 8px"><b>One part, one clock.</b> Every score here was
      measured on <b>{{ meta.part or meta.device }}</b> at F<sub>LOCK</sub>
@@ -124,7 +124,7 @@
 </div>
 
 {% if meta.problems_with_invalid_bound %}
-<h2>Problems whose bound is known to be wrong</h2>
+<h2 id="bad-bounds">Problems whose bound is known to be wrong</h2>
 <div class="banner warn">
   A submitted kernel was measured <b>faster than T<sub>SOL</sub></b> on these
   problems. Nothing beats the roofline, so this is a defect in the bound rather
@@ -151,7 +151,7 @@
 </table>
 {% endif %}
 
-<h2>Reading the leaderboard honestly</h2>
+<h2 id="reading">Reading the leaderboard honestly</h2>
 <ul>
   <li><b>Benchmark score</b> sums per-workload scores over every scoreable
       workload and counts anything not passed as zero. It is the headline

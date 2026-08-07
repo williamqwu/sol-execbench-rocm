@@ -137,6 +137,47 @@ html[data-theme="light"] .i-moon{display:block}
 
 /* ---------------------------------------------------------------- layout */
 .main{padding:30px 24px 72px}
+
+/* --------------------------------------------------------- section nav */
+/* Only on the long reference pages -- the methodology and a problem detail --
+   where the reader arrives for one of eight sections and currently has to
+   scroll past the other seven to find out which. `withnav` is set by the
+   template from the handler's `toc`, so a page with no `toc` keeps the plain
+   single-column box and this whole block is inert.
+   `min-width:0` on the content column is load-bearing: a grid item's automatic
+   minimum size is its content, so without it the widest table (the per-workload
+   bounds grid, eleven columns) sets the column width and pushes the layout past
+   the viewport instead of scrolling inside its own `.scroll`. */
+.main.withnav{display:grid;grid-template-columns:210px minmax(0,1fr);gap:38px;
+  align-items:start}
+.main.withnav .maincol{min-width:0}
+/* 59px is the sticky header: 58px of `header .wrap` plus its 1px border. Both
+   offsets here and the `scroll-margin-top` below are derived from it, because a
+   nav that sticks at 0 slides under the header and a heading that scrolls to 0
+   lands behind it -- the second is the one nobody notices, since the section
+   does arrive, just with its title hidden. */
+.sidenav{position:sticky;top:calc(59px + 18px);overflow-y:auto;padding-top:4px;
+  max-height:calc(100vh - 59px - 36px)}
+.sidenav .toc-h{font:11px/1 var(--mono);letter-spacing:.6px;text-transform:uppercase;
+  color:var(--dim);margin:0 0 10px;padding-left:11px}
+.sidenav a{display:block;padding:5px 11px;font-size:13px;color:var(--fg2);
+  text-decoration:none;border-left:2px solid var(--line);line-height:1.35}
+.sidenav a:hover{color:var(--fg);border-left-color:var(--line2);
+  background:var(--panel)}
+/* :target covers the JS-off case -- click an entry and the section it points at
+   is marked. `.on` is what the scroll spy in base.html sets while reading. */
+.sidenav a.on{color:var(--fg);border-left-color:var(--accent);background:var(--panel)}
+.maincol [id]{scroll-margin-top:calc(59px + 14px)}
+@media (max-width:1080px){
+  /* Below this the two columns leave the tables too narrow to be worth it, so
+     the nav goes back inline above the content rather than shrinking. */
+  .main.withnav{display:block}
+  .sidenav{position:static;max-height:none;margin-bottom:24px}
+  .sidenav nav{display:flex;flex-wrap:wrap;gap:2px 0}
+  .sidenav a{border-left:none;border-bottom:2px solid var(--line)}
+  .sidenav a.on{border-bottom-color:var(--accent)}
+}
+
 h1{font-size:28px;margin:0 0 10px;letter-spacing:-.4px}
 h1.mono{font-family:var(--mono);font-size:22px}
 h2{font-size:17px;margin:38px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line)}
@@ -434,21 +475,36 @@ pre.code.sm{font-size:11.5px}
    selection over a kernel does not drag the numbers in with it; the copy
    button sidesteps the question entirely by holding the raw source. */
 .codewrap{position:relative}
-.codewrap .copy{position:absolute;top:8px;right:10px;z-index:2;
+/* `right` clears a classic (space-taking) scrollbar. The button is positioned
+   against `.codewrap`, which is OUTSIDE the <pre>'s scrollport, so at 10px it
+   sat under the scrollbar of every pane long enough to have one -- which is
+   every pane the button is worth having. */
+.codewrap .copy{position:absolute;top:8px;right:22px;z-index:2;
   background:var(--panel);border:1px solid var(--line2);color:var(--dim);
   border-radius:7px;font:11px/1 var(--mono);padding:5px 9px;cursor:pointer;
   opacity:.55;transition:opacity .12s ease}
 .codewrap:hover .copy,.codewrap .copy:focus{opacity:1;color:var(--fg)}
 .codewrap .copy.ok{color:var(--ok);border-color:var(--ok);opacity:1}
-/* Vertical scrolling belongs to the <pre> so the gutter travels with the code;
-   horizontal scrolling belongs to the code column alone so a 200-column line
-   does not push the numbers off the left edge. */
-pre.code.has-ln{display:flex;gap:12px;overflow-x:hidden;overflow-y:auto}
-.tabpane pre.code.has-ln{overflow-x:hidden;overflow-y:auto}
+/* ONE scroll container, and it is the <pre>. Both axes.
+   The previous split -- y on the <pre>, x on the code column -- produced two
+   vertical scrollbars on every pane longer than the 640px cap, because
+   `overflow-x:auto` on `.src` makes its `overflow-y` compute to `auto` too
+   (CSS Overflow 3 §3: neither axis may stay `visible` when the other is not).
+   Under the default `align-items:stretch` that gave `.src` a definite 608px
+   height and its own scrollbar, while the gutter -- same stretch, no overflow
+   -- spilled past the cap and gave the <pre> a second one. Scrolling the outer
+   bar then moved the numbers and not the code, which is the blank space the
+   outer track appeared to reveal: it was the gutter's overhang.
+   `align-items:flex-start` keeps both children at their content height, and
+   the gutter is `position:sticky` so a 200-column line still does not push the
+   numbers off the left edge. */
+pre.code.has-ln{display:flex;align-items:flex-start;gap:12px;overflow:auto}
+.tabpane pre.code.has-ln{overflow:auto}
 pre.code.has-ln .gutter{flex:none;text-align:right;white-space:pre;
   color:var(--dim);opacity:.6;border-right:1px solid var(--line);
-  padding-right:11px;user-select:none;-webkit-user-select:none}
-pre.code.has-ln .src{display:block;flex:1 1 auto;min-width:0;overflow-x:auto;
+  padding-right:11px;user-select:none;-webkit-user-select:none;
+  position:sticky;left:0;z-index:1;background:var(--panel2)}
+pre.code.has-ln .src{display:block;flex:1 1 auto;min-width:0;overflow:visible;
   white-space:pre}
 .t-kw{color:var(--tok-kw)}
 .t-str{color:var(--tok-str)}

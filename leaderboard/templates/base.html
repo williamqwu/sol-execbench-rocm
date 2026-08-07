@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}SOL-ExecBench-ROCm{% endblock %}</title>
-<link rel="stylesheet" href="/static/style.css?v=8">
+<link rel="stylesheet" href="/static/style.css?v=9">
 {# Deferred, and opt-in per pane: it enhances only `pre.code[data-lang]`, so a
    page that has not said what a block holds is served exactly as rendered. #}
 <script src="/static/highlight.js?v=1" defer></script>
@@ -120,8 +120,23 @@
 </div>
 {% endif %}
 
-<div class="wrap main">
+{# `toc` is supplied by the handler, not scraped from the rendered HTML, so a
+   heading and its nav entry cannot drift apart silently -- and cannot drift
+   apart at all: tests/leaderboard/test_sidenav.py asserts every href="#x" here
+   resolves to an id="x" in the document. A page that passes no `toc` renders
+   exactly as it did before, single column. #}
+<div class="wrap main{% if toc %} withnav{% endif %}">
+{% if toc %}
+<aside class="sidenav">
+  <nav aria-labelledby="toc-h">
+    <div class="toc-h" id="toc-h">On this page</div>
+    {% for s in toc %}<a href="#{{ s.id }}">{{ s.label }}</a>{% endfor %}
+  </nav>
+</aside>
+{% endif %}
+<div class="maincol">
 {% block content %}{% endblock %}
+</div>
 </div>
 
 <footer>
@@ -184,6 +199,40 @@ document.querySelectorAll("time.localtime").forEach(function(t){
   t.textContent = d.toLocaleString(undefined, opts);
   t.classList.add("localized");
 });
+
+/* Scroll spy for the section nav. Pure enhancement: the links are ordinary
+   fragment links and work with this off -- all it adds is which one you are
+   reading. IntersectionObserver rather than a scroll handler so it costs
+   nothing while idle; the bottom margin is -70% so a section counts as current
+   once its heading reaches the upper third, not when it first peeks in. */
+(function(){
+  var nav = document.querySelector(".sidenav");
+  if(!nav || !("IntersectionObserver" in window)) return;
+  var links = {}, targets = [];
+  nav.querySelectorAll("a[href^='#']").forEach(function(a){
+    var el = document.getElementById(decodeURIComponent(a.hash.slice(1)));
+    if(!el) return;                       /* a stale entry marks nothing */
+    links[el.id] = a; targets.push(el);
+  });
+  if(!targets.length) return;
+  var seen = {};
+  var mark = function(){
+    /* The last section whose heading is at or above the line, so scrolling
+       through a short section between two long ones does not leave the nav
+       pointing at neither. */
+    var cur = null;
+    targets.forEach(function(el){ if(seen[el.id]) cur = el.id; });
+    for(var k in links) links[k].classList.toggle("on", k === cur);
+  };
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ seen[e.target.id] = e.isIntersecting; });
+    mark();
+  /* -59px at the top is the sticky header: a heading hidden behind it is not
+     the section being read, and without this the nav advances one entry early
+     on every jump. */
+  }, {rootMargin: "-59px 0px -70% 0px"});
+  targets.forEach(function(el){ io.observe(el); });
+})();
 
 document.getElementById("theme-toggle").addEventListener("click", function(){
   var el = document.documentElement;

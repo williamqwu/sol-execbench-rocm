@@ -1167,6 +1167,33 @@ def api_run(request: Request, slug: str, key: str, part: str | None = None):
 # pages
 # --------------------------------------------------------------------------
 
+# The section nav on the two long reference pages. Declared here rather than
+# scraped out of the template because the nav has to be in the server's HTML --
+# a reader with JS off still gets it, and a test can check every entry against
+# the ids actually rendered (tests/leaderboard/test_sidenav.py). Order is
+# reading order, which is also the order the headings appear in; the spy in
+# base.html relies on that and on nothing else.
+TOC_METHODOLOGY = [
+    {"id": "score", "label": "The score"},
+    {"id": "bounds", "label": "Where the bounds came from"},
+    {"id": "measured", "label": "What is measured"},
+    {"id": "coverage", "label": "Coverage"},
+    {"id": "deferred", "label": "Deferred problems"},
+    {"id": "not-covered", "label": "What it does not cover"},
+    {"id": "bad-bounds", "label": "Known-wrong bounds"},
+    {"id": "reading", "label": "Reading it honestly"},
+]
+TOC_PROBLEM = [
+    {"id": "bounds", "label": "Scoring bounds"},
+    {"id": "submissions", "label": "Submissions"},
+    {"id": "results", "label": "Per-workload results"},
+    {"id": "axes", "label": "Axes"},
+    {"id": "inputs", "label": "Inputs"},
+    {"id": "outputs", "label": "Outputs"},
+    {"id": "reference", "label": "Reference implementation"},
+]
+
+
 def page(request: Request, name: str, part: str, **ctx) -> HTMLResponse:
     """Render *name* with the per-request context every template can rely on.
 
@@ -1225,7 +1252,7 @@ def problem(request: Request, key: str, part: str | None = None):
     active = resolve_part(request, part)
     with db(active) as conn:
         d = problem_detail(conn, key)
-    return page(request, "problem.html", active, **d)
+    return page(request, "problem.html", active, toc=TOC_PROBLEM, **d)
 
 
 @app.get("/submissions/{slug}", response_class=HTMLResponse)
@@ -1340,7 +1367,7 @@ def methodology(request: Request, part: str | None = None):
                                          "headroom": row["median_headroom"]}
     return page(request, "methodology.html", active, bound_sources=bounds,
                 deferred=deferred, excluded=excluded, nav="methodology",
-                invalid_bound_info=invalid_bound_info)
+                toc=TOC_METHODOLOGY, invalid_bound_info=invalid_bound_info)
 
 
 @app.get("/healthz", response_model=Health)

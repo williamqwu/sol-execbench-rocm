@@ -937,6 +937,111 @@ Two things are asserted here and two are not:
   correct on everything the board holds and the `hip` path has never been
   exercised by real data. The first HIP kernel submitted is the test.
 
+### D28 — the board scores a whole problem by one flag, and under-reports 1,239 passing workloads
+
+**No measurement is wrong. The board reads 1,239 of them as failures that the
+artifacts record as passes.**
+
+`ingest_variants()` (`leaderboard/ingest.py`) writes each variant row as
+`"PASSED" if all_passed else "FAILED"`, where `all_passed` is a **per-problem**
+flag on the variant. A problem where `torch.compile` matches on 13 of 20
+workloads therefore lands on the board with all 13 marked `FAILED` and scored
+`NULL` — even though `latency_ms_by_workload` holds exactly those 13 timings and
+nothing else. The per-workload truth was available the whole time, one key
+across: each variant also carries `failures: [{workload_uuid, status, log}]`,
+which the ingest never reads.
+
+Board figure against the artifacts, over the 220 scoreable problems:
+
+| variant | board says | artifacts say | delta |
+|---|---|---|---|
+| `v1_eager` | 3701 / 3717 | 3707 passed of 3717 attempted | 6 |
+| `v4_contiguous` | 3687 / 3717 | 3688 of 3717 | 1 |
+| `v2_compile` | 2586 / 3717 (69.6%) | **3171 of 3694** (85.8%) | 585 |
+| `v3_compile_max_autotune` | 2394 / 3717 (64.4%) | **3030 of 3611** (83.9%) | 636 |
+
+The problem counts (`149/220`, `136/220`) are *not* wrong — they are counts of
+problems where the variant passed everything, which is what `all_passed` means.
+It is the workload column that is answering a different question than its
+heading.
+
+The residue after the fix is a real result and not a gap: `v2_compile` fails
+**523 workloads on `INCORRECT_NUMERICAL`** and never produces a timing for 23
+more; `v3` fails 581 (571 numerical, 10 `RUNTIME_ERROR`) and misses 106. That
+is torch.compile disagreeing with eager beyond tolerance on this part, which is
+worth publishing accurately rather than rounding into a coverage number.
+
+`v1_eager`'s one non-clean problem is
+`L2__051_seqlen-finetuned-reconstructed_hyena_complete_forward_block`: 6 of 16
+workloads pass, 10 `INCORRECT_NUMERICAL` — the *reference formulation* against
+its own golden. That is the `219/220`, and it is a finding, not a missing run.
+
+**Costs no GPU time to fix.** It is a re-ingest: read `failures` per workload
+instead of painting the problem. What it does need is a decision the ingest
+cannot make alone — 89 of the 220 problems have at least one variant with
+passing workloads but **no GPU-0 authoritative re-time**, because the
+authoritative pass only re-timed variants that were clean (`v2` lacks 69, `v3`
+76, `v1` 9, `v4` 8). Those rows would go on the board carrying a sweep timing
+from GPUs 1–7, which is a different measurement class and has to be labelled as
+one. At the authoritative sweep's measured rate — **217 problems in 323.3 min,
+~1.5 min/problem** (`artifacts/06/logs/authoritative.log`) — re-timing all 89 is
+**about 2¼ hours on GPU 0**, and a full re-derivation from scratch is ~5.4 h.
+
+Not fixed here. Recorded, with the numbers, so the fix is a re-ingest against a
+stated target rather than a rediscovery.
+
+### D29 — the external fleet ran 34 jobs on GPU 0
+
+`dash-overlay`'s J2 backfill sweep places one agent per GPU and takes a
+scheduler hold on the authoritative device (`sbt`'s
+`reserve_authoritative_gpu`). The hold did not hold: across the recorded J2
+jobs the placement is 34 · 42 · 36 · 35 · 35 · 35 · 36 · 34 over GPUs 0–7 —
+**GPU 0 took a full share.** Two of them are from the sweep still in flight.
+
+No published number is affected: no authoritative timing was running during
+those jobs, and every score on the board was re-timed before the sweep began.
+The failure is that the property was not enforced, so the next time the two do
+overlap nothing will say so. Whichever side owns it, the check belongs where
+the placement happens, not in a comment.
+
+### D30 — two vertical scrollbars on every code pane (fixed)
+
+`pre.code.has-ln` split the axes: `overflow-y:auto` on the `<pre>`,
+`overflow-x:auto` on the `<code class="src">` inside it. But CSS Overflow 3 §3
+forbids one axis staying `visible` while the other is not, so `.src`'s
+`overflow-y` computed to `auto` as well. Under the default
+`align-items:stretch` that gave `.src` a definite 608px height and a scrollbar
+of its own, while the gutter — same stretch, no overflow — spilled past the
+640px cap and gave the `<pre>` a second one. Dragging the outer bar then moved
+the line numbers and not the code, which is the blank space it appeared to
+reveal: the gutter's overhang.
+
+Now one scroll container, the `<pre>`, both axes; `align-items:flex-start` so
+neither child is stretched, and the gutter is `position:sticky; left:0` so a
+200-column line still cannot push the numbers off the left edge. The copy
+button moved from `right:10px` to `22px` — it is positioned against
+`.codewrap`, outside the scrollport, so it sat under the scrollbar of every
+pane long enough to have one.
+
+Found from a screenshot, not from a test, and it stays that way: verifying it
+needs layout, and this node has no browser. `tests/leaderboard/test_code_pane.py`
+asserts what the pane *contains*, which is the part that can be checked here.
+
+### Section nav on the two long reference pages
+
+`/methodology` and `/problems/<key>` are eight and seven sections of reference
+material with no way to see the shape of the page or jump within it. Both now
+carry a sticky left nav, server-rendered from `TOC_METHODOLOGY` / `TOC_PROBLEM`
+in `app.py` — not scraped from the DOM, so it is there with JavaScript off and
+a test can check it. The scroll spy that marks the current section is the only
+part that needs JS, and its absence costs nothing but the highlight.
+
+`tests/leaderboard/test_sidenav.py` (7 tests) asserts every `href="#x"`
+resolves to an `id="x"` in the body, that the nav is in document order (the spy
+assumes it), that no `h2` is missing from the nav, and that a page passing no
+`toc` still renders single-column. Two files with no compiler between them
+would otherwise drift into links that render, look live, and scroll nowhere.
+
 ### The grid ramp: distribution and contrast, closed
 
 Both halves of the earlier bunching finding are now measured rather than
