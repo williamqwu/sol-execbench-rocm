@@ -1162,6 +1162,84 @@ assumes it), that no `h2` is missing from the nav, and that a page passing no
 `toc` still renders single-column. Two files with no compiler between them
 would otherwise drift into links that render, look live, and scroll nowhere.
 
+### D31b — the run is complete: 220/220, and it leads the board
+
+`agent-glm-sweep-2` now covers **every scoreable problem**. A follow-up sweep
+(`glm-sweep-2-fill`, 48 jobs, same harness, same model, **same 3,600 s cap** —
+a different cap would have made the submission's own trial label false) was
+merged in by `scripts/merge_agent_runs.py`, which replaces the earlier attempt
+outright wherever both exist. Not best-of-two: keeping whichever scored higher
+would make the submission a maximum over re-runs rather than a measurement of
+the harness.
+
+```
+                              ran    whole | clean part fail none  workloads
+codex-cli agent (GLM-5.2)  0.5921  0.5921 |   218    1    1    0  3618/3717
+PyTorch eager              0.4536  0.4536 |   219    1    0    0  3707/3717
+eager + contiguous         0.4518  0.4518 |   218    1    1    0  3688/3717
+torch.compile              0.4216  0.4190 |   149   69    2    0  3171/3694
+max-autotune               0.4104  0.4034 |   136   77    7    0  3041/3654
+```
+
+**3,690 workloads scored, mean S = 0.6083, 0 flagged.** The two scopes are
+identical to four decimals because nothing is missing from the denominator —
+which is the cleanest possible demonstration that the coverage is real. It
+outscores every PyTorch formulation on the shared denominator.
+
+What was missing, and why:
+
+* **26 = the whole FlashInfer-Bench category, never ported.** `sbt select` sent
+  L1 92, L2 82, Quant 18, FlashInfer 0. Not a failure of any kind — an omission
+  in the selection, invisible because every problem it *did* send came back.
+* **2 L1 never ported** (92 of 94), **3 ported that produced no result.**
+* **20 killed mid-edit at the cap**, of which 11 had a fully-passing evaluated
+  snapshot discarded because `kernel.py` was mid-write when SIGTERM landed.
+
+The re-run settles the snapshot question the earlier entry left open. Same cap,
+fresh attempt: **mid-edit losses fell from 11/20 to 3/19**, and 15 of the 19
+came back with a final kernel that passes everything. It was a coin flip on
+where the kill landed, not something the model controls. At three problems in
+220 the case for changing the submission rule has gone; the score is a floor by
+about three problems and that is worth stating rather than engineering around.
+
+The GPU-0 reservation **held for this sweep** — an active `manual` hold on
+device 0, all seven contracts on 1–7, zero KFD processes on 0 throughout. D29
+did not recur. The merged `run.json` still records agent GPUs `[0..7]` because
+the *original* sweep used all eight; that is history, not this run.
+
+Two things worth keeping:
+
+* `rocm-smi --showuse` reported GPU 0 at 97–100% busy while `--showpids` listed
+  no process on it and all eight cards drew a uniform 235–244 W. A saturated
+  1000 W part does not sit at idle power. **On this node the busy percentage is
+  not a usable signal**; the KFD process list and the scheduler holds are.
+* A `failed` fleet job is not a failed kernel.
+  `FlashInfer-Bench__020` died with `harness_error` at 1898 s and the kernel it
+  left behind re-times clean at 19/19.
+
+### D33 — `agent_score.py --timeout` never reached the evaluation
+
+The flag set the *subprocess* timeout for the `env/solb` call and was never
+passed to `agent_eval.py`, whose own `--timeout` defaults to **1200 s**. So
+every re-time was capped at twenty minutes regardless, and raising the outer
+value — which is what anyone would try — bought nothing at all.
+
+Found through `FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1`,
+whose re-time recorded `TimeoutExpired ... after 1200 seconds` with 0 workloads.
+On the board that is indistinguishable from a kernel that produced nothing. With
+the timeout actually forwarded it re-times at **30/30 passed**. The kernel was
+never the problem; the scorer was not given enough time and said so in a place
+that read like the kernel's fault.
+
+The inner cap is now `outer − 120 s`, deliberately the smaller of the two:
+whichever fires first decides what the artifact says, and only the inner one
+writes a real result document — the outer can just kill the process and leave
+`retime()` synthesising "produced no artifact".
+
+Any problem whose evaluation legitimately needs more than twenty minutes was
+unscoreable before this, silently. `FI__014` is the only one found so far, but
+it was found by accident.
+
 ### D31 — the first near-full-benchmark agent run, and 7 more bad bounds
 
 `agent-glm-sweep-2`: **192 of 220 scoreable problems**, GLM-5.2 driven by

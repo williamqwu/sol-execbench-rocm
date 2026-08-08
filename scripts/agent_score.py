@@ -90,12 +90,27 @@ def retime(problem_key: str, kernel: Path, out: Path, gpu: int,
     if staged.exists():
         staged.unlink()
 
+    # `--timeout` reaches the INNER evaluation, not just the subprocess call.
+    # It did not, and the gap was invisible: `agent_eval.py --timeout` defaults
+    # to 1200s, so every evaluation was capped at twenty minutes no matter what
+    # was passed here, and raising this script's `--timeout` to 2400 bought
+    # nothing. FlashInfer-Bench__014 is the case -- a paged-prefill problem
+    # whose re-time genuinely needs longer, recorded as
+    # `TimeoutExpired ... after 1200 seconds` with 0 workloads, which reads as
+    # a broken kernel rather than a scorer that was not given enough time.
+    #
+    # The inner cap is the smaller of the two on purpose. Whichever fires
+    # first decides what the artifact says, and the inner one writes a real
+    # result document; the outer one can only kill the process and leave
+    # `retime()` to synthesise "produced no artifact".
+    inner = max(60, timeout - 120)
     cmd = [
         str(ROOT / "env" / "solb"), "python", "/work/scripts/agent_eval.py",
         "--problem", f"/work/data/SOL-ExecBench/benchmark/{cat}/{name}",
         "--kernel", str(kernel),
         "--out", str(staged),
         "--iterations", str(iterations), "--warmup", str(warmup),
+        "--timeout", str(inner),
         "--quiet",
     ]
     env = {

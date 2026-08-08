@@ -1,0 +1,46 @@
+{
+ "_provenance": {
+  "task": "10-agent-eval",
+  "utc": "2026-08-08T05:10:42.134862+00:00",
+  "git_sha": null,
+  "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI350X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "7.1.1.31500000",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+  },
+  "f_lock_mhz": 1300,
+  "visible_devices": "6"
+ },
+ "workloads": 1,
+ "passed": 0,
+ "all_passed": false,
+ "per_workload": [
+  {
+   "index": 0,
+   "workload_uuid": "22265a18-76e6-5e7c-9c14-218bce7aabdc",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.12/site-packages/torch/cuda/__init__.py\", line 1083, in synchronize\n    return torch._C._cuda_synchronize()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntorch.AcceleratorError: HIP error: an illegal memory access was encountered\nSearch for `hipErrorIllegalAddress' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__HIPRT__TYPES.html for more information.\nHIP kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/solb_run_tt1b_uzn/eval_driver.py\", line 543, in <module>\n    _user_outputs = _call_and_collect_outputs(\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_tt1b_uzn/eval_driver.py\", line 109, in _call_and_collect_outputs\n    torch.cuda.synchronize(device)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/cuda/__init__.py\", line 1082, in synchronize\n    with torch.cuda.device(device):\n  File \"/opt/venv/lib/python3.12/site-packages/torch/cuda/__init__.py\", line 536, in __exit__\n    self.idx = torch.cuda._maybe_exchange_device(self.prev_idx)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntorch.AcceleratorError: HIP error: an illegal memory access was encountered\nSearch for `hipErrorIllegalAddress' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__HIPRT__TYPES.html for more information.\nHIP kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\n"
+  }
+ ],
+ "ok": true,
+ "problem": "L1__054_audio_attention_qkv_projection_with_normalization"
+}

@@ -1,0 +1,176 @@
+{
+ "_provenance": {
+  "task": "10-agent-eval",
+  "utc": "2026-08-08T06:14:28.273465+00:00",
+  "git_sha": null,
+  "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI350X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "7.1.1.31500000",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+  },
+  "f_lock_mhz": 1300,
+  "visible_devices": "7"
+ },
+ "workloads": 11,
+ "passed": 0,
+ "all_passed": false,
+ "per_workload": [
+  {
+   "index": 0,
+   "workload_uuid": "d608b56d-e6e3-5275-96e8-802c80ffb22f",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 463, in cudagraphify\n    return manager.add_function(\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2316, in add_function\n    return fn, fn(inputs)\n               ^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2012, in run\n    out = self._run(new_inputs, function_id)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2116, in _run\n    return self.run_eager(new_inputs, function_id)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2277, in run_eager\n    return node.run(new_inputs)\n           ^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 671, in run\n    non_cudagraph_inps_storages = get_non_cudagraph_inps()\n                                  ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 667, in get_non_cudagraph_inps\n    and t.untyped_storage().data_ptr() not in existing_path_data_ptrs\n        ^^^^^^^^^^^^^^^^^^^\nRuntimeError: Error: accessing tensor output of CUDAGraphs that has been overwritten by a subsequent run. Stack trace: File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/external_utils.py\", line 68, in inner\n    return fn(*args, **kwargs)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n  File \"/tmp/solb_run_mjkb0b_d/kernel.py\", line 16, in _resnet_block\n    return h + residual. To prevent overwriting, clone the tensor outside of torch.compile() or call torch.compiler.cudagraph_mark_step_begin() before each model invocation.\n"
+  },
+  {
+   "index": 1,
+   "workload_uuid": "d181fa9d-4b08-5a19-84f8-3fc26b17d51b",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/output_code.py\", line 613, in __call__\n    return self.current_callable(inputs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/torchinductor_qinwu/5m/c5mdnnydxmvsh7i72cuwr63ujctghaf3gvmyhyvkwo6ml7hphohj.py\", line 635, in call\n    (buf19,) = self.partitions[0](partition0_args)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/compile_fx.py\", line 1772, in run\n    return compiled_fn(new_inputs)  # type: ignore[arg-type]\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 404, in deferred_cudagraphify\n    fn, out = cudagraphify(model, inputs, new_static_input_idxs, *args, **kwargs)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 463, in cudagraphify\n    return manager.add_function(\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2316, in add_function\n    return fn, fn(inputs)\n               ^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2012, in run\n    out = self._run(new_inputs, function_id)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2082, in _run\n    self.try_end_curr_warmup(function_id)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2409, in try_end_curr_warmup\n    self.dealloc_current_path_weakrefs()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2476, in dealloc_current_path_weakrefs\n    assert len(node.tensor_weakrefs) == len(node.stack_traces)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  },
+  {
+   "index": 2,
+   "workload_uuid": "8af99a9e-14e3-5ad9-9865-6de2144c7af5",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/output_code.py\", line 613, in __call__\n    return self.current_callable(inputs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/torchinductor_qinwu/de/cdeprzbwa3cnjed6fyewskmk2t2wnmsp5abqfbvh2mcitm2duynw.py\", line 696, in call\n    (buf20,) = self.partitions[0](partition0_args)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/compile_fx.py\", line 1772, in run\n    return compiled_fn(new_inputs)  # type: ignore[arg-type]\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 404, in deferred_cudagraphify\n    fn, out = cudagraphify(model, inputs, new_static_input_idxs, *args, **kwargs)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 463, in cudagraphify\n    return manager.add_function(\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2316, in add_function\n    return fn, fn(inputs)\n               ^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2012, in run\n    out = self._run(new_inputs, function_id)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2082, in _run\n    self.try_end_curr_warmup(function_id)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2409, in try_end_curr_warmup\n    self.dealloc_current_path_weakrefs()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2476, in dealloc_current_path_weakrefs\n    assert len(node.tensor_weakrefs) == len(node.stack_traces)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  },
+  {
+   "index": 3,
+   "workload_uuid": "67bdd5bc-731d-5c1c-b384-bd768f74bb29",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/output_code.py\", line 613, in __call__\n    return self.current_callable(inputs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/torchinductor_qinwu/tf/ctfsdq3etfs2em3vhi4prloqldk756tu6ijujo6i473tw35sbrlp.py\", line 667, in call\n    (buf19,) = self.partitions[0](partition0_args)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/compile_fx.py\", line 1772, in run\n    return compiled_fn(new_inputs)  # type: ignore[arg-type]\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 404, in deferred_cudagraphify\n    fn, out = cudagraphify(model, inputs, new_static_input_idxs, *args, **kwargs)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 463, in cudagraphify\n    return manager.add_function(\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2316, in add_function\n    return fn, fn(inputs)\n               ^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2012, in run\n    out = self._run(new_inputs, function_id)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2082, in _run\n    self.try_end_curr_warmup(function_id)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2409, in try_end_curr_warmup\n    self.dealloc_current_path_weakrefs()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2476, in dealloc_current_path_weakrefs\n    assert len(node.tensor_weakrefs) == len(node.stack_traces)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  },
+  {
+   "index": 4,
+   "workload_uuid": "329c5f2b-ec85-5ccd-95dc-1cac079cdbb6",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/output_code.py\", line 613, in __call__\n    return self.current_callable(inputs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/torchinductor_qinwu/l6/cl6ik5buveep36le6uldgadux254ihnk5564sa7qcnoidznvbvgv.py\", line 618, in call\n    (buf14,) = self.partitions[0](partition0_args)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/compile_fx.py\", line 1772, in run\n    return compiled_fn(new_inputs)  # type: ignore[arg-type]\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 404, in deferred_cudagraphify\n    fn, out = cudagraphify(model, inputs, new_static_input_idxs, *args, **kwargs)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 463, in cudagraphify\n    return manager.add_function(\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2316, in add_function\n    return fn, fn(inputs)\n               ^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2012, in run\n    out = self._run(new_inputs, function_id)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2082, in _run\n    self.try_end_curr_warmup(function_id)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2409, in try_end_curr_warmup\n    self.dealloc_current_path_weakrefs()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2476, in dealloc_current_path_weakrefs\n    assert len(node.tensor_weakrefs) == len(node.stack_traces)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  },
+  {
+   "index": 5,
+   "workload_uuid": "89fa03a1-f06a-5f91-a427-62ab3bbb60a3",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/output_code.py\", line 613, in __call__\n    return self.current_callable(inputs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/torchinductor_qinwu/zi/czihlpl6m5a4vfjb5sjmngew6orpjf7bes2zeh76zs5lahgherz5.py\", line 623, in call\n    (buf14,) = self.partitions[0](partition0_args)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/compile_fx.py\", line 1772, in run\n    return compiled_fn(new_inputs)  # type: ignore[arg-type]\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 404, in deferred_cudagraphify\n    fn, out = cudagraphify(model, inputs, new_static_input_idxs, *args, **kwargs)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 463, in cudagraphify\n    return manager.add_function(\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2316, in add_function\n    return fn, fn(inputs)\n               ^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2012, in run\n    out = self._run(new_inputs, function_id)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2082, in _run\n    self.try_end_curr_warmup(function_id)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2409, in try_end_curr_warmup\n    self.dealloc_current_path_weakrefs()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2476, in dealloc_current_path_weakrefs\n    assert len(node.tensor_weakrefs) == len(node.stack_traces)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  },
+  {
+   "index": 6,
+   "workload_uuid": "3f3523b9-7a33-5ad9-a697-2cdabb19d2b2",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/output_code.py\", line 613, in __call__\n    return self.current_callable(inputs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/torchinductor_qinwu/j7/cj7cxwdb6nbcw6kizeacksb2s2y7ykok5f4xdneaklmsvh2uwt2p.py\", line 696, in call\n    (buf20,) = self.partitions[0](partition0_args)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/compile_fx.py\", line 1772, in run\n    return compiled_fn(new_inputs)  # type: ignore[arg-type]\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 404, in deferred_cudagraphify\n    fn, out = cudagraphify(model, inputs, new_static_input_idxs, *args, **kwargs)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 463, in cudagraphify\n    return manager.add_function(\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2316, in add_function\n    return fn, fn(inputs)\n               ^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2012, in run\n    out = self._run(new_inputs, function_id)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2082, in _run\n    self.try_end_curr_warmup(function_id)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2409, in try_end_curr_warmup\n    self.dealloc_current_path_weakrefs()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2476, in dealloc_current_path_weakrefs\n    assert len(node.tensor_weakrefs) == len(node.stack_traces)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  },
+  {
+   "index": 7,
+   "workload_uuid": "8916df95-f4b3-5f61-809a-a6a7c3939805",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/output_code.py\", line 613, in __call__\n    return self.current_callable(inputs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/torchinductor_qinwu/fw/cfw6plg6rmhigfnrs4zxwhx7rrkva4ukcitdndcukiqx2emkabt6.py\", line 618, in call\n    (buf14,) = self.partitions[0](partition0_args)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/compile_fx.py\", line 1772, in run\n    return compiled_fn(new_inputs)  # type: ignore[arg-type]\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 404, in deferred_cudagraphify\n    fn, out = cudagraphify(model, inputs, new_static_input_idxs, *args, **kwargs)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 463, in cudagraphify\n    return manager.add_function(\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2316, in add_function\n    return fn, fn(inputs)\n               ^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2012, in run\n    out = self._run(new_inputs, function_id)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2082, in _run\n    self.try_end_curr_warmup(function_id)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2409, in try_end_curr_warmup\n    self.dealloc_current_path_weakrefs()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2476, in dealloc_current_path_weakrefs\n    assert len(node.tensor_weakrefs) == len(node.stack_traces)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  },
+  {
+   "index": 8,
+   "workload_uuid": "f009abdb-585e-590b-b599-1c3d73e4e6b6",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/output_code.py\", line 613, in __call__\n    return self.current_callable(inputs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/torchinductor_qinwu/rp/crp63joi35pno4wsyjibpl6liroaxw3ocgzcivovzkgm4yhmdjv4.py\", line 468, in call\n    (buf19,) = self.partitions[0](partition0_args)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/compile_fx.py\", line 1772, in run\n    return compiled_fn(new_inputs)  # type: ignore[arg-type]\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 404, in deferred_cudagraphify\n    fn, out = cudagraphify(model, inputs, new_static_input_idxs, *args, **kwargs)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 463, in cudagraphify\n    return manager.add_function(\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2316, in add_function\n    return fn, fn(inputs)\n               ^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2012, in run\n    out = self._run(new_inputs, function_id)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2082, in _run\n    self.try_end_curr_warmup(function_id)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2409, in try_end_curr_warmup\n    self.dealloc_current_path_weakrefs()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2476, in dealloc_current_path_weakrefs\n    assert len(node.tensor_weakrefs) == len(node.stack_traces)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  },
+  {
+   "index": 9,
+   "workload_uuid": "2920653f-ef5e-5f4d-9631-95050069a95a",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/output_code.py\", line 613, in __call__\n    return self.current_callable(inputs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/torchinductor_qinwu/vn/cvnbjo25kprumvqwwruv7r75ok2qi3zb2p4aa5qvzpeokjqhu6tu.py\", line 543, in call\n    (buf19,) = self.partitions[0](partition0_args)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/compile_fx.py\", line 1772, in run\n    return compiled_fn(new_inputs)  # type: ignore[arg-type]\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 404, in deferred_cudagraphify\n    fn, out = cudagraphify(model, inputs, new_static_input_idxs, *args, **kwargs)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 463, in cudagraphify\n    return manager.add_function(\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2316, in add_function\n    return fn, fn(inputs)\n               ^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2012, in run\n    out = self._run(new_inputs, function_id)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2082, in _run\n    self.try_end_curr_warmup(function_id)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2409, in try_end_curr_warmup\n    self.dealloc_current_path_weakrefs()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2476, in dealloc_current_path_weakrefs\n    assert len(node.tensor_weakrefs) == len(node.stack_traces)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  },
+  {
+   "index": 10,
+   "workload_uuid": "706585da-edb6-5cf5-b64e-1cd78f3ccca6",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/output_code.py\", line 613, in __call__\n    return self.current_callable(inputs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/torchinductor_qinwu/bl/cblvfqjlrcdgbf4iwkgoon645nfv6hjj33fnm2orn3r5pcj3xn6s.py\", line 592, in call\n    (buf16,) = self.partitions[0](partition0_args)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/compile_fx.py\", line 1772, in run\n    return compiled_fn(new_inputs)  # type: ignore[arg-type]\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 404, in deferred_cudagraphify\n    fn, out = cudagraphify(model, inputs, new_static_input_idxs, *args, **kwargs)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 463, in cudagraphify\n    return manager.add_function(\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2316, in add_function\n    return fn, fn(inputs)\n               ^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2012, in run\n    out = self._run(new_inputs, function_id)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2082, in _run\n    self.try_end_curr_warmup(function_id)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2409, in try_end_curr_warmup\n    self.dealloc_current_path_weakrefs()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/cudagraph_trees.py\", line 2476, in dealloc_current_path_weakrefs\n    assert len(node.tensor_weakrefs) == len(node.stack_traces)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n"
+  }
+ ],
+ "ok": true,
+ "problem": "L2__050_vae_decoder_mid_block_attention_resnet"
+}

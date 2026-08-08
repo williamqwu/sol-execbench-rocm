@@ -24,13 +24,19 @@ These are in the manifest and produce scores. The scores are not usable.
 | **Paged-attention T_SOL over-counts traffic.** The declared-traffic tier prices a paged KV cache at full allocation; the kernel gathers 34 pages of 989,669. | 6 problems, **249 scoreable workloads** | D18 |
 | **`L1__005` bound beaten by 1.09–1.15×.** Compute-bound SOLAR roofline ~15% too slow. Not paged; D18 does not explain it. | 4 of 16 workloads | D21 |
 | **`L1__035` bound beaten by 1.003–1.013×.** Total headroom is 1.008, so there is almost no scoring range; may be a bound too tight to measure against rather than a wrong one. Needs separating from `L1__005` — they are probably different defects. | 2 of 16 workloads | D21 |
-| **Seven more bounds beaten**, found the moment a real optimizer covered the benchmark: `L1__006`, `L1__057`, `L2__030`, `L2__035`, `L2__045`, `L2__068`, `L2__073`. Undiagnosed — not yet separated into D18-style over-counting vs D21-style roofline error. | 44 workloads across 9 problems in that run | D31 |
+| **Nine more bounds beaten**, found as a real optimizer covered the benchmark: `L1__006`, `L1__057`, `L2__030`, `L2__035`, `L2__045`, `L2__068`, `L2__073`, and — once coverage reached 220 — `FlashInfer-Bench__018` and `L1__054`. Undiagnosed; not yet separated into D18-style over-counting vs D21-style roofline error. | 72 workloads across 11 problems in that run | D31, D31b |
 
 The v1.1 fix for D18 is to derive paged traffic from the page table rather than
 from `num_pages`. D21 has no fix yet, only a diagnosis, and the seven new ones
-have neither. **v1 marks three of these ten**; the other seven are marked
+have neither. **v1 marks three of these twelve**; the other nine are marked
 nowhere in the shipped manifest and are known only from this file, `STATE.md`
-D31, and the run page that found them.
+D31/D31b, and the run pages that found them.
+
+The count has risen every time a stronger optimizer covered more of the
+benchmark — 3, then 10, then 12 — which is the finding, not an accident of
+this run. A bound is only shown to be wrong by a kernel that beats it, so the
+number of *known* bad bounds is a lower bound on the number of bad bounds, and
+it tracks how hard anything has tried rather than how many there are.
 
 ## The task-06 sweep does not fully reproduce
 
@@ -127,13 +133,17 @@ anchor-verified, so it has no `S` to publish.
 * **Five backends accepted by the schema, never built through** — `ck`,
   `ck_tile`, `hipblaslt`, `miopen`, `aiter`. See `docs/backend-coverage.md`,
   which also lists the three defects the one `hip_cpp` seed found.
-* **No full-benchmark agent baseline** -- 87% closed, not shut. `agent-glm-sweep-2`
-  covers 192 of 220 problems (2,760 workloads, mean S 0.5975), which is the
-  first run on the board that is not a pilot. The remaining 28 problems were
-  never ported into the sweep, and 27 of the 192 submitted a kernel that was
-  mid-edit when the fleet's 1 h cap killed the session while a passing snapshot
-  sat unused -- so the figure is a floor. Upstream's median SOL of 0.732 is
-  still not replicated. `docs/agent-baseline.md` prices the rest.
+* **~~No full-benchmark agent baseline.~~ Closed 2026-08-08.**
+  `agent-glm-sweep-2` covers **220 of 220** problems and all 3,717 scoreable
+  workloads: 3,690 scored, **mean S = 0.6083**, 218 problems swept clean. It
+  leads the board on the shared denominator (0.5921 against eager's 0.4536).
+  Upstream's median SOL of 0.732 on B200 is **not** the comparison -- these are
+  AMD-derived bounds and no cross-vendor number comparison is defensible; what
+  is now available is a full-coverage agent result on this part.
+  Two caveats travel with it: 168 of 220 sessions were stopped by the harness's
+  1 h cap rather than choosing to stop, and 3 submitted a kernel that was
+  mid-edit when the kill landed while a passing snapshot went unused -- so the
+  figure is a floor by about three problems.
 * **Golden references are capped by tensor size.** 165 `.pt` files; the rest of
   the 235 problems have workloads recorded as `skipped: N elements > cap` in
   `artifacts/golden/_report.json`. The report covers all 235 — the skips are
