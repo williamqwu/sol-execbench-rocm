@@ -306,12 +306,15 @@ problem.
 
 **Partial: the agent baseline.** Upstream reports a median SOL of 0.732 over a
 kernel-optimizing agent's submissions, and a headroom correlation of r = 0.981.
-Three runs have happened here. **None is a full-benchmark submission**, so none
-replicates that number, and the board shows each one's coverage rather than
-hiding it:
+Four runs have happened here, and `glm-sweep-2` **is** a full-benchmark
+submission — 220 of 220. It still does not replicate upstream's number, for a
+reason that no amount of coverage fixes: that median is a different model on a
+different part, scored against NVIDIA-derived bounds. The board shows each
+run's coverage rather than hiding it:
 
 | run | problems | coverage | benchmark score | on the board |
 |---|---|---|---|---|
+| `glm-sweep-2` — GLM-5.2, codex-cli, 1 h/problem | **220** | **100%** | 0.5921 | yes |
 | `glm-run1` — GLM-5.2, amdpilot fleet | 24 submitted, **23 measured** | 10.3% | 0.0672 | yes |
 | `opus5-budget100` — Claude-Opus-5, $100/problem, $250 total | 4 | 1.6% | 0.0111 | yes |
 | `pilot8` — Claude-Opus-5, $8/problem | 8 | 2.7% | — | **no** |

@@ -443,13 +443,19 @@ is defined as the fastest of them, so the pooled correlation over them (0.175)
 is computed over a sample that barely varies and is not a failed replication of
 upstream's number — it is not that experiment.
 
-Three agent runs have since been made — `pilot8` (8 problems), `glm-run1` (24)
-and `opus5-budget100` (4) — and none of them is that experiment either. The
-largest covers 10.3% of scoreable workloads. A median over 24 problems chosen
-for a pilot is not comparable to a median over 220, and this document does not
-report one. See [`agent-baseline.md`](agent-baseline.md) for what the runs did
-establish, which is mostly about cost, GPU occupancy and two defects in the
-benchmark itself.
+Four agent runs have since been made. Three of them — `pilot8` (8 problems),
+`glm-run1` (24) and `opus5-budget100` (4) — are not that experiment, because a
+median over problems chosen for a pilot is not comparable to a median over 220.
+
+`glm-sweep-2` covers all 220, at mean S 0.5921 over 3,690 scored workloads, and
+it is the closest thing here to upstream's experiment. It is still not a
+replication, and coverage was never what stood in the way: upstream's 0.732 is
+a different model, on a different part, against bounds derived for that part.
+Both numbers are medians of the same formula over score curves whose T_SOL and
+T_b were derived independently, so their difference is not a measurement of the
+two models. See [`agent-baseline.md`](agent-baseline.md) for what the runs did
+establish, which is coverage, cost, GPU occupancy, and now twelve bounds that a
+real kernel beat.
 
 ## 9. Deferrals
 
@@ -467,8 +473,10 @@ Two further limitations that are *not* deferrals but should be read alongside
 them: five backends (`ck`, `ck_tile`, `hipblaslt`, `miopen`, `aiter`) are
 accepted by the schema and have never been built through — see
 [`backend-coverage.md`](backend-coverage.md), which also lists the three
-defects the one `hip_cpp` seed found — and no *full-benchmark* agent baseline
-has been run, only samples of 4 to 24 problems.
+defects the one `hip_cpp` seed found — and the one full-benchmark agent run
+(`glm-sweep-2`, 220 problems) carries **no cost figure**, because its gateway
+reports GLM-5.2 at $0.00 and 420M tokens were not free. The runs that are
+priced cover 4 to 24 problems.
 
 **15 NVFP4 Quant problems.** These fail at the reference itself on ROCm:
 

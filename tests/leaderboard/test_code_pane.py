@@ -75,9 +75,19 @@ def test_a_hostile_source_survives_the_round_trip(board, client):
 
 def test_the_script_that_reads_the_pane_is_loaded(client):
     """A pane with no highlighter and no copy button still reads fine, which is
-    why its absence is easy to ship. The tag is asserted, not the effect."""
+    why its absence is easy to ship. The tag is asserted, not the effect.
+
+    This used to require `?v=<integer>` and so pinned the defect: the literal
+    was never incremented in the file's whole history, and every gutter fix
+    stayed invisible to any browser that had already cached it. The cache key
+    is the file's content hash now, and a bare integer is the thing to reject.
+    """
     page = client.get("/submissions/agent-trial-a/problems/L1__001_alpha").text
-    assert re.search(r'<script src="/static/highlight\.js\?v=\d+" defer>', page)
+    m = re.search(r'<script src="/static/highlight\.js\?v=([0-9a-f]+)" defer>', page)
+    assert m, "the highlighter is not loaded, or is not cache-busted at all"
+    assert not m.group(1).isdigit(), (
+        "hand-maintained integer cache key is back; it is the one that goes "
+        "stale, because nothing forces it to change")
 
 
 def test_every_pane_declares_a_language(real_client, real_conn):

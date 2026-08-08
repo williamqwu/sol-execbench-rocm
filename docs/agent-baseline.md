@@ -6,18 +6,26 @@ headline numbers — median SOL 0.732, headroom correlation r = 0.981, 14.5%
 flagged — are results *about agents*.
 
 `artifacts/09/agent-baseline.json` recorded that no agent had been run at the
-time the manifest was frozen. **Three runs have since happened**, and none of
-them replicates upstream's numbers, because none covers the benchmark:
+time the manifest was frozen. **Four runs have since happened**, and one of them
+covers the whole benchmark:
 
 | run | model | problems | coverage | mean S (attempted) | cost | on the board |
 |---|---|---|---|---|---|---|
+| `glm-sweep-2` | GLM-5.2, codex-cli, 1 h/problem | **220** | **100%** | 0.5921 | not priced — see below | yes |
 | `pilot8` | Claude-Opus-5, $8/problem cap | 8 | 2.7% | 0.776 over what passed | $65.08 | **no** — see below |
 | `glm-run1` | GLM-5.2, amdpilot fleet | 24 submitted, 23 measured | 10.3% | 0.6079 | not recorded | yes |
 | `opus5-budget100` | Claude-Opus-5, $100/problem | 4 | 1.6% | 0.7011 | $249.58 | yes |
 
-So this document is still an instrument and a cost study, not a baseline. What
-the runs have produced is a price per problem, a GPU-occupancy figure that
-changes node planning, and two defects in the benchmark itself.
+`glm-sweep-2` is the full-benchmark submission this document spent three
+revisions saying did not exist. It is a real one: 220 of 220 problems, 3,690
+workloads scored, 218 swept clean, 0 flagged, and it leads the board in both
+score scopes. What it is *not* is a replication of upstream's median SOL — that
+is a number about a different model on a different part, and the comparison is
+between an AMD-derived score curve and an NVIDIA-derived one.
+
+It is also **not priced.** The AMD gateway returns `total_cost_usd: 0.0` for
+GLM-5.2, and 420M tokens were not free, so no dollar figure is recorded rather
+than a wrong one. The cost numbers in this document are all Claude-Opus-5.
 
 ## What it does
 
@@ -188,10 +196,11 @@ stopping point — and it reaches mean S 0.7011 on four problems for $250.
 
 ## What none of this is
 
-**A full-benchmark submission.** The largest run covers 10.3% of scoreable
-workloads. The board shows each run's coverage beside its score and stars every
-benchmark score that is a floor rather than a measurement, so a partial run
-cannot be mistaken for a complete one. Replicating upstream's median SOL means
-running 220 problems, and `cost-report.md`'s extrapolation is what says how
-much that would cost — as a range from the observed median and p75, with the
-sample size beside it, not as a point estimate.
+**A priced full-benchmark submission.** `glm-sweep-2` covers all 220 problems,
+so the coverage gap this section used to describe is closed — but its model
+bills through a gateway that reports zero, so the run that has the coverage has
+no cost and the runs that have costs have 1.6–10.3% coverage. The board shows
+each run's coverage beside its score and stars every benchmark score that is a
+floor rather than a measurement. `cost-report.md`'s extrapolation still stands
+as the only priced estimate of a full run, as a range from the observed median
+and p75 with the sample size beside it, not as a point estimate.

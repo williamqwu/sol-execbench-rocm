@@ -36,6 +36,7 @@ connections could.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sqlite3
@@ -81,6 +82,35 @@ app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 templates = Jinja2Templates(directory=str(HERE / "templates"))
 # `meta` is a flat string->string table, so JSON-valued rows come back as text.
 templates.env.filters["from_json"] = lambda s: json.loads(s) if s else []
+
+
+def asset(path: str) -> str:
+    """`/static/x.js` -> `/static/x.js?v=<hash of x.js>`.
+
+    The cache-buster used to be a literal typed into the template, and it
+    failed exactly the way a hand-maintained cache key fails: `style.css?v=12`
+    got bumped twelve times because CSS changes are visible immediately, while
+    `highlight.js?v=1` was never bumped once in the file's whole history. Every
+    JS change since it was written -- including a fix to the line-number gutter
+    -- was invisible to any browser that had ever loaded the board, and there
+    was no symptom on this machine, because a fresh curl always gets fresh
+    bytes. The person who sees the stale asset is never the person who changed
+    it.
+
+    Hashed at request time rather than at import: the board is served straight
+    from a working tree during development, and an editor save has to be one
+    reload away. Four small files, and the OS page cache holds all of them.
+    """
+    f = HERE / path.lstrip("/").removeprefix("static/")
+    f = HERE / "static" / f.name
+    try:
+        return f"{path}?v={hashlib.sha256(f.read_bytes()).hexdigest()[:10]}"
+    except OSError:
+        # A missing asset is the template's problem to show, not ours to hide.
+        return path
+
+
+templates.env.globals["asset"] = asset
 
 
 # --------------------------------------------------------------------------
