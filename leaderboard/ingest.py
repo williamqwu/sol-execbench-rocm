@@ -317,11 +317,12 @@ def add_submission(conn, **kw) -> int:
         """INSERT OR REPLACE INTO submission
            (slug,name,kind,author,model,created_utc,notes,provenance_json,
             cost_usd,wall_seconds,gpu,group_slug,group_name,trial_label,
-            constraint_json,board_visible,exclusion_reason,part)
+            constraint_json,board_visible,exclusion_reason,part,variant,
+            depth_note)
            VALUES (:slug,:name,:kind,:author,:model,:created_utc,:notes,
                    :provenance_json,:cost_usd,:wall_seconds,:gpu,:group_slug,
                    :group_name,:trial_label,:constraint_json,:board_visible,
-                   :exclusion_reason,:part)""",
+                   :exclusion_reason,:part,:variant,:depth_note)""",
         # `trial_n` is deliberately not settable here: it is a position within
         # a group and cannot be known until every member of the group has been
         # read. `assign_trial_numbers()` fills it once, at the end.
@@ -329,7 +330,8 @@ def add_submission(conn, **kw) -> int:
          "provenance_json": None, "cost_usd": None, "wall_seconds": None,
          "gpu": None, "group_slug": None, "group_name": None,
          "trial_label": None, "constraint_json": None, "board_visible": 1,
-         "exclusion_reason": None, "part": None, **kw})
+         "exclusion_reason": None, "part": None, "variant": None,
+         "depth_note": None, **kw})
     return cur.lastrowid
 
 
@@ -525,6 +527,17 @@ def ingest_variants(conn, manifest: dict, part: str) -> dict:
                    "scores exactly 0.5 there by construction. These are not agent "
                    "submissions and are not comparable to one."),
             provenance_json=json.dumps(prov),
+            variant=vname,
+            # Not "we failed to record this". A variant is one deterministic
+            # source transform, compiled and timed once by task 06: there are no
+            # rounds to plot and no tokens to bill. The generic fallbacks say
+            # "no trajectory was recorded", which reads as a gap in the harness
+            # and invites someone to go looking for the file. There is no file.
+            depth_note=("A reference variant is a single deterministic source "
+                        "transform, compiled and timed once by the task 06 sweep. "
+                        "There is no trajectory because nothing iterated, and no "
+                        "cost because no model was called — both are zero by "
+                        "construction, not unrecorded."),
             gpu="0 (authoritative) / 1-7 (sweep)",
             # The variants are the manifest's own timings, so their part is the
             # manifest's part by definition, not by inference.

@@ -465,14 +465,39 @@
 {{ reference }}</pre>
     </div>
   {% endif %}
-{% else %}
-  <p class="sub">No kernel was recorded for this submission on this problem.
-    {% if submission.kind == 'reference_variant' %}
-      Reference variants are source transforms of the problem's own reference,
-      not authored kernels &mdash; see the
-      <a href="{{ part_url('/problems/' ~ problem.key) }}">problem page</a> for
-      the reference and the anchor.
+{% elif own_variant %}
+  {# A variant has no authored kernel, but the code it executed is known
+     exactly: it is a deterministic transform of the reference, regenerated at
+     ingest from `reference/tb-candidates/variants.py` against this problem's
+     own reference. This pane used to be the "nothing was recorded" branch,
+     which was true of `kernel` and false of the page. #}
+  <p class="sub">Not an authored kernel. <code class="sm">{{ own_variant.variant }}</code>
+    is a deterministic source transform of this problem's reference &mdash; the
+    same transform the task 06 sweep compiled and timed
+    {% if own_variant.won_workloads %}
+      &mdash; and it is the fastest of the four on
+      <b>{{ own_variant.won_workloads }}</b> of this problem's workloads, so it
+      <b>anchors T<sub>b</sub></b> there and scores exactly 0.5 on them by
+      construction.
     {% endif %}</p>
+  <div class="tabs" data-tabs>
+    <button class="tab on" data-tab="k-own">{{ own_variant.variant }}</button>
+    {% if reference %}<button class="tab" data-tab="k-reference">reference</button>{% endif %}
+  </div>
+  {# Leading newline: see the note on the retime_error pane above. #}
+  <div class="tabpane on" id="k-own"><pre class="code sm" data-lang="python">
+{{ own_variant.source }}</pre></div>
+  {% if reference %}
+    <div class="tabpane" id="k-reference">
+      <p class="sub">What a submission must match numerically.</p>
+      <pre class="code sm" data-lang="python">
+{{ reference }}</pre>
+    </div>
+  {% endif %}
+  <p class="sub">{{ own_variant.n_lines }} lines &middot; regenerated from the
+    reference at ingest, not stored per submission</p>
+{% else %}
+  <p class="sub">No kernel was recorded for this submission on this problem.</p>
 {% endif %}
 
 {# ------------------------------------------------------------- trajectory #}

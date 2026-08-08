@@ -926,6 +926,25 @@ def run_detail(conn, slug: str, key: str) -> dict:
             variants.append({"variant": vname, "source": row["source"],
                              "n_lines": row["n_lines"], "won_workloads": n})
 
+    # What THIS submission ran, when it is a reference variant. Distinct from
+    # `variants` above, which is "whichever transforms won T_b here" and is the
+    # same list for every viewer of this problem. A variant row has no `kernel`
+    # -- nothing was authored -- but the code it executed is not therefore
+    # unknown, and the pane used to say it was.
+    own_variant = None
+    if s.get("variant"):
+        row = conn.execute(
+            "SELECT source, n_lines FROM variant_source "
+            "WHERE problem_key=? AND variant=?", (key, s["variant"])).fetchone()
+        if row:
+            own_variant = {"variant": s["variant"], "source": row["source"],
+                           "n_lines": row["n_lines"],
+                           # Whether this transform is also the anchor here. If
+                           # it is, the score is 0.5 by construction, and saying
+                           # so on the page it is visible from is cheaper than
+                           # having a reader rediscover it.
+                           "won_workloads": won.get(s["variant"], 0)}
+
     traj = rows(conn, """
         SELECT n, utc, minutes_in, ok, all_passed, passed, workloads,
                geomean_speedup, mean_score, kernel_sha, kernel_lines
@@ -952,6 +971,7 @@ def run_detail(conn, slug: str, key: str) -> dict:
         # run a part whether or not anything says so.
         "part": s.get("part"),
         "kernel": dict(kernel) if kernel else None,
+        "own_variant": own_variant,
         "variants": variants,
         "reference": p.get("reference"),
         "trajectory": traj,

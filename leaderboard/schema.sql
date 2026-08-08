@@ -125,7 +125,15 @@ CREATE TABLE submission (
     -- writes a value here that disagrees with `meta.part`, or a NULL: a run
     -- whose re-time provenance names another part, or names none, is refused
     -- outright rather than landing unmarked in the wrong part's board.
-    part            TEXT
+    part            TEXT,
+    -- Which `reference/tb-candidates/variants.py` transform this row IS, for
+    -- kind='reference_variant'; NULL for everything else. Not parsed back out
+    -- of the slug: `baseline-v3-compile-max-autotune` -> `v3_compile_max_autotune`
+    -- happens to round-trip today, and a variant named with a hyphen would
+    -- silently resolve to a DIFFERENT variant's source in the pane that shows
+    -- "what this submission ran". Carrying the name is cheaper than the class
+    -- of bug where the page shows real code belonging to someone else.
+    variant         TEXT
 );
 
 CREATE TABLE result (

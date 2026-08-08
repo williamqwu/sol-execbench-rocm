@@ -81,9 +81,18 @@ WORKLOADS = [
 GROUP = ("agent-trials", "Fixture-Agent · sandbox harness")
 
 SUBMISSIONS = [
+    # `variant` is deliberately NOT derivable from this slug: the production
+    # slug is `baseline-v1-eager` and a lookup that reconstructs the name from
+    # the slug would fail here loudly, rather than in production silently by
+    # showing another transform's real source.
     dict(slug="ref-v1-eager", name="eager PyTorch", kind="reference_variant",
          created_utc="2026-01-01T00:00:00+00:00", board_visible=1,
-         part="MI350X", model=None),
+         part="MI350X", model=None, variant="v1_eager",
+         depth_note="A reference variant is a single deterministic source "
+                    "transform, compiled and timed once by the task 06 sweep. "
+                    "There is no trajectory because nothing iterated, and no "
+                    "cost because no model was called — both are zero by "
+                    "construction, not unrecorded."),
     dict(slug="agent-alpha", name="Agent Alpha", kind="agent", model="fixture-1",
          created_utc="2026-02-01T00:00:00+00:00", board_visible=1,
          part="MI350X"),
@@ -238,7 +247,7 @@ def build_fixture_db(path: Path, part: str = "MI350X") -> Path:
     for s in SUBMISSIONS:
         cols = ["slug", "name", "kind", "model", "created_utc", "board_visible",
                 "part", "exclusion_reason", "group_slug", "group_name",
-                "trial_label", "trial_n", "constraint_json", "depth_note",
+                "trial_label", "trial_n", "constraint_json", "depth_note", "variant",
                 "provenance_json", "cost_usd", "wall_seconds", "gpu"]
         row = {c: s.get(c) for c in cols}
         row["provenance_json"] = json.dumps({"part": s.get("part")})
@@ -282,6 +291,14 @@ def build_fixture_db(path: Path, part: str = "MI350X") -> Path:
     conn.execute(
         """INSERT INTO variant_source (problem_key, variant, source, n_lines)
            VALUES ('L1__001_alpha', 'v1_eager', 'def alpha(x):\n    return x + 1\n', 2)""")
+    # A second transform of the SAME problem. Without it, a lookup that ignores
+    # the variant entirely -- "any source for this problem" -- passes every
+    # assertion about the pane while being wrong in exactly the way that
+    # matters. One row cannot distinguish the right answer from no lookup.
+    conn.execute(
+        """INSERT INTO variant_source (problem_key, variant, source, n_lines)
+           VALUES ('L1__001_alpha', 'v2_compile',
+                   'def alpha(x):\n    return torch.compile(x) + 1\n', 2)""")
     conn.commit()
     conn.close()
     return path

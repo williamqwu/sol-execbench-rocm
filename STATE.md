@@ -1240,6 +1240,42 @@ Any problem whose evaluation legitimately needs more than twenty minutes was
 unscoreable before this, silently. `FI__014` is the only one found so far, but
 it was found by accident.
 
+### D34 — the four baselines' pages said their code was not recorded
+
+Every reference-variant problem page — 880 of them — rendered "No kernel was
+recorded for this submission on this problem", plus the generic "no trajectory
+was recorded" and "no per-problem cost was recorded". All three read as gaps in
+what the harness captured. None of them was.
+
+The source *is* recorded: `variant_source` holds 1,175 rows, five transforms ×
+235 problems, regenerated at ingest from each problem's own reference. The pane
+was gated on `kernel`, which a variant has no row in because nothing was
+authored, so it collapsed to the fallback while the code sat one query away.
+`variants` in the same handler was no help — it lists whichever transforms won
+T_b *on this problem*, which is the same list for every viewer of the page and
+answers a different question than "what did this submission run".
+
+Fixed by resolving the submission's own transform. The lookup goes through a new
+`submission.variant` column rather than reconstructing the name from the slug:
+`baseline-v3-compile-max-autotune → v3_compile_max_autotune` happens to
+round-trip today, and the failure mode when it stops is that the page shows a
+*different* transform's real, valid, correctly-highlighted code. That is not
+detectable by reading the page. The test fixture's slug is deliberately
+`ref-v1-eager`, which does not round-trip, so a slug-derived lookup fails in CI
+instead of shipping.
+
+Where a variant is also the T_b anchor on some of a problem's workloads, the
+pane now says so and says that those workloads score exactly 0.5 by
+construction — the number on these pages most likely to be misread as a result.
+
+The trajectory and cost sections get a `depth_note` instead of the fallbacks: a
+variant is one deterministic transform compiled and timed once, so there is no
+trajectory because nothing iterated and no cost because no model was called.
+Zero by construction, not unrecorded. Same distinction `depth_note` was added
+for, applied to the submissions that needed it most and had it least.
+
+`tests/leaderboard/test_variant_source_pane.py`, 5 checks. Suite 115 → 120.
+
 ### D31 — the first near-full-benchmark agent run, and 7 more bad bounds
 
 `agent-glm-sweep-2`: **192 of 220 scoreable problems**, GLM-5.2 driven by
