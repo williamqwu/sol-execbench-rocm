@@ -1,0 +1,696 @@
+{
+ "_provenance": {
+  "task": "10-agent-scored",
+  "utc": "2026-08-04T22:16:50.619958+00:00",
+  "git_sha": "e1241b7e1e44cdbf490de2b538a8a5fdb190a872-dirty",
+  "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+  "python": "3.11.7",
+  "torch": {
+   "available": false
+  },
+  "rocm": {
+   "version": "7.15.0",
+   "driver": "7.1.1.31500000",
+   "amd_smi": "AMDSMI Tool: 26.5.0+03d8462e | AMDSMI Library version: 26.5.0 | ROCm version: 7.15.0 | amdgpu version: 7.1.1.31500000 | ionic version: N/A"
+  },
+  "f_lock_mhz": null,
+  "visible_devices": null
+ },
+ "run_id": "opus5-budget100",
+ "model": "Claude-Opus-5",
+ "display_name": "Claude Code agent (Opus 5, $100/problem)",
+ "author": "claude-code",
+ "notes": "Pilot over 4 problems, selected by stratified sample across category and headroom. Agents optimized on GPUs [1, 2, 3, 4]; every score here is a re-time on an idle GPU 0 at 50 iterations, the same settings T_b was measured at. Coverage is deliberately partial -- this is a cost study, not a full-benchmark submission.",
+ "leaderboard": true,
+ "authoritative_gpu": 0,
+ "iterations": 50,
+ "warmup": 10,
+ "total_cost_usd": 249.58173674999995,
+ "wall_seconds_total": 8930.689949035645,
+ "retime_seconds": 73.78074669837952,
+ "per_problem": {
+  "L1__030_attention_output_projection_with_residual": {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "gpu": 0,
+   "kernel_unchanged_from_reference": false,
+   "kernel_saved": "/home/qinwu/dev/solbench-dev/test_opus_0804/opus5-budget100/kernels/L1__030_attention_output_projection_with_residual.py",
+   "ok": true,
+   "error": null,
+   "bound_violations": 0,
+   "workloads": 16,
+   "passed": 16,
+   "scored": 16,
+   "flagged": 0,
+   "geomean_speedup": 1.1910549116941134,
+   "stderr_tail": null
+  },
+  "L1__046_attention_softmax_with_softcapping_and_dropout": {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "gpu": 0,
+   "kernel_unchanged_from_reference": false,
+   "kernel_saved": "/home/qinwu/dev/solbench-dev/test_opus_0804/opus5-budget100/kernels/L1__046_attention_softmax_with_softcapping_and_dropout.py",
+   "ok": true,
+   "error": null,
+   "bound_violations": 0,
+   "workloads": 16,
+   "passed": 16,
+   "scored": 16,
+   "flagged": 0,
+   "geomean_speedup": 4.236090808396149,
+   "stderr_tail": null
+  },
+  "L2__050_vae_decoder_mid_block_attention_resnet": {
+   "problem": "L2__050_vae_decoder_mid_block_attention_resnet",
+   "gpu": 0,
+   "kernel_unchanged_from_reference": false,
+   "kernel_saved": "/home/qinwu/dev/solbench-dev/test_opus_0804/opus5-budget100/kernels/L2__050_vae_decoder_mid_block_attention_resnet.py",
+   "ok": true,
+   "error": null,
+   "bound_violations": 0,
+   "workloads": 11,
+   "passed": 11,
+   "scored": 11,
+   "flagged": 0,
+   "geomean_speedup": 1.0417607793444554,
+   "stderr_tail": null
+  },
+  "Quant__004_fp8_moe_expert_linear": {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "gpu": 0,
+   "kernel_unchanged_from_reference": false,
+   "kernel_saved": "/home/qinwu/dev/solbench-dev/test_opus_0804/opus5-budget100/kernels/Quant__004_fp8_moe_expert_linear.py",
+   "ok": true,
+   "error": null,
+   "bound_violations": 0,
+   "workloads": 16,
+   "passed": 16,
+   "scored": 16,
+   "flagged": 0,
+   "geomean_speedup": 11.021818650907914,
+   "stderr_tail": null
+  }
+ },
+ "results": [
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "73a42d0a-10f7-5d89-899f-c783f1a56e73",
+   "status": "PASSED",
+   "latency_ms": 0.1393205001950264,
+   "score": 0.5754439070253875,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "a38a3e91-9961-563f-beac-a6609a7af8f0",
+   "status": "PASSED",
+   "latency_ms": 0.029539999552071095,
+   "score": 0.5500787306239056,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "4fd0eace-d7cf-5db3-ab4d-1f87d5cae75d",
+   "status": "PASSED",
+   "latency_ms": 0.13922049850225449,
+   "score": 0.5762638959003185,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "3493d75e-bd08-51db-bdc6-d3bb9b8d20e4",
+   "status": "PASSED",
+   "latency_ms": 0.04812050051987171,
+   "score": 0.55594957127848,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "7882ceec-15e5-5550-bc7a-c654534e8ed8",
+   "status": "PASSED",
+   "latency_ms": 0.07802100107073784,
+   "score": 0.5559687889307028,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "a3d86f51-1602-52d5-b98b-680fba482606",
+   "status": "PASSED",
+   "latency_ms": 0.07806049659848213,
+   "score": 0.59122532705964,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "8875e22c-2dda-53fc-a141-fce38361965c",
+   "status": "PASSED",
+   "latency_ms": 0.13126099854707718,
+   "score": 0.5906858571070902,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "bdf82911-b9ff-50ca-9bd3-ea97111d38ec",
+   "status": "PASSED",
+   "latency_ms": 0.07862050086259842,
+   "score": 0.5496974448459507,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "3eef4227-00b2-56f6-88fc-c298fd6d1939",
+   "status": "PASSED",
+   "latency_ms": 0.13920100033283234,
+   "score": 0.5871118577697051,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "90b9db2a-da1c-5aec-8817-0c6d11821bc6",
+   "status": "PASSED",
+   "latency_ms": 0.13954100012779236,
+   "score": 0.5858640925189466,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "e896226e-74ab-5808-b0aa-4140d14ebfce",
+   "status": "PASSED",
+   "latency_ms": 0.07838099822402,
+   "score": 0.5602164760457435,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "fc337b24-5955-55cf-97fe-eba866f47d81",
+   "status": "PASSED",
+   "latency_ms": 0.03768099844455719,
+   "score": 0.5552735674261298,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "bd36a55a-095b-5cba-aade-d599546e4e1a",
+   "status": "PASSED",
+   "latency_ms": 0.053199999034404755,
+   "score": 0.5489966622867547,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "749ab67c-0be4-5b49-afb2-8a0ff296171c",
+   "status": "PASSED",
+   "latency_ms": 0.031040499918162823,
+   "score": 0.5638569827584595,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "40c35ccb-3e78-5071-8d0c-2a620a9bda03",
+   "status": "PASSED",
+   "latency_ms": 0.05350100062787533,
+   "score": 0.5471426477998819,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "workload_uuid": "7194f7ab-2a2e-57e3-bb5a-0aa6e5081c12",
+   "status": "PASSED",
+   "latency_ms": 0.02191999927163124,
+   "score": 0.557731326155197,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "97d0ec27-98db-5e78-8664-ef6481b18e71",
+   "status": "PASSED",
+   "latency_ms": 0.013900499790906906,
+   "score": 0.537412468908306,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "fd8328a4-ae2f-5238-ac6c-11e9781c3e72",
+   "status": "PASSED",
+   "latency_ms": 0.016039999201893806,
+   "score": 0.587143252777921,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "115a136c-af1d-5b36-bd6f-193ddcb0e763",
+   "status": "PASSED",
+   "latency_ms": 0.08770100027322769,
+   "score": 0.6956242914920603,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "6e3212b4-fdea-5a7a-8502-62f50d66f407",
+   "status": "PASSED",
+   "latency_ms": 0.007840000092983246,
+   "score": 0.5,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "cf6c9efc-cd1d-5e90-af22-90fb5a7b27b2",
+   "status": "PASSED",
+   "latency_ms": 0.016359999775886536,
+   "score": 0.5823942744961182,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "aebacea0-616a-5842-a949-1324ccc5bf8c",
+   "status": "PASSED",
+   "latency_ms": 0.008940000087022781,
+   "score": 0.5402061922177038,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "bd251d2c-ab05-56af-bf0f-e5bf74bef47f",
+   "status": "PASSED",
+   "latency_ms": 0.0163199994713068,
+   "score": 0.5840458134619602,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "f6559828-ee2b-5335-b4e4-046b77bb2b4d",
+   "status": "PASSED",
+   "latency_ms": 0.01140000019222498,
+   "score": 0.5678293152787562,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "630cf7db-3fd5-5eec-913a-69c6c45eb275",
+   "status": "PASSED",
+   "latency_ms": 0.008340500295162201,
+   "score": 0.7784418980182474,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "6f6c88a2-2634-50dc-9666-22b8168abb80",
+   "status": "PASSED",
+   "latency_ms": 0.0081599997356534,
+   "score": 0.7883221118747038,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "9ca7c546-41d3-511a-9511-6f4051290bf4",
+   "status": "PASSED",
+   "latency_ms": 0.04772049933671951,
+   "score": 0.8727081958430618,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "dd9ca90a-c23a-59a4-8c24-637b12214ead",
+   "status": "PASSED",
+   "latency_ms": 0.01131999958306551,
+   "score": 0.8352706862920188,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "d9623bb2-ad6e-5ca8-ba69-76eff0dc123e",
+   "status": "PASSED",
+   "latency_ms": 0.00863999966531992,
+   "score": 0.8229002254527186,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "771fa16f-2864-52b7-aaa4-5cc15bd34beb",
+   "status": "PASSED",
+   "latency_ms": 0.02703999914228916,
+   "score": 0.8540657432419103,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "eb23012a-28e7-598d-90f0-d490b4a835ab",
+   "status": "PASSED",
+   "latency_ms": 0.04768049903213978,
+   "score": 0.8721683436793031,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L1__046_attention_softmax_with_softcapping_and_dropout",
+   "workload_uuid": "143dcd26-67fb-55ba-b7de-83db4c085c5f",
+   "status": "PASSED",
+   "latency_ms": 0.02648050058633089,
+   "score": 0.8565346804766302,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L2__050_vae_decoder_mid_block_attention_resnet",
+   "workload_uuid": "d608b56d-e6e3-5275-96e8-802c80ffb22f",
+   "status": "PASSED",
+   "latency_ms": 0.6406674981117249,
+   "score": 0.5152315725389269,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L2__050_vae_decoder_mid_block_attention_resnet",
+   "workload_uuid": "d181fa9d-4b08-5a19-84f8-3fc26b17d51b",
+   "status": "PASSED",
+   "latency_ms": 2.1093034744262695,
+   "score": 0.5174635778314359,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L2__050_vae_decoder_mid_block_attention_resnet",
+   "workload_uuid": "8af99a9e-14e3-5ad9-9865-6de2144c7af5",
+   "status": "PASSED",
+   "latency_ms": 3.7231619358062744,
+   "score": 0.5316230051860891,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L2__050_vae_decoder_mid_block_attention_resnet",
+   "workload_uuid": "67bdd5bc-731d-5c1c-b384-bd768f74bb29",
+   "status": "PASSED",
+   "latency_ms": 1.4009159803390503,
+   "score": 0.5194328898663525,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L2__050_vae_decoder_mid_block_attention_resnet",
+   "workload_uuid": "329c5f2b-ec85-5ccd-95dc-1cac079cdbb6",
+   "status": "PASSED",
+   "latency_ms": 5.400240898132324,
+   "score": 0.5990356518153727,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L2__050_vae_decoder_mid_block_attention_resnet",
+   "workload_uuid": "89fa03a1-f06a-5f91-a427-62ab3bbb60a3",
+   "status": "PASSED",
+   "latency_ms": 0.8410900235176086,
+   "score": 0.5001775582952804,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L2__050_vae_decoder_mid_block_attention_resnet",
+   "workload_uuid": "3f3523b9-7a33-5ad9-a697-2cdabb19d2b2",
+   "status": "PASSED",
+   "latency_ms": 2.889374017715454,
+   "score": 0.5283032058923519,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L2__050_vae_decoder_mid_block_attention_resnet",
+   "workload_uuid": "8916df95-f4b3-5f61-809a-a6a7c3939805",
+   "status": "PASSED",
+   "latency_ms": 10.385279178619385,
+   "score": 0.6377133993169837,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L2__050_vae_decoder_mid_block_attention_resnet",
+   "workload_uuid": "f009abdb-585e-590b-b599-1c3d73e4e6b6",
+   "status": "PASSED",
+   "latency_ms": 3.891014575958252,
+   "score": 0.5159502022401793,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L2__050_vae_decoder_mid_block_attention_resnet",
+   "workload_uuid": "2920653f-ef5e-5f4d-9631-95050069a95a",
+   "status": "PASSED",
+   "latency_ms": 1.7618250250816345,
+   "score": 0.5178058906905034,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "L2__050_vae_decoder_mid_block_attention_resnet",
+   "workload_uuid": "706585da-edb6-5cf5-b64e-1cd78f3ccca6",
+   "status": "PASSED",
+   "latency_ms": 0.4730064868927002,
+   "score": 0.5480574983210184,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "33e16dec-280a-592c-9c8d-edafedacd256",
+   "status": "PASSED",
+   "latency_ms": 0.23136400431394577,
+   "score": 0.9568900226530139,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "c734d4ae-439e-585f-a844-d24cbbc8c285",
+   "status": "PASSED",
+   "latency_ms": 0.21800349652767181,
+   "score": 0.9350990173896194,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "1a2d6c14-8905-5d17-90ff-3c836da578a8",
+   "status": "PASSED",
+   "latency_ms": 0.12404249981045723,
+   "score": 0.9361658866460454,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "31856bae-d378-581b-9b0e-cdc02fbabe56",
+   "status": "PASSED",
+   "latency_ms": 0.10370149835944176,
+   "score": 0.9436693126296076,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "b90579c8-e837-52ea-864c-c04ffa53aee4",
+   "status": "PASSED",
+   "latency_ms": 0.2207840010523796,
+   "score": 0.9435032918314642,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "3df315d0-f8fe-50d0-8d8d-bc04be3a58aa",
+   "status": "PASSED",
+   "latency_ms": 0.23756449669599533,
+   "score": 0.9582837516434702,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "96c28270-22d8-5d72-8b6f-2540f6b67777",
+   "status": "PASSED",
+   "latency_ms": 0.09924200177192688,
+   "score": 0.9262114515200522,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "6f9bff43-6e3d-5073-8377-e797d839ef05",
+   "status": "PASSED",
+   "latency_ms": 0.1385824978351593,
+   "score": 0.952512949315773,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "0278bef5-9626-5f75-bb27-7f2bf7d8105f",
+   "status": "PASSED",
+   "latency_ms": 0.14318300038576126,
+   "score": 0.9574205373792126,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "96eef4dc-3410-5322-8cc5-c7d5429a5b91",
+   "status": "PASSED",
+   "latency_ms": 0.14248300343751907,
+   "score": 0.9546781039812571,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "852b2dcb-1430-5fc2-8f39-24cdb29afb3d",
+   "status": "PASSED",
+   "latency_ms": 0.1356625035405159,
+   "score": 0.9443487782297926,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "389b3a9b-b53f-5683-9635-4bc23421e6bb",
+   "status": "PASSED",
+   "latency_ms": 0.09466199949383736,
+   "score": 0.9107131451680869,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "15324639-b3a9-598f-8e09-09d36b748410",
+   "status": "PASSED",
+   "latency_ms": 0.19636300206184387,
+   "score": 0.9370306290635471,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "d80ea601-5442-5da2-a317-207b889a64e1",
+   "status": "PASSED",
+   "latency_ms": 0.10250150039792061,
+   "score": 0.938897206888383,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "2603a343-224d-5852-93a3-338e8e1ee7c7",
+   "status": "PASSED",
+   "latency_ms": 0.23902449756860733,
+   "score": 0.9635052400097756,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  },
+  {
+   "problem": "Quant__004_fp8_moe_expert_linear",
+   "workload_uuid": "c0a8c48d-93ce-5a4b-a1f6-20d970b3c901",
+   "status": "PASSED",
+   "latency_ms": 0.2224234938621521,
+   "score": 0.94887923238179,
+   "flagged": false,
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
+  }
+ ],
+ "summary": {
+  "problems": 4,
+  "workloads_scored": 59,
+  "workloads_flagged": 0,
+  "workloads_bound_violated": 0,
+  "problems_with_invalid_bound": [],
+  "mean_score": 0.7011047057249002,
+  "mean_score_including_invalid_bounds": 0.7011047057249002,
+  "min_score": 0.5,
+  "max_score": 0.9635052400097756
+ }
+}

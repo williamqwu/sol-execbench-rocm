@@ -177,15 +177,21 @@
        thing the copy button is ever allowed to hand over. */
     var raw = pre.textContent;
 
+    /* A trailing newline ends the last line, it does not begin another. The
+       gutter used to drop it and the body used to keep it, which is the same
+       off-by-one twice, in opposite directions: a numberless blank line at the
+       foot of every pane in the corpus, since every source but 26 of 1,660
+       ends in \n. Strip it once, here, and both sides are built from the same
+       string. `raw` keeps its newline -- that is the file, and it is what the
+       copy button hands over; a source that arrives on the clipboard without
+       its final newline is a diff nobody asked for. */
+    var shown = raw.replace(/\n$/, "");
+
     var lang = (pre.getAttribute("data-lang") || "text").toLowerCase();
     var rules = LANGS[lang] || null;
-    var body = rules ? tokenize(raw, rules) : esc(raw);
+    var body = rules ? tokenize(shown, rules) : esc(shown);
 
-    var lines = raw.split("\n");
-    /* A trailing newline ends the last line, it does not begin another -- an
-       off-by-one here puts a number opposite nothing at the bottom of every
-       pane. */
-    if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();
+    var lines = shown.split("\n");
     var gutter = lines.map(function (_, i) { return i + 1; }).join("\n");
 
     pre.classList.add("has-ln");
