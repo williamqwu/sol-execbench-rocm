@@ -16,6 +16,10 @@
      5.68:1. One value for both themes, because the fill is white-on-red in
      both and a token that changes would be two ratios to keep true. */
   --accent-fill:#cc1520;
+  /* The sticky header's full height, border included. Read by the
+     section nav's sticky offset and by every anchor's scroll-margin.
+     Overridden at the phone breakpoint, where the header wraps. */
+  --headh:59px;
 }
 
 html[data-theme="dark"]{
@@ -79,6 +83,13 @@ html[data-theme="light"]{
 }
 
 *{box-sizing:border-box}
+/* Mobile Safari and Chrome inflate the font of any block they judge to be the
+   main text column, independently per block, when the page is rotated to
+   landscape. On a page whose numbers are meant to line up in a monospace
+   column that is not a convenience, it is two columns of a table disagreeing
+   about how tall a row is. The breakpoint below sets the sizes; this stops the
+   browser from having a second opinion. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 html,body{margin:0;padding:0}
 body{background:var(--bg);color:var(--fg);font:15px/1.55 var(--sans);
   -webkit-font-smoothing:antialiased;
@@ -171,13 +182,18 @@ html[data-theme="light"] .i-moon{display:block}
   grid-template-columns:clamp(9.5rem,15vw,14rem) minmax(0,1fr);
   gap:clamp(20px,3vw,38px);align-items:start}
 .main.withnav .maincol{min-width:0}
-/* 59px is the sticky header: 58px of `header .wrap` plus its 1px border. Both
+/* `--headh` is the sticky header: `header .wrap` plus its 1px border. Both
    offsets here and the `scroll-margin-top` below are derived from it, because a
    nav that sticks at 0 slides under the header and a heading that scrolls to 0
    lands behind it -- the second is the one nobody notices, since the section
-   does arrive, just with its title hidden. */
-.sidenav{position:sticky;top:calc(59px + 18px);overflow:auto;padding-top:4px;
-  max-height:calc(100vh - 59px - 36px)}
+   does arrive, just with its title hidden.
+   It is a variable and not the literal 59px it used to be because the header
+   is a fixed 58px row only while it fits on one line. On a phone it wraps to
+   two, and three hardcoded 59s then point at a height that no longer exists --
+   so every in-page anchor lands with its heading behind the header, on the one
+   viewport where an anchor is the main way anybody navigates. */
+.sidenav{position:sticky;top:calc(var(--headh) + 18px);overflow:auto;padding-top:4px;
+  max-height:calc(100vh - var(--headh) - 36px)}
 /* Stated, not inherited. This element is a <nav> and the header's rules used to
    reach it; they are scoped now, but the sidenav should not depend on that
    staying true -- a landmark element attracts element selectors. */
@@ -191,7 +207,7 @@ html[data-theme="light"] .i-moon{display:block}
 /* :target covers the JS-off case -- click an entry and the section it points at
    is marked. `.on` is what the scroll spy in base.html sets while reading. */
 .sidenav a.on{color:var(--fg);border-left-color:var(--accent);background:var(--panel)}
-.maincol [id]{scroll-margin-top:calc(59px + 14px)}
+.maincol [id]{scroll-margin-top:calc(var(--headh) + 14px)}
 @media (max-width:1080px){
   /* Below this the two columns leave the tables too narrow to be worth it, so
      the nav goes inline above the content rather than shrinking further.
@@ -326,7 +342,7 @@ th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);verti
    `.scroll{overflow-x:auto}` (needed for wide bound tables) both did. Sticky
    is therefore opted out of inside them, just below. */
 th{color:var(--dim);font-weight:500;font-size:12px;text-transform:uppercase;
-  letter-spacing:.4px;white-space:nowrap;position:sticky;top:58px;
+  letter-spacing:.4px;white-space:nowrap;position:sticky;top:var(--headh);
   background:var(--bg);z-index:5}
 .board th,.scroll th{position:static}
 td.r,th.r{text-align:right}
@@ -688,14 +704,81 @@ time.localtime.localized{border-bottom:1px dotted var(--line2);cursor:help}
 @media (max-width:900px){
   .two{grid-template-columns:1fr}
   header .wrap{gap:12px}
-  nav{gap:0}
-  nav a{padding:6px 8px;font-size:13px}
+  /* `header nav`. The bare `nav{}` that lived here is the D32 cascade bug
+     surviving inside a media query: the top-level rules were scoped and these
+     two were missed, so below 900px the section nav went back to inheriting
+     the header's spacing. A scoped selector and an unscoped copy of it is
+     worse than never having scoped it, because the page looks fixed. */
+  header nav{gap:0}
+  header nav a{padding:6px 8px;font-size:13px}
   .part-pill{display:none}
   /* The switch stays -- which dataset is on screen is not a detail that can be
      dropped on a narrow window. Only the count goes. */
   .partswitch .p-n{display:none}
   .window{gap:14px}
 }
+
+/* ------------------------------------------------------------------ phone */
+/* Below this the header cannot hold a wordmark, a part switch and four nav
+   links on one 58px line, and every table is wider than the viewport. The two
+   failures compound: the header wraps, the 58px assumption behind `--headh`
+   stops being true, and in-page anchors start landing behind it.
+   Everything here is layout and hit-area. No number, label or column is
+   dropped: a phone reader gets the same board, scrolled, not a summary of it
+   that quietly disagrees with the desktop one. */
+@media (max-width:640px){
+  /* Two rows: wordmark + part switch, then the nav. Stated as a height so
+     `--headh` can be exact rather than a guess -- `auto` would be honest and
+     unusable, because nothing can read it back. */
+  :root{--headh:105px}
+  header .wrap{flex-wrap:wrap;height:auto;padding-top:8px;padding-bottom:8px;
+    gap:8px 12px;row-gap:6px}
+  header nav{width:100%;margin-left:0;justify-content:space-between;gap:0}
+  /* 44px is the smallest reliably tappable target. The desktop padding gives
+     about 28px, which on a phone is a link you miss and then miss again. */
+  header nav a{padding:9px 10px;min-height:44px;display:flex;align-items:center}
+  .brand{font-size:15px}
+  .partswitch .part-opt{min-height:38px;display:flex;flex-direction:column;
+    justify-content:center}
+  .wrap{padding:0 14px}
+  h1{font-size:22px}
+  h1.mono{font-size:17px;word-break:break-word}
+  h2{font-size:15px;margin-top:28px}
+  body{font-size:14px}
+  /* iOS zooms the whole page in when a focused input's text is under 16px, and
+     it does not zoom back out on blur. The search box is the only input on the
+     board, so this is one rule between a reader and a viewport they have to
+     pinch their way out of. */
+  .filters input[type=search]{font-size:16px;min-width:0;width:100%}
+  .filters{gap:6px}
+  .chip,.filters button{min-height:38px;display:inline-flex;align-items:center}
+  .scopeswitch{width:100%}
+  .scopeswitch .scope-opt{flex:1 1 0;min-height:44px;padding:8px 10px;
+    white-space:normal}
+  /* The bar is the row's headline on a phone and 230px of a 390px screen is
+     most of it. Narrower here, and still the same four segments in the same
+     order over the same 220 problems. */
+  .covbar-cell{min-width:150px;width:auto}
+  .covlegend{gap:7px;flex-wrap:wrap}
+  .cards{grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px}
+  .window{gap:12px}
+  .window .w{min-width:120px}
+  .tabs{gap:4px}
+  .tab{min-height:38px}
+  /* A pane that is 11.5px on a desktop is 11.5px on a phone, and a kernel is
+     the one thing on this site nobody wants reflowed or shrunk. It keeps its
+     size and scrolls, like the tables. */
+  pre.code{padding:12px 13px}
+  .codewrap .copy{opacity:1}
+  footer .wrap{flex-direction:column;gap:8px}
+}
+
+/* Every table on this site is inside `.scroll`, which is what makes a phone
+   able to reach a column that does not fit. Momentum scrolling is the part
+   that makes it feel like the page rather than a trapped box, and the
+   `overscroll-behavior` stops a fling at the end of a wide table from also
+   scrolling the page out from under the reader. */
+.scroll{-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
 
 /* Forced-colours mode replaces every background and border with the user's own
    palette, which erases the ramp entirely. The five states survive it because

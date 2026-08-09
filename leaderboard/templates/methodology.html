@@ -19,6 +19,7 @@
 <p>T<sub>SOL</sub> is computed in cycles, which is architectural and therefore
    independent of the clock, then divided by F<sub>LOCK</sub> = {{ meta.f_lock_mhz }} MHz.
    Two derivations run independently and are combined with <code>max</code>:</p>
+<div class="scroll">
 <table class="grid">
   <thead><tr><th>bound source</th><th class="r">workloads</th><th>meaning</th></tr></thead>
   <tbody>
@@ -36,11 +37,13 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 <p class="sub">A derivation that produced a bound <i>slower</i> than a time actually
    measured is self-refuting, so it is rejected rather than averaged in. That
    rejection is recorded per workload rather than smoothed away.</p>
 
 <h2 id="measured">What is measured, and on what</h2>
+<div class="scroll">
 <table class="grid">
   <tbody>
     <tr><td>device</td><td class="mono">{{ meta.device }} &times; {{ meta.n_devices }}</td></tr>
@@ -52,6 +55,7 @@
     <tr><td>tolerances</td><td class="mono">derived on this hardware from reference-vs-reference variance; no NVIDIA constants</td></tr>
   </tbody>
 </table>
+</div>
 
 <h2 id="coverage">Coverage</h2>
 <p>{{ meta.scoreable_problems }} of {{ meta.total_problems }} problems are scoreable in
@@ -65,6 +69,7 @@
    attempted, and the <em>reference implementation itself</em> fails on ROCm
    before any submission is involved. That is why they show 0 scoreable
    workloads rather than a low score.</p>
+<div class="scroll">
 <table class="grid">
   <thead><tr><th>problem</th><th class="r">workloads</th><th>reason</th></tr></thead>
   <tbody>
@@ -79,6 +84,7 @@
   {% endfor %}
   </tbody>
 </table>
+</div>
 {% endif %}
 
 {% if excluded %}
@@ -87,12 +93,14 @@
    off the board because ranking them next to finished work would invite a
    comparison that is not there to be made &mdash; listed here rather than
    deleted, so the exclusion is auditable.</p>
+<div class="scroll">
 <table class="grid">
   <thead><tr><th>entry</th><th>why</th></tr></thead>
   <tbody>
   {% for k, v in excluded.items() %}<tr><td class="mono sm">{{ k }}</td><td class="sm">{{ v }}</td></tr>{% endfor %}
   </tbody>
 </table>
+</div>
 {% endif %}
 
 <h2 id="not-covered">What this board does not cover</h2>
@@ -139,6 +147,7 @@
    out ~15% slow on one problem and another was beaten by 0.3&ndash;1.3% on a
    bound with almost no headroom to begin with. Which applies to which is
    recorded in <code>STATE.md</code>, not inferred here.</p>
+<div class="scroll">
 <table class="grid">
   <thead><tr><th>problem</th><th class="r">workloads</th><th>headroom T<sub>b</sub>/T<sub>SOL</sub></th></tr></thead>
   <tbody>
@@ -149,6 +158,7 @@
   {% endfor %}
   </tbody>
 </table>
+</div>
 {% endif %}
 
 <h2 id="reading">Reading the leaderboard honestly</h2>
