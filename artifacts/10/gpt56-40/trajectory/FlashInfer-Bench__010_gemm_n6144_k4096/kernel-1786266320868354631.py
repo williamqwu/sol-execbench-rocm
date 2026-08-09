@@ -1,0 +1,7 @@
+import torch
+
+def run(A, B):
+    m = A.shape[0]
+    if m <= 32 or 48 <= m <= 64 or 88 <= m <= 128 or 200 <= m <= 224:
+        return torch.ops.aten.mm.default(B, A.T).T
+    return torch.ops.aten.mm.default(A, B.T)

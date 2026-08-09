@@ -1,0 +1,68 @@
+import torch
+import triton
+import triton.language as tl
+
+
+@triton.jit
+def _moe_mask_kernel(scores, masked, group_mask):
+    row = tl.program_id(0)
+    lane = tl.arange(0, 32)
+    base = row * 256
+
+    x0 = tl.load(scores + base + lane)
+    x1 = tl.load(scores + base + 32 + lane)
+    x2 = tl.load(scores + base + 64 + lane)
+    x3 = tl.load(scores + base + 96 + lane)
+    x4 = tl.load(scores + base + 128 + lane)
+    x5 = tl.load(scores + base + 160 + lane)
+    x6 = tl.load(scores + base + 192 + lane)
+    x7 = tl.load(scores + base + 224 + lane)
+
+    s0 = tl.sum(tl.topk(x0, 2), axis=0)
+    s1 = tl.sum(tl.topk(x1, 2), axis=0)
+    s2 = tl.sum(tl.topk(x2, 2), axis=0)
+    s3 = tl.sum(tl.topk(x3, 2), axis=0)
+    s4 = tl.sum(tl.topk(x4, 2), axis=0)
+    s5 = tl.sum(tl.topk(x5, 2), axis=0)
+    s6 = tl.sum(tl.topk(x6, 2), axis=0)
+    s7 = tl.sum(tl.topk(x7, 2), axis=0)
+
+    g = tl.arange(0, 8)
+    gs = tl.where(g == 0, s0, tl.where(g == 1, s1, tl.where(g == 2, s2, tl.where(g == 3, s3, tl.where(g == 4, s4, tl.where(g == 5, s5, tl.where(g == 6, s6, s7)))))))
+    cutoff = tl.min(tl.topk(gs, 4), axis=0)
+    n_greater = tl.sum((gs > cutoff).to(tl.int32), axis=0)
+    # Rank cutoff ties by group index, the same preference used by argmax.
+    eq = gs == cutoff
+    eq_row = tl.expand_dims(eq, 0)
+    group_row = tl.expand_dims(g, 0)
+    group_col = tl.expand_dims(g, 1)
+    tie_rank = tl.sum(eq_row & (group_row < group_col), axis=1)
+    gm = (gs > cutoff) | (eq & (tie_rank < 4 - n_greater))
+    tl.store(group_mask + row * 8 + g, gm.to(tl.float32))
+
+    mask_base = group_mask + row * 8
+    q0 = tl.load(mask_base + 0).to(tl.int1)
+    q1 = tl.load(mask_base + 1).to(tl.int1)
+    q2 = tl.load(mask_base + 2).to(tl.int1)
+    q3 = tl.load(mask_base + 3).to(tl.int1)
+    q4 = tl.load(mask_base + 4).to(tl.int1)
+    q5 = tl.load(mask_base + 5).to(tl.int1)
+    q6 = tl.load(mask_base + 6).to(tl.int1)
+    q7 = tl.load(mask_base + 7).to(tl.int1)
+    tl.store(masked + base + lane, tl.where(q0, x0, -float("inf")))
+    tl.store(masked + base + 32 + lane, tl.where(q1, x1, -float("inf")))
+    tl.store(masked + base + 64 + lane, tl.where(q2, x2, -float("inf")))
+    tl.store(masked + base + 96 + lane, tl.where(q3, x3, -float("inf")))
+    tl.store(masked + base + 128 + lane, tl.where(q4, x4, -float("inf")))
+    tl.store(masked + base + 160 + lane, tl.where(q5, x5, -float("inf")))
+    tl.store(masked + base + 192 + lane, tl.where(q6, x6, -float("inf")))
+    tl.store(masked + base + 224 + lane, tl.where(q7, x7, -float("inf")))
+
+
+@torch.no_grad()
+def run(scores: torch.Tensor):
+    rows = scores.shape[0]
+    masked = torch.empty_like(scores)
+    group_mask = torch.empty((rows, 8), device=scores.device, dtype=torch.float32)
+    _moe_mask_kernel[(rows,)](scores, masked, group_mask, num_warps=1)
+    return masked, group_mask

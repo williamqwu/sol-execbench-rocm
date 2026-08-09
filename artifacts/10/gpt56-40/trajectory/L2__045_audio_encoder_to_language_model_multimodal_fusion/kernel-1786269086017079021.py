@@ -1,0 +1,224 @@
+import torch
+import torch.nn.functional as F
+import math
+
+
+def get_inputs(axes_and_scalars: dict, device: torch.device) -> dict:
+    batch_size = axes_and_scalars["batch_size"]
+    audio_seq_len = axes_and_scalars["audio_seq_len"]
+    text_seq_len = axes_and_scalars["text_seq_len"]
+    num_audio_tokens = axes_and_scalars["num_audio_tokens"]
+    
+    encoder_input_dim = 80
+    encoder_hidden_dim = 512
+    encoder_output_dim = 1024
+    projector_hidden_size = 1024
+    num_queries = 40
+    text_hidden_size = 4096
+    
+    # Audio features
+    input_features = torch.randn(batch_size, audio_seq_len, encoder_input_dim, dtype=torch.bfloat16, device=device)
+    
+    # LM embeddings
+    lm_embeddings = torch.randn(batch_size, text_seq_len, text_hidden_size, dtype=torch.bfloat16, device=device)
+    
+    # Audio token positions - generate valid positions within text_seq_len
+    # Ensure positions are sorted and unique per batch
+    audio_token_positions = torch.zeros(batch_size, num_audio_tokens, dtype=torch.int64, device=device)
+    for b in range(batch_size):
+        positions = torch.randperm(text_seq_len, device=device)[:num_audio_tokens].sort().values
+        audio_token_positions[b] = positions
+    
+    # Encoder weights
+    encoder_input_weight = torch.randn(encoder_hidden_dim, encoder_input_dim, dtype=torch.bfloat16, device=device) * 0.02
+    encoder_input_bias = torch.zeros(encoder_hidden_dim, dtype=torch.bfloat16, device=device)
+    encoder_out_weight = torch.randn(encoder_output_dim, encoder_hidden_dim, dtype=torch.bfloat16, device=device) * 0.02
+    encoder_out_bias = torch.zeros(encoder_output_dim, dtype=torch.bfloat16, device=device)
+    encoder_out_mid_weight = torch.randn(encoder_hidden_dim, encoder_output_dim, dtype=torch.bfloat16, device=device) * 0.02
+    encoder_out_mid_bias = torch.zeros(encoder_hidden_dim, dtype=torch.bfloat16, device=device)
+    
+    # Q-Former weights
+    learnable_queries = torch.randn(1, num_queries, projector_hidden_size, dtype=torch.bfloat16, device=device) * 0.02
+    qformer_q_proj_weight = torch.randn(projector_hidden_size, projector_hidden_size, dtype=torch.bfloat16, device=device) * 0.02
+    qformer_q_proj_bias = torch.zeros(projector_hidden_size, dtype=torch.bfloat16, device=device)
+    qformer_k_proj_weight = torch.randn(projector_hidden_size, encoder_hidden_dim, dtype=torch.bfloat16, device=device) * 0.02
+    qformer_k_proj_bias = torch.zeros(projector_hidden_size, dtype=torch.bfloat16, device=device)
+    qformer_v_proj_weight = torch.randn(projector_hidden_size, encoder_hidden_dim, dtype=torch.bfloat16, device=device) * 0.02
+    qformer_v_proj_bias = torch.zeros(projector_hidden_size, dtype=torch.bfloat16, device=device)
+    qformer_out_proj_weight = torch.randn(projector_hidden_size, projector_hidden_size, dtype=torch.bfloat16, device=device) * 0.02
+    qformer_out_proj_bias = torch.zeros(projector_hidden_size, dtype=torch.bfloat16, device=device)
+    
+    # Projector weights
+    projector_weight = torch.randn(text_hidden_size, projector_hidden_size, dtype=torch.bfloat16, device=device) * 0.02
+    projector_bias = torch.zeros(text_hidden_size, dtype=torch.bfloat16, device=device)
+    
+    return {
+        "input_features": input_features,
+        "lm_embeddings": lm_embeddings,
+        "audio_token_positions": audio_token_positions,
+        "encoder_input_weight": encoder_input_weight,
+        "encoder_input_bias": encoder_input_bias,
+        "encoder_out_weight": encoder_out_weight,
+        "encoder_out_bias": encoder_out_bias,
+        "encoder_out_mid_weight": encoder_out_mid_weight,
+        "encoder_out_mid_bias": encoder_out_mid_bias,
+        "learnable_queries": learnable_queries,
+        "qformer_q_proj_weight": qformer_q_proj_weight,
+        "qformer_q_proj_bias": qformer_q_proj_bias,
+        "qformer_k_proj_weight": qformer_k_proj_weight,
+        "qformer_k_proj_bias": qformer_k_proj_bias,
+        "qformer_v_proj_weight": qformer_v_proj_weight,
+        "qformer_v_proj_bias": qformer_v_proj_bias,
+        "qformer_out_proj_weight": qformer_out_proj_weight,
+        "qformer_out_proj_bias": qformer_out_proj_bias,
+        "projector_weight": projector_weight,
+        "projector_bias": projector_bias,
+    }
+
+
+@torch.no_grad()
+def run(
+    input_features: torch.Tensor,
+    lm_embeddings: torch.Tensor,
+    audio_token_positions: torch.Tensor,
+    encoder_input_weight: torch.Tensor,
+    encoder_input_bias: torch.Tensor,
+    encoder_out_weight: torch.Tensor,
+    encoder_out_bias: torch.Tensor,
+    encoder_out_mid_weight: torch.Tensor,
+    encoder_out_mid_bias: torch.Tensor,
+    learnable_queries: torch.Tensor,
+    qformer_q_proj_weight: torch.Tensor,
+    qformer_q_proj_bias: torch.Tensor,
+    qformer_k_proj_weight: torch.Tensor,
+    qformer_k_proj_bias: torch.Tensor,
+    qformer_v_proj_weight: torch.Tensor,
+    qformer_v_proj_bias: torch.Tensor,
+    qformer_out_proj_weight: torch.Tensor,
+    qformer_out_proj_bias: torch.Tensor,
+    projector_weight: torch.Tensor,
+    projector_bias: torch.Tensor,
+):
+    batch_size = input_features.shape[0]
+    text_seq_len = lm_embeddings.shape[1]
+    num_audio_tokens = audio_token_positions.shape[1]
+    
+    encoder_hidden_dim = 512
+    projector_hidden_size = 1024
+    text_hidden_size = 4096
+    window_size = 15
+    num_queries = 40
+    qformer_num_heads = 16
+    head_dim = projector_hidden_size // qformer_num_heads
+    used_nblocks = math.ceil(num_audio_tokens / num_queries)
+    used_frames = used_nblocks * window_size
+    
+    # Stage 1: Encoder input projection
+    hidden_states = F.linear(
+        input_features[:, :used_frames].to(torch.float32),
+        encoder_input_weight.to(torch.float32),
+        encoder_input_bias.to(torch.float32)
+    )
+    
+    # Simulate mid-layer CTC feedback (simplified encoder processing)
+    hidden_states_mid = F.linear(
+        hidden_states,
+        encoder_out_weight.to(torch.float32),
+        encoder_out_bias.to(torch.float32)
+    )
+    softmax_out = F.softmax(hidden_states_mid, dim=-1)
+    feedback = F.linear(
+        softmax_out,
+        encoder_out_mid_weight.to(torch.float32),
+        encoder_out_mid_bias.to(torch.float32)
+    )
+    hidden_states = hidden_states + feedback
+    
+    encoder_output = hidden_states  # [batch_size, audio_seq_len, 512]
+    
+    # Stage 2: Windowed Q-Former downsampling
+    seq_len = encoder_output.shape[1]
+    nblocks = math.ceil(seq_len / window_size)
+    pad = nblocks * window_size - seq_len
+    
+    # Pad to window boundaries
+    if pad > 0:
+        encoder_output_padded = F.pad(encoder_output, (0, 0, 0, pad), "constant", 0)
+    else:
+        encoder_output_padded = encoder_output
+    
+    # Reshape into windows
+    encoder_output_windowed = encoder_output_padded.view(
+        batch_size, nblocks, window_size, encoder_hidden_dim
+    )[:, :used_nblocks].reshape(batch_size * used_nblocks, window_size, encoder_hidden_dim)
+    
+    # Q-Former cross-attention
+    # Queries are identical for every window, so project the 40 unique rows once.
+    Q = F.linear(
+        learnable_queries.to(torch.float32),
+        qformer_q_proj_weight.to(torch.float32),
+        qformer_q_proj_bias.to(torch.float32)
+    ).expand(batch_size * used_nblocks, -1, -1)
+    K = F.linear(
+        encoder_output_windowed,
+        qformer_k_proj_weight.to(torch.float32),
+        qformer_k_proj_bias.to(torch.float32)
+    )
+    V = F.linear(
+        encoder_output_windowed,
+        qformer_v_proj_weight.to(torch.float32),
+        qformer_v_proj_bias.to(torch.float32)
+    )
+    
+    # Reshape for multi-head attention
+    bsz_nblocks = batch_size * used_nblocks
+    Q = Q.view(bsz_nblocks, num_queries, qformer_num_heads, head_dim).transpose(1, 2)
+    K = K.view(bsz_nblocks, window_size, qformer_num_heads, head_dim).transpose(1, 2)
+    V = V.view(bsz_nblocks, window_size, qformer_num_heads, head_dim).transpose(1, 2)
+    
+    # Scaled dot-product attention
+    scale = 1.0 / math.sqrt(head_dim)
+    attn_weights = torch.matmul(Q, K.transpose(-2, -1)) * scale
+    attn_weights = F.softmax(attn_weights, dim=-1)
+    attn_output = torch.matmul(attn_weights, V)
+    
+    # Reshape back
+    attn_output = attn_output.transpose(1, 2).contiguous().view(
+        bsz_nblocks, num_queries, projector_hidden_size
+    )
+    
+    # Output projection
+    query_output = F.linear(
+        attn_output,
+        qformer_out_proj_weight.to(torch.float32),
+        qformer_out_proj_bias.to(torch.float32)
+    )
+    
+    # Reshape back to batch dimension
+    query_output = query_output.view(
+        batch_size, used_nblocks * num_queries, projector_hidden_size
+    )
+    
+    # Only these rows are consumed by the scatter; avoid projecting dead rows.
+    audio_embeddings = F.linear(
+        query_output[:, :num_audio_tokens],
+        projector_weight.to(torch.float32),
+        projector_bias.to(torch.float32)
+    )  # [batch_size, num_audio_tokens, text_hidden_size]
+    
+    # Stage 3: Scatter audio embeddings into LM embeddings
+    # Clone lm_embeddings to avoid modifying input
+    fused_embeddings = lm_embeddings.clone()
+    
+    # Scatter audio embeddings at specified positions
+    # audio_token_positions: [batch_size, num_audio_tokens]
+    # We need to scatter audio_embeddings[:, :num_audio_tokens, :] to these positions
+    batch_offsets = torch.arange(
+        batch_size, device=audio_token_positions.device, dtype=audio_token_positions.dtype
+    )[:, None] * text_seq_len
+    flat_positions = (audio_token_positions + batch_offsets).reshape(-1)
+    fused_embeddings.view(-1, text_hidden_size).index_copy_(
+        0, flat_positions, audio_embeddings.reshape(-1, text_hidden_size).to(torch.bfloat16)
+    )
+
+    return fused_embeddings

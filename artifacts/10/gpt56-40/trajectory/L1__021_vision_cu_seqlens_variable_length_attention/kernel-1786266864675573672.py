@@ -1,0 +1,115 @@
+import torch
+import torch.nn.functional as F
+
+
+@torch.no_grad()
+def run(
+    hidden_states: torch.Tensor,
+    cu_seqlens: torch.Tensor,
+    cos: torch.Tensor,
+    sin: torch.Tensor,
+    qkv_weight: torch.Tensor,
+    qkv_bias: torch.Tensor,
+    proj_weight: torch.Tensor,
+    proj_bias: torch.Tensor,
+):
+    """
+    Vision attention with variable-length sequences via cu_seqlens.
+    
+    Args:
+        hidden_states: (total_seq_len, hidden_size)
+        cu_seqlens: (num_seqs,) cumulative sequence lengths, first element is 0
+        cos: (total_seq_len, head_dim) rotary cosine embeddings
+        sin: (total_seq_len, head_dim) rotary sine embeddings
+        qkv_weight: (3 * hidden_size, hidden_size)
+        qkv_bias: (3 * hidden_size,)
+        proj_weight: (hidden_size, hidden_size)
+        proj_bias: (hidden_size,)
+    """
+    hidden_size = 1280
+    num_heads = 16
+    head_dim = 80
+    scaling = head_dim ** -0.5
+    
+    total_seq_len = hidden_states.shape[0]
+    device = hidden_states.device
+    dtype = hidden_states.dtype
+    
+    # QKV projection: (total_seq_len, hidden_size) -> (total_seq_len, 3 * hidden_size)
+    qkv = F.linear(hidden_states, qkv_weight, qkv_bias)
+    
+    # Reshape to (total_seq_len, 3, num_heads, head_dim)
+    qkv = qkv.reshape(total_seq_len, 3, num_heads, head_dim)
+    query_states, key_states, value_states = qkv.unbind(1)
+    
+    # Apply rotary position embeddings
+    # query_states, key_states: (total_seq_len, num_heads, head_dim)
+    # cos, sin: (total_seq_len, head_dim)
+    
+    q_float = query_states
+    k_float = key_states
+    cos_expanded = cos.unsqueeze(1)  # (total_seq_len, 1, head_dim)
+    sin_expanded = sin.unsqueeze(1)  # (total_seq_len, 1, head_dim)
+    
+    q1 = q_float[..., :head_dim // 2]
+    q2 = q_float[..., head_dim // 2:]
+    q_rotated = torch.cat((-q2, q1), dim=-1)
+    query_states = (q_float * cos_expanded) + (q_rotated * sin_expanded)
+
+    k1 = k_float[..., :head_dim // 2]
+    k2 = k_float[..., head_dim // 2:]
+    k_rotated = torch.cat((-k2, k1), dim=-1)
+    key_states = (k_float * cos_expanded) + (k_rotated * sin_expanded)
+    
+    # Reshape for attention: (total_seq_len, num_heads, head_dim) -> (1, num_heads, total_seq_len, head_dim)
+    query_states = query_states.transpose(0, 1).unsqueeze(0)
+    key_states = key_states.transpose(0, 1).unsqueeze(0)
+    value_states = value_states.transpose(0, 1).unsqueeze(0)
+    
+    # Compute sequence lengths from cu_seqlens
+    num_seqs = cu_seqlens.shape[0]
+    
+    # Transfer the tiny boundary vector once rather than synchronizing for
+    # two scalar item() calls per sequence.
+    boundaries = cu_seqlens.tolist()
+
+    # Process each sequence separately
+    attn_outputs = []
+    for i in range(num_seqs - 1):
+        start = boundaries[i]
+        end = boundaries[i + 1]
+        seq_len = end - start
+        
+        if seq_len == 0:
+            continue
+        
+        # Extract sequence
+        q_seq = query_states[:, :, start:end, :]  # (1, num_heads, seq_len, head_dim)
+        k_seq = key_states[:, :, start:end, :]
+        v_seq = value_states[:, :, start:end, :]
+        
+        # Compute attention scores
+        attn_weights = torch.matmul(q_seq, k_seq.transpose(2, 3))
+        attn_weights.mul_(scaling)
+        
+        # Softmax
+        attn_weights = F.softmax(attn_weights, dim=-1)
+        
+        # Apply attention to values
+        attn_out = torch.matmul(attn_weights, v_seq)  # (1, num_heads, seq_len, head_dim)
+        attn_out = attn_out.transpose(1, 2)  # (1, seq_len, num_heads, head_dim)
+        attn_outputs.append(attn_out)
+    
+    # Concatenate outputs: (1, total_seq_len, num_heads, head_dim)
+    if len(attn_outputs) > 0:
+        attn_output = torch.cat(attn_outputs, dim=1)
+    else:
+        attn_output = torch.zeros(1, 0, num_heads, head_dim, device=device, dtype=dtype)
+
+    # Reshape: (total_seq_len, hidden_size)
+    attn_output = attn_output.reshape(total_seq_len, hidden_size)
+    
+    # Output projection
+    output = F.linear(attn_output, proj_weight, proj_bias)
+    
+    return output
