@@ -19,6 +19,20 @@ For per-item detail see `STATE.md`; the D-numbers below point into it.
 
 These are in the manifest and produce scores. The scores are not usable.
 
+**Read `STATE.md` D35 before this table.** The thirteen were diagnosed on
+2026-08-09 and they are not thirteen defects. Six of them are one cause that is
+not a SOLAR error at all — `T_SOL_ms` divides cycles by a single F_LOCK of
+1300 MHz, and 1300 MHz is the clock the card holds under a dense bf16
+matrix-core load and not under everything. Light fp32 work clocks to
+1439–1586 MHz, so those bounds are 10–22% too large and the six are simply
+where a kernel got good enough to cross one. Three kernels that have *never*
+been beaten clock just as high, one of them higher than any violation on the
+board, so the list below is not the set of inflated bounds — it is the visible
+part of it. **All 759 compute-bound fp32 workloads are scored against a bound
+10–22% too generous.** Two of the rows below (D18) are confirmed to four
+significant figures. What is genuinely undiagnosed is five problems, marked
+below.
+
 | what | scope | where |
 |---|---|---|
 | **Paged-attention T_SOL over-counts traffic.** The declared-traffic tier prices a paged KV cache at full allocation; the kernel gathers 34 pages of 989,669. | 6 problems, **249 scoreable workloads** | D18 |

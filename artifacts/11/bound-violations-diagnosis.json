@@ -1,0 +1,157 @@
+{
+  "_provenance": {
+    "_provenance": {
+      "task": "11-bound-violations-diagnosis",
+      "utc": "2026-08-09T23:53:01.718860+00:00",
+      "git_sha": "dc79d4e8f165511a96292150f598218b2b9951bc-dirty",
+      "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+      "python": "3.11.7",
+      "torch": {
+        "available": false
+      },
+      "rocm": {
+        "version": "7.15.0",
+        "driver": "7.1.1.31500000",
+        "amd_smi": "AMDSMI Tool: 26.5.0+03d8462e | AMDSMI Library version: 26.5.0 | ROCm version: 7.15.0 | amdgpu version: 7.1.1.31500000 | ionic version: N/A"
+      },
+      "f_lock_mhz": null,
+      "visible_devices": null
+    }
+  },
+  "question": "Thirteen problems have a T_SOL that a real kernel beat, which is not possible for a speed-of-light bound. TODO.md carried them as three diagnosed and ten undiagnosed, and treated the count's growth as the finding. Are they ten separate modelling errors, or fewer causes seen many times?",
+  "answer": "Three causes. One is D18, already diagnosed and here confirmed to four significant figures. One is new, is not a SOLAR error at all, and is the widest: T_SOL_ms divides cycles by a single F_LOCK that the card does not actually hold for every workload. The residue -- five problems -- is genuine model error and is what is actually left to diagnose.",
+  "cause_1_paged_kv_over_count": {
+    "problems": [
+      "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1",
+      "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1"
+    ],
+    "state_md": "D18",
+    "worst_ratio_t_sol_over_measured": 3.713,
+    "evidence": "t_sol_cycles is 185,274 for essentially every workload of both problems -- it varies by under 0.1% across workloads with very different shapes, which is the signature of a bound that does not depend on the work. It is exactly the time to stream the whole KV allocation once: 989,669 pages x 576 elements x 2 bytes = 1.140 GB, and 1.140 GB / 8 TB/s x 1300 MHz = 185,266 cycles against the manifest's 185,274.",
+    "status": "confirmed, fix known (derive paged traffic from the page table)"
+  },
+  "cause_2_f_lock_is_a_floor_not_a_lock": {
+    "state_md": "D35",
+    "new": true,
+    "claim": "T_SOL_ms = t_sol_cycles / F_LOCK with F_LOCK = 1300 MHz. 1300 MHz is what the card holds under a dense bf16 matrix-core load, which is what task 01 calibrated against. Lighter arithmetic draws less power and the card clocks up. Every bound whose workload clocks above 1300 is too large in milliseconds by exactly that ratio, and the kernels that beat one are simply the kernels that got good enough to cross it.",
+    "measured_gfx_clock_mhz": {
+      "_method": "amdsmi GFX clock sampled every 2 ms for 3-4 s while the workload loops, on the physical card torch is using -- resolved by PCI bus, since the amdsmi and torch index spaces disagree on this node (scripts/gpu_map.py). GPU 0, nothing else on the node.",
+      "bf16_matmul_8192_the_calibration_load": {
+        "median": 1303,
+        "vs_f_lock": 1.002,
+        "samples": 8158
+      },
+      "fp32_matmul_8192": {
+        "median": 1441,
+        "vs_f_lock": 1.108,
+        "samples": 81299
+      },
+      "L2__073_kernel_violating": {
+        "median": 1466,
+        "vs_f_lock": 1.128,
+        "observed_worst_violation": 1.12
+      },
+      "L1__074_kernel_control_not_violating": {
+        "median": 1446,
+        "vs_f_lock": 1.112
+      },
+      "L1__002_kernel_control_not_violating": {
+        "median": 1439,
+        "vs_f_lock": 1.107
+      },
+      "L2__036_kernel_control_not_violating": {
+        "median": 1586,
+        "vs_f_lock": 1.22
+      }
+    },
+    "why_the_controls_matter": "The three controls are problems nobody has beaten. They clock as high as the violating ones -- one of them higher than any violation observed anywhere. So this is a property of what the workload asks of the power budget, not of the problems that happen to be on the bad-bound list. The list is the subset where a kernel got close enough to expose it.",
+    "explains_entirely": [
+      "L2__073_feedforward_mlp_backward (worst 1.120, headroom 1.128)",
+      "L2__068_gelu_approximate_feedforward_backward (worst 1.033)",
+      "L2__051_seqlen-finetuned-reconstructed_hyena_complete_forward_block (1.081)",
+      "L2__035_convnextv2_block_with_grn (1.021)",
+      "L1__035_flux_ada_layer_norm_zero_modulation_extraction (1.015)",
+      "L2__030_flux_concatenated_sequence_processing_with_split (1.001)"
+    ],
+    "population_evidence": {
+      "_what": "T_SOL / T_measured over every compute-bound workload of glm-sweep-2, split by the problem's declared dtype. If fp32 bounds are uniformly soft the whole fp32 population sits closer to its bound, not just the six that crossed.",
+      "float32": {
+        "n": 759,
+        "median": 0.538,
+        "p90": 0.94,
+        "pct_over_1": 4.6,
+        "pct_over_0.8": 25.6
+      },
+      "bfloat16": {
+        "n": 823,
+        "median": 0.222,
+        "p90": 0.7,
+        "pct_over_1": 1.7,
+        "pct_over_0.8": 3.8
+      },
+      "float16": {
+        "n": 103,
+        "median": 0.365,
+        "p90": 0.686,
+        "pct_over_1": 0.0
+      },
+      "float8_e4m3fn": {
+        "n": 46,
+        "median": 0.184,
+        "p90": 0.23,
+        "pct_over_1": 0.0
+      }
+    },
+    "blast_radius": "Not the six. Every compute-bound fp32 workload -- 759 of them in the 220-problem sweep -- is scored against a bound 10-22% too large, so every one of those scores is slightly too generous. Nothing beat most of them, so nothing flagged it. bf16 and fp8 bounds are sound: bf16 measured at 1303 MHz under load, and the fp8 population never gets past a quarter of its bound.",
+    "not_the_cause": "The arch table is right. Strict fp32 matmul measures 31,834 MAC/cycle against its own 1428 MHz clock, versus the table's 32,768 -- 97%, which is a normal GEMM efficiency and not an understated peak."
+  },
+  "cause_3_genuine_model_error": {
+    "note": "What is left after the two above, and the only part still undiagnosed. Each beats its bound by more than its clock can account for; the two bf16 ones run at ~1300 MHz, so the clock is not available as an explanation at all.",
+    "problems": {
+      "L2__045_audio_encoder_to_language_model_multimodal_fusion": {
+        "worst": 2.547,
+        "dtype": "bfloat16",
+        "bottleneck": "compute"
+      },
+      "L1__006_hyena_depthwise_conv1d_split_gate": {
+        "worst": 1.327,
+        "dtype": "float32",
+        "bottleneck": "compute",
+        "note": "exceeds the fp32 clock headroom, so part of it is real"
+      },
+      "L1__054_audio_attention_qkv_projection_with_normalization": {
+        "worst": 1.269,
+        "dtype": "float32",
+        "bottleneck": "compute",
+        "note": "same -- the top of its range is past what the clock buys"
+      },
+      "L1__005_conv_gated_projection_with_causal_conv": {
+        "worst": 1.218,
+        "dtype": "bfloat16",
+        "bottleneck": "compute",
+        "state_md": "D21"
+      },
+      "L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion": {
+        "worst": 1.148,
+        "dtype": "bfloat16",
+        "bottleneck": "memory"
+      }
+    },
+    "shape": "Three of the five involve a convolution and two involve a fused multi-op block. That is a hint, not a diagnosis, and it is where the next look should start."
+  },
+  "future_exposure_not_yet_realised": {
+    "what": "torch.backends.cuda.matmul.allow_tf32 = True raises the fp32 matmul rate from 31,834 to 147,954 MAC/cycle -- 4.52x -- on the matrix cores, from one global flag on unchanged fp32 tensors.",
+    "why_it_matters": "No kernel in any run set it; all five fp32 kernels inspected do plain fp32 matmuls. One that did, and still passed the AMD-derived tolerances, would beat its fp32 bound by up to 4.5x -- and would be playing by the rules, because nothing in the harness requires the arithmetic to happen in the declared dtype. The bound prices a datapath, not a problem.",
+    "measured": {
+      "fp32_strict_mac_per_cycle": 31834,
+      "fp32_tf32_mac_per_cycle": 147954,
+      "ratio": 4.52
+    }
+  },
+  "caveats": [
+    "The clock survey ran on GPU 0 with nothing else on the node. Under a loaded node the power budget is shared and these clocks would be lower, which makes the inflation smaller but does not remove it -- and scoring runs on an idle node by design, so the idle-node clock is the one the bound is compared against.",
+    "Clocks are per workload and only six were measured. The 10-22% range is the range of those six, not a bound on the effect.",
+    "Three kernels could not be loaded for the survey (triton @jit needs a real file on disk, not an exec'd string), including both bf16 violators. Their exclusion is why cause 3 rests on ratios rather than on clocks.",
+    "This diagnoses the bounds. It does not fix them, and no manifest number has been changed."
+  ]
+}

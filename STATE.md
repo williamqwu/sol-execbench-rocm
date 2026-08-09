@@ -1162,6 +1162,87 @@ assumes it), that no `h2` is missing from the nav, and that a page passing no
 `toc` still renders single-column. Two files with no compiler between them
 would otherwise drift into links that render, look live, and scroll nowhere.
 
+### D35 — F_LOCK is a floor, not a lock, and most "wrong bounds" are that
+
+The thirteen problems whose T_SOL a real kernel beat are not thirteen defects,
+or ten. They are **three causes**, and the largest one is not a SOLAR error.
+
+**D18, confirmed to four significant figures.** `t_sol_cycles` for both MLA
+paged problems is 185,274 for essentially every workload — it moves less than
+0.1% across workloads of very different shape, which is what a bound that does
+not depend on the work looks like. It is the time to stream the whole KV
+allocation once: 989,669 pages x 576 x 2 B = 1.140 GB, and 1.140 GB / 8 TB/s
+x 1300 MHz = **185,266** cycles against the manifest's **185,274**.
+
+**The new one.** `T_SOL_ms = t_sol_cycles / F_LOCK`, and F_LOCK is 1300 MHz.
+That is the clock the card holds under a dense bf16 matrix-core load, which is
+what task 01 calibrated against and is not wrong. It is simply not the clock it
+holds under everything. Measured with amdsmi sampled every 2 ms on GPU 0, idle
+node, on the physical card resolved by PCI bus:
+
+```
+bf16 matmul 8192   (the calibration load)   1303 MHz   x1.002
+fp32 matmul 8192                            1441 MHz   x1.108
+L2__073 kernel     (violating)              1466 MHz   x1.128
+L1__074 kernel     (control, not violating) 1446 MHz   x1.112
+L1__002 kernel     (control, not violating) 1439 MHz   x1.107
+L2__036 kernel     (control, not violating) 1586 MHz   x1.220
+```
+
+Lighter arithmetic draws less power and the card clocks up. `--setperfdeterminism
+1600` caps the ceiling; it does not pin the clock. So every bound whose workload
+clocks above 1300 is too large in milliseconds by exactly that ratio.
+
+**The controls are the argument.** Three of those kernels have never been beaten
+by anything, and they clock as high as the violators — one of them higher than
+any violation observed anywhere in the benchmark. The bad-bound list is not the
+set of problems with inflated bounds. It is the subset where a kernel got good
+enough to expose one.
+
+This accounts, on its own, for six of the thirteen: L2__073 (worst 1.120 against
+1.128 of headroom), L2__068 (1.033), L2__051 (1.081), L2__035 (1.021), L1__035
+(1.015), L2__030 (1.001). Every one of them lands under the clock ratio.
+
+The population says the same thing from the other side. Over every compute-bound
+workload of glm-sweep-2, `T_SOL / T_measured` by declared dtype:
+
+```
+             n    median   p90    >1     within 20% of the bound
+float32     759   0.538   0.940   4.6%        25.6%
+bfloat16    823   0.222   0.700   1.7%         3.8%
+float16     103   0.365   0.686   0.0%         4.9%
+fp8_e4m3fn   46   0.184   0.230   0.0%         0.0%
+```
+
+fp32 sits two and a half times closer to its bound than bf16 does. The arch
+table is not the cause and was checked: strict fp32 matmul measures 31,834
+MAC/cycle against its own clock versus the table's 32,768, which is 97% and an
+ordinary GEMM efficiency.
+
+**Blast radius is the part that matters.** This is not about six problems. All
+759 compute-bound fp32 workloads are scored against a bound 10–22% too large,
+so all 759 scores are slightly too generous, and nothing flagged it because
+nothing beat most of them. bf16 and fp8 bounds are sound.
+
+**What is actually left undiagnosed** is five problems, the residue the clock
+cannot buy: L2__045 (2.547, bf16), L1__006 (1.327), L1__054 (1.269), L1__005
+(1.218, bf16, D21) and L1__057 (1.148, bf16, memory-bound). The two bf16 ones
+run at ~1300 MHz, so for them the clock is not available as an explanation at
+all. Three of the five involve a convolution; that is a hint and not a
+diagnosis.
+
+**One exposure that has not happened yet.** Setting
+`torch.backends.cuda.matmul.allow_tf32 = True` takes fp32 matmul from 31,834 to
+**147,954** MAC/cycle — 4.52x — from one flag, on unchanged fp32 tensors. No
+kernel in any run has set it. One that did, and still passed the AMD-derived
+tolerances, would beat its fp32 bound by four and a half times while playing
+entirely by the rules: nothing in the harness requires the arithmetic to happen
+in the declared dtype. The bound prices a datapath, not a problem.
+
+Nothing here changes a manifest number. Full artifact with method and caveats:
+`artifacts/11/bound-violations-diagnosis.json`; the measurement scripts are
+`scripts/bounds/`.
+
 ### D31c — a second model finds a bound 220 problems of the first did not
 
 `gpt56-40` (codex-cli, `gpt-5.6-sol`, 40 problems, 2026-08-09) scored **670
