@@ -151,10 +151,14 @@ out = {
     "runs": rows,
     "finding": (
         "Utilisation is a property of the model, not of the benchmark. GLM-5.2 "
-        "spends its hour reasoning and evaluates ~6 times; gpt-5.6-sol evaluates "
-        "~27 times in a quarter of the wall clock. The same 7-wide fleet is "
-        "therefore nearly idle under one and roughly half-loaded under the other, "
-        "so a concurrency target derived from one does not transfer to the other."
+        "spends its hour reasoning and evaluates 5 times (median); gpt-5.6-sol "
+        "evaluates 26 times in a quarter of the wall clock. One fleet, one "
+        "harness, one node: nearly idle under the first and roughly half-loaded "
+        "under the second, so a concurrency target derived from one model does "
+        "not transfer to another. The two runs did not have the same number of "
+        "cards -- eight and seven, see `cards_the_agents_ran_on` -- and that is "
+        "accounted for in each denominator rather than smoothed over; it is not "
+        "what makes the difference, which is a factor of ten."
     ),
     "caveats": [
         "mtime is the close of the last write, so an eval that writes its record "

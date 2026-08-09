@@ -116,6 +116,26 @@ def test_submitted_kernel_with_no_measurement_is_still_visible(real_conn):
         assert r["retime_error"], f"{r['problem_key']} failed with no reason recorded"
 
 
+def test_a_kernel_with_no_measurement_renders_as_unmeasured(client, board):
+    """D23, on the fixture, so it is guarded whatever is on the real board.
+
+    The real-artifact version below is the better test and stays. But it is
+    conditional on some run in `artifacts/10/` having a re-time that failed
+    outright, and on 2026-08-09 the only such run -- `glm-run1` -- was withdrawn
+    from the board. The assertion did not fail; it skipped, silently, and the
+    D23 rendering path went unguarded on a board that had just been rebuilt.
+
+    A regression test whose coverage depends on which runs are currently
+    published is a regression test that disappears exactly when the board
+    changes, which is when it is most needed.
+    """
+    html = client.get("/submissions/agent-timeout/problems/L2__002_beta").text
+    block = re.search(r'<div class="wl-grid".*?</div>', html, re.S)
+    assert block, "no workload grid rendered"
+    cells = re.findall(r'class="cell (g-[a-z0-9]+)"', block.group(0))
+    assert cells and set(cells) == {"g-unmeasured"}, sorted(set(cells))
+
+
 def test_the_real_unmeasured_run_renders_as_unmeasured(real_client, real_conn):
     """The concrete D23 case, on the artifacts rather than on a fixture:
     glm-run1's re-time of FlashInfer-Bench__014 hit TimeoutExpired after 1200 s,

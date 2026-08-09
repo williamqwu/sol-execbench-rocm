@@ -81,7 +81,21 @@ BOARD_EXCLUSIONS = {
               "that does not pass. Its mean of 0.776 is survivorship over the "
               "five problems where anything passed at all. Artifacts and "
               "transcripts are kept under artifacts/10/pilot8/.",
-    "submitted-apitest": "Not a result. Two problems, and the 'kernel' "
+    "glm-run1": "Withdrawn from the board 2026-08-09. 24 problems under the "
+              "same model AND the same harness as `glm-sweep-2`, which covers "
+              "all 220 -- so it is that sweep at an eighth of the scale, and a "
+              "board row for it invites a comparison between a sample and the "
+              "sweep it is a sample of. It was labelled `Claude Code agent "
+              "(GLM-5.2)` here until today and that was wrong twice over: its "
+              "1,802 calls all went over the `responses` wire to "
+              "`GLM-5.2-FP8`, which is codex-cli through the fleet. The label "
+              "came from a default in an older `agent_score.py` that ran "
+              "before runs carried a `harness` field, and nothing ever "
+              "rechecked it. Its two bound violations (`L1__005`, `L1__035`) "
+              "are both in glm-sweep-2's list too, so /methodology loses "
+              "nothing. Artifacts stay under artifacts/10/glm-run1/. Delete "
+              "this entry to put it back.",
+    "submitted-apitest": "Not a result. Two problems, and the 'kernel'"
               "submitted for each is that problem's own reference "
               "implementation -- it exists to exercise the write path end to "
               "end (POST -> queue -> worker -> GPU 0 -> score -> rebuild) and "
@@ -110,10 +124,14 @@ INGESTED_BUT_HIDDEN = {"pilot8"}
 # model name is a guess: two runs of one model under different harnesses are
 # not trials of the same thing. A run absent from this table is a group of one
 # and gets no switcher.
-TRIAL_GROUPS = {
-    "pilot8":            ("agent-opus5", "Claude-Opus-5 · agent sandbox harness"),
-    "opus5-budget100":   ("agent-opus5", "Claude-Opus-5 · agent sandbox harness"),
-}
+#
+# Emptied 2026-08-09. Its only group was the two Claude-Opus-5 budget trials,
+# and `opus5-budget100` was moved out of the repo entirely that day (see
+# `sources.json`), leaving `pilot8` as the sole member. A switcher offering one
+# choice is not a switcher, and a group named for a comparison with one side
+# missing is worse than no group -- it says a second trial exists and does not
+# say where it went.
+TRIAL_GROUPS: dict[str, tuple[str, str]] = {}
 
 
 def load_sources(path: Path) -> list[Path]:
@@ -659,8 +677,13 @@ def ingest_agent_runs(conn, part: str, extra_roots: list[Path] | None = None) ->
         if hidden:
             excluded[run_id] = BOARD_EXCLUSIONS[run_id]
             if run_id not in INGESTED_BUT_HIDDEN:
-                print(f"  agent {run_id}: excluded from board (smoke test), "
-                      f"recorded in meta")
+                # The reason, not a guess at it. This said "(smoke test)" for
+                # every entry in BOARD_EXCLUSIONS, which was true of the two it
+                # was written for and became false the moment a real run was
+                # withdrawn -- `glm-run1` is a 24-problem sweep, not a smoke
+                # test, and the log said otherwise on the day it was pulled.
+                print(f"  agent {run_id}: excluded from board, recorded in "
+                      f"meta -- {excluded[run_id].split('.')[0]}.")
                 continue
             print(f"  agent {run_id}: off the board (board_visible=0), "
                   f"ingested in full; reason recorded in meta")
@@ -675,7 +698,7 @@ def ingest_agent_runs(conn, part: str, extra_roots: list[Path] | None = None) ->
         sub_id = add_submission(
             conn,
             slug=f"agent-{run_id}",
-            name=doc.get("display_name") or f"Claude Code agent ({run_id})",
+            name=board_name(scored.parent, doc, run_id),
             kind="agent",
             author=doc.get("author", "claude-code"),
             model=doc.get("model"),
@@ -965,6 +988,42 @@ def ingest_run_window(conn, sub_id: int, run_dir: Path) -> dict[str, int]:
     return {r[0]: r[1] for r in conn.execute(
         """SELECT source, COUNT(*) FROM run_window
             WHERE submission_id=? GROUP BY source""", (sub_id,))}
+
+
+HARNESS_LABELS = {
+    "claude-code": "Claude Code",
+    "codex": "codex-cli",
+    "codex-cli": "codex-cli",
+}
+
+
+def board_name(run_dir: Path, doc: dict, run_id: str) -> str:
+    """What to call a run on the board: `<model> (w/ <harness>)`.
+
+    Derived here, from `run.json`, rather than read from `scored.json`'s
+    `display_name`. That field is written once at scoring time and then never
+    revisited, and every one of its three inputs has since been found wrong on
+    some row: `glm-run1` was labelled `Claude Code agent` when its 1,802 calls
+    all went over codex-cli's wire, and both GLM rows named `GLM-5.2` when the
+    weights that answered were `GLM-5.2-FP8`. A name recomputed from evidence
+    on every ingest cannot go stale between re-ingests; a string cannot help it.
+
+    The model is the **upstream** name where a run records one, because that is
+    the model that ran. `model` is what the job asked the front door for, and
+    the front door's registry is free to resolve that alias to anything --
+    which is the whole reason the request is not evidence of the answer.
+
+    Falls back to `display_name` only when there is no `run.json` at all, which
+    is true of runs submitted through the write path rather than swept.
+    """
+    run = run_json(run_dir) or {}
+    model = run.get("upstream_model") or run.get("model") or doc.get("model")
+    harness = run.get("harness")
+    if not model:
+        return doc.get("display_name") or f"Agent run ({run_id})"
+    if not harness:
+        return doc.get("display_name") or str(model)
+    return f"{model} (w/ {HARNESS_LABELS.get(harness, harness)})"
 
 
 def run_json(run_dir: Path) -> dict | None:

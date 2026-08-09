@@ -2,8 +2,8 @@
   "_provenance": {
     "_provenance": {
       "task": "11-agent-gpu-utilisation",
-      "utc": "2026-08-09T23:28:30.568052+00:00",
-      "git_sha": "a1fca641e226cb7b62ff8811c908445092c4f158-dirty",
+      "utc": "2026-08-09T23:38:58.255283+00:00",
+      "git_sha": "716d163be40e8edacbe551f91f2bafe7a71b42dd-dirty",
       "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
       "python": "3.11.7",
       "torch": {
@@ -91,7 +91,7 @@
       "utilisation_pct": 45.7
     }
   ],
-  "finding": "Utilisation is a property of the model, not of the benchmark. GLM-5.2 spends its hour reasoning and evaluates ~6 times; gpt-5.6-sol evaluates ~27 times in a quarter of the wall clock. The same 7-wide fleet is therefore nearly idle under one and roughly half-loaded under the other, so a concurrency target derived from one does not transfer to the other.",
+  "finding": "Utilisation is a property of the model, not of the benchmark. GLM-5.2 spends its hour reasoning and evaluates 5 times (median); gpt-5.6-sol evaluates 26 times in a quarter of the wall clock. One fleet, one harness, one node: nearly idle under the first and roughly half-loaded under the second, so a concurrency target derived from one model does not transfer to another. The two runs did not have the same number of cards -- eight and seven, see `cards_the_agents_ran_on` -- and that is accounted for in each denominator rather than smoothed over; it is not what makes the difference, which is a factor of ten.",
   "caveats": [
     "mtime is the close of the last write, so an eval that writes its record and then tears down a process is measured slightly short. The bias is the same in both runs and is small against a median of 9-11 s.",
     "Spans longer than the 3600 s session cap are discarded as clock artefacts rather than trusted; none were found in either run.",
