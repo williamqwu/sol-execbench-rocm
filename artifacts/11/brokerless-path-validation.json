@@ -1,0 +1,89 @@
+{
+  "_provenance": {
+    "_provenance": {
+      "task": "11-brokerless-path-validation",
+      "utc": "2026-08-09T19:12:36.729154+00:00",
+      "git_sha": "b1a8cef3351b2d925b2ba9c2405a78e704183072-dirty",
+      "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+      "python": "3.11.7",
+      "torch": {
+        "available": false
+      },
+      "rocm": {
+        "version": "7.15.0",
+        "driver": "7.1.1.31500000",
+        "amd_smi": "AMDSMI Tool: 26.5.0+03d8462e | AMDSMI Library version: 26.5.0 | ROCm version: 7.15.0 | amdgpu version: 7.1.1.31500000 | ionic version: N/A"
+      },
+      "f_lock_mhz": null,
+      "visible_devices": null
+    }
+  },
+  "question": "The broker was validated as a broker (artifacts/11/gpu-broker-validation.json), on bare processes. What had never run is the path an actual job takes: the sandbox's own ./evaluate, inside amdpilot/solbench-job:2, with the container holding no GPU allocation of its own and leasing a card per measurement.",
+  "setup": {
+    "image": "amdpilot/solbench-job:2",
+    "network": "host",
+    "container_visible_devices": "1,2,3,4,5,6,7",
+    "note_on_visible_devices": "The brokerless default from fleet.sh. GPU 0 is not in it: the authoritative scorer was re-timing gpt56-40 on GPU 0 throughout this test, which is exactly the arrangement the default exists to protect.",
+    "broker_port": 7211,
+    "broker_cards": [
+      1,
+      2
+    ],
+    "n_concurrent_clients": 4,
+    "oversubscription": "2x",
+    "problem": "L1/006_hyena_depthwise_conv1d_split_gate",
+    "kernel": "the gpt56-40 agent's kernel for that problem",
+    "iterations": 20,
+    "warmup": 5
+  },
+  "clients": [
+    {
+      "client": 1,
+      "queue_wait_s": 0.0,
+      "ok": true,
+      "passed": 16,
+      "workloads": 16,
+      "median_latency_ms": 0.01312
+    },
+    {
+      "client": 2,
+      "queue_wait_s": 0.0,
+      "ok": true,
+      "passed": 16,
+      "workloads": 16,
+      "median_latency_ms": 0.01316
+    },
+    {
+      "client": 3,
+      "queue_wait_s": 10.52,
+      "ok": true,
+      "passed": 16,
+      "workloads": 16,
+      "median_latency_ms": 0.0131
+    },
+    {
+      "client": 4,
+      "queue_wait_s": 10.627,
+      "ok": true,
+      "passed": 16,
+      "workloads": 16,
+      "median_latency_ms": 0.01314
+    }
+  ],
+  "result": {
+    "all_passed": true,
+    "clients_served_immediately": 2,
+    "clients_queued": 2,
+    "queue_wait_s_range": [
+      0.0,
+      10.627
+    ],
+    "median_latency_spread_pct": 0.46
+  },
+  "reading": "Two clients were served at once because there were two cards, and two waited about 10.5 s -- one evaluation -- which is the broker doing its job rather than a failure. All four measured the same kernel to within 0.8%, which is the property that matters: a queued measurement is not a degraded one. The unbrokered control in the earlier artifact, four processes on one card, disagreed by up to 2.14x.",
+  "caveats": [
+    "One problem, one kernel, four clients. This validates the plumbing end to end; it is not a re-measurement of contention at scale.",
+    "The wait recorded here is the broker's queue only. It is charged to the agent's own 3600 s session budget, which is why the projection in artifacts/11/concurrency-projection.json treats wait as a cost and not just as latency.",
+    "The containers were launched by hand with the same flags fleet.sh sets, not by the job daemon. The daemon's own argv is asserted separately in job-daemon's test_launch.py."
+  ]
+}
