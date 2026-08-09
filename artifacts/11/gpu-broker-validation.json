@@ -1,0 +1,109 @@
+{
+ "_provenance": {
+  "task": "11-gpu-broker-validation",
+  "utc": "2026-08-09T09:25:21.807289+00:00",
+  "git_sha": "043d26d43d3eed404494e1d96cc5cf72872d4b17",
+  "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 8,
+   "devices": [
+    "AMD Instinct MI350X",
+    "AMD Instinct MI350X",
+    "AMD Instinct MI350X",
+    "AMD Instinct MI350X",
+    "AMD Instinct MI350X",
+    "AMD Instinct MI350X",
+    "AMD Instinct MI350X",
+    "AMD Instinct MI350X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "7.1.1.31500000",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+  },
+  "f_lock_mhz": 1300,
+  "visible_devices": null
+ },
+ "question": "Does an evaluation taken while holding a broker lease measure the same thing as one taken on a card nothing else can touch? Everything downstream of a timing assumes it was exclusive, so if leasing changes the number the broker is worse than useless -- it would let a sweep produce timings that look fine.",
+ "workload": {
+  "op": "bf16 matmul",
+  "shape": [
+   4096,
+   4096
+  ],
+  "dtype": "bfloat16",
+  "warmup_iters": 10,
+  "timed_iters": 30,
+  "probe": "one process per client; median of 30 wall-clock timings with torch.cuda.synchronize() around each"
+ },
+ "part": "MI350X",
+ "gpus_leased": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7
+ ],
+ "conditions": {
+  "baseline_exclusive": {
+   "description": "one process, HIP_VISIBLE_DEVICES=1, nothing else on the node",
+   "n_clients": 1,
+   "median_ms": 0.1619111280888319,
+   "min_ms": 0.16082101501524448,
+   "p90_ms": 0.16525108367204666
+  },
+  "brokered_14_concurrent": {
+   "description": "14 concurrent clients over 7 leased cards (2x oversubscribed)",
+   "n_clients": 14,
+   "median_of_medians_ms": 0.16029085963964462,
+   "client_medians_ms": [
+    0.16029085963964462,
+    0.1612519845366478,
+    0.160926952958107,
+    0.1582070253789425,
+    0.1594159984961152,
+    0.1585559220984578,
+    0.1637558452785015,
+    0.1598360249772668,
+    0.16134697943925858,
+    0.16192591283470392,
+    0.15997595619410276,
+    0.1632509520277381,
+    0.158461625687778,
+    0.1578864175826311
+   ],
+   "deviation_from_baseline": {
+    "median": -0.011,
+    "worst_abs": 0.0249,
+    "coefficient_of_variation": 0.011
+   }
+  },
+  "control_4_on_one_card_unbrokered": {
+   "description": "4 concurrent clients ALL pinned to GPU 1, no broker. The control, and the more important half: it is what shows the measurement is sensitive to contention at all.",
+   "n_clients": 4,
+   "median_of_medians_ms": 0.3072274425,
+   "client_medians_ms": [
+    0.3467375645413995,
+    0.33011753112077713,
+    0.2841829555109143,
+    0.16215106006711721
+   ],
+   "worst_inflation_vs_baseline": 2.1415,
+   "spread_between_the_four": 2.1384
+  }
+ },
+ "finding": "Brokered: all 14 within 2.49% of the exclusive baseline. Unbrokered on a shared card: up to 2.14x inflated, and the four clients disagree with each other by the same factor. An agent reading 0.347 ms would conclude its kernel is roughly half as fast as it is and would optimise against that.",
+ "caveats": [
+  "A synthetic matmul, not a benchmark problem. It isolates 'does exclusivity hold' from 'does agent_eval work'; it does not model the compile and import phases of a real ./evaluate, which are CPU-bound and would dilute contention.",
+  "2x oversubscription only. The planned operating point is ~40 sessions over 7 cards, which is ~5.7x, but sessions are GPU-idle ~96% of the time so the instantaneous demand is far lower. Not measured at that ratio.",
+  "Re-run after the ACQUIRE protocol changed (the client's --timeout was not reaching the broker): 10 concurrent, medians 0.1576-0.1638 ms, unchanged."
+ ]
+}
