@@ -1162,6 +1162,31 @@ assumes it), that no `h2` is missing from the nav, and that a page passing no
 `toc` still renders single-column. Two files with no compiler between them
 would otherwise drift into links that render, look live, and scroll nowhere.
 
+### D31c — a second model finds a bound 220 problems of the first did not
+
+`gpt56-40` (codex-cli, `gpt-5.6-sol`, 40 problems, 2026-08-09) scored **670
+workloads, mean S = 0.6457, 0 flagged, 40/40 problems clean**. Twelve workloads
+were excluded because a real kernel beat T_SOL: `L1__006` and `L2__045` were
+already known (D31), and **`L2__051` is new**. Including the twelve would report
+0.6884, which is why the scorer refuses to.
+
+The interesting part is not the count going 12 → 13. It is the direction.
+Every previous increase came from *more coverage*: a stronger optimizer reaching
+problems nobody had reached. This one came from **less** — 40 problems against
+220, and it still exposed a bound the larger sweep missed. A second model with
+different habits is a second search direction, not more of the first. So
+"how many bad bounds are left" cannot be extrapolated from one model's sweep,
+however complete that sweep is, and the 13 remains a lower bound in a way that
+adding coverage alone will not close.
+
+On the 643 workloads the two runs share, `gpt-5.6-sol` scores **0.6469** against
+GLM-5.2's **0.6295**, winning 24 problems to 16. A real lead, on an eighth of
+the benchmark, and not the gap the headline mean-S figures suggest.
+
+Whole-benchmark score is **0.1143**, because 180 problems are untouched and
+coverage is part of the score. Both numbers are on the board; the run page
+labels which is which.
+
 ### D31b — the run is complete: 220/220, and it leads the board
 
 `agent-glm-sweep-2` now covers **every scoreable problem**. A follow-up sweep

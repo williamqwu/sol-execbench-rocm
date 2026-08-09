@@ -25,18 +25,28 @@ These are in the manifest and produce scores. The scores are not usable.
 | **`L1__005` bound beaten by 1.09–1.15×.** Compute-bound SOLAR roofline ~15% too slow. Not paged; D18 does not explain it. | 4 of 16 workloads | D21 |
 | **`L1__035` bound beaten by 1.003–1.013×.** Total headroom is 1.008, so there is almost no scoring range; may be a bound too tight to measure against rather than a wrong one. Needs separating from `L1__005` — they are probably different defects. | 2 of 16 workloads | D21 |
 | **Nine more bounds beaten**, found as a real optimizer covered the benchmark: `L1__006`, `L1__057`, `L2__030`, `L2__035`, `L2__045`, `L2__068`, `L2__073`, and — once coverage reached 220 — `FlashInfer-Bench__018` and `L1__054`. Undiagnosed; not yet separated into D18-style over-counting vs D21-style roofline error. | 72 workloads across 11 problems in that run | D31, D31b |
+| **`L2__051` bound beaten**, found by `gpt56-40` on 2026-08-09. A different model, on 40 problems rather than 220, exposed one that 220 problems of GLM-5.2 did not. Undiagnosed. | 4 workloads | D31c |
 
 The v1.1 fix for D18 is to derive paged traffic from the page table rather than
-from `num_pages`. D21 has no fix yet, only a diagnosis, and the seven new ones
-have neither. **v1 marks three of these twelve**; the other nine are marked
+from `num_pages`. D21 has no fix yet, only a diagnosis, and the eight new ones
+have neither. **v1 marks three of these thirteen**; the other ten are marked
 nowhere in the shipped manifest and are known only from this file, `STATE.md`
-D31/D31b, and the run pages that found them.
+D31/D31b/D31c, and the run pages that found them.
 
 The count has risen every time a stronger optimizer covered more of the
-benchmark — 3, then 10, then 12 — which is the finding, not an accident of
-this run. A bound is only shown to be wrong by a kernel that beats it, so the
-number of *known* bad bounds is a lower bound on the number of bad bounds, and
-it tracks how hard anything has tried rather than how many there are.
+benchmark — 3, then 10, then 12, then 13 — which is the finding, not an
+accident of this run. A bound is only shown to be wrong by a kernel that beats
+it, so the number of *known* bad bounds is a lower bound on the number of bad
+bounds, and it tracks how hard anything has tried rather than how many there
+are.
+
+`L2__051` sharpens that, because it is not more coverage finding more: it is
+**less** coverage finding more. `gpt56-40` attempted 40 problems where
+`glm-sweep-2` attempted 220, and still turned up a bound the larger run missed.
+So the count does not track effort along one axis that can be exhausted — a
+second optimizer with different habits is its own search direction. Any estimate
+of how many bad bounds remain that is extrapolated from one model's sweep is
+extrapolating from one direction.
 
 ## The task-06 sweep does not fully reproduce
 
