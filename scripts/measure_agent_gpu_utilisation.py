@@ -26,7 +26,6 @@ STATE = Path(os.environ.get(
     "SBT_STATE_RUNS",
     "/home/qinwu/dev-imported/amdpilot-v2/dash-overlay/solbench-tasks/.state/runs"))
 JOBD = Path(os.environ.get("JOBD_LAUNCH_ROOT", Path.home() / ".jobd" / "jobs"))
-CARDS = 7
 MAX_EVAL_S = 3600.0   # a span longer than the session cap is a clock artefact, not an eval
 
 
@@ -54,6 +53,25 @@ def job_window(job_id: str) -> tuple[float, float] | None:
     return None
 
 
+def cards_used(run_id: str) -> list[int]:
+    """Which physical cards a sweep's agents were actually placed on.
+
+    Read from the run's own `gpus_used_by_agents`, not assumed. A constant here
+    would be wrong for exactly the comparison this script exists to make:
+    `glm-sweep-2` ran across all eight cards, `gpt56-40` across seven, because
+    the fleet's policy on holding GPU 0 out changed between them. Dividing both
+    by 7 understates one denominator by an eighth and quietly inflates the very
+    utilisation figure being compared.
+    """
+    run = json.load(open(ROOT / "artifacts" / "10" / run_id / "run.json"))
+    gpus = run.get("gpus_used_by_agents")
+    if not gpus:
+        raise SystemExit(
+            f"{run_id}/run.json has no gpus_used_by_agents; the allocated "
+            f"denominator cannot be assumed, so this run is not measurable here")
+    return sorted(gpus)
+
+
 def profile(run_id: str, eval_dir):
     ported = json.load(open(STATE / run_id / "ported.json"))
     svc, per, windows = [], [], []
@@ -69,6 +87,7 @@ def profile(run_id: str, eval_dir):
         raise SystemExit(f"{run_id}: no timings found")
     wall = max(e for _, e in windows) - min(s for s, _ in windows)
     gpu_s = sum(svc)
+    cards = cards_used(run_id)
     # Concurrency actually achieved, area-weighted over the sweep's wall clock.
     ev = sorted([(s, 1) for s, _ in windows] + [(e, -1) for _, e in windows])
     c = area = 0
@@ -94,9 +113,10 @@ def profile(run_id: str, eval_dir):
             "p99": round(sorted(svc)[int(0.99 * len(svc))], 1),
             "max": round(max(svc), 1),
         },
+        "cards_the_agents_ran_on": cards,
         "gpu_hours_computing": round(gpu_s / 3600, 2),
-        "gpu_hours_allocated": round(CARDS * wall / 3600, 1),
-        "utilisation_pct": round(100 * gpu_s / (CARDS * wall), 1),
+        "gpu_hours_allocated": round(len(cards) * wall / 3600, 1),
+        "utilisation_pct": round(100 * gpu_s / (len(cards) * wall), 1),
     }
 
 
@@ -120,10 +140,14 @@ out = {
         "Per-evaluation start comes from the eval record's filename nanosecond "
         "stamp and end from its mtime; both are written by the ./evaluate wrapper, "
         "not reported by the agent. Session windows are the Job Queue's admitted_at "
-        "and finished_at. Allocated GPU-hours are 7 cards x the sweep's wall clock, "
-        "which is what the fleet held: GPU 0 is reserved and never placed on."
+        "and finished_at. Allocated GPU-hours are the sweep's own card count x "
+        "its wall clock, with the count read per run from `gpus_used_by_agents` "
+        "rather than assumed: glm-sweep-2 ran on all eight cards and gpt56-40 on "
+        "seven, because the fleet stopped holding GPU 0 out between them. A "
+        "constant 7 would have understated one denominator by an eighth, and it "
+        "would have done so on exactly the side of the comparison this artifact "
+        "is about."
     ),
-    "cards_available_to_jobs": CARDS,
     "runs": rows,
     "finding": (
         "Utilisation is a property of the model, not of the benchmark. GLM-5.2 "

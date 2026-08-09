@@ -2,8 +2,8 @@
   "_provenance": {
     "_provenance": {
       "task": "11-agent-gpu-utilisation",
-      "utc": "2026-08-09T19:02:18.524672+00:00",
-      "git_sha": "0ff6a0edbc24e5a251c2b9be81368a614db7bdaf-dirty",
+      "utc": "2026-08-09T23:28:30.568052+00:00",
+      "git_sha": "a1fca641e226cb7b62ff8811c908445092c4f158-dirty",
       "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
       "python": "3.11.7",
       "torch": {
@@ -19,8 +19,7 @@
     }
   },
   "question": "An agent session holds one MI350X for its whole hour. How much of that hour is the card actually computing? The answer decides whether raising job concurrency is nearly free or is the thing that saturates the node.",
-  "method": "Per-evaluation start comes from the eval record's filename nanosecond stamp and end from its mtime; both are written by the ./evaluate wrapper, not reported by the agent. Session windows are the Job Queue's admitted_at and finished_at. Allocated GPU-hours are 7 cards x the sweep's wall clock, which is what the fleet held: GPU 0 is reserved and never placed on.",
-  "cards_available_to_jobs": 7,
+  "method": "Per-evaluation start comes from the eval record's filename nanosecond stamp and end from its mtime; both are written by the ./evaluate wrapper, not reported by the agent. Session windows are the Job Queue's admitted_at and finished_at. Allocated GPU-hours are the sweep's own card count x its wall clock, with the count read per run from `gpus_used_by_agents` rather than assumed: glm-sweep-2 ran on all eight cards and gpt56-40 on seven, because the fleet stopped holding GPU 0 out between them. A constant 7 would have understated one denominator by an eighth, and it would have done so on exactly the side of the comparison this artifact is about.",
   "runs": [
     {
       "run_id": "glm-sweep-2",
@@ -43,9 +42,19 @@
         "p99": 201.0,
         "max": 652.6
       },
+      "cards_the_agents_ran_on": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
       "gpu_hours_computing": 8.02,
-      "gpu_hours_allocated": 166.1,
-      "utilisation_pct": 4.8
+      "gpu_hours_allocated": 189.8,
+      "utilisation_pct": 4.2
     },
     {
       "run_id": "gpt56-40",
@@ -68,6 +77,15 @@
         "p99": 139.4,
         "max": 962.6
       },
+      "cards_the_agents_ran_on": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
       "gpu_hours_computing": 5.93,
       "gpu_hours_allocated": 13.0,
       "utilisation_pct": 45.7
