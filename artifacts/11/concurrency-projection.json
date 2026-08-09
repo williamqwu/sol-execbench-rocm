@@ -1,0 +1,105 @@
+{
+  "_provenance": {
+    "_provenance": {
+      "task": "11-concurrency-projection",
+      "utc": "2026-08-09T19:02:19.625713+00:00",
+      "git_sha": "0ff6a0edbc24e5a251c2b9be81368a614db7bdaf-dirty",
+      "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+      "python": "3.11.7",
+      "torch": {
+        "available": false
+      },
+      "rocm": {
+        "version": "7.15.0",
+        "driver": "7.1.1.31500000",
+        "amd_smi": "AMDSMI Tool: 26.5.0+03d8462e | AMDSMI Library version: 26.5.0 | ROCm version: 7.15.0 | amdgpu version: 7.1.1.31500000 | ionic version: N/A"
+      },
+      "f_lock_mhz": null,
+      "visible_devices": null
+    }
+  },
+  "kind": "simulation",
+  "warning": "Not a measurement. Service and think times are empirical; the fleet configurations below have never been run. Quote as a projection only.",
+  "question": "gpt-5.6-sol already keeps the 7-card fleet 46% busy at 7 sessions wide. How much wall clock is left to recover by decoupling the card from the session -- and at what concurrency does the queue wait start eating the agent's own 3600 s budget?",
+  "model_of_the_fleet": "One FIFO broker over 7 cards. A session holds a card only for the duration of one ./evaluate, matching scripts/gpu_broker.py. Sessions are bootstrapped with replacement from the 40 real gpt56-40 traces; a session's think gaps are taken as independent of how long it waited, which is optimistic for an agent that would otherwise be reading output.",
+  "inputs": {
+    "source_run": "gpt56-40",
+    "n_source_sessions": 40,
+    "cards": 7,
+    "problems_simulated": 220,
+    "seeds_per_row": 20,
+    "mean_gpu_seconds_per_session": 533.0,
+    "mean_evals_per_session": 27.1
+  },
+  "rows": [
+    {
+      "sessions_concurrent": 7,
+      "wall_hours": 9.8,
+      "gpu_utilisation_pct": 48.0,
+      "card_wait_p50_s": 0.0,
+      "card_wait_p95_s": 0.0,
+      "card_wait_p99_s": 0.0,
+      "wait_share_of_budget_pct": 0.0
+    },
+    {
+      "sessions_concurrent": 10,
+      "wall_hours": 7.0,
+      "gpu_utilisation_pct": 67.0,
+      "card_wait_p50_s": 0.0,
+      "card_wait_p95_s": 1.3,
+      "card_wait_p99_s": 5.8,
+      "wait_share_of_budget_pct": 0.0
+    },
+    {
+      "sessions_concurrent": 14,
+      "wall_hours": 5.4,
+      "gpu_utilisation_pct": 85.0,
+      "card_wait_p50_s": 0.3,
+      "card_wait_p95_s": 12.8,
+      "card_wait_p99_s": 23.8,
+      "wait_share_of_budget_pct": 0.3
+    },
+    {
+      "sessions_concurrent": 20,
+      "wall_hours": 4.9,
+      "gpu_utilisation_pct": 95.0,
+      "card_wait_p50_s": 12.4,
+      "card_wait_p95_s": 37.3,
+      "card_wait_p99_s": 56.1,
+      "wait_share_of_budget_pct": 9.3
+    },
+    {
+      "sessions_concurrent": 28,
+      "wall_hours": 4.9,
+      "gpu_utilisation_pct": 96.0,
+      "card_wait_p50_s": 33.1,
+      "card_wait_p95_s": 68.9,
+      "card_wait_p99_s": 91.2,
+      "wait_share_of_budget_pct": 25.0
+    },
+    {
+      "sessions_concurrent": 40,
+      "wall_hours": 4.8,
+      "gpu_utilisation_pct": 96.0,
+      "card_wait_p50_s": 64.3,
+      "card_wait_p95_s": 117.9,
+      "card_wait_p99_s": 147.7,
+      "wait_share_of_budget_pct": 48.5
+    },
+    {
+      "sessions_concurrent": 60,
+      "wall_hours": 4.8,
+      "gpu_utilisation_pct": 97.0,
+      "card_wait_p50_s": 113.8,
+      "card_wait_p95_s": 203.9,
+      "card_wait_p99_s": 270.1,
+      "wait_share_of_budget_pct": 85.8
+    }
+  ],
+  "reading": "The floor is set by total GPU demand, not by concurrency: 220 problems need about 33 GPU-hours, and 7 cards cannot deliver that in under ~4.7 h however many sessions are in flight. Concurrency past ~20 buys no wall clock and only adds queue wait -- which is charged to the agent's 3600 s session budget, so it is a correctness cost, not just a latency one. The useful band is 14-20.",
+  "does_not_model": [
+    "The Model API front door's in-flight cap, which is 16 today and is the other candidate bottleneck; these rows assume the API is never the constraint.",
+    "Contention between concurrent leases. Measured separately at 14 clients over 7 cards and found within +-2.5% (artifacts/11/gpu-broker-validation.json), but not re-measured at 40.",
+    "An agent that changes its behaviour when evaluations get slower -- it may evaluate less, which would lower demand, or retry more, which would raise it."
+  ]
+}

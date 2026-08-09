@@ -1,0 +1,83 @@
+{
+  "_provenance": {
+    "_provenance": {
+      "task": "11-agent-gpu-utilisation",
+      "utc": "2026-08-09T19:02:18.524672+00:00",
+      "git_sha": "0ff6a0edbc24e5a251c2b9be81368a614db7bdaf-dirty",
+      "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+      "python": "3.11.7",
+      "torch": {
+        "available": false
+      },
+      "rocm": {
+        "version": "7.15.0",
+        "driver": "7.1.1.31500000",
+        "amd_smi": "AMDSMI Tool: 26.5.0+03d8462e | AMDSMI Library version: 26.5.0 | ROCm version: 7.15.0 | amdgpu version: 7.1.1.31500000 | ionic version: N/A"
+      },
+      "f_lock_mhz": null,
+      "visible_devices": null
+    }
+  },
+  "question": "An agent session holds one MI350X for its whole hour. How much of that hour is the card actually computing? The answer decides whether raising job concurrency is nearly free or is the thing that saturates the node.",
+  "method": "Per-evaluation start comes from the eval record's filename nanosecond stamp and end from its mtime; both are written by the ./evaluate wrapper, not reported by the agent. Session windows are the Job Queue's admitted_at and finished_at. Allocated GPU-hours are 7 cards x the sweep's wall clock, which is what the fleet held: GPU 0 is reserved and never placed on.",
+  "cards_available_to_jobs": 7,
+  "runs": [
+    {
+      "run_id": "glm-sweep-2",
+      "model": "GLM-5.2",
+      "n_problems": 192,
+      "gpu_count_per_job": 1,
+      "sessions_peak_concurrent": 8,
+      "sessions_mean_concurrent": 7.72,
+      "wall_hours": 23.73,
+      "n_evaluations": 1338,
+      "evals_per_session": {
+        "median": 5.0,
+        "mean": 7.0,
+        "min": 1,
+        "max": 44
+      },
+      "eval_seconds": {
+        "median": 10.3,
+        "mean": 21.6,
+        "p99": 201.0,
+        "max": 652.6
+      },
+      "gpu_hours_computing": 8.02,
+      "gpu_hours_allocated": 166.1,
+      "utilisation_pct": 4.8
+    },
+    {
+      "run_id": "gpt56-40",
+      "model": "gpt-5.6-sol",
+      "n_problems": 40,
+      "gpu_count_per_job": 1,
+      "sessions_peak_concurrent": 7,
+      "sessions_mean_concurrent": 6.59,
+      "wall_hours": 1.85,
+      "n_evaluations": 1085,
+      "evals_per_session": {
+        "median": 26.0,
+        "mean": 27.1,
+        "min": 4,
+        "max": 48
+      },
+      "eval_seconds": {
+        "median": 11.0,
+        "mean": 19.7,
+        "p99": 139.4,
+        "max": 962.6
+      },
+      "gpu_hours_computing": 5.93,
+      "gpu_hours_allocated": 13.0,
+      "utilisation_pct": 45.7
+    }
+  ],
+  "finding": "Utilisation is a property of the model, not of the benchmark. GLM-5.2 spends its hour reasoning and evaluates ~6 times; gpt-5.6-sol evaluates ~27 times in a quarter of the wall clock. The same 7-wide fleet is therefore nearly idle under one and roughly half-loaded under the other, so a concurrency target derived from one does not transfer to the other.",
+  "caveats": [
+    "mtime is the close of the last write, so an eval that writes its record and then tears down a process is measured slightly short. The bias is the same in both runs and is small against a median of 9-11 s.",
+    "Spans longer than the 3600 s session cap are discarded as clock artefacts rather than trusted; none were found in either run.",
+    "Utilisation counts a card as busy only while an ./evaluate is running. Agent-authored torch code run outside the wrapper is invisible here and would make the true figure higher.",
+    "glm-sweep-2's sessions were cancelled at the 1 h cap; gpt56-40's ended on their own. The wall clocks are therefore not a like-for-like comparison of model speed, only of how the fleet was loaded."
+  ]
+}
