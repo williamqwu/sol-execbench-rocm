@@ -29,7 +29,29 @@ corrections landed on top of it:
 | — | **not a bound at all**: the timer did not see work a kernel put on its own stream, so `L1__054`'s *time* was 32% short against a correct bound | D38 | 5 |
 | v1.2 | SOLAR priced a grouped convolution as a dense one | D37 | 3 |
 
-What remains is `L1__057`, `L2__045`, and a 1% residue on `L2__073`.
+Then coverage put two back: `gpt-5.6-sol` finishing all 220 problems reached
+`L1__018` and `L1__042`, which nothing had ever run hard enough to expose. **The
+count is 5, and every one is now diagnosed (D42).**
+
+| problem | min T_k/T_SOL | cause |
+|---|---|---|
+| `L1__018` | 0.312 | declared-traffic tier: the whole 262,144-slot k+v cache priced read+write |
+| `L2__045` | 0.357 | SOLAR prices 21.5× of arithmetic the reference discards |
+| `L1__042` | 0.839 | declared-traffic tier: two inputs `run()` never reads — exactly 65/32 |
+| `L1__057` | 0.871 | declared-traffic tier: the 157,184-row embedding table |
+| `L2__073` | 0.992 | not a modelling error; the D35 clock residue |
+
+**Three of the five are one defect, and it is D18.** The declared-traffic tier
+prices every declared input at its full allocation regardless of what the kernel
+reads. v1.1 fixed that for the two paged FlashInfer problems rather than at the
+tier, so **328 workloads across 38 problems still rest on it** — p50 1.50×, max
+128.9× (`L1__087`). Most produce no violation only because nothing has got close
+enough. Fixing the tier, not another problem, is the v1.3 item.
+
+**None of the five is corrected yet.** D42 establishes the mechanism, exactly,
+by hand computation against the manifest number. It does not establish the
+replacement, and a bound must not be "fixed" by adjusting it until the violation
+disappears.
 
 **Read that as a warning about the list itself.** "A kernel beat its T_SOL" is one symptom with at least three causes — an over-counted traffic term, a wrong clock divisor, and a measurement that missed work — and the symptom does not say which. Nor does the list catch the same defects when they are too small to break the invariant: `L1__055` was undercounted 25% by D38 and never appeared anywhere, because a kernel scoring 0.57 can be inflated 10% without passing 1.
 
@@ -81,6 +103,45 @@ So the count does not track effort along one axis that can be exhausted — a
 second optimizer with different habits is its own search direction. Any estimate
 of how many bad bounds remain that is extrapolated from one model's sweep is
 extrapolating from one direction.
+
+## The bounds nobody can beat — 827 of them (D39)
+
+Every entry above is a bound too **large**. The one automatic check on a bound
+is that nothing may beat it, and that check is **one-sided**: a bound that is
+too *small* is a perfectly valid lower bound, breaks no rule, and is reported
+by nothing.
+
+```
+headroom T_b/T_SOL over 3,717 scoreable workloads   (p50 15.6x)
+  under 2x        504  13.6%     variance is a material share of the score
+  2x - 10x       1086  29.2%
+  10x - 100x     1300  35.0%
+  100x - 1000x    397  10.7%  }  827 (22.3%) where S collapses toward
+  over 1000x      430  11.6%  }  T_b/(T_b+T_k) and has no roofline content
+```
+
+Five visible bad bounds against 827 quiet ones. Worst by median headroom:
+`L2__006` at **115,005×**, then six FlashInfer paged problems at
+19,000–41,000×, `L1__016` at 19,474×.
+
+**Two honest caveats.** The paged problems are near the top *because v1.1
+corrected them* — pricing a KV cache at the pages it gathers took
+`FlashInfer-Bench__018` from 185,274 cycles to **8**, which is correct and
+vacuous. That is not an argument for undoing D18; it is an argument that the
+arithmetic term for those problems is essentially unmodelled. And the other
+tail is real: 13.6% under 2× is a range where run-to-run variance is a material
+share of the score.
+
+**Done: marking.** `bound_quality` (narrow / ok / loose / vacuous) is derived at
+ingest and shown beside the headroom figure on every problem page. It changes no
+score. **Not done:** deriving an arithmetic term for the worst cases, and
+deciding whether a problem whose bound cannot be modelled belongs in the scored
+set at all. The second is a scope decision and needs the maintainer.
+
+**`bound_quality` lives in the leaderboard, not the manifest.** It was derived
+at ingest because a manifest rebuild was unsafe at the time (a scorer was
+reading the file). Promoting it to a manifest field is a v1.3 item — until then
+a consumer of `manifest-v1.2.json` alone cannot see it.
 
 ## The task-06 sweep does not fully reproduce
 
