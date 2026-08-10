@@ -154,6 +154,30 @@ def check_default_stream() -> None:
         )
 
 
+def install_stream_tracking() -> None:
+    """Close the hole ``check_default_stream`` above only narrows.
+
+    That guard catches a submission that *leaves* a non-default stream current.
+    A submission that restores it walks straight past -- and the cost of doing
+    so was never measured until 2026-08-10, when it turned out to be **1743x**
+    in the adversarial form and **1.42x** in a submitted kernel that was not
+    trying to exploit anything (`artifacts/11/side-stream-timing-hole.json`).
+
+    The durable fix is the rocprofiler methodology, which attributes by
+    activity record and closes this by construction -- but switching the
+    methodology of record would move every measurement ever taken, so it is not
+    something to do to get past an obstacle. This joins the submission's own
+    streams into the current one before the end event is recorded instead,
+    which leaves a single-stream submission on exactly the path it was on.
+
+    Delegates so the defenses stay listed in one place; the mechanism is in
+    ``bench/streams.py``.
+    """
+    from sol_execbench.core.bench import streams
+
+    streams.install()
+
+
 # Vendor management tools. A submission that raises the clock cap mid-run
 # defeats the locked-clock calibration entirely -- and unlike most exploits it
 # leaves no trace in the output, because the numbers stay self-consistent.

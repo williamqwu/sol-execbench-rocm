@@ -1,0 +1,138 @@
+{
+  "_provenance": {
+    "task": "11-side-stream-timing-hole",
+    "utc": "2026-08-10T02:11:03.328666+00:00",
+    "git_sha": "1b9acb5a11aa85608ea84b41a026bfcadc87b178-dirty",
+    "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+    "python": "3.12.3",
+    "torch": {
+      "available": true,
+      "version": "2.9.1+rocm7.2.0.git7e1940d4",
+      "hip": "7.2.26015-fc0010cf6a",
+      "cuda": null,
+      "device_count": 1,
+      "devices": [
+        "AMD Instinct MI350X"
+      ]
+    },
+    "rocm": {
+      "version": "7.2.0",
+      "driver": "7.1.1.31500000",
+      "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+    },
+    "f_lock_mhz": 1300,
+    "visible_devices": "0"
+  },
+  "question": "Is work enqueued on a non-default stream invisible to the hip_events timing every published score was measured with?",
+  "methodology_of_record": "hip_events",
+  "stream_join_defense_installed": true,
+  "warmup": 10,
+  "rep": 50,
+  "probes": [
+    {
+      "probe": "C_L1__054_single_stream_clean",
+      "hip_events_ms": 0.6854679882526398,
+      "host_wall_ms": 0.6990260444581509,
+      "wall_over_events": 1.0197792696929182,
+      "rocprof_ms": null,
+      "rocprof_error": "ValueError: No GPU activities recorded during discovery iteration",
+      "shape": {
+        "batch_size": 16,
+        "seq_len": 512,
+        "M": 8192,
+        "kernel": "artifacts/10/glm-sweep-2/kernels/L1__054_audio_attention_qkv_projection_with_normalization.py"
+      },
+      "streams_tracked_before": 1
+    },
+    {
+      "probe": "A0_control_default_stream",
+      "hip_events_ms": 12.020607471466064,
+      "host_wall_ms": 12.026780052110553,
+      "wall_over_events": 1.0005134998925087,
+      "rocprof_ms": null,
+      "rocprof_error": "ValueError: No GPU activities recorded during discovery iteration",
+      "shape": {
+        "m": 8192,
+        "n": 8192,
+        "k": 8192,
+        "dtype": "torch.float32"
+      },
+      "streams_tracked_before": 2
+    },
+    {
+      "probe": "A_bypass_side_stream",
+      "hip_events_ms": 12.048709392547607,
+      "host_wall_ms": 12.041475041769445,
+      "wall_over_events": 0.999399574631401,
+      "rocprof_ms": null,
+      "rocprof_error": "ValueError: No GPU activities recorded during discovery iteration",
+      "shape": {
+        "m": 8192,
+        "n": 8192,
+        "k": 8192,
+        "dtype": "torch.float32"
+      },
+      "streams_tracked_before": 2
+    },
+    {
+      "probe": "D_deferred_sync_side_stream",
+      "hip_events_ms": 12.058128833770752,
+      "host_wall_ms": 12.041209498420358,
+      "wall_over_events": 0.9985968523322616,
+      "rocprof_ms": null,
+      "rocprof_error": "ValueError: No GPU activities recorded during discovery iteration",
+      "shape": {
+        "m": 8192,
+        "n": 8192,
+        "k": 8192,
+        "dtype": "torch.float32"
+      },
+      "streams_tracked_before": 3
+    },
+    {
+      "probe": "B_L1__054_submitted",
+      "hip_events_ms": 0.6973884999752045,
+      "host_wall_ms": 0.7074109744280577,
+      "wall_over_events": 1.0143714363704155,
+      "rocprof_ms": null,
+      "rocprof_error": "ValueError: No GPU activities recorded during discovery iteration",
+      "shape": {
+        "batch_size": 16,
+        "seq_len": 512,
+        "M": 8192,
+        "kernel": "artifacts/10/glm-sweep-2/kernels/L1__054_audio_attention_qkv_projection_with_normalization.py"
+      },
+      "streams_tracked_before": 4
+    },
+    {
+      "probe": "E_L1__054_wait_stream_join",
+      "hip_events_ms": 0.7107490003108978,
+      "host_wall_ms": 0.7251208880916238,
+      "wall_over_events": 1.0202207639749608,
+      "rocprof_ms": null,
+      "rocprof_error": "ValueError: No GPU activities recorded during discovery iteration",
+      "shape": {
+        "batch_size": 16,
+        "seq_len": 512,
+        "M": 8192,
+        "kernel": "artifacts/10/glm-sweep-2/kernels/L1__054_audio_attention_qkv_projection_with_normalization.py"
+      },
+      "streams_tracked_before": 4
+    },
+    {
+      "probe": "C2_L1__054_single_stream_after",
+      "hip_events_ms": 0.7038084864616394,
+      "host_wall_ms": 0.6994010182097554,
+      "wall_over_events": 0.9937376881116591,
+      "rocprof_ms": null,
+      "rocprof_error": "ValueError: No GPU activities recorded during discovery iteration",
+      "shape": {
+        "batch_size": 16,
+        "seq_len": 512,
+        "M": 8192,
+        "kernel": "artifacts/10/glm-sweep-2/kernels/L1__054_audio_attention_qkv_projection_with_normalization.py"
+      },
+      "streams_tracked_before": 4
+    }
+  ]
+}

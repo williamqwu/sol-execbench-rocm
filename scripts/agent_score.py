@@ -161,6 +161,14 @@ def main() -> int:
     ap.add_argument("--reuse-retimed", action="store_true",
                     help="re-derive scores from existing retimed/*.json "
                          "without touching the GPU")
+    ap.add_argument("--retime", action="append", default=[], metavar="PROBLEM",
+                    help="force a fresh re-time for this problem even under "
+                         "--reuse-retimed. Repeatable. For when a harness "
+                         "defect invalidated some measurements and not others: "
+                         "re-timing the whole run to fix five problems would "
+                         "move 215 numbers that had nothing wrong with them, "
+                         "and every one of those movements would be noise "
+                         "somebody has to explain.")
     ap.add_argument("--exclude-from-leaderboard", action="store_true",
                     help="score and record, but do not list on the board "
                          "(for validation runs)")
@@ -176,6 +184,15 @@ def main() -> int:
     # next to the number that came from it.
     kernels_dir = a.run / "kernels"
     kernels_dir.mkdir(parents=True, exist_ok=True)
+
+    # Consumed as it matches, so a typo in a problem name is an error rather
+    # than a silent no-op that looks exactly like "re-timed and nothing moved".
+    force_retime = set(a.retime)
+    unknown = force_retime - set(run["sessions"])
+    if unknown:
+        print(f"--retime names no session in this run: {sorted(unknown)}",
+              file=sys.stderr)
+        return 2
 
     results: list[dict] = []
     per_problem: dict[str, dict] = {}
@@ -216,7 +233,10 @@ def main() -> int:
             rec["kernel_side_files"] = extra
 
         existing = retimed_dir / f"{key}.json"
-        if a.reuse_retimed and existing.exists():
+        forced = key in force_retime
+        if forced:
+            force_retime.discard(key)
+        if a.reuse_retimed and existing.exists() and not forced:
             # Re-deriving scores from a completed re-time must not need the GPU
             # again: the timing is the expensive part and it does not change.
             ev = json.loads(existing.read_text())
@@ -227,6 +247,15 @@ def main() -> int:
                         a.iterations, a.warmup, a.timeout)
         rec["ok"] = ev.get("ok")
         rec["error"] = ev.get("error")
+        # Which harness produced this timing. A run can carry timings from two
+        # harness versions -- five of glm-sweep-2's problems were re-timed on
+        # 2026-08-10 after the side-stream timing defect (STATE.md D38) and the
+        # other 215 were not -- and `forced_retime` above only records the
+        # invocation that did it. Reading it back per problem means a later
+        # re-derivation of scores does not lose the fact.
+        rec["retimed_git_sha"] = (
+            (ev.get("_provenance") or {}).get("git_sha") if isinstance(ev, dict) else None
+        )
 
         scored = flagged = passed = violations = 0
         for w in ev.get("per_workload", []):
@@ -318,6 +347,11 @@ def main() -> int:
         # and the version it was computed against travel together.
         "manifest_version": manifest_version,
         "manifest_path": str(Path(a.manifest).resolve().relative_to(ROOT)),
+        # Which problems were measured again in THIS invocation. When only some
+        # were, the run carries timings from two harness versions and that is
+        # worth being able to read off the artifact rather than reconstructing
+        # from file mtimes.
+        "forced_retime": sorted(a.retime),
         # The harness, from the run, not "Claude Code" asserted. glm-sweep-2 is
         # codex-cli, and calling it Claude Code would both misattribute it and
         # give it a name indistinguishable from `agent-glm-run1`, which really

@@ -29,6 +29,14 @@ import torch
 # on. They are now resolved lazily, inside the CUPTI methodology only.
 from sol_execbench.core.bench import device as device_layer
 from sol_execbench.core.bench.io import ShiftingMemoryPoolAllocator
+from sol_execbench.core.bench import streams
+
+# Bound at import, which happens before the submission is imported, so
+# reassigning `streams.join_into_current` from inside a kernel does not reach
+# the call sites below. Same reason the eval driver keeps local references to
+# its own checks.
+_join_streams = streams.join_into_current
+_fence_streams = streams.fence_from_current
 
 
 def _cupti():
@@ -283,16 +291,35 @@ def bench_time_with_cuda_events(
         _reset_persisting_l2_cache(device)
         _clear_cache(cache)
         fn(args)
+        _join_streams()
 
     # Timed iterations.
     # Avoid synchronizations after warmup and in this hot loop
     # to keep the driver's GPU queue full.
+    #
+    # AMD: that deep queue is also what made this bracket miss work. Two events
+    # on the current stream do not contain anything the submission enqueued on
+    # a stream of its own, and with the queue full a side stream runs against
+    # *earlier* iterations rather than inside this one -- measured at up to
+    # 1743x fast on this part. The bracket is closed at BOTH ends: `_fence_streams`
+    # stops a tracked stream starting before the start event, `_join_streams`
+    # stops the end event landing before it finishes. One without the other
+    # leaves a kernel that host-syncs inside `run()` still reading 1.41x fast.
+    # Both are no-ops when the submission created no stream, so no single-stream
+    # measurement moves. See `bench/streams.py` and
+    # `artifacts/11/side-stream-timing-hole{,-fixed}.json`.
     for i in range(rep):
         args = setup()
         _reset_persisting_l2_cache(device)
         _clear_cache(cache)
+        # Fence BEFORE the start event so its own event ops are not charged to
+        # the iteration. The ordering is the same either way -- a tracked stream
+        # still cannot run ahead of the default stream's position here, and the
+        # start event is microseconds later.
+        _fence_streams()
         start_events[i].record()
         fn(args)
+        _join_streams()
         end_events[i].record()
 
     torch.cuda.synchronize()

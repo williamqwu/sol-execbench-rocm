@@ -162,6 +162,7 @@ from sol_execbench.core.bench.reward_hack import (  # noqa: E402
     check_thread_injection,
     compute_partition_mode,
     install_smi_guard,
+    install_stream_tracking,
     snapshot_critical_functions,
     snapshot_matmul_precision,
     check_matmul_precision,
@@ -250,6 +251,13 @@ install_smi_guard()
 # untouched, and buys 4.5x on fp32 matmul -- against a T_SOL derived from the
 # DECLARED dtype's MAC rate, which is how a score gets above 1 (STATE.md D35).
 _precision_snapshot = snapshot_matmul_precision()
+# AMD: and start tracking stream construction, before user import so that a
+# stream created at module scope is tracked too. Work on a submission's own
+# stream falls outside the timing bracket -- 1743x fast in the adversarial form
+# and 1.42x in a submission that was not trying (STATE.md D38). The timing loop
+# joins tracked streams before recording the end event; a submission that
+# creates none takes no new path.
+install_stream_tracking()
 # Keep local references so that patching the names in globals() is ineffective.
 _check_integrity = check_eval_integrity
 _check_precision = check_matmul_precision
