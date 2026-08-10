@@ -43,6 +43,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import signal
 import sys
 import time
 from pathlib import Path
@@ -160,6 +161,19 @@ def main() -> int:
 
     reason = "interrupted"
     occupants: dict[str, set[int]] = {}
+
+    # Write the artifact on the way out, including when something kills us.
+    # The first run of this guard was ended with SIGTERM and produced no file
+    # at all -- eleven hours of sampling, five real detections, and the only
+    # record was whatever had been printed to a log. A watcher whose evidence
+    # depends on it exiting politely is a watcher you will lose exactly when
+    # you needed it.
+    stopping: list[str] = []
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            signal.signal(sig, lambda s, _f: stopping.append(f"signal {s}"))
+        except ValueError:
+            pass
     while True:
         by_pid = gpu_ids_by_pid()
         # The invariant is not "this pid is here". It is "one job at a time on
@@ -184,13 +198,17 @@ def main() -> int:
                 row = {"utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                        "gpu_id": gid, "pids": here, "processes": who}
                 overlaps.append(row)
-                print(f"!! {len(here)} processes on gpu_id {gid}:", file=sys.stderr)
+                print(f"!! {row['utc']}  {len(here)} processes on gpu_id {gid}:",
+                      file=sys.stderr)
                 for pp, info in who.items():
                     print(f"     pid {pp} ppid={info['ppid']} "
                           f"cgroup={info['cgroup']}\n       {info['cmdline'][:200]}",
                           file=sys.stderr)
                 sys.stderr.flush()
         samples += 1
+        if stopping:
+            reason = stopping[0]
+            break
         if a.max_seconds and time.time() - started > a.max_seconds:
             reason = "max-seconds reached"
             break
@@ -198,7 +216,10 @@ def main() -> int:
                 any(gid in ids for gid in owner) for ids in by_pid.values()):
             reason = "card went idle"
             break
-        time.sleep(a.interval)
+        try:
+            time.sleep(a.interval)
+        except InterruptedError:
+            pass
 
     doc = {
         "question": ("Did anything else run on the authoritative card while an "

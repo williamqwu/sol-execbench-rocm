@@ -78,6 +78,30 @@ HARNESS_NAMES = {
 }
 
 
+def _foreign_on_card(gpu: int) -> list[str]:
+    """Anything on the authoritative card that is not this process tree.
+
+    Runs the check INSIDE the measurement container, because resolving which
+    KFD device HIP index *gpu* refers to needs torch and the host interpreter
+    has none. A host-side guess would name the wrong card -- `gpu_map.py`
+    reports `torch -> rocm-smi {0: 3}` here, so "GPU 0" means two different
+    pieces of silicon depending on who is asking.
+    """
+    try:
+        proc = subprocess.run(
+            [str(ROOT / "env" / "solb"), "python",
+             "/work/scripts/gpu_exclusive.py", "--gpu", str(gpu)],
+            env={"PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(Path.home()),
+                 "HIP_VISIBLE_DEVICES": str(gpu)},
+            capture_output=True, text=True, timeout=120)
+    except Exception as exc:                              # noqa: BLE001
+        return [f"check failed: {type(exc).__name__}: {exc}"]
+    if proc.returncode == 0:
+        return []
+    lines = [ln.strip() for ln in proc.stderr.splitlines() if ln.strip()]
+    return lines or [f"check exited {proc.returncode}"]
+
+
 def retime(problem_key: str, kernel: Path, out: Path, gpu: int,
            iterations: int, warmup: int, timeout: int) -> dict:
     """One kernel, through env/solb, pinned to `gpu`. Returns the eval payload.
@@ -110,6 +134,17 @@ def retime(problem_key: str, kernel: Path, out: Path, gpu: int,
     # result document; the outer one can only kill the process and leave
     # `retime()` to synthesise "produced no artifact".
     inner = max(60, timeout - 120)
+
+    # Is the authoritative card ours alone, at the moment this measurement
+    # starts? The scheduler reservation binds the fleet's placer and has no
+    # authority over a container somebody started by hand -- on 2026-08-10 the
+    # sampling guard caught another team's sglang and Megatron work on GPU 0
+    # five times, from a container running with /dev/kfd and no device
+    # restriction (STATE.md D29). Checked here rather than only observed,
+    # because this is the last point where the answer can still change what
+    # gets published. Recorded either way: a refusal that leaves no trace is
+    # indistinguishable from a run nobody attempted.
+    foreign = _foreign_on_card(gpu)
     cmd = [
         str(ROOT / "env" / "solb"), "python", "/work/scripts/agent_eval.py",
         "--problem", f"/work/data/SOL-ExecBench/benchmark/{cat}/{name}",
@@ -134,8 +169,11 @@ def retime(problem_key: str, kernel: Path, out: Path, gpu: int,
 
     if staged.exists():
         payload = json.loads(staged.read_text())
+        payload["authoritative_card_exclusive"] = not foreign
+        if foreign:
+            payload["authoritative_card_shared_with"] = foreign
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(staged.read_text())
+        out.write_text(json.dumps(payload, indent=1))
         return payload
     # A silent empty result reads exactly like "the kernel failed", which is a
     # different and much less alarming statement than "the runner never ran".
