@@ -78,6 +78,29 @@ def gpu_ids_by_pid() -> dict[int, set[str]]:
     return out
 
 
+def ppid(pid: int) -> int | None:
+    try:
+        for line in Path(f"/proc/{pid}/status").read_text().splitlines():
+            if line.startswith("PPid:"):
+                return int(line.split()[1])
+    except (OSError, ValueError):
+        return None
+    return None
+
+
+def container(pid: int) -> str:
+    """Which cgroup the process is in -- enough to tell a fleet job from ours."""
+    try:
+        text = Path(f"/proc/{pid}/cgroup").read_text()
+    except OSError:
+        return "(unreadable)"
+    for line in text.splitlines():
+        tail = line.rsplit(":", 1)[-1]
+        if "docker" in tail or "containerd" in tail or "kubepods" in tail:
+            return tail.strip()[-80:]
+    return "host"
+
+
 def cmdline(pid: int) -> str:
     try:
         raw = Path(f"/proc/{pid}/cmdline").read_bytes()
@@ -150,12 +173,23 @@ def main() -> int:
                 if key in seen:
                     continue
                 seen.add(key)
+                # Captured AT DETECTION, not at exit. The first version kept
+                # cmdlines only for the final artifact and printed bare pids,
+                # so by the time an overlap was noticed the processes were gone
+                # and there was no way to tell a fleet job from this run's own
+                # container teardown. An alert that cannot say what it saw
+                # leaves you guessing, which is worse than not alerting.
+                who = {p: {"cmdline": cmdline(p)[:300], "ppid": ppid(p),
+                           "cgroup": container(p)} for p in here}
                 row = {"utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                       "gpu_id": gid, "pids": here,
-                       "cmdlines": {p: cmdline(p)[:300] for p in here}}
+                       "gpu_id": gid, "pids": here, "processes": who}
                 overlaps.append(row)
-                print(f"!! {len(here)} processes on gpu_id {gid}: {here}",
-                      file=sys.stderr, flush=True)
+                print(f"!! {len(here)} processes on gpu_id {gid}:", file=sys.stderr)
+                for pp, info in who.items():
+                    print(f"     pid {pp} ppid={info['ppid']} "
+                          f"cgroup={info['cgroup']}\n       {info['cmdline'][:200]}",
+                          file=sys.stderr)
+                sys.stderr.flush()
         samples += 1
         if a.max_seconds and time.time() - started > a.max_seconds:
             reason = "max-seconds reached"
