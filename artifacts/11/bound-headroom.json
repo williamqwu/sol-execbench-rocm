@@ -1,0 +1,257 @@
+{
+  "_provenance": {
+    "task": "11-bound-headroom",
+    "utc": "2026-08-10T03:31:56.103257+00:00",
+    "git_sha": "389f3600cd9fc63b52a18632f21e86c1664ad22c-dirty",
+    "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+    "python": "3.11.7",
+    "torch": {
+      "available": false
+    },
+    "rocm": {
+      "version": "7.15.0",
+      "driver": "7.1.1.31500000",
+      "amd_smi": "AMDSMI Tool: 26.5.0+03d8462e | AMDSMI Library version: 26.5.0 | ROCm version: 7.15.0 | amdgpu version: 7.1.1.31500000 | ionic version: N/A"
+    },
+    "f_lock_mhz": null,
+    "visible_devices": null
+  },
+  "question": "How many bounds are so far below the measured anchor that the score they produce carries no roofline information?",
+  "measure": "headroom = T_b / T_SOL, per workload",
+  "manifest": "artifacts/09/manifest-v1.2.json",
+  "manifest_version": "v1.2",
+  "workloads": 3717,
+  "quantiles": {
+    "p10": 1.7399129942582627,
+    "p50": 15.609649483833397,
+    "p90": 1978.075580502098,
+    "p99": 165588.8650269635,
+    "max": 1499133.450644357
+  },
+  "bands": {
+    "under_2x": 504,
+    "2x_to_10x": 1086,
+    "10x_to_100x": 1300,
+    "100x_to_1000x": 397,
+    "over_1000x": 430
+  },
+  "worst_problems": [
+    {
+      "problem": "L2__006_multimodal_rope_position_calculation",
+      "category": "L2",
+      "n_workloads": 16,
+      "headroom_median": 115004.95628074363,
+      "headroom_min": 50026.1198591303,
+      "headroom_max": 312560.62388420105,
+      "t_sol_sources": [
+        "max_of_both"
+      ],
+      "bottlenecks": [
+        "memory"
+      ]
+    },
+    {
+      "problem": "FlashInfer-Bench__013_gqa_paged_decode_h32_kv8_d128_ps1",
+      "category": "FlashInfer-Bench",
+      "n_workloads": 48,
+      "headroom_median": 40923.051743956974,
+      "headroom_min": 5717.179634670701,
+      "headroom_max": 978768.4559822083,
+      "t_sol_sources": [
+        "declared_traffic_gathered"
+      ],
+      "bottlenecks": [
+        "memory"
+      ]
+    },
+    {
+      "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
+      "category": "FlashInfer-Bench",
+      "n_workloads": 38,
+      "headroom_median": 36837.04373530519,
+      "headroom_min": 2557.6721344060275,
+      "headroom_max": 110190.5047893524,
+      "t_sol_sources": [
+        "declared_traffic_gathered"
+      ],
+      "bottlenecks": [
+        "memory"
+      ]
+    },
+    {
+      "problem": "FlashInfer-Bench__012_gqa_paged_decode_h32_kv4_d128_ps1",
+      "category": "FlashInfer-Bench",
+      "n_workloads": 48,
+      "headroom_median": 27190.724345406095,
+      "headroom_min": 10347.153170346937,
+      "headroom_max": 1208583.0181837082,
+      "t_sol_sources": [
+        "declared_traffic_gathered"
+      ],
+      "bottlenecks": [
+        "memory"
+      ]
+    },
+    {
+      "problem": "FlashInfer-Bench__015_gqa_paged_prefill_causal_h32_kv8_d128_ps1",
+      "category": "FlashInfer-Bench",
+      "n_workloads": 38,
+      "headroom_median": 24858.865305657986,
+      "headroom_min": 222.86006200285078,
+      "headroom_max": 1188224.3752479553,
+      "t_sol_sources": [
+        "declared_traffic_gathered"
+      ],
+      "bottlenecks": [
+        "memory"
+      ]
+    },
+    {
+      "problem": "L1__016_rope_inverse_frequency_computation",
+      "category": "L1",
+      "n_workloads": 16,
+      "headroom_median": 19473.99997152388,
+      "headroom_min": 9775.999980047345,
+      "headroom_max": 29068.000987172127,
+      "t_sol_sources": [
+        "declared_traffic"
+      ],
+      "bottlenecks": [
+        "memory"
+      ]
+    },
+    {
+      "problem": "FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1",
+      "category": "FlashInfer-Bench",
+      "n_workloads": 30,
+      "headroom_median": 19375.779500188102,
+      "headroom_min": 235.5605131540727,
+      "headroom_max": 1499133.450644357,
+      "t_sol_sources": [
+        "declared_traffic_gathered"
+      ],
+      "bottlenecks": [
+        "memory"
+      ]
+    },
+    {
+      "problem": "L1__058_moe_expert_token_radix_sort_with_prefix_sum",
+      "category": "L1",
+      "n_workloads": 16,
+      "headroom_median": 8437.620679085903,
+      "headroom_min": 2652.0000900640043,
+      "headroom_max": 9248.93868240443,
+      "t_sol_sources": [
+        "solar_fused"
+      ],
+      "bottlenecks": [
+        "memory"
+      ]
+    },
+    {
+      "problem": "FlashInfer-Bench__016_gqa_ragged_prefill_causal_h32_kv4_d128",
+      "category": "FlashInfer-Bench",
+      "n_workloads": 15,
+      "headroom_median": 5710.174287985829,
+      "headroom_min": 84.27094813778704,
+      "headroom_max": 134693.6509013176,
+      "t_sol_sources": [
+        "max_of_both",
+        "solar_fused"
+      ],
+      "bottlenecks": [
+        "compute",
+        "memory"
+      ]
+    },
+    {
+      "problem": "FlashInfer-Bench__017_gqa_ragged_prefill_causal_h32_kv8_d128",
+      "category": "FlashInfer-Bench",
+      "n_workloads": 21,
+      "headroom_median": 4953.022149659819,
+      "headroom_min": 66.6312725262765,
+      "headroom_max": 134082.64927566051,
+      "t_sol_sources": [
+        "max_of_both",
+        "solar_fused"
+      ],
+      "bottlenecks": [
+        "compute",
+        "memory"
+      ]
+    },
+    {
+      "problem": "L1__094_time_decay_exponential_stabilization",
+      "category": "L1",
+      "n_workloads": 16,
+      "headroom_median": 4634.659262906283,
+      "headroom_min": 569.0564235128321,
+      "headroom_max": 36619.38243633313,
+      "t_sol_sources": [
+        "declared_traffic"
+      ],
+      "bottlenecks": [
+        "memory"
+      ]
+    },
+    {
+      "problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1",
+      "category": "FlashInfer-Bench",
+      "n_workloads": 47,
+      "headroom_median": 3689.5210612310125,
+      "headroom_min": 1194.8433359713752,
+      "headroom_max": 169374.56130981445,
+      "t_sol_sources": [
+        "declared_traffic_gathered"
+      ],
+      "bottlenecks": [
+        "memory"
+      ]
+    },
+    {
+      "problem": "L1__023_multimodal_rope_position_computation_with_grid_based_indexing",
+      "category": "L1",
+      "n_workloads": 16,
+      "headroom_median": 2328.2455314714052,
+      "headroom_min": 249.74649649843826,
+      "headroom_max": 5184.094084809158,
+      "t_sol_sources": [
+        "declared_traffic",
+        "solar_fused"
+      ],
+      "bottlenecks": [
+        "memory"
+      ]
+    },
+    {
+      "problem": "L2__071_edit_consistency_loss_with_perceptual_weighting",
+      "category": "L2",
+      "n_workloads": 16,
+      "headroom_median": 1829.4887526327616,
+      "headroom_min": 1494.4600883723765,
+      "headroom_max": 2145.854961740323,
+      "t_sol_sources": [
+        "declared_traffic"
+      ],
+      "bottlenecks": [
+        "memory"
+      ]
+    },
+    {
+      "problem": "L1__024_vision_rotary_position_embedding_generation_backward",
+      "category": "L1",
+      "n_workloads": 16,
+      "headroom_median": 1587.6529749290657,
+      "headroom_min": 71.12323835203944,
+      "headroom_max": 6738.139492900748,
+      "t_sol_sources": [
+        "max_of_both",
+        "solar_fused"
+      ],
+      "bottlenecks": [
+        "memory"
+      ]
+    }
+  ],
+  "note": "No threshold is asserted here. A large headroom is not by itself an error -- a genuinely memory-bound problem whose reference is a poor implementation will show one honestly. What it does mean is that the score is dominated by T_b, and that no automatic check in this repo looks at it."
+}

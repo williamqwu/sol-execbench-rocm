@@ -246,6 +246,33 @@ def manifest_part(manifest: dict) -> str | None:
     return prov.get("part") or part_of(device)
 
 
+#: Headroom bands, widest first. `T_b / T_SOL`: how many times slower the
+#: PyTorch anchor is than the roofline, which is the whole range a score has to
+#: work with. Boundaries are round numbers and are not a threshold for
+#: anything -- no claim is made that 100x is wrong and 99x is fine. They exist
+#: so the shape of the distribution is visible at all.
+HEADROOM_BANDS = ((1000.0, "over 1000x"), (100.0, "100x - 1000x"),
+                  (10.0, "10x - 100x"), (2.0, "2x - 10x"), (0.0, "under 2x"))
+
+
+def headroom_bands(manifest: dict) -> dict:
+    """Count scoreable workloads per `T_b / T_SOL` band."""
+    counts = {label: 0 for _, label in HEADROOM_BANDS}
+    total = 0
+    for prob in manifest["problems"].values():
+        for w in prob.get("workloads", {}).values():
+            t_sol, t_b = w.get("t_sol_ms"), w.get("t_b_ms")
+            if not t_sol or not t_b or t_sol <= 0:
+                continue
+            h = t_b / t_sol
+            total += 1
+            for lo, label in HEADROOM_BANDS:
+                if h >= lo:
+                    counts[label] += 1
+                    break
+    return {"total": total, "bands": counts}
+
+
 def ingest_meta(conn, manifest: dict, part: str,
                 extra_roots: list[Path] | None = None) -> None:
     prov = manifest.get("_provenance", {})
@@ -280,6 +307,15 @@ def ingest_meta(conn, manifest: dict, part: str,
         "scoreable_workloads": manifest["stats"]["scoreable_workloads"],
         "expected_by_category": json.dumps(manifest["problem_set"]["expected_by_category"]),
         "bound_sources": json.dumps(manifest.get("bound_sources", {})),
+        # How much room a bound actually leaves. The board enforces one
+        # invariant on a bound -- that nothing beats it -- which catches a
+        # T_SOL too LARGE and is blind to one too small. A T_SOL far below
+        # anything achievable breaks no rule and produces a score that is
+        # T_b/(T_b+T_k) with no roofline content in it, and until this line
+        # nothing anywhere reported how common that is. Computed here rather
+        # than typed in, so it tracks the manifest the board is actually
+        # serving. STATE.md D39, scripts/bound_headroom.py.
+        "headroom_bands": json.dumps(headroom_bands(manifest)),
         # The extra roots go in too: without them `app.py` would enumerate a
         # different input set than the build did and report a phantom "files
         # removed" on every request.
@@ -770,6 +806,19 @@ def ingest_agent_runs(conn, part: str, extra_roots: list[Path] | None = None) ->
             """INSERT OR REPLACE INTO result
                (submission_id,problem_key,workload_uuid,status,latency_ms,
                 score,flagged,note) VALUES (?,?,?,?,?,?,?,?)""", rows)
+        # The run's own heading FIRST. It used to be printed after the depth
+        # and window lines below, so every run's depth counts appeared under
+        # the PREVIOUS run's heading -- which read as glm-sweep-2 having 40
+        # kernels when it has 220. The database was right; only the log lied,
+        # which is the kind of wrong that gets quoted.
+        bad = sorted({r["problem"] for r in doc.get("results", [])
+                      if r.get("bound_violation")})
+        if bad:
+            print(f"  agent {run_id}: {len(rows)} workloads; "
+                  f"{len(bad)} problem(s) have a bound a real kernel beat: {bad}")
+        else:
+            print(f"  agent {run_id}: {len(rows)} scored workloads")
+
         # Depth: kernels, trajectory, effort, transcripts. Keyed off the
         # problems this run actually has results for, so a stale file left in
         # a run directory for a problem that was never scored cannot invent a
@@ -785,14 +834,6 @@ def ingest_agent_runs(conn, part: str, extra_roots: list[Path] | None = None) ->
         print("    window: " + (", ".join(f"{n} {src}" for src, n
                                           in sorted(windows.items()))
                                 or "no timestamp evidence, no rows"))
-
-        bad = sorted({r["problem"] for r in doc.get("results", [])
-                      if r.get("bound_violation")})
-        if bad:
-            print(f"  agent {run_id}: {len(rows)} workloads; "
-                  f"{len(bad)} problem(s) have a bound a real kernel beat: {bad}")
-        else:
-            print(f"  agent {run_id}: {len(rows)} scored workloads")
 
     if invalid_bounds:
         conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)",

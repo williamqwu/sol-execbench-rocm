@@ -1288,6 +1288,7 @@ TOC_METHODOLOGY = [
     {"id": "deferred", "label": "Deferred problems"},
     {"id": "not-covered", "label": "What it does not cover"},
     {"id": "bad-bounds", "label": "Known-wrong bounds"},
+    {"id": "headroom", "label": "How much room a bound leaves"},
     {"id": "reading", "label": "Reading it honestly"},
 ]
 # The run page is the deepest page on the site and the longest -- kernel source,
@@ -1498,9 +1499,23 @@ def methodology(request: Request, part: str | None = None):
             if row:
                 invalid_bound_info[k] = {"n_workloads": row["n_workloads"],
                                          "headroom": row["median_headroom"]}
+        # The other tail. `problems_with_invalid_bound` is the set where a
+        # bound was too TIGHT to be true; these are the ones so loose that the
+        # score has almost no roofline content left in it. Nothing in the
+        # pipeline flags them, because a weak lower bound violates no rule --
+        # which is exactly why they belong on the page that explains what the
+        # number means.
+        headroom = json.loads(dict(
+            (r["key"], r["value"]) for r in conn.execute("SELECT key,value FROM meta")
+        ).get("headroom_bands") or "null")
+        loosest = [dict(r) for r in conn.execute(
+            """SELECT key, n_workloads, median_headroom FROM problem
+               WHERE median_headroom IS NOT NULL
+               ORDER BY median_headroom DESC LIMIT 8""")]
     return page(request, "methodology.html", active, bound_sources=bounds,
                 deferred=deferred, excluded=excluded, nav="methodology",
-                toc=TOC_METHODOLOGY, invalid_bound_info=invalid_bound_info)
+                toc=TOC_METHODOLOGY, invalid_bound_info=invalid_bound_info,
+                headroom=headroom, loosest=loosest)
 
 
 @app.get("/healthz", response_model=Health)

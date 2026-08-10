@@ -1162,6 +1162,59 @@ assumes it), that no `h2` is missing from the nav, and that a page passing no
 `toc` still renders single-column. Two files with no compiler between them
 would otherwise drift into links that render, look live, and scroll nowhere.
 
+### D39 — the defect class nothing checks: a bound far below anything achievable
+
+**Measured 2026-08-10.** `scripts/bound_headroom.py`,
+`artifacts/11/bound-headroom.json`. CPU only, no GPU, no measurement.
+
+The board enforces exactly one invariant on a bound: no measurement may beat
+it. That catches a `T_SOL` too **large**, and it is the only automatic check in
+the repo. A `T_SOL` too **small** breaks nothing — it is a perfectly valid lower
+bound, just a uselessly weak one — so nothing reports it, ever.
+
+It is not harmless. With
+
+    S = 1 / (1 + (T_k - T_SOL) / (T_b - T_SOL))
+
+as `T_SOL -> 0` the score becomes `T_b / (T_b + T_k)`: a comparison against the
+PyTorch anchor with no roofline content left in it. Those problems are scored on
+a different question from the rest of the board.
+
+Headroom `T_b / T_SOL` over manifest v1.2, all 3,717 scoreable workloads:
+
+```
+p10   1.74      under 2x      504  (13.6%)
+p50  15.61      2x - 10x     1086  (29.2%)
+p90 1978        10x - 100x   1300  (35.0%)
+p99 1.66e5      100x - 1000x  397  (10.7%)
+max 1.50e6      over 1000x    430  (11.6%)
+```
+
+**827 workloads, 22.3%, have more than 100x of headroom.** Against the three
+problems on the known-wrong-bounds list, that is the proportion of this
+benchmark whose scores are dominated by `T_b`.
+
+Worst by median headroom: `L2__006` 115,005x, then six FlashInfer paged
+problems between 19,000x and 41,000x, `L1__016` 19,474x.
+
+**Two things follow that are uncomfortable and both should be said.**
+
+The FlashInfer paged problems are at the top of that list *because of v1.1*.
+D18's correction was right — the kernel gathers a few pages and the bound was
+pricing the whole allocation — but `FlashInfer-Bench__018` went from 185,274
+cycles to **8**, and a bound of 8 cycles against a `T_b` in milliseconds is
+correct and vacuous. Those bounds went from wrong-and-tight to right-and-empty,
+and nothing in the pipeline noticed because the only check looks the other way.
+
+And the opposite tail is real too: **13.6% of workloads have under 2x of
+headroom**, which is a scoring range so narrow that run-to-run variance is a
+material share of the score. `L1__035`, already noted in `TODO.md` at 1.008x
+total headroom, is not an outlier so much as the visible end of that band.
+
+No threshold is asserted. A large headroom is not automatically an error — a
+memory-bound problem whose PyTorch reference is simply a poor implementation
+shows one honestly. What is wrong is that nobody was looking.
+
 ### D38 — the timer never saw a submission's own stream, and one of the "wrong bounds" was a wrong measurement
 
 **Fixed 2026-08-10.** Two probe artifacts, before and after, on the same
@@ -1280,13 +1333,19 @@ Measured MAC ratios after the fix: `L1__006` **×768.000** exactly, `L2__035`
 ×6.70–7.07, `L1__029` ×4.999, `L2__058` ×4.66–4.75, `L2__051` ×3.17–3.26,
 `L1__005` ×1.999.
 
-**`L2__036` did not move and is not fixed.** ×1.000. It is a backward problem,
-and SOLAR routes backward graphs through `graph/backward_processor.py`, which
-builds its own `module_args` and never reaches the forward conv handler the
-correction wraps. Left open deliberately: concluding it is fine because six
-siblings moved is the reasoning this ledger exists to prevent — and `L2__036`
-is precisely the problem this entry already identified as the one whose bound is
-too wrong for any kernel to expose.
+**`L2__036` was never in scope, and the scope was wrong when this entry was
+written.** ×1.000, and the reason is not that the fix missed it. Re-scanning by
+`run()`'s function body rather than by the reference file, **six** problems call
+a grouped convolution in the traced graph — `L1__005`, `L1__006`, `L1__029`,
+`L2__035`, `L2__051`, `L2__058` — and v1.2 corrects all six. `L2__036`'s
+`F.conv2d(..., groups=C)` is in `get_inputs`, which builds the intermediates its
+backward pass consumes: not traced by SOLAR, not timed by the harness.
+
+The original scope of seven came from an AST scan of the whole file. Everything
+below about `L2__036` being the witness for "the list is blind to bounds nothing
+can reach" is **wrong, and wrong in the opposite direction** — see D39. Its
+bound errs low, not high, and its 1586 MHz was never evidence of anything but
+the fp32 vector datapath doing what D35 measured it doing.
 
 The wrapper is not a patch to SOLAR. SOLAR is pinned by SHA in `env/Dockerfile`
 and deliberately not vendored; a patch file would mean rebuilding the

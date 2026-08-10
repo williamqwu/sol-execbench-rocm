@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""Manifest v1.2: SOLAR re-derived for the seven grouped-convolution problems.
+"""Manifest v1.2: SOLAR re-derived for the grouped-convolution problems.
 
     python scripts/rebuild_manifest_v12.py
 
@@ -17,8 +17,8 @@ that before running the pipeline.
 
 This is NOT arithmetic over v1's numbers the way v1.1 was. The SOLAR pipeline
 was re-run, on `device="meta"` and therefore with no GPU and no measurement, for
-the seven problems that call a convolution with non-1 groups. Their new cycle
-counts are in `artifacts/11/d37/`.
+every problem that calls a convolution with non-1 groups. Their new cycle counts
+are in `artifacts/11/d37/`.
 
     L1__006   macs   x768.000 exactly  (the group count, to the digit)
     L1__029   macs   x4.999
@@ -26,28 +26,28 @@ counts are in `artifacts/11/d37/`.
     L2__035   macs   x6.698-7.069
     L2__051   macs   x3.173-3.256
     L1__005   macs   x1.999
-    L2__036   macs   x1.000  -- UNCHANGED, see below
+    L2__036   macs   x1.000  -- correctly unchanged, see below
 
 Every one of those makes T_SOL *smaller*, which lowers scores on those problems
 and removes bound violations rather than creating them. A T_SOL that was too
 large is the direction that lets a score exceed 1; correcting it cannot inflate
 anything.
 
-`L2__036` did not move and is not fixed. It is a backward problem, and SOLAR
-routes backward graphs through `graph/backward_processor.py`, which assembles
-its own `module_args` and never reaches the forward conv handler this correction
-wraps. It stays on the open list; asserting it is fine because six of its
-siblings moved would be exactly the reasoning this file exists to avoid.
+`L2__036` is in `artifacts/11/d37/` and did not move, and that is correct: its
+`F.conv2d(..., groups=C)` is in `get_inputs`, which builds the intermediates its
+backward pass consumes, and `get_inputs` is neither traced by SOLAR nor timed by
+the harness. Scope here is **six**, not seven. The seven came from scanning the
+whole reference file; scanning `run()`'s body is the question that was meant.
 
 **What is recombined and what is not.** For each affected workload the new
 SOLAR cycle count is combined with the traffic tier the same way v1 combined
 them -- `max` of the two -- and then divided by the clock of whichever datapath
-the *new* bottleneck names, because six of the seven change bottleneck on at
+the *new* bottleneck names, because most of the six change bottleneck on at
 least some workloads (L1__006 flips compute -> memory on all sixteen, which is
 what a 768x arithmetic over-count was hiding). The `T_SOL <= T_b` gate is
 re-applied last, unchanged.
 
-Nothing outside those seven problems is touched, and no measurement is repeated.
+Nothing outside those problems is touched, and no measurement is repeated.
 """
 
 from __future__ import annotations
@@ -156,7 +156,7 @@ def main() -> int:
             if src_v11 != "solar_fused" and "traffic" not in src_v11:
                 # A workload whose v1 bound came from a rejection path, or from
                 # v1.1's paged-gather recombination, is not something this
-                # correction knows how to recombine. None of the seven is one;
+                # correction knows how to recombine. None of these is one;
                 # refusing rather than skipping means that stops being true
                 # loudly.
                 raise SystemExit(
@@ -256,9 +256,21 @@ def main() -> int:
         "defect": "D37 -- SOLAR priced a grouped convolution as a dense one",
         "fix": "src/solexbench_rocm/solar/conv_groups.py, applied by sol_bounds.py",
         "re_derived_not_re_measured": (
-            "the SOLAR pipeline was re-run on device=meta for the seven "
-            "problems that call a convolution with non-1 groups. No GPU, no "
+            "the SOLAR pipeline was re-run on device=meta for every problem "
+            "that calls a convolution with non-1 groups. No GPU, no "
             "measurement repeated."
+        ),
+        "problems_in_scope": 6,
+        "scope_correction": (
+            "Scope was first recorded as seven, from an AST scan of the whole "
+            "reference file. Scanning run()'s function body instead: SIX "
+            "problems call a grouped convolution in the traced graph -- "
+            "L1__005, L1__006, L1__029, L2__035, L2__051, L2__058 -- and all "
+            "six are corrected here. L2__036's F.conv2d(..., groups=C) is in "
+            "get_inputs, which builds the intermediates its backward pass "
+            "consumes: not traced by SOLAR and not timed by the harness. Its "
+            "bounds were re-derived anyway and came back identical, which is "
+            "the expected result rather than a missed fix."
         ),
         "source_artifacts": sorted(p.name for p in D37.glob("*.json")),
         "problems": per_problem,
@@ -266,12 +278,14 @@ def main() -> int:
         "workloads_unchanged": n_same,
         "bottleneck_flips": n_flip,
         "regated": n_regate,
-        "still_open": {
-            "L2__036_convnextv2_layer_with_nhwc_persistence_backward": (
-                "unchanged at x1.000. A backward problem: SOLAR routes backward "
-                "graphs through graph/backward_processor.py, which builds its "
-                "own module_args and never reaches the forward conv handler "
-                "this correction wraps. Not fixed, not asserted to be fine."
+        "still_open_under_d37": None,
+        "adjacent_and_not_fixed": {
+            "D39": (
+                "Correcting a bound downward makes it looser, and nothing in "
+                "this repo checks how loose a bound is -- the only automatic "
+                "check is that no measurement beats it. 22.3% of workloads now "
+                "have more than 100x of headroom (T_b/T_SOL). See "
+                "scripts/bound_headroom.py and STATE.md D39."
             ),
         },
     }

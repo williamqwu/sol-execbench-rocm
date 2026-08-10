@@ -2,8 +2,8 @@
  "_provenance": {
   "_provenance": {
    "task": "09-manifest-v1.2",
-   "utc": "2026-08-10T02:33:37.585956+00:00",
-   "git_sha": "1b9acb5a11aa85608ea84b41a026bfcadc87b178-dirty",
+   "utc": "2026-08-10T03:33:50.333372+00:00",
+   "git_sha": "389f3600cd9fc63b52a18632f21e86c1664ad22c-dirty",
    "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
    "python": "3.11.7",
    "torch": {
@@ -82396,7 +82396,9 @@
  "v1_2_changes": {
   "defect": "D37 -- SOLAR priced a grouped convolution as a dense one",
   "fix": "src/solexbench_rocm/solar/conv_groups.py, applied by sol_bounds.py",
-  "re_derived_not_re_measured": "the SOLAR pipeline was re-run on device=meta for the seven problems that call a convolution with non-1 groups. No GPU, no measurement repeated.",
+  "re_derived_not_re_measured": "the SOLAR pipeline was re-run on device=meta for every problem that calls a convolution with non-1 groups. No GPU, no measurement repeated.",
+  "problems_in_scope": 6,
+  "scope_correction": "Scope was first recorded as seven, from an AST scan of the whole reference file. Scanning run()'s function body instead: SIX problems call a grouped convolution in the traced graph -- L1__005, L1__006, L1__029, L2__035, L2__051, L2__058 -- and all six are corrected here. L2__036's F.conv2d(..., groups=C) is in get_inputs, which builds the intermediates its backward pass consumes: not traced by SOLAR and not timed by the harness. Its bounds were re-derived anyway and came back identical, which is the expected result rather than a missed fix.",
   "source_artifacts": [
    "L1_005_conv_gated_projection_with_causal_conv.json",
    "L1_006_hyena_depthwise_conv1d_split_gate.json",
@@ -82440,8 +82442,9 @@
   "workloads_unchanged": 29,
   "bottleneck_flips": 25,
   "regated": 0,
-  "still_open": {
-   "L2__036_convnextv2_layer_with_nhwc_persistence_backward": "unchanged at x1.000. A backward problem: SOLAR routes backward graphs through graph/backward_processor.py, which builds its own module_args and never reaches the forward conv handler this correction wraps. Not fixed, not asserted to be fine."
+  "still_open_under_d37": null,
+  "adjacent_and_not_fixed": {
+   "D39": "Correcting a bound downward makes it looser, and nothing in this repo checks how loose a bound is -- the only automatic check is that no measurement beats it. 22.3% of workloads now have more than 100x of headroom (T_b/T_SOL). See scripts/bound_headroom.py and STATE.md D39."
   }
  }
 }

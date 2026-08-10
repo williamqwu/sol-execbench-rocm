@@ -241,6 +241,76 @@
 </div>
 {% endif %}
 
+<h2 id="headroom">How much room a bound leaves &mdash; the other tail</h2>
+{% if not headroom %}
+<p class="sub">This database was built before headroom was recorded. Rebuild it
+   with <code>leaderboard/ingest.py</code> and the distribution appears here.
+   The section stays in place either way, because a nav entry that sometimes
+   scrolls nowhere is worse than an empty section that says why.</p>
+{% else %}
+<p>The list above is every bound a kernel was measured <i>faster</i> than. That
+   is the only automatic check there is on a bound, and it can only catch a
+   T<sub>SOL</sub> that is too <b>large</b>. A T<sub>SOL</sub> that is too
+   <b>small</b> breaks no rule at all: it is a perfectly valid lower bound, just
+   a weak one, so nothing reports it.</p>
+<p>It still costs the reader something. Since
+   <code>S = 1 / (1 + (T_k &minus; T_SOL) / (T_b &minus; T_SOL))</code>, as
+   T<sub>SOL</sub> falls toward zero the score becomes
+   <code>T_b / (T_b + T_k)</code> &mdash; a comparison against the PyTorch
+   anchor with no roofline left in it. Headroom below is
+   <b>T<sub>b</sub>&nbsp;/&nbsp;T<sub>SOL</sub></b>: how much range the score
+   actually has to work with.</p>
+<div class="scroll">
+<table class="grid">
+  <thead><tr><th>headroom T<sub>b</sub>/T<sub>SOL</sub></th><th class="r">workloads</th><th class="r">share</th><th>what a score there means</th></tr></thead>
+  <tbody>
+  {% set meaning = {
+    'under 2x': 'Almost no scoring range. Run-to-run variance is a material share of the score.',
+    '2x - 10x': 'The intended regime: the roofline and the anchor are both doing work.',
+    '10x - 100x': 'Wide, but a strong kernel can still move within it.',
+    '100x - 1000x': 'The score is dominated by T_b. A kernel would have to beat the PyTorch anchor by ~50x to reach 0.99.',
+    'over 1000x': 'Effectively no roofline content. This is a T_b comparison wearing a SOL score.'
+  } %}
+  {% for label in ['under 2x', '2x - 10x', '10x - 100x', '100x - 1000x', 'over 1000x'] %}
+    {% set n = headroom.bands.get(label, 0) %}
+    <tr><td class="mono sm">{{ label }}</td>
+        <td class="r sm">{{ '{:,}'.format(n) }}</td>
+        <td class="r sm">{{ '%.1f'|format(100 * n / headroom.total) }}%</td>
+        <td class="sm">{{ meaning.get(label, '') }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="sub"><b>{{ '{:,}'.format(headroom.bands.get('100x - 1000x', 0) + headroom.bands.get('over 1000x', 0)) }}
+   of {{ '{:,}'.format(headroom.total) }} workloads
+   ({{ '%.1f'|format(100 * (headroom.bands.get('100x - 1000x', 0) + headroom.bands.get('over 1000x', 0)) / headroom.total) }}%)
+   sit above 100&times;.</b> Set that against the handful of problems on the
+   known-wrong list: the visible defect is the small one. No threshold is being
+   asserted here &mdash; a memory-bound problem whose PyTorch reference is
+   simply a poor implementation shows a large headroom honestly. What was wrong
+   is that nobody was looking.</p>
+<p class="sub">Two of these are self-inflicted and worth saying so. The paged
+   FlashInfer problems are near the top <i>because</i> manifest v1.1 corrected
+   them: pricing a KV cache at the pages it gathers rather than at its whole
+   allocation was right, and it took
+   <code>FlashInfer-Bench__018</code> from 185,274 cycles to <b>8</b>. A bound
+   of 8 cycles against a T<sub>b</sub> in milliseconds is correct and vacuous.
+   Those went from wrong-and-tight to right-and-empty, and the pipeline could
+   not notice because its one check looks the other way.</p>
+<div class="scroll">
+<table class="grid">
+  <thead><tr><th>loosest bounds</th><th class="r">workloads</th><th class="r">median headroom</th></tr></thead>
+  <tbody>
+  {% for r in loosest %}
+    <tr><td class="mono sm"><a href="{{ part_url('/problems/' ~ r.key) }}">{{ r.key }}</a></td>
+        <td class="r sm">{{ r.n_workloads }}</td>
+        <td class="r sm mono">{{ '{:,.0f}'.format(r.median_headroom) }}&times;</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
 <h2 id="reading">Reading the leaderboard honestly</h2>
 <ul>
   <li><b>Benchmark score</b> sums per-workload scores over every scoreable

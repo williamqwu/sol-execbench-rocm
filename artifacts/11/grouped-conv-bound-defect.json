@@ -97,5 +97,11 @@
     "Two problems were reconstructed exactly. The other five in scope are assumed to share the mechanism because they share the call shape; that is an inference and is not the same as the two reconstructions.",
     "Clocks are one workload per problem -- the largest by summed axis -- and one 6 s hold each, on an idle GPU 0.",
     "Headroom (T_b / T_SOL) over the seven has median 7.8x against 15.8x for the rest of the benchmark, with 29.1% of their workloads under 2x against 13.7% elsewhere. That is the direction an over-counted arithmetic term predicts, but headroom also varies with the problem, so it is corroboration and not a measurement of the defect."
-  ]
+  ],
+  "CORRECTION_2026_08_10": {
+    "what_was_wrong": "This artifact says seven problems and names L2__036 among them, and it uses L2__036 as the centrepiece of its argument that the bad-bounds list is blind to errors too large for a kernel to reach. Both are wrong.",
+    "scope": "The scan was a balanced-paren scan of each REFERENCE FILE. Scanning run()'s function body instead -- which is what SOLAR traces and what the harness times -- gives SIX: L1__005, L1__006, L1__029, L2__035, L2__051, L2__058. L2__036's F.conv2d(..., groups=C) is in get_inputs, which builds the intermediates its backward pass consumes.",
+    "the_argument": "L2__036 is not evidence for this defect and its bound does not err high. Measured against manifest v1.2 its T_b/T_SOL headroom is 166x to 6,280x -- the bound is far BELOW anything achievable, not above it, which is why it has never appeared on any list: a bound nothing can reach is a bound nothing can contradict. Its 1586 MHz is the fp32 vector datapath doing exactly what STATE.md D35 measured it doing. See STATE.md D39 and artifacts/11/bound-headroom.json.",
+    "what_survives": "The mechanism, which was confirmed exactly and is unaffected: L1__006 x768.0 and L1__029's two-term reconstruction. Fixed in manifest v1.2 for all six in-scope problems."
+  }
 }
