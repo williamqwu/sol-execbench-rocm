@@ -275,6 +275,17 @@ def run_pipeline(model_src: str, workdir: Path, arch_yaml: Path,
     from solar.graph import PyTorchProcessor
     from solar.perf import EinsumGraphPerfModel
 
+    # AMD: SOLAR reads `groups` from `module_args`, which is populated only for
+    # nn.Module convolutions. Every convolution in this benchmark is functional,
+    # so `groups` never arrived and a grouped conv was priced as a dense one --
+    # 768x on L1__006's arithmetic term, to the digit. Applied explicitly here
+    # rather than on import so that whether a bound carries the correction is a
+    # property of the code that produced it. See D37 and
+    # `solexbench_rocm/solar/conv_groups.py`.
+    from solexbench_rocm.solar import conv_groups
+
+    conv_groups.apply()
+
     workdir.mkdir(parents=True, exist_ok=True)
     model_file = workdir / "model.py"
     model_file.write_text(model_src)
