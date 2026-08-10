@@ -28,6 +28,16 @@ rule one out.
 authoritative timing only (`CLAUDE.md` s4). Nothing here is a timing
 measurement -- counters change kernel duration -- and no number it produces may
 be used as one.
+
+**THIS SCRIPT DOES NOT RUN TODAY. See `STATE.md` D43.** `rocprofv3 --pmc` hangs
+in this container: no counter rows and no exit, on a three-kernel script as
+readily as on a real workload. It is kept because the hang is an environment
+defect rather than a defect here, and because the moment counters work this is
+the measurement that is wanted. It has never produced a number, so nothing in
+the repo depends on one.
+
+The path that does not need counters is a minimal independent kernel, timed --
+see D43.
 """
 
 from __future__ import annotations

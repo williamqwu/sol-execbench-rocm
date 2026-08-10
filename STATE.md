@@ -1162,6 +1162,43 @@ assumes it), that no `h2` is missing from the nav, and that a page passing no
 `toc` still renders single-column. Two files with no compiler between them
 would otherwise drift into links that render, look live, and scroll nowhere.
 
+### D43 — BLOCKED: rocprofv3 counter collection hangs in this container
+
+**2026-08-10.** D42 establishes by hand that the declared-traffic tier prices
+bytes the kernel never moves. Deriving the replacement by hand and checking it
+by hand is the mistake CLAUDE.md §6 names, so the next step needs an
+independent measurement of the bytes actually moved.
+
+`scripts/bounds/measure_traffic.py` was written for it — rocprofv3
+`--pmc FETCH_SIZE WRITE_SIZE` over the reference, cards 1–7, card 0 refused.
+**It does not run.** `rocprofv3 --pmc` produces no output and never exits:
+
+| probe | kernels | waited | result |
+|---|---|---|---|
+| `L1__042` reference, 5 reps | ~10 | 15 min | killed, no counter rows |
+| `a + 1.0` on a 4096² bf16 tensor, 3 reps | 3 | 4 min | killed, no counter rows |
+
+Three kernels is not a workload problem. Checked and ruled out: no stale
+rocprofv3 session in the container holding the counter block (only zombie
+pythons from 2026-08-07), and the hang reproduces from a cold start.
+
+**This does not implicate the shim.** `src/solexbench_rocm/shim/` uses
+rocprofiler-sdk's *dispatch callback* path — timestamps — and that is built,
+validated over 1430 pairs at −0.61% median divergence, and used by every
+measurement in the repo. The PMC counter path is a different interface and is
+the one that is broken. Nothing measured so far is affected.
+
+Not diagnosed further and **nothing was changed to work around it** — a
+container rebuild or a capability change to make counters work would alter the
+image every baseline was measured in. Recorded and left.
+
+**The alternative does not need counters.** CLAUDE.md §6 says only an
+independent kernel separates a bound from its anchor, and that is a *timing*
+measurement: write a minimal kernel that moves only the traffic the problem
+actually requires, time it on GPU 0, and compare against the tier. Slower path,
+no counters, and it is how all three known-bad bounds were found in the first
+place. That is the next step, not a fix to this one.
+
 ### D42 — the five surviving bad bounds are two causes, and one is D18 again
 
 **2026-08-10.** `scripts/bounds/diagnose_bad_bounds.py`,
