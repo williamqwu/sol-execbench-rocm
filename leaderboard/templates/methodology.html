@@ -334,20 +334,46 @@
       rejected &mdash; <code>status == REWARD_HACK</code>, an output accepted
       without the work being done. A flagged workload scores zero and is still
       displayed.
-      {# The sample size is read from this part's own database, not typed in.
-         It was a literal 14,077 and had already gone stale: that is the count
-         from before pilot8 was ingested, and a run kept off the RANKING still
-         contributes its results here. The one claim on this page that is a
-         negative is the one whose evidence must not silently stop growing. #}
-      {%- set n_rec = parts | default([], true) | selectattr('active')
-                            | rejectattr('n_results', 'none')
-                            | map(attribute='n_results') | first %}
-      The count is <b>0 across
-      {%- if n_rec is not none %} all {{ '{:,}'.format(n_rec) }} recorded
-      results{% else %} every recorded result{% endif %}</b>: the
+      {# Counted in app.py, from this part's own database. This paragraph used
+         to assert "0" in prose beside a live sample size, which is the shape of
+         claim that goes stale without anyone noticing -- and on 2026-08-10 it
+         did, in the same hour the check that broke it was added. A claim that
+         is a negative has to be able to stop being one on its own. #}
+      {% if flagged and flagged.n %}
+      <b>{{ '{:,}'.format(flagged.n) }} of {{ '{:,}'.format(flagged.total) }}
+      recorded results are flagged</b>, and the first of them was found on
+      2026-08-10. Every one is the same mechanism: the submission lowered fp32
+      matmul precision to TF32 &mdash; one line, no cast, dtypes unchanged,
+      <b>4.52&times;</b> on fp32 matmul measured on this part &mdash; against a
+      T<sub>SOL</sub> derived from the <i>declared</i> dtype's MAC/cycle rate.
+      Nothing checked for it until that day, so these had been scored and
+      published.
+      <div style="margin-top:8px">
+      <div class="scroll">
+      <table class="grid">
+        <thead><tr><th>problem</th><th class="r">flagged workloads</th></tr></thead>
+        <tbody>
+        {% for f in flagged_by %}
+          <tr><td class="mono sm"><a href="{{ part_url('/problems/' ~ f.key) }}">{{ f.key }}</a></td>
+              <td class="r sm">{{ f.n }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      </div>
+      <span class="sub">Two spell it
+      <code>torch.set_float32_matmul_precision("high")</code> at module scope
+      and one turns the flag on for a single matmul and back off before
+      returning &mdash; which the first version of the check could not see,
+      because it compared the flag before and after. Restoring it is the same
+      speedup with the evidence cleaned up.</span>
+      {% else %}
+      The count is <b>0{% if flagged %} across all
+      {{ '{:,}'.format(flagged.total) }} recorded results{% endif %}</b>: the
       dash on every row means the check ran and caught nothing, not that it was
       never run. It is kept as a column precisely so that a first non-zero is
-      visible the moment it happens.</li>
+      visible the moment it happens.
+      {% endif %}</li>
 </ul>
 
 <p class="sub">The database is a view over the artifacts, rebuilt by

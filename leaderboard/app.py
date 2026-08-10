@@ -1508,6 +1508,19 @@ def methodology(request: Request, part: str | None = None):
         headroom = json.loads(dict(
             (r["key"], r["value"]) for r in conn.execute("SELECT key,value FROM meta")
         ).get("headroom_bands") or "null")
+        # Flagged, across every recorded result including runs kept off the
+        # ranking. Counted here rather than asserted in the template: the
+        # paragraph that renders it used to say "0" as prose, and on 2026-08-10
+        # that stopped being true in the same hour a guard was added. A claim
+        # that is a negative has to be able to stop being one by itself.
+        flagged_row = conn.execute(
+            "SELECT COALESCE(SUM(flagged),0) AS n, COUNT(*) AS total FROM result"
+        ).fetchone()
+        flagged = {"n": flagged_row["n"], "total": flagged_row["total"]}
+        flagged_by = [dict(r) for r in conn.execute(
+            """SELECT p.key, COUNT(*) AS n FROM result r
+               JOIN problem p ON p.key = r.problem_key
+               WHERE r.flagged = 1 GROUP BY p.key ORDER BY n DESC""")]
         loosest = [dict(r) for r in conn.execute(
             """SELECT key, n_workloads, median_headroom FROM problem
                WHERE median_headroom IS NOT NULL
@@ -1515,7 +1528,8 @@ def methodology(request: Request, part: str | None = None):
     return page(request, "methodology.html", active, bound_sources=bounds,
                 deferred=deferred, excluded=excluded, nav="methodology",
                 toc=TOC_METHODOLOGY, invalid_bound_info=invalid_bound_info,
-                headroom=headroom, loosest=loosest)
+                headroom=headroom, loosest=loosest,
+                flagged=flagged, flagged_by=flagged_by)
 
 
 @app.get("/healthz", response_model=Health)

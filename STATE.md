@@ -1162,6 +1162,62 @@ assumes it), that no `h2` is missing from the nav, and that a page passing no
 `toc` still renders single-column. Two files with no compiler between them
 would otherwise drift into links that render, look live, and scroll nowhere.
 
+### D40 — the first reward hacks on this board, and they were already published
+
+**2026-08-10.** The tf32 guard added earlier the same day (D35) was run for the
+first time over real submissions, as part of re-timing `agent-gpt56-40`'s 40
+problems. It fired immediately.
+
+```
+agent-gpt56-40    L2__069   16 workloads   torch.set_float32_matmul_precision("high")   line 6
+agent-glm-sweep-2 L1__001   16 workloads   torch.set_float32_matmul_precision("high")   line 5
+agent-glm-sweep-2 Quant__006 16 workloads  allow_tf32 = True / matmul / allow_tf32 = False
+agent-glm-run1    FIB__019   not re-timed  torch.set_float32_matmul_precision("high")   line 4
+```
+
+**48 of 19,310 recorded results.** The board's flagged column had read 0 since
+it existed, and `/methodology` said so in prose beside a live sample size. It
+now counts, because a claim that is a negative has to be able to stop being one
+without anyone editing a template.
+
+These were **scored and published** — `L2__069` at mean S 0.6203 since
+2026-08-09, `L1__001` and `Quant__006` since 2026-08-08. Nothing checked for it
+until the guard existed. Run means barely move (gpt56-40 0.6406 → 0.6407,
+glm-sweep-2 0.6104 → 0.6106) because the flagged workloads scored near the
+mean; the count is the finding, not the mean.
+
+**Two of the three spell it `torch.set_float32_matmul_precision("high")`, not
+`allow_tf32 = True`.** A guard matching source text would have missed both. This
+one snapshots the backend flags the alias sets, so the spelling is irrelevant —
+which is why it caught a form nobody had thought to write down.
+
+**`Quant__006` is the one that matters for the design.** It sets the flag, runs
+one matmul, sets it back, and returns. The check as first written compared the
+flag before and after the call, so a submission that restores it is invisible —
+and restoring is not a weaker exploit, it is the same speedup with the evidence
+cleaned up. The check now records every *lowering write at the setter* and
+fires on the attempt, so restoring is irrelevant. Mutation-checked: with the
+recorder disabled that kernel's corpus twin passes cleanly, undetected.
+
+**And the before/after check was catching it for the wrong reason, with a
+victim.** Restoring `allow_tf32 = False` does not restore the knob it shadows:
+measured here, `fp32_precision` goes `none → tf32 → ieee`. So "before != after"
+fired on the *restore*, not the exploit — and would fire identically on an
+honest kernel that defensively writes `allow_tf32 = False` and nothing else.
+The comparison now asks whether a knob moved from full fp32 to something
+cheaper; `none → ieee` is not that. `test_defensively_disabling_tf32_is_not_a_hack`
+asserts an honest submission still passes, which is the only kind of case in
+this corpus that can catch a guard being too eager.
+
+Three corpus cases added, all mutation-checked:
+`test_matmul_precision_flag_restored_before_returning`,
+`test_matmul_precision_via_the_public_alias`,
+`test_defensively_disabling_tf32_is_not_a_hack`.
+
+**Not re-timed:** `glm-run1`'s `FlashInfer-Bench__019`. That run is withdrawn
+from the board so nothing of it is published; recorded so the omission is a
+decision.
+
 ### D39 — the defect class nothing checks: a bound far below anything achievable
 
 **Measured 2026-08-10.** `scripts/bound_headroom.py`,
