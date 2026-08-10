@@ -1,0 +1,101 @@
+{
+  "_provenance": {
+    "_provenance": {
+      "task": "11-grouped-conv-bound-defect",
+      "utc": "2026-08-10T01:23:56.320029+00:00",
+      "git_sha": "d07766e657351e6787a3f7bcb1554858959fc090",
+      "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+      "python": "3.11.7",
+      "torch": {
+        "available": false
+      },
+      "rocm": {
+        "version": "7.15.0",
+        "driver": "7.1.1.31500000",
+        "amd_smi": "AMDSMI Tool: 26.5.0+03d8462e | AMDSMI Library version: 26.5.0 | ROCm version: 7.15.0 | amdgpu version: 7.1.1.31500000 | ionic version: N/A"
+      },
+      "f_lock_mhz": null,
+      "visible_devices": null
+    }
+  },
+  "question": "v1.1 left five problems whose bounds a real kernel beats by more than the clock or the paged-traffic correction explains. What are they?",
+  "answer": "Not five unrelated defects either. At least two are one mechanism, and it is exact: SOLAR prices a GROUPED convolution as a DENSE one. It ignores the `groups` argument, so the arithmetic term is over-counted by the group count -- 768x on one problem, 16,384x on another -- and T_SOL is too large by whatever share of the work the convolution was.",
+  "confirmed_exactly": {
+    "L1__006_hyena_depthwise_conv1d_split_gate": {
+      "workload": {
+        "batch_size": 2,
+        "seq_len": 128
+      },
+      "true_macs": 599040,
+      "derivation": "B x inner_width x (L+2) x K = 2 x 768 x 130 x 3, the depthwise conv1d and nothing else in the graph",
+      "solar_macs": 460062720,
+      "ratio": 768.0,
+      "equals": "inner_width, i.e. the group count, to the digit"
+    },
+    "L1__029_mamba_conv1d_with_gating": {
+      "workload": {
+        "batch_size": 16,
+        "seq_len": 512
+      },
+      "solar_macs": 10995116277760,
+      "reconstruction": "dense conv term 16 x 16384 x 16384 x 512 x 4 = 8,796,093,022,208 plus in_proj 16 x 512 x 32768 x 8192 = 2,199,023,255,552, summing to exactly SOLAR's 10,995,116,277,760",
+      "true_conv_macs": 536870912,
+      "conv_over_count": 16384.0,
+      "note": "The conv is a small share of this problem's real work, so the NET over-count of T_SOL is about 5x rather than 16,384x. The mechanism is exact; its effect is per problem."
+    }
+  },
+  "scope": {
+    "problems_calling_a_conv_with_explicit_groups": 7,
+    "list": [
+      "L1__005_conv_gated_projection_with_causal_conv",
+      "L1__006_hyena_depthwise_conv1d_split_gate",
+      "L1__029_mamba_conv1d_with_gating",
+      "L2__035_convnextv2_block_with_grn",
+      "L2__036_convnextv2_layer_with_nhwc_persistence_backward",
+      "L2__051_seqlen-finetuned-reconstructed_hyena_complete_forward_block",
+      "L2__058_mamba2_selective_scan"
+    ],
+    "method": "balanced-paren scan of each reference for a conv1d/2d/3d call carrying `groups=`. A plain grep for `groups=` returns 44 and is wrong: most are GQA's num_key_value_groups, which is not a convolution."
+  },
+  "why_it_was_not_found_by_the_bad_bounds_list": "Four of the seven have appeared on that list and three never have, and the three are not the ones with correct bounds -- they are the ones whose bounds are too wrong to reach. A bound is only shown to be wrong by a kernel that beats it, so the list finds errors small enough for a kernel to cross and is blind to errors large enough that nothing gets near. L2__036 is the case in point: it never appears, and it is the kernel that clocked 1586 MHz, the highest measured anywhere on this node -- a kernel clocking far above its datapath's saturating clock is one that is not saturating that datapath, which is what a compute bound priced for work the kernel never does looks like from the outside.",
+  "clock_measurements": {
+    "_note": "Sustained GFX clock of each residue kernel, loaded from a real file so the triton ones import -- the earlier attempt exec'd source from a string and @jit refused three of them, which is why those three had no clock.",
+    "L1__005_conv_gated_projection_with_causal_conv": {
+      "mhz": 1352,
+      "vs_f_lock": 1.04,
+      "dtype": "bfloat16"
+    },
+    "L1__006_hyena_depthwise_conv1d_split_gate": {
+      "mhz": 1516,
+      "vs_f_lock": 1.166,
+      "dtype": "float32"
+    },
+    "L1__054_audio_attention_qkv_projection_with_normalization": {
+      "mhz": 1449,
+      "vs_f_lock": 1.115,
+      "dtype": "float32"
+    },
+    "L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion": {
+      "mhz": 1313,
+      "vs_f_lock": 1.01,
+      "dtype": "bfloat16"
+    },
+    "L2__045_audio_encoder_to_language_model_multimodal_fusion": {
+      "mhz": 1554,
+      "vs_f_lock": 1.195,
+      "dtype": "bfloat16"
+    }
+  },
+  "still_open": {
+    "L1__005": "SOLAR's MAC count is EXACTLY 2.0x a hand count of its three terms (in_proj 103.08e9 + depthwise conv 67.1e6 + out_proj 34.36e9 = 137.44e9 against SOLAR's 274.88e9). It has a grouped conv, but the conv is 0.05% of the work, so `groups` does not explain a factor of two. An exact 2.0 suggests a MAC/FLOP conflation on part of the graph. Not diagnosed.",
+    "L1__054": "SOLAR's MAC count is CORRECT -- 25,769,803,776 against a hand count of 3 x 64 x 128 x 1024 x 1024, exactly. So this is not a MAC defect. The kernel does that arithmetic in 476.5 us, which at its measured 1449 MHz is about 37,300 MAC/cycle against the table's 32,768 for fp32. Either the fp32 matmul rate is higher than the vector rate the table carries, or the kernel is not doing the arithmetic the count assumes. Needs one measurement: a plain fp32 GEMM at this problem's shape.",
+    "L2__045": "Residue 2.13x after its measured 1554 MHz is accounted for. The largest remaining violation and the least understood; its graph is a multimodal fusion and its MAC count was not hand-derived here.",
+    "L1__057": "Memory-bound, so the clock cancels and 1313 MHz is consistent with that. Residue 1.148x is a traffic-model question, not an arithmetic one."
+  },
+  "not_fixed_here": "No bound is changed by this artifact. The mechanism is established on two problems and its scope is bounded at seven; correcting it means teaching the traced graph about `groups`, which is a change to the derivation and not an arithmetic correction like v1.1's two.",
+  "caveats": [
+    "Two problems were reconstructed exactly. The other five in scope are assumed to share the mechanism because they share the call shape; that is an inference and is not the same as the two reconstructions.",
+    "Clocks are one workload per problem -- the largest by summed axis -- and one 6 s hold each, on an idle GPU 0.",
+    "Headroom (T_b / T_SOL) over the seven has median 7.8x against 15.8x for the rest of the benchmark, with 29.1% of their workloads under 2x against 13.7% elsewhere. That is the direction an over-counted arithmetic term predicts, but headroom also varies with the problem, so it is corroboration and not a measurement of the defect."
+  ]
+}

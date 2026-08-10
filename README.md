@@ -43,9 +43,39 @@ re-derived on AMD. None is copied from B200: a copied tolerance either fails
 correct kernels or rewards wrong ones, and a copied bound rescales every score
 by a constant nobody can see.
 
-Scores are valid only *within* a manifest version
-(`artifacts/09/manifest-v1.json`). Any stack change that moves `T_b` requires a
-new version.
+Scores are valid only *within* a manifest version. Any stack change that moves
+`T_b` requires a new version, and so does a change to `T_SOL`.
+
+There are two. **v1** (`artifacts/09/manifest-v1.json`) is frozen: it is what
+the release shipped and every score published against it stays valid against
+it. **v1.1** (`artifacts/09/manifest-v1.1.json`) is what the board serves. It
+repeats no measurement — every cycle count is v1's — and corrects two things
+about the conversion to milliseconds:
+
+* `T_SOL_ms` divides cycles by the measured clock of the datapath the workload
+  runs on, not by a single F<sub>LOCK</sub>. Every matrix path holds 1300 MHz;
+  the fp32 vector path sustains 1441. See `STATE.md` D35.
+* A paged KV cache is priced at the pages the workload gathers, not at its
+  allocation. See D18 and D36.
+
+Bounds a real kernel beats: **13 under v1, 6 under v1.1.** `scored.json`
+records which manifest produced it, because a score read against the wrong one
+is not off by a little.
+
+### Two means, and they are not interchangeable
+
+`summary` in a `scored.json` carries both, and mixing them is easy and costly —
+it produced a wrong headline in this repo on 2026-08-09:
+
+| field | what it is |
+|---|---|
+| `mean_score` | **the published figure.** Excludes workloads whose bound a kernel beat, because a score against a bound known to be wrong is not a score. |
+| `mean_score_including_invalid_bounds` | diagnostic only. Includes them, so it moves a lot whenever a bound is corrected — and a bound correction is exactly when someone reaches for it. |
+
+The two answer different questions and a correction moves them by very
+different amounts. On v1 → v1.1, `glm-sweep-2` goes 0.6083 → 0.6111 on the
+published field and 0.6288 → 0.6158 on the diagnostic one — different sizes,
+and opposite signs.
 
 ## What is in the manifest
 

@@ -1162,6 +1162,76 @@ assumes it), that no `h2` is missing from the nav, and that a page passing no
 `toc` still renders single-column. Two files with no compiler between them
 would otherwise drift into links that render, look live, and scroll nowhere.
 
+### D37 — SOLAR prices a grouped convolution as a dense one
+
+The five problems v1.1 could not explain are not five defects either. At least
+two are one mechanism, and it is exact: **SOLAR ignores `groups`**, so a
+depthwise or grouped convolution is priced as though every input channel fed
+every output channel, and the arithmetic term is over-counted by the group
+count.
+
+```
+L1__006  true MACs   599,040 = B x inner_width x (L+2) x K = 2 x 768 x 130 x 3
+         SOLAR   460,062,720
+         ratio         768.0  = inner_width, to the digit
+
+L1__029  SOLAR 10,995,116,277,760
+         = dense conv 16 x 16384 x 16384 x 512 x 4  (8,796,093,022,208)
+         + in_proj    16 x 512 x 32768 x 8192       (2,199,023,255,552)
+         exactly. The conv term alone is over-counted 16,384x.
+```
+
+`L1__029` is the one to read carefully, because it shows the effect is not the
+mechanism: its convolution is a small share of its real work, so a 16,384x
+error on that term is about **5x** on T_SOL. The mechanism is exact; what it
+costs is per problem.
+
+**Seven problems call a convolution with an explicit non-1 `groups`**:
+`L1__005`, `L1__006`, `L1__029`, `L2__035`, `L2__036`, `L2__051`, `L2__058`.
+(A plain grep for `groups=` returns 44 and is wrong — most are GQA's
+`num_key_value_groups`, which is not a convolution.)
+
+**Four of the seven have been on the bad-bounds list and three never have, and
+the three are not the ones with correct bounds.** A bound is only shown to be
+wrong by a kernel that beats it, so the list finds errors small enough for a
+kernel to cross and is structurally blind to errors large enough that nothing
+gets near. `L2__036` is the case in point: never flagged, and it is the kernel
+that clocked **1586 MHz**, the highest measured anywhere on this node. A kernel
+running far above its datapath's saturating clock is not saturating that
+datapath — which is what a compute bound priced for work the kernel never does
+looks like from outside. When that kernel first appeared it was a control that
+puzzled me; it was evidence.
+
+That inverts the reading in D31c. A longer bad-bounds list is not a worse
+benchmark and a shorter one is not a better one: the list length tracks how
+close anything has got, and the worst bounds are the ones nothing can reach.
+
+Clocks of all five residue kernels, finally measured — the earlier attempt
+exec'd kernel source from a string and triton's `@jit` refused three of them,
+so they are loaded from a real file now (`scripts/bounds/clocks_residue.py`):
+
+```
+L1__005  1352 MHz  x1.040  bf16     L1__057  1313 MHz  x1.010  bf16, memory-bound
+L1__006  1516 MHz  x1.166  fp32     L2__045  1554 MHz  x1.195  bf16
+L1__054  1449 MHz  x1.115  fp32
+```
+
+Still open, and stated as open. **`L1__005`**: SOLAR is exactly **2.0x** a hand
+count of its three terms, and its conv is 0.05% of the work, so `groups` does
+not explain a factor of two — an exact 2.0 smells like a MAC/FLOP conflation on
+part of the graph. **`L1__054`**: SOLAR's MAC count is **correct** to the digit,
+so it is not an arithmetic-count defect at all; the kernel does 25.77e9 fp32
+MACs in 476.5 us, which at its measured 1449 MHz is ~37,300 MAC/cycle against
+the table's 32,768, and one plain fp32 GEMM at that shape would settle whether
+the fp32 matmul rate exceeds the vector rate the table carries.
+**`L2__045`**: 2.13x residue after its 1554 MHz is accounted for; largest and
+least understood. **`L1__057`**: memory-bound, so the clock cancels; a traffic
+question.
+
+No bound is changed by this. Fixing it means teaching the traced graph about
+`groups`, which is a change to the derivation and not an arithmetic correction
+like v1.1's two. Full artifact: `artifacts/11/grouped-conv-bound-defect.json`.
+
 ### D36 — manifest v1.1: what the two corrections actually moved
 
 v1 is frozen and unchanged. `artifacts/09/manifest-v1.1.json` sits beside it,
