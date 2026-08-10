@@ -223,16 +223,59 @@
    this board. The list is the subset where a kernel got good enough to expose
    a bound, not the subset of bounds that were wrong.</p>
 <p class="sub">The grouped-convolution correction is the proof of that.
-   <b>Seven</b> problems had it. Four had appeared on this list and three never
-   had &mdash; and the three were not the ones whose bounds were right. They
-   were the ones whose bounds were too wrong for anything to get near.
-   <code>L2__036</code> is the case in point: never flagged, and the kernel that
-   clocked the highest frequency measured anywhere on this node, which is what a
-   kernel not saturating the datapath its bound was priced against looks like
-   from outside. It is also the one problem of the seven that v1.2 did
-   <i>not</i> fix, because SOLAR routes backward graphs down a different path.
-   Which correction applies to which problem is recorded in
-   <code>STATE.md</code> D18, D35, D36, D37 and D38, not inferred here.</p>
+   <b>Six</b> problems had it, and only some had ever appeared on this list
+   &mdash; the others were not the ones whose bounds were right, they were the
+   ones whose bounds were too wrong for anything to get near. All six are fixed
+   in v1.2. Which correction applies to which problem is recorded in
+   <code>STATE.md</code> D18, D35, D36, D37, D38 and D42, not inferred here.</p>
+<p class="sub"><b>Two earlier statements here were wrong and are corrected
+   rather than removed.</b> This paragraph said <i>seven</i> problems, from an
+   AST scan that searched the whole reference file instead of the traced graph;
+   it is six. And it named <code>L2__036</code> as the witness, which it is not:
+   that problem's bound errs in the <i>opposite</i> direction &mdash; its
+   reference runs a 128-iteration Python loop the traced graph barely contains,
+   so its arithmetic term is near zero and its bound is far too <i>small</i>.
+   It belongs in the section below, not this one.</p>
+
+<h3>Five open, and they are two causes</h3>
+<p class="sub">Diagnosed against manifest v1.2 in
+   <code>artifacts/11/bad-bounds-v12.json</code>. Each mechanism was checked by
+   hand-computing the bound from the problem's own declared shapes; a mechanism
+   is only recorded when that computation lands on the manifest number, and all
+   of them do.</p>
+<ul class="sub">
+  <li><b>Three of the five are one defect, and it is D18 again.</b> The
+      declared-traffic tier prices <i>every declared input at its full
+      allocation</i>, regardless of what the kernel reads.
+      <code>L1__018</code>: the whole 262,144-slot k+v cache, read and written,
+      2.15&nbsp;GB, for <code>seq_len</code> slots touched.
+      <code>L1__057</code>: the 157,184-row embedding table, 1.29&nbsp;GB, for a
+      gather of <code>B&times;S</code> rows. <code>L1__042</code>:
+      <code>expert_mask</code> and <code>topk_idx</code>, which
+      <code>run()</code> never reads at all &mdash; exactly
+      <b>65/32&nbsp;=&nbsp;2.03125&times;</b> on all sixteen workloads. v1.1
+      fixed this <i>for the two paged problems</i> rather than at the tier, so
+      it is still live: <b>328 workloads across 38 problems</b> are scored
+      against a bound where the traffic tier won, p50 1.50&times; and max
+      128.9&times;. Most produce no violation only because nothing has got
+      close enough.</li>
+  <li><b>One is SOLAR counting arithmetic the reference discards.</b>
+      <code>L2__045</code> prices the Q-Former and projector over every window,
+      and the reference reads only the first few: <b>21.5&times;</b> of the
+      counted MACs never reach the output. A second, independent error partly
+      masks it &mdash; those fp32 einsums are priced at the bf16 MAC rate,
+      exactly 1/16 &mdash; and that one is in the safe direction, so nothing
+      reported it. It hid the first for long enough that only a kernel doing
+      both could expose either.</li>
+  <li><b>One is not a modelling error.</b> <code>L2__073</code>'s worst
+      violation is 0.992, inside the band D35 predicts for a compute-bound fp32
+      workload clocking above the 1300&nbsp;MHz divisor.</li>
+</ul>
+<p class="sub"><b>No bound is corrected by that diagnosis.</b> A hand check that
+   reproduces a manifest number proves what the number is, not what it should
+   be. Every correction so far has been a re-derivation with an exact ratio
+   behind it, and none has been an adjustment made until a violation went
+   away.</p>
 <div class="scroll">
 <table class="grid">
   <thead><tr><th>problem</th><th class="r">workloads</th><th>headroom T<sub>b</sub>/T<sub>SOL</sub></th></tr></thead>
@@ -303,6 +346,14 @@
    of 8 cycles against a T<sub>b</sub> in milliseconds is correct and vacuous.
    Those went from wrong-and-tight to right-and-empty, and the pipeline could
    not notice because its one check looks the other way.</p>
+<p class="sub"><b>Every workload now carries the band as a word.</b> On each
+   problem page the headroom figure is followed by
+   <span class="bq bq-vacuous">vacuous</span>,
+   <span class="bq bq-loose">loose</span> or
+   <span class="bq bq-narrow">narrow</span> where it applies &mdash; nothing at
+   all in the ordinary case, because a marker on every row is a marker on none.
+   It changes no score. It says what a score is worth, which is the thing the
+   four decimal places cannot say for themselves.</p>
 <div class="scroll">
 <table class="grid">
   <thead><tr><th>loosest bounds</th><th class="r">workloads</th><th class="r">median headroom</th></tr></thead>
