@@ -154,47 +154,63 @@ the duration and the neighbour load. Both use nothing from the benchmark harness
 Every socket delivers its full 1400 W at once. No weak card, no cooling imbalance.
 
 **Applying `--setperfdeterminism` is what breaks that.** Same run with 1660 requested
-on all eight: throughput spread widens to **21.0%**. Six cards sit ~320 MHz below the
-frequency they acknowledged, at ~980 W against a 1400 W cap, *cooler* than the cards
-that hold, and `amd-smi` reports no violation of any kind on them — not PPT, thermal,
-VR, HBM or PROCHOT. Not contention either: torch 2 alone, all others idle, still sits
-at 1325 MHz.
+on all eight: throughput spread widens to **21.0%**. Six or seven of the eight sit
+~320 MHz below the frequency they acknowledged, at ~980 W against a 1400 W cap,
+*cooler* than the one or two that hold, and `amd-smi` reports no violation of any kind
+on them — not PPT, thermal, VR, HBM or PROCHOT. Not contention either: torch 2 alone,
+all others idle, still sits at 1325 MHz.
 
-Everything in this section was measured twice, three days apart and **across a hard
-reboot of the node**, with identical firmware: 3.4% then 3.0% unlocked, 21.2% then
-21.0% locked, the same six cards low by the same margin. One thing did change — torch
-0 held 1410 MHz under full-node load before the reboot and holds 1656 after — so the
-count of cards that keep a node-wide setpoint went from one to two. The defect is
-persistent; which cards fall on which side of it is not entirely.
+The node-wide pair was measured three times over five days, **including across a hard
+reboot**, with identical firmware throughout: unlocked 3.4% / 3.0% / 3.0%, locked
+21.2% / 21.0% / 21.3%, six or seven cards low by the same margin each time. The reboot
+changed nothing about it. A hard reboot is worth trying before reading any of this as
+permanent, and on this node it was tried.
 
-**The two groups differ in whether the setpoint is tracked or scaled.** The node-wide
-block above cannot tell those apart, because every card is given the same number.
-Sweeping the request one card at a time, on a card that holds and one that does not:
+**What the undershoot tracks is power, not identity.** The node-wide block cannot tell
+a card that undershoots from a card that ignores the request, because every card is
+given the same number. Sweeping each card on its own, all eight, two setpoints:
 
-| requested | torch 1 achieved | torch 2 achieved |
-|---|---|---|
-| 1200 MHz | 1195 (**0.996×**) | 1026 (0.855×) |
-| 1400 | 1394 (**0.996×**) | 1162 (0.830×) |
-| 1660 | 1654 (**0.997×**) | 1325 (0.798×) |
+| torch | 1200 → | | 1660 → | | power at 1660 |
+|---|---|---|---|---|---|
+| 0 | 1006 | 0.838× | 1401 | 0.844× | 978 W |
+| **1** | 1010 | 0.842× | **1655** | **0.997×** | **1272 W** |
+| 2 | 1023 | 0.853× | 1319 | 0.795× | 973 W |
+| 3 | 1015 | 0.846× | 1336 | 0.805× | 945 W |
+| 4 | 1037 | 0.864× | 1375 | 0.828× | 984 W |
+| 5 | 1031 | 0.859× | 1360 | 0.820× | 999 W |
+| 6 | 1022 | 0.852× | 1338 | 0.806× | 986 W |
+| 7 | 1010 | 0.842× | 1335 | 0.804× | 958 W |
 
-So determinism is not broken everywhere: torch 0 and 1 track a requested frequency to
-within 0.4%. On the other six it behaves as a control with a **0.80–0.86 scale error**
-that worsens as the request rises, and those cards stop at ~980 W of a 1400 W cap
-while reporting no violation. All eight accept the request and read back as
+**15 of those 16 measurements land at 0.795–0.864× while drawing 734–999 W. The one
+that reaches its setpoint is the one that draws 1272 W.** So the failure is not the
+clock control refusing a number; it is the card not raising its power state, after
+which the clock it can hold follows. All sixteen accepted the request and read back as
 `perf_determinism`.
 
-> **A correction, and a trap worth naming.** The first version of this section claimed
-> the setpoint was a *no-op* on two cards, on the strength of a sweep showing torch 1
-> at 1655–1657 MHz whatever was asked. That was wrong, and the cause was an index. The
-> sweep set the setpoint with `rocm-smi -d <torch index>`, but `rocm-smi` and `amd-smi`
-> order devices by PCI bus and torch does not — on this node torch 1 is device 0 to
-> both tools. The request went to a *neighbouring* card while the loaded card was left
-> alone at its own boost clock, which is exactly why the readings looked so clean and
-> so wrong. `scripts/gpu_parity_check.py` now translates through
-> `gpu_map.torch_to_amdsmi()` and carries the sweep itself, so the ad-hoc form cannot
-> recur. This is the third finding this repository has lost to that scrambled ordering
-> (D11, D20's clock alignment, and this one); the node-wide numbers above were never
-> affected, since a node-wide setting takes no index at all.
+**And it is not a property of a card.** Across four sweeps and three node-wide runs
+spanning a hard reboot, torch 0 has been measured at 1410, 1654, 1384 and 1401 MHz for
+the same node-wide request, and torch 1 has tracked 1200 MHz twice (1194, 1195) and
+undershot it once (1010). Any table naming which cards are affected — including the one
+above — is a snapshot, not a taxonomy. What reproduces is the *distribution*: nearly
+every card, nearly every time, ~20% low and ~300 W under-drawn.
+
+> **Two corrections, since a reader deciding whether to trust this should see them.**
+> The first version of this section claimed the setpoint was a *no-op* on two cards,
+> on a sweep showing torch 1 at 1655–1657 MHz whatever was asked. That was an index
+> bug: the sweep set setpoints with `rocm-smi -d <torch index>`, but `rocm-smi` and
+> `amd-smi` order devices by PCI bus and torch does not — on this node torch 1 is
+> device 0 to both tools — so the request went to a *neighbouring* card while the
+> loaded card was left alone at its own boost clock. That is the third finding this
+> repository has lost to that scrambled ordering (D11, D20's clock alignment, this
+> one), and `gpu_parity_check.py` now owns the sweep and translates through
+> `gpu_map.torch_to_amdsmi()` so the ad-hoc form cannot recur.
+>
+> The second version then claimed two cards track the setpoint correctly. Repeating
+> the sweep showed that wrong too: the same cards fall on different sides on different
+> runs. Both errors came from reading a per-card story into a handful of points, which
+> is why this section now reports a distribution and a correlate instead. The node-wide
+> figures were never affected by either, because a node-wide setting takes no device
+> index.
 
 **The telemetry is honest**, which is worth stating because it was the first
 suspicion. Throughput divided by reported clock is **788–859 TFLOPS/GHz on every
