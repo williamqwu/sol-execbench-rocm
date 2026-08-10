@@ -49,14 +49,20 @@ MANIFEST = ROOT / "artifacts" / "09" / "manifest-v1.json"
 DATASET = ROOT / "data" / "SOL-ExecBench" / "benchmark"
 
 
-def bounds() -> dict:
-    m = json.loads(MANIFEST.read_text())
+def bounds(manifest: Path = MANIFEST) -> tuple[dict, str]:
+    """{(problem, uuid) -> (T_SOL, T_b)} and the manifest version behind it.
+
+    The version is returned rather than looked up later because a score is only
+    meaningful inside one manifest, and the two must be written together or a
+    reader has a number with no way to tell which bounds produced it.
+    """
+    m = json.loads(manifest.read_text())
     out = {}
     for key, p in m["problems"].items():
         for uuid, w in p.get("workloads", {}).items():
             if w.get("scoreable") and w.get("t_sol_ms") and w.get("t_b_ms"):
                 out[(key, uuid)] = (w["t_sol_ms"], w["t_b_ms"])
-    return out
+    return out, m.get("manifest_version", "unknown")
 
 
 SCRATCH = Path(os.environ.get("SOLEXBENCH_SCRATCH", "/var/tmp/solbench"))
@@ -147,6 +153,11 @@ def main() -> int:
     ap.add_argument("--iterations", type=int, default=50)
     ap.add_argument("--warmup", type=int, default=10)
     ap.add_argument("--timeout", type=int, default=2400)
+    ap.add_argument("--manifest", type=Path, default=MANIFEST,
+                    help="the scoring manifest. Scores are only comparable "
+                         "within one version; the version used is stamped into "
+                         "scored.json so two runs cannot be compared across "
+                         "manifests without somebody noticing.")
     ap.add_argument("--reuse-retimed", action="store_true",
                     help="re-derive scores from existing retimed/*.json "
                          "without touching the GPU")
@@ -156,7 +167,7 @@ def main() -> int:
     a = ap.parse_args()
 
     run = json.loads((a.run / "run.json").read_text())
-    b = bounds()
+    b, manifest_version = bounds(a.manifest)
     retimed_dir = a.run / "retimed"
     retimed_dir.mkdir(parents=True, exist_ok=True)
 
@@ -302,6 +313,11 @@ def main() -> int:
         **stamp("10-agent-scored"),
         "run_id": run.get("run_id"),
         "model": run.get("model"),
+        # Which bounds produced these scores. A score is only meaningful inside
+        # one manifest version -- v1.1 corrected 1,048 of them -- so the number
+        # and the version it was computed against travel together.
+        "manifest_version": manifest_version,
+        "manifest_path": str(Path(a.manifest).resolve().relative_to(ROOT)),
         # The harness, from the run, not "Claude Code" asserted. glm-sweep-2 is
         # codex-cli, and calling it Claude Code would both misattribute it and
         # give it a name indistinguishable from `agent-glm-run1`, which really
@@ -324,9 +340,17 @@ def main() -> int:
             + f". Agents optimized on GPUs {run.get('gpus_used_by_agents')}; "
             f"every score here is a re-time on an idle GPU {a.gpu} at "
             f"{a.iterations} iterations, the same settings T_b was measured at."
-            + (f" {capped} of them were stopped by the harness's "
-               f"{cap_seconds:g}s wall-clock cap rather than by the agent "
-               f"deciding it was done." if capped else "")
+            # The cap's DURATION is stated only when the run recorded one.
+            # pilot8 marks problems `capped` and records no `wall_cap_seconds`,
+            # and the sentence used to interpolate that None straight into a
+            # `:g` -- a TypeError the moment anything rescored that run, and
+            # before the `:g` it would have published "the harness's Nones
+            # wall-clock cap". How many were stopped is known; what the cap was
+            # is not, and the note now says only the part that is.
+            + ((f" {capped} of them were stopped by the harness's "
+                + (f"{cap_seconds:g}s " if cap_seconds else "")
+                + "wall-clock cap rather than by the agent deciding it was "
+                  "done.") if capped else "")
             + (f" {run['note']}" if run.get("note") else "")),
         "leaderboard": not a.exclude_from_leaderboard,
         "authoritative_gpu": a.gpu,

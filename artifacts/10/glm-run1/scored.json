@@ -1,8 +1,8 @@
 {
  "_provenance": {
   "task": "10-agent-scored",
-  "utc": "2026-08-05T14:36:06.062277+00:00",
-  "git_sha": "6d1ca81d0df589d5f069f430928ce9161060d766-dirty",
+  "utc": "2026-08-10T00:47:02.089275+00:00",
+  "git_sha": "b424421fc3c071faac642ce3f12e8e121ac0734d-dirty",
   "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
   "python": "3.11.7",
   "torch": {
@@ -18,16 +18,18 @@
  },
  "run_id": "glm-run1",
  "model": "GLM-5.2",
- "display_name": "Claude Code agent (GLM-5.2)",
+ "manifest_version": "v1.1",
+ "manifest_path": "artifacts/09/manifest-v1.1.json",
+ "display_name": "codex-cli agent (GLM-5.2)",
  "author": "claude-code",
- "notes": "Pilot over 24 problems, selected by stratified sample across category and headroom. Agents optimized on GPUs [1, 2, 3, 4, 5, 6, 7]; every score here is a re-time on an idle GPU 0 at 50 iterations, the same settings T_b was measured at. Coverage is deliberately partial -- this is a cost study, not a full-benchmark submission.",
+ "notes": "24 of 220 scoreable problems (11%). Agents optimized on GPUs [1, 2, 3, 4, 5, 6, 7]; every score here is a re-time on an idle GPU 0 at 50 iterations, the same settings T_b was measured at. Run through the amdpilot fleet: J2 backfill jobs placed by the real GPU Scheduler, each in its own container with one MI350X, driven by codex-cli against GLM-5.2 through the Model API front door. Trajectories are the front door's own record, not the harness's self-report.",
  "leaderboard": true,
  "authoritative_gpu": 0,
  "iterations": 50,
  "warmup": 10,
  "total_cost_usd": 0,
  "wall_seconds_total": null,
- "retime_seconds": 3009.5762045383453,
+ "retime_seconds": 0.40221142768859863,
  "per_problem": {
   "FlashInfer-Bench__007_gemm_n4096_k4096": {
    "problem": "FlashInfer-Bench__007_gemm_n4096_k4096",
@@ -156,7 +158,7 @@
    "kernel_saved": "artifacts/10/glm-run1/kernels/L1__035_flux_ada_layer_norm_zero_modulation_extraction.py",
    "ok": true,
    "error": null,
-   "bound_violations": 2,
+   "bound_violations": 0,
    "workloads": 16,
    "passed": 16,
    "scored": 16,
@@ -826,7 +828,7 @@
    "workload_uuid": "55b51e96-eecc-4dc9-814a-0f1301b2951e",
    "status": "PASSED",
    "latency_ms": 0.29818350076675415,
-   "score": 0.9741111866913217,
+   "score": 0.9526363555892039,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -836,7 +838,7 @@
    "workload_uuid": "d30e4c23-bb35-4f61-adb9-2163db9f5ea7",
    "status": "PASSED",
    "latency_ms": 0.277102991938591,
-   "score": 0.8769761574699355,
+   "score": 0.7990606271158627,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -846,7 +848,7 @@
    "workload_uuid": "7572654f-7994-431a-bed1-65d7ec507b10",
    "status": "PASSED",
    "latency_ms": 0.2920434921979904,
-   "score": 0.9578442373357072,
+   "score": 0.9237753791420619,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -856,7 +858,7 @@
    "workload_uuid": "473e30ea-b329-4ef7-9961-7de140fd35da",
    "status": "PASSED",
    "latency_ms": 0.8708705008029938,
-   "score": 0.9246992875447072,
+   "score": 0.9125398684372801,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -866,7 +868,7 @@
    "workload_uuid": "bda0e743-f862-4800-95e4-a7c5717c8e7e",
    "status": "PASSED",
    "latency_ms": 0.3447840064764023,
-   "score": 0.9963957367544242,
+   "score": 0.9938679078844842,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -876,7 +878,7 @@
    "workload_uuid": "7e602557-ff89-41a1-8650-6c3e48fdf52a",
    "status": "PASSED",
    "latency_ms": 0.31114399433135986,
-   "score": 0.9960953550230539,
+   "score": 0.9928194605759756,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -886,7 +888,7 @@
    "workload_uuid": "5ca61491-4ac7-426f-af85-cf592620a435",
    "status": "PASSED",
    "latency_ms": 0.2773829996585846,
-   "score": 0.9214815436549432,
+   "score": 0.8614879738061968,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -896,7 +898,7 @@
    "workload_uuid": "77737de2-b4e3-4f75-a275-2addbc9e175d",
    "status": "PASSED",
    "latency_ms": 1.0476120114326477,
-   "score": 0.9948473413147789,
+   "score": 0.9940420604442848,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -906,7 +908,7 @@
    "workload_uuid": "b270fd9c-8520-4bf1-87b7-f0bd87326ab6",
    "status": "PASSED",
    "latency_ms": 0.279943510890007,
-   "score": 0.9444218220711126,
+   "score": 0.8984759136656312,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -916,7 +918,7 @@
    "workload_uuid": "3bdcf0e1-3855-44b4-9ef2-db4422074531",
    "status": "PASSED",
    "latency_ms": 0.27830299735069275,
-   "score": 0.9036431120959334,
+   "score": 0.8357325040057985,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -926,7 +928,7 @@
    "workload_uuid": "6c8fe593-d2b1-4abe-89e3-51bb93638186",
    "status": "PASSED",
    "latency_ms": 0.2821439951658249,
-   "score": 0.9522691932921,
+   "score": 0.9121011641347958,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -936,7 +938,7 @@
    "workload_uuid": "98814691-2060-4bbe-8158-7bdd6868e7d0",
    "status": "PASSED",
    "latency_ms": 0.4836450070142746,
-   "score": 0.9343909857879069,
+   "score": 0.9118094705595567,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -946,7 +948,7 @@
    "workload_uuid": "74202b1d-e57c-424d-93ea-396a614e7864",
    "status": "PASSED",
    "latency_ms": 11.368772983551025,
-   "score": 0.9915781458957719,
+   "score": 0.9914742214448156,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -956,7 +958,7 @@
    "workload_uuid": "6e3567c4-94d7-462d-b0af-b083ff8a9def",
    "status": "PASSED",
    "latency_ms": 0.2981429994106293,
-   "score": 0.9708350546597057,
+   "score": 0.9469434342758464,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -966,7 +968,7 @@
    "workload_uuid": "a455e8fb-76b9-49ee-8bfb-4ac63bcd571c",
    "status": "PASSED",
    "latency_ms": 0.47566500306129456,
-   "score": 0.789606451353025,
+   "score": 0.7454299814868578,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -976,7 +978,7 @@
    "workload_uuid": "bb28f188-53a9-45d4-89f3-b6bfe4b5fdb8",
    "status": "PASSED",
    "latency_ms": 0.6213074922561646,
-   "score": 0.9968487585430917,
+   "score": 0.9959106538223605,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -986,7 +988,7 @@
    "workload_uuid": "ed999c80-d4d1-4952-b063-cd39dfbf5612",
    "status": "PASSED",
    "latency_ms": 4.042127847671509,
-   "score": 0.6309449970759058,
+   "score": 0.6275656191495693,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -996,7 +998,7 @@
    "workload_uuid": "cb60b649-f5da-49a7-b21e-0b9022bf9ff1",
    "status": "PASSED",
    "latency_ms": 0.28994299471378326,
-   "score": 0.9541930106429849,
+   "score": 0.9172278957242657,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1006,7 +1008,7 @@
    "workload_uuid": "e6f75600-c981-4c46-9e7d-d82b41cff36c",
    "status": "PASSED",
    "latency_ms": 0.6900879740715027,
-   "score": 0.9537951016640982,
+   "score": 0.9431325242187142,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1016,7 +1018,7 @@
    "workload_uuid": "733a7bbe-55fc-4834-82db-f428949e8ab2",
    "status": "PASSED",
    "latency_ms": 2.3619680404663086,
-   "score": 0.9950139967028413,
+   "score": 0.9946963191671075,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1026,7 +1028,7 @@
    "workload_uuid": "892d1b8f-f6fe-40ad-aa3f-b6d391753bd3",
    "status": "PASSED",
    "latency_ms": 5.447704553604126,
-   "score": 0.9820383583853312,
+   "score": 0.9815738491720014,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1036,7 +1038,7 @@
    "workload_uuid": "4eeb9b51-ce9b-40a3-9f8f-2604fed79629",
    "status": "PASSED",
    "latency_ms": 0.2884235084056854,
-   "score": 0.9951371360707877,
+   "score": 0.9904512695181871,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1046,7 +1048,7 @@
    "workload_uuid": "77573fb4-557b-430d-979f-5579a0349825",
    "status": "PASSED",
    "latency_ms": 1.0694530010223389,
-   "score": 0.9870046711000277,
+   "score": 0.9850630229490237,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1056,7 +1058,7 @@
    "workload_uuid": "9722a8a5-542e-4b96-b962-7ae93eb259ac",
    "status": "PASSED",
    "latency_ms": 0.2928840070962906,
-   "score": 0.9899655335423398,
+   "score": 0.9807960204781901,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1066,7 +1068,7 @@
    "workload_uuid": "053a88a3-d024-4fbe-bc46-3f49d141de9f",
    "status": "PASSED",
    "latency_ms": 3.4133405685424805,
-   "score": 0.9966793145203715,
+   "score": 0.9965353532377142,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1076,7 +1078,7 @@
    "workload_uuid": "a06f2653-81ce-449f-91dd-e5ae53a16b92",
    "status": "PASSED",
    "latency_ms": 43.62968063354492,
-   "score": 0.9843080623826993,
+   "score": 0.9842590007218884,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1086,7 +1088,7 @@
    "workload_uuid": "a8cff3c6-0976-4dbb-833f-481091dc6a39",
    "status": "PASSED",
    "latency_ms": 0.2919830083847046,
-   "score": 0.9811343598791079,
+   "score": 0.9644068900181418,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1096,7 +1098,7 @@
    "workload_uuid": "71df32c9-6f0f-4499-8599-c632f94ca83e",
    "status": "PASSED",
    "latency_ms": 1.1708340048789978,
-   "score": 0.6957156400393587,
+   "score": 0.680493952305275,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1106,7 +1108,7 @@
    "workload_uuid": "22689bbd-cd9e-4251-a90e-a2d367ddb7d8",
    "status": "PASSED",
    "latency_ms": 1.0660319924354553,
-   "score": 0.992929743981058,
+   "score": 0.9918532607302672,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1116,7 +1118,7 @@
    "workload_uuid": "a6fbb45c-905c-48b3-a74b-cc18bd963220",
    "status": "PASSED",
    "latency_ms": 0.29592350125312805,
-   "score": 0.9850259846649109,
+   "score": 0.971877054917622,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1126,7 +1128,7 @@
    "workload_uuid": "d44f32e1-f92e-4f37-ae26-29d71b0b105a",
    "status": "PASSED",
    "latency_ms": 0.49732600152492523,
-   "score": 0.9830621249371191,
+   "score": 0.9765690851960966,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1136,7 +1138,7 @@
    "workload_uuid": "9265de63-6831-406b-b449-8bee4be7f372",
    "status": "PASSED",
    "latency_ms": 0.8329700231552124,
-   "score": 0.7225411854237028,
+   "score": 0.6996732687375631,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1146,7 +1148,7 @@
    "workload_uuid": "805238ee-8470-4f4e-aa41-7c15f785173f",
    "status": "PASSED",
    "latency_ms": 4.072268486022949,
-   "score": 0.9936848991573076,
+   "score": 0.993458807669005,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1156,7 +1158,7 @@
    "workload_uuid": "fe63f292-d826-4950-8785-0a516707527f",
    "status": "PASSED",
    "latency_ms": 12.23878526687622,
-   "score": 0.9953326301678527,
+   "score": 0.9952787288596628,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1166,7 +1168,7 @@
    "workload_uuid": "54187805-1b18-4d39-83ca-46332f85da9e",
    "status": "PASSED",
    "latency_ms": 11.084392070770264,
-   "score": 0.9949529962214277,
+   "score": 0.99488854402913,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1176,7 +1178,7 @@
    "workload_uuid": "f96b666d-373d-40ee-ad8d-0c3b74374558",
    "status": "PASSED",
    "latency_ms": 0.8735499978065491,
-   "score": 0.9697226516979599,
+   "score": 0.9642386590214876,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1186,7 +1188,7 @@
    "workload_uuid": "d88c9577-ac5d-414c-9d57-d91cc14b7eed",
    "status": "PASSED",
    "latency_ms": 0.28730350732803345,
-   "score": 0.9335625369743301,
+   "score": 0.8834069482700916,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1196,7 +1198,7 @@
    "workload_uuid": "0e70750d-4274-4a1f-a626-0c981044138d",
    "status": "PASSED",
    "latency_ms": 11.657878875732422,
-   "score": 0.9929963119377596,
+   "score": 0.9929114530607073,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2006,7 +2008,7 @@
    "workload_uuid": "2879d7a9-620f-55c0-b280-6be3da8441c2",
    "status": "PASSED",
    "latency_ms": 0.3107835054397583,
-   "score": 0.5072972070269222,
+   "score": 0.5038567955457288,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2016,7 +2018,7 @@
    "workload_uuid": "8e261dd1-e3f4-5108-891f-756e3699dc0e",
    "status": "PASSED",
    "latency_ms": 0.6356880068778992,
-   "score": 0.5064418014828256,
+   "score": 0.5025940469467056,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2026,7 +2028,7 @@
    "workload_uuid": "51fef589-2f4f-51fd-82fa-6e8d19f333ea",
    "status": "PASSED",
    "latency_ms": 0.5092659890651703,
-   "score": 0.5143572704241032,
+   "score": 0.503190480651411,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2046,7 +2048,7 @@
    "workload_uuid": "2f570f4d-487c-52ca-881c-b13690955f9f",
    "status": "PASSED",
    "latency_ms": 0.2652435004711151,
-   "score": 0.5277188481586286,
+   "score": 0.5082707161299154,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2056,7 +2058,7 @@
    "workload_uuid": "8a2c2168-8770-5653-86de-3a00b771be88",
    "status": "PASSED",
    "latency_ms": 0.22560299932956696,
-   "score": 0.5015397472981309,
+   "score": 0.5011577130448152,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2066,7 +2068,7 @@
    "workload_uuid": "86be6fd8-63f2-5708-ac74-a4325c173673",
    "status": "PASSED",
    "latency_ms": 1.265155553817749,
-   "score": 0.5021097149797992,
+   "score": 0.5005655495817126,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2076,7 +2078,7 @@
    "workload_uuid": "da1a3e7a-f806-51bb-aa3d-7616744bfa20",
    "status": "PASSED",
    "latency_ms": 0.06534099951386452,
-   "score": 0.5490352938937856,
+   "score": 0.5421047495365665,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2086,7 +2088,7 @@
    "workload_uuid": "02c5c53b-0839-5169-ac8a-48fce8988a96",
    "status": "PASSED",
    "latency_ms": 1.1427740454673767,
-   "score": 0.7963061556541109,
+   "score": 0.5489316340586791,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2096,7 +2098,7 @@
    "workload_uuid": "e8ea65d6-9a7d-591f-8a01-2d255fcb7cc9",
    "status": "PASSED",
    "latency_ms": 0.22168300300836563,
-   "score": 0.5393185690891193,
+   "score": 0.5303008892955524,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2106,10 +2108,10 @@
    "workload_uuid": "9321a236-392b-545d-9e95-65a040f1f62d",
    "status": "PASSED",
    "latency_ms": 1.0139319896697998,
-   "score": -1.7597260325570465,
+   "score": 0.5566161250461797,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "L1__035_flux_ada_layer_norm_zero_modulation_extraction",
@@ -2126,17 +2128,17 @@
    "workload_uuid": "7566ad2e-e606-5597-80e5-87ae57bdae8e",
    "status": "PASSED",
    "latency_ms": 0.5090460181236267,
-   "score": 1.1264907867991238,
+   "score": 0.5616314123717143,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "L1__035_flux_ada_layer_norm_zero_modulation_extraction",
    "workload_uuid": "4c90aaae-3b7a-51b2-929f-fe4342bbe0aa",
    "status": "PASSED",
    "latency_ms": 0.9281509816646576,
-   "score": 0.751464185384346,
+   "score": 0.544679351253649,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2146,7 +2148,7 @@
    "workload_uuid": "1ba60ffc-37db-5f59-9552-1a265d940f32",
    "status": "PASSED",
    "latency_ms": 0.1424420028924942,
-   "score": 0.5875516138722086,
+   "score": 0.5516758294617449,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2796,7 +2798,7 @@
    "workload_uuid": "a474add4-4973-518d-ab74-052d717a9ea9",
    "status": "PASSED",
    "latency_ms": 1.1325380206108093,
-   "score": 0.49620159104620265,
+   "score": 0.496682410630478,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2806,7 +2808,7 @@
    "workload_uuid": "cb73b88c-5659-5ea3-8820-4a3cefe71908",
    "status": "PASSED",
    "latency_ms": 11.28853702545166,
-   "score": 0.46723405972811094,
+   "score": 0.4914715629208398,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2826,7 +2828,7 @@
    "workload_uuid": "3628567b-7b36-529a-ac98-d3c854856fb2",
    "status": "PASSED",
    "latency_ms": 2.8899354934692383,
-   "score": 0.4678585478359012,
+   "score": 0.48587721805446865,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2836,7 +2838,7 @@
    "workload_uuid": "b3cf4dea-8ffc-5230-916f-ade41915e6a0",
    "status": "PASSED",
    "latency_ms": 39.08110046386719,
-   "score": 0.447118575860925,
+   "score": 0.484495376285742,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2846,7 +2848,7 @@
    "workload_uuid": "b14ffc4b-65e5-5d05-a1d1-49f546d6508e",
    "status": "PASSED",
    "latency_ms": 10.589791297912598,
-   "score": 0.3096247848655034,
+   "score": 0.4930893692427824,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2856,7 +2858,7 @@
    "workload_uuid": "be6ca138-ba6b-52d4-8b95-ac178be36ae8",
    "status": "PASSED",
    "latency_ms": 2.8428949117660522,
-   "score": 0.46859721720655073,
+   "score": 0.48641499134325195,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2866,7 +2868,7 @@
    "workload_uuid": "72a34672-a06b-5f53-b04e-9353a5b2b3e9",
    "status": "PASSED",
    "latency_ms": 3.6210049390792847,
-   "score": 0.4796183179126598,
+   "score": 0.48865897825447424,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2886,7 +2888,7 @@
    "workload_uuid": "464f2717-34bb-597c-be4d-944fb7081c71",
    "status": "PASSED",
    "latency_ms": 1.6202600002288818,
-   "score": 0.4925194682392708,
+   "score": 0.49481452979690277,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2896,7 +2898,7 @@
    "workload_uuid": "047c3f9f-0378-5240-b7f2-f534fdc125d7",
    "status": "PASSED",
    "latency_ms": 23.828235626220703,
-   "score": 0.4846060940424241,
+   "score": 0.49456397595452717,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2906,7 +2908,7 @@
    "workload_uuid": "6ff659f6-44f0-5dfc-a6f5-2af07104be7c",
    "status": "PASSED",
    "latency_ms": 1.5645189881324768,
-   "score": 0.49208573145816553,
+   "score": 0.49482365330217587,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2916,7 +2918,7 @@
    "workload_uuid": "ddbd53ba-276a-590b-ae4e-748a90fc44a2",
    "status": "PASSED",
    "latency_ms": 2.6032320261001587,
-   "score": 0.4981705952753952,
+   "score": 0.49878256572842566,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2926,7 +2928,7 @@
    "workload_uuid": "0c5d6958-ccc0-5662-b24d-d7f885771f8d",
    "status": "PASSED",
    "latency_ms": 10.651991844177246,
-   "score": 0.43411189504604686,
+   "score": 0.4965183607392256,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2956,7 +2958,7 @@
    "workload_uuid": "753a0c53-103b-5531-b1bc-e112014ab6e4",
    "status": "PASSED",
    "latency_ms": 107.26040649414062,
-   "score": 0.4977760386204632,
+   "score": 0.49883483429856623,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -2966,7 +2968,7 @@
    "workload_uuid": "745585e3-89fe-5c37-8718-c321245f7ac9",
    "status": "PASSED",
    "latency_ms": 137.15198516845703,
-   "score": 0.503548705804407,
+   "score": 0.5025563634930977,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3296,7 +3298,7 @@
    "workload_uuid": "817ddfe6-0f8a-558d-a405-27cb6f3eb168",
    "status": "PASSED",
    "latency_ms": 6.910982131958008,
-   "score": 0.4995282951049592,
+   "score": 0.4995284275454347,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3306,7 +3308,7 @@
    "workload_uuid": "7726e320-eeba-5e86-bd1e-1f5b90231796",
    "status": "PASSED",
    "latency_ms": 8.986068725585938,
-   "score": 0.5008729409871028,
+   "score": 0.5008725644882379,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3316,7 +3318,7 @@
    "workload_uuid": "c5707a6a-8d4c-5861-bb47-f1edd0bd407e",
    "status": "PASSED",
    "latency_ms": 7.0928850173950195,
-   "score": 0.49422056800508707,
+   "score": 0.49422136589824706,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3326,7 +3328,7 @@
    "workload_uuid": "85782393-c9e2-5d5d-bdb4-ca746a000ae5",
    "status": "PASSED",
    "latency_ms": 6.286036014556885,
-   "score": 0.526842367582384,
+   "score": 0.5268418790261317,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3336,7 +3338,7 @@
    "workload_uuid": "5395f6da-c39a-56d5-86a6-463d32bac2ed",
    "status": "PASSED",
    "latency_ms": 14.716040134429932,
-   "score": 0.49933725334125467,
+   "score": 0.4993376038084202,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3346,7 +3348,7 @@
    "workload_uuid": "bc15c0f6-ea0b-57c4-a80b-6569d44f59e0",
    "status": "PASSED",
    "latency_ms": 25.632736206054688,
-   "score": 0.49943966409513146,
+   "score": 0.4994400045024938,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3356,7 +3358,7 @@
    "workload_uuid": "0fcdcad9-36c6-5c18-9d6e-f81d9ab2b533",
    "status": "PASSED",
    "latency_ms": 6.861984491348267,
-   "score": 0.5011427870127384,
+   "score": 0.5011424648978305,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3366,7 +3368,7 @@
    "workload_uuid": "f4091f8b-0b2e-573d-951b-117bd07f4180",
    "status": "PASSED",
    "latency_ms": 25.7455997467041,
-   "score": 0.49930851448750163,
+   "score": 0.4993089328267257,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3376,7 +3378,7 @@
    "workload_uuid": "35415c2e-0ab4-531f-aa0b-1ea698b21480",
    "status": "PASSED",
    "latency_ms": 6.843164920806885,
-   "score": 0.5000331985340812,
+   "score": 0.5000331961873371,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3386,7 +3388,7 @@
    "workload_uuid": "60bf05bf-20ab-5381-951a-5910ed9495ff",
    "status": "PASSED",
    "latency_ms": 14.562000751495361,
-   "score": 0.4991508327965874,
+   "score": 0.4991512867872016,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3396,7 +3398,7 @@
    "workload_uuid": "bb05cd0a-672c-5040-bf8c-85245fc745ea",
    "status": "PASSED",
    "latency_ms": 6.902306795120239,
-   "score": 0.5013196657210391,
+   "score": 0.5013192960594239,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3406,7 +3408,7 @@
    "workload_uuid": "8dae0e7a-348a-5022-b2d0-fc77d7f5c497",
    "status": "PASSED",
    "latency_ms": 91.29887771606445,
-   "score": 0.4997257801724796,
+   "score": 0.499725967279344,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3416,7 +3418,7 @@
    "workload_uuid": "812896b7-a906-510b-86ef-d87f0fdf7844",
    "status": "PASSED",
    "latency_ms": 47.432851791381836,
-   "score": 0.49962746598305696,
+   "score": 0.4996277106051306,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3426,7 +3428,7 @@
    "workload_uuid": "ad073c89-aa53-52ee-a52f-02c598f9bc43",
    "status": "PASSED",
    "latency_ms": 6.891726493835449,
-   "score": 0.501250418170371,
+   "score": 0.5012502429647985,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3436,7 +3438,7 @@
    "workload_uuid": "c718af65-0d0a-591f-a101-fa8dd5451ecb",
    "status": "PASSED",
    "latency_ms": 0.1779625043272972,
-   "score": 0.5450350684453956,
+   "score": 0.5447239052631262,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3536,7 +3538,7 @@
    "workload_uuid": "f0f15b5c-5c57-582a-a185-dab9d86e99ee",
    "status": "PASSED",
    "latency_ms": 0.17068199813365936,
-   "score": 0.5477733470464651,
+   "score": 0.5474386313671743,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3596,7 +3598,7 @@
    "workload_uuid": "d608b56d-e6e3-5275-96e8-802c80ffb22f",
    "status": "PASSED",
    "latency_ms": 0.6523680090904236,
-   "score": 0.5073130311428768,
+   "score": 0.5068264696539051,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3606,7 +3608,7 @@
    "workload_uuid": "d181fa9d-4b08-5a19-84f8-3fc26b17d51b",
    "status": "PASSED",
    "latency_ms": 2.1816269159317017,
-   "score": 0.4972955703657996,
+   "score": 0.4976102886459942,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3616,7 +3618,7 @@
    "workload_uuid": "8af99a9e-14e3-5ad9-9865-6de2144c7af5",
    "status": "PASSED",
    "latency_ms": 4.007930040359497,
-   "score": 0.4630092961419135,
+   "score": 0.47041683503979825,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3626,7 +3628,7 @@
    "workload_uuid": "67bdd5bc-731d-5c1c-b384-bd768f74bb29",
    "status": "PASSED",
    "latency_ms": 1.7620220184326172,
-   "score": 0.4169653655100125,
+   "score": 0.4227063192546763,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3636,7 +3638,7 @@
    "workload_uuid": "329c5f2b-ec85-5ccd-95dc-1cac079cdbb6",
    "status": "PASSED",
    "latency_ms": 5.887453079223633,
-   "score": 0.4980755426428557,
+   "score": 0.49852002697633363,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3646,7 +3648,7 @@
    "workload_uuid": "89fa03a1-f06a-5f91-a427-62ab3bbb60a3",
    "status": "PASSED",
    "latency_ms": 0.9433720111846924,
-   "score": 0.4598328571951305,
+   "score": 0.4613733119094139,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3656,7 +3658,7 @@
    "workload_uuid": "3f3523b9-7a33-5ad9-a697-2cdabb19d2b2",
    "status": "PASSED",
    "latency_ms": 3.0963590145111084,
-   "score": 0.4612082857865874,
+   "score": 0.46936743017936927,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3666,7 +3668,7 @@
    "workload_uuid": "8916df95-f4b3-5f61-809a-a6a7c3939805",
    "status": "PASSED",
    "latency_ms": 11.493303775787354,
-   "score": 0.5039479637052485,
+   "score": 0.5029712592607232,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3676,7 +3678,7 @@
    "workload_uuid": "f009abdb-585e-590b-b599-1c3d73e4e6b6",
    "status": "PASSED",
    "latency_ms": 4.178332090377808,
-   "score": 0.4585939459961023,
+   "score": 0.465792020449211,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3686,7 +3688,7 @@
    "workload_uuid": "2920653f-ef5e-5f4d-9631-95050069a95a",
    "status": "PASSED",
    "latency_ms": 1.8223829865455627,
-   "score": 0.4995353420821694,
+   "score": 0.4995813352540514,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -3696,7 +3698,7 @@
    "workload_uuid": "706585da-edb6-5cf5-b64e-1cd78f3ccca6",
    "status": "PASSED",
    "latency_ms": 0.6281279921531677,
-   "score": 0.467762066892786,
+   "score": 0.4681424692012807,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4346,7 +4348,7 @@
    "workload_uuid": "78e4ab06-f97e-5c94-af03-b54d25293f14",
    "status": "PASSED",
    "latency_ms": 0.17340200394392014,
-   "score": 0.9069903553343502,
+   "score": 0.9067430491546474,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4356,7 +4358,7 @@
    "workload_uuid": "0fb17c48-d0ad-5ff9-85dd-f716b34b84f1",
    "status": "PASSED",
    "latency_ms": 0.16116200387477875,
-   "score": 0.8992062623086459,
+   "score": 0.8989661042605219,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4366,7 +4368,7 @@
    "workload_uuid": "67643caa-afa2-5892-8e12-3b2712f7c873",
    "status": "PASSED",
    "latency_ms": 0.034060999751091,
-   "score": 0.7005317403182327,
+   "score": 0.7004786598247851,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4376,7 +4378,7 @@
    "workload_uuid": "8f88fe15-93b0-5148-ace7-5856f5c4c466",
    "status": "PASSED",
    "latency_ms": 0.07336100190877914,
-   "score": 0.8852947626958363,
+   "score": 0.8850811574114014,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4386,7 +4388,7 @@
    "workload_uuid": "90875f04-5cea-52eb-9da7-83a35e603ccd",
    "status": "PASSED",
    "latency_ms": 0.03964100033044815,
-   "score": 0.8617345864082255,
+   "score": 0.861565587668852,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4396,7 +4398,7 @@
    "workload_uuid": "057cddc4-e6a2-5723-a801-70dc23b0e8d9",
    "status": "PASSED",
    "latency_ms": 0.1677820011973381,
-   "score": 0.9042238531209051,
+   "score": 0.9039824956335631,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4406,7 +4408,7 @@
    "workload_uuid": "82d1fd07-9065-5c04-bfd8-c8d31c08589d",
    "status": "PASSED",
    "latency_ms": 0.11010099947452545,
-   "score": 0.9004614003615161,
+   "score": 0.9002193983744666,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4416,7 +4418,7 @@
    "workload_uuid": "c61dbc04-557b-5415-8db8-ab96c85d0e94",
    "status": "PASSED",
    "latency_ms": 0.035499999299645424,
-   "score": 0.7860921262813676,
+   "score": 0.7859842250810373,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4426,7 +4428,7 @@
    "workload_uuid": "900fe354-24e5-50b5-b72a-286c275824f2",
    "status": "PASSED",
    "latency_ms": 0.07562099769711494,
-   "score": 0.903286119505154,
+   "score": 0.9030818324657172,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4436,7 +4438,7 @@
    "workload_uuid": "9f781bd6-4613-540e-baef-65479e4d4aac",
    "status": "PASSED",
    "latency_ms": 0.10874149948358536,
-   "score": 0.9091100266720178,
+   "score": 0.9088967966097938,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4446,7 +4448,7 @@
    "workload_uuid": "7a2cd0c5-e428-5883-974d-a1bfc0060b97",
    "status": "PASSED",
    "latency_ms": 0.06784100085496902,
-   "score": 0.8727107262526643,
+   "score": 0.8725462123640058,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4456,7 +4458,7 @@
    "workload_uuid": "1eabfc32-b221-5080-9bee-ff75f9428e59",
    "status": "PASSED",
    "latency_ms": 0.10534099861979485,
-   "score": 0.9034385450231553,
+   "score": 0.903223155857165,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4466,7 +4468,7 @@
    "workload_uuid": "92e6cc76-41c2-5051-9ce3-98b26710cc71",
    "status": "PASSED",
    "latency_ms": 0.040180498734116554,
-   "score": 0.8889470445020891,
+   "score": 0.8887821753668242,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4476,7 +4478,7 @@
    "workload_uuid": "bc84dceb-c1d6-578f-9d8c-581f5ef4fa1a",
    "status": "PASSED",
    "latency_ms": 0.13648150116205215,
-   "score": 0.9096807746213821,
+   "score": 0.9094601488224936,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4486,7 +4488,7 @@
    "workload_uuid": "07643f35-a9a4-50e0-a63e-35f963e7f90d",
    "status": "PASSED",
    "latency_ms": 0.035739999264478683,
-   "score": 0.8527615060209602,
+   "score": 0.8526454749523897,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -4506,14 +4508,13 @@
   "problems": 24,
   "workloads_scored": 388,
   "workloads_flagged": 0,
-  "workloads_bound_violated": 6,
+  "workloads_bound_violated": 4,
   "problems_with_invalid_bound": [
-   "L1__005_conv_gated_projection_with_causal_conv",
-   "L1__035_flux_ada_layer_norm_zero_modulation_extraction"
+   "L1__005_conv_gated_projection_with_causal_conv"
   ],
-  "mean_score": 0.6540332627513035,
-  "mean_score_including_invalid_bounds": 0.6544217001911385,
+  "mean_score": 0.6514339665767008,
+  "mean_score_including_invalid_bounds": 0.6568525559648837,
   "min_score": 0.17226731113439436,
-  "max_score": 0.9968487585430917
+  "max_score": 0.9965353532377142
  }
 }

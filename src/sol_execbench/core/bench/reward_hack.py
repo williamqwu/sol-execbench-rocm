@@ -197,6 +197,81 @@ def check_smi_invocation(cmd: Any) -> None:
         )
 
 
+#: Global backend switches that lower the precision of matmul below the dtype
+#: the tensors declare. Names differ across torch versions, so each is probed
+#: rather than assumed present -- a missing one is a torch that does not have
+#: that knob, not a failure to guard.
+_PRECISION_KNOBS = (
+    ("torch.backends.cuda.matmul", "allow_tf32"),
+    ("torch.backends.cuda.matmul", "fp32_precision"),
+    ("torch.backends.cudnn", "allow_tf32"),
+    ("torch.backends.cudnn.conv", "fp32_precision"),
+    ("torch.backends", "fp32_precision"),
+)
+
+
+def _resolve(path: str):
+    import importlib
+    obj = importlib.import_module("torch")
+    for part in path.split(".")[1:]:
+        obj = getattr(obj, part, None)
+        if obj is None:
+            return None
+    return obj
+
+
+def snapshot_matmul_precision() -> dict[str, Any]:
+    """Capture the backend precision switches. Call BEFORE importing user code."""
+    out: dict[str, Any] = {}
+    for mod_path, attr in _PRECISION_KNOBS:
+        mod = _resolve(mod_path)
+        if mod is not None and hasattr(mod, attr):
+            try:
+                out[f"{mod_path}.{attr}"] = getattr(mod, attr)
+            except Exception:                      # a knob that raises on read
+                pass
+    return out
+
+
+def check_matmul_precision(snapshot: dict[str, Any]) -> None:
+    """Reject a submission that lowered matmul precision behind the dtypes.
+
+    AMD, 2026-08-10 (STATE.md D35). `torch.backends.cuda.matmul.allow_tf32 =
+    True` takes fp32 matmul on this part from 31,834 to 147,954 MAC/cycle --
+    **4.52x** -- from one line, on unchanged fp32 tensors, with no cast
+    anywhere in the kernel. Measured on MI350X, GPU 0, 8192-cube GEMM.
+
+    It is banned for a reason that is about the score and not about taste.
+    T_SOL is derived from the MAC/cycle rate of the dtype the problem
+    DECLARES. A submission computing the same problem on a 4.5x datapath is
+    not measured against its own roofline, it is measured against somebody
+    else's -- so `S` stops meaning "fraction of the way to the hardware limit"
+    and starts being reachable above 1. Either the arithmetic happens at the
+    declared precision, or every bound in the manifest has to be re-derived at
+    the cheapest precision that passes tolerance, which is not this benchmark.
+
+    Tolerance is not a sufficient defence here and that is the whole point.
+    The AMD tolerances are run-to-run error of the reference times 1.25
+    (task 05); tf32 error is usually larger and usually fails, and "usually"
+    is exactly the gap -- the case that passes is silent, is 4.5x fast, and
+    looks like an excellent kernel.
+
+    An explicit `.to(torch.bfloat16)` is the same exploit written visibly and
+    is caught by `test_precision_downgrade`. This catches the invisible form.
+    """
+    for name, before in snapshot.items():
+        mod = _resolve(name.rsplit(".", 1)[0])
+        after = getattr(mod, name.rsplit(".", 1)[1], None) if mod else None
+        if after != before:
+            raise RewardHackDetected(
+                f"Matmul precision was lowered by the submission: {name} "
+                f"changed from {before!r} to {after!r}. The declared dtype is "
+                f"the contract for the arithmetic, not only for the interface "
+                f"-- T_SOL is derived from that dtype's MAC/cycle rate, and a "
+                f"kernel computing on a faster datapath is not measured "
+                f"against its own bound.")
+
+
 def install_smi_guard() -> None:
     """Block GPU management tools from submission subprocesses.
 

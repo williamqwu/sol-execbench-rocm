@@ -1,0 +1,80 @@
+{
+  "_provenance": {
+    "_provenance": {
+      "task": "01-f-lock-by-datapath",
+      "utc": "2026-08-10T00:36:11.416952+00:00",
+      "git_sha": "b424421fc3c071faac642ce3f12e8e121ac0734d",
+      "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+      "python": "3.11.7",
+      "torch": {
+        "available": false
+      },
+      "rocm": {
+        "version": "7.15.0",
+        "driver": "7.1.1.31500000",
+        "amd_smi": "AMDSMI Tool: 26.5.0+03d8462e | AMDSMI Library version: 26.5.0 | ROCm version: 7.15.0 | amdgpu version: 7.1.1.31500000 | ionic version: N/A"
+      },
+      "f_lock_mhz": null,
+      "visible_devices": null
+    }
+  },
+  "question": "T_SOL for a compute-bound workload is a cycle count divided by a frequency. Task 01 measured one frequency, 1300 MHz, under a dense bf16 matrix-core load. Is that the frequency the part holds for every kind of arithmetic, or only for that one?",
+  "answer": "Only for that one, and the exception is large. Every matrix-core path sits at F_LOCK -- bf16 1296, fp16 1299, fp8 1314. The fp32 vector path sustains 1441 MHz, 10.8% above it, because it draws far less power and `--setperfdeterminism 1600` caps the ceiling rather than pinning the clock. Every compute-bound fp32 bound in manifest v1 is therefore 10.8% too large in milliseconds.",
+  "method": "One saturating 8192-cube GEMM per datapath on an idle GPU 0, amdsmi GFX clock sampled every 2-5 ms for the whole run, on the physical card resolved by PCI bus (scripts/gpu_map.py -- the amdsmi and torch index spaces are scrambled on this node). `clk_steady_last5s_mhz` is the figure to use: the first second is boost, not a frequency any bound may be divided by. Nothing here changed a determinism setting or a power cap.",
+  "f_lock_task01_mhz": 1300,
+  "datapaths": {
+    "bf16_tc": {
+      "iters": 35826,
+      "seconds": 36.73153712414205,
+      "samples": 6466,
+      "clk_first_second_mhz": 1308,
+      "clk_steady_last5s_mhz": 1296,
+      "clk_median_all_mhz": 1302,
+      "clk_min_mhz": 780,
+      "clk_max_mhz": 1312,
+      "socket_power_w_median": "N/A",
+      "mac_per_cycle_table": 524288
+    },
+    "fp16_tc": {
+      "iters": 33779,
+      "seconds": 38.754314084071666,
+      "samples": 6812,
+      "clk_first_second_mhz": 1301,
+      "clk_steady_last5s_mhz": 1299,
+      "clk_median_all_mhz": 1300,
+      "clk_min_mhz": 1141,
+      "clk_max_mhz": 1302,
+      "socket_power_w_median": "N/A",
+      "mac_per_cycle_table": 524288
+    },
+    "fp32_sm": {
+      "iters": 17395,
+      "seconds": 209.15985939488746,
+      "samples": 36819,
+      "clk_first_second_mhz": 1439,
+      "clk_steady_last5s_mhz": 1441,
+      "clk_median_all_mhz": 1441,
+      "clk_min_mhz": 1328,
+      "clk_max_mhz": 1445,
+      "socket_power_w_median": "N/A",
+      "mac_per_cycle_table": 32768
+    },
+    "fp8_tc": {
+      "iters": 53200,
+      "seconds": 25.001832884037867,
+      "samples": 4608,
+      "clk_steady_last5s_mhz": 1314,
+      "clk_median_all_mhz": 1314,
+      "clk_min_mhz": 978,
+      "clk_max_mhz": 1320,
+      "mac_per_cycle_table": 1048576
+    }
+  },
+  "use": "Divide t_sol_cycles by the clock of the datapath SOLAR priced the workload at. The datapath is recoverable without a new field: macs / t_sol_cycles_exact lands exactly on one of the MAC_per_cycle entries in src/solexbench_rocm/parts.py -- 836 fp32_sm, 953 bf16/fp16_tc and 46 fp8/int8_tc across the manifest, with nothing unmatched.",
+  "not_affected": "Memory-bound bounds. The traffic tier computes cycles = bytes / DRAM_byte_per_cycle and then ms = cycles / freq, and DRAM_byte_per_cycle is itself bytes-per-second / freq -- so ms = bytes / bytes-per-second and the frequency cancels exactly. This is algebra, not an observation, and it is why only the compute tier moves.",
+  "caveats": [
+    "fp64 was not measured: no problem in the dataset declares float64, and the 8192-cube fp64 GEMM flooded the submission queue faster than it drained.",
+    "Idle node, one card. Under a loaded node the power budget is shared and these clocks would be lower. Scoring runs on an idle node by design, so the idle-node clock is the one a scored measurement is compared against.",
+    "One shape per datapath. A workload that saturates a datapath differently -- a small GEMM, a memory-bound kernel with an arithmetic tail -- may sit elsewhere between 1296 and 1586 MHz; 1586 was observed on a real agent kernel (artifacts/11/bound-violations-diagnosis.json). Using the saturating-GEMM clock is the conservative choice for a lower bound: it is the lowest clock at which that datapath runs flat out, so the bound it produces is the largest defensible one."
+  ]
+}

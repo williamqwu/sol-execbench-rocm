@@ -163,6 +163,8 @@ from sol_execbench.core.bench.reward_hack import (  # noqa: E402
     compute_partition_mode,
     install_smi_guard,
     snapshot_critical_functions,
+    snapshot_matmul_precision,
+    check_matmul_precision,
 )
 from sol_execbench.core.bench import device as device_layer  # noqa: E402
 from sol_execbench.core.bench.timing import time_runnable  # noqa: E402
@@ -243,8 +245,14 @@ _integrity_snapshot = snapshot_critical_functions(globals(), _CRITICAL_NAMES)
 # and leaves nothing in the output to show for it. Installed here rather than
 # at first use so an import-time invocation is caught too.
 install_smi_guard()
-# Keep a local reference so that patching the name in globals() is ineffective.
+# AMD: and snapshot the backend precision switches, for the same reason and at
+# the same moment. `allow_tf32 = True` is one line, leaves the tensors' dtypes
+# untouched, and buys 4.5x on fp32 matmul -- against a T_SOL derived from the
+# DECLARED dtype's MAC rate, which is how a score gets above 1 (STATE.md D35).
+_precision_snapshot = snapshot_matmul_precision()
+# Keep local references so that patching the names in globals() is ineffective.
 _check_integrity = check_eval_integrity
+_check_precision = check_matmul_precision
 
 # ── Resolve user function ─────────────────────────────────────────────────────
 if "::" in _entry_point:
@@ -395,6 +403,7 @@ def _make_eval(
 # functions are never called.
 try:
     _check_integrity(_integrity_snapshot, globals())
+    _check_precision(_precision_snapshot)
 except RewardHackDetected as _integrity_err:
     for _wl in workloads:
         _emit(
@@ -571,6 +580,14 @@ for _workload in workloads:
         if _round == 0:
             if _reward_hack_check(
                 _workload, _check_integrity, _integrity_snapshot, globals()
+            ):
+                _correctness_failed = True
+                break
+            # Per workload, not only at import: a submission can flip
+            # `allow_tf32` inside `run` on the first call, which an
+            # import-time-only check would never see.
+            if _reward_hack_check(
+                _workload, _check_precision, _precision_snapshot
             ):
                 _correctness_failed = True
                 break

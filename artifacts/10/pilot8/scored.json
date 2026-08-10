@@ -1,8 +1,8 @@
 {
  "_provenance": {
   "task": "10-agent-scored",
-  "utc": "2026-08-04T20:29:45.598617+00:00",
-  "git_sha": "2c8989dcb0c0f7abf10e34955f029f32ce38d3c9-dirty",
+  "utc": "2026-08-10T00:47:34.476815+00:00",
+  "git_sha": "b424421fc3c071faac642ce3f12e8e121ac0734d-dirty",
   "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
   "python": "3.11.7",
   "torch": {
@@ -18,16 +18,18 @@
  },
  "run_id": "pilot8",
  "model": "Claude-Opus-5",
- "display_name": "Claude Code agent (Opus 5, $8/problem pilot)",
+ "manifest_version": "v1.1",
+ "manifest_path": "artifacts/09/manifest-v1.1.json",
+ "display_name": "Agent (Claude-Opus-5)",
  "author": "claude-code",
- "notes": "Pilot over 8 problems, selected by stratified sample across category and headroom. Agents optimized on GPUs [1, 2, 3, 4, 5, 6, 7]; every score here is a re-time on an idle GPU 0 at 50 iterations, the same settings T_b was measured at. Coverage is deliberately partial -- this is a cost study, not a full-benchmark submission.",
+ "notes": "8 of 220 scoreable problems (4%). Agents optimized on GPUs [1, 2, 3, 4, 5, 6, 7]; every score here is a re-time on an idle GPU 0 at 50 iterations, the same settings T_b was measured at. 8 of them were stopped by the harness's wall-clock cap rather than by the agent deciding it was done. Agent sessions ran on GPUs 1-7 (exploration). Nothing here is an authoritative timing; agent_score.py re-times the winning kernels on an idle GPU 0.",
  "leaderboard": true,
  "authoritative_gpu": 0,
  "iterations": 50,
  "warmup": 10,
  "total_cost_usd": 65.0798065,
  "wall_seconds_total": 2789.1512353420258,
- "retime_seconds": 0.34358763694763184,
+ "retime_seconds": 0.3812241554260254,
  "per_problem": {
   "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1": {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
@@ -36,7 +38,7 @@
    "kernel_saved": "artifacts/10/pilot8/kernels/FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1.py",
    "ok": true,
    "error": null,
-   "bound_violations": 25,
+   "bound_violations": 0,
    "workloads": 38,
    "passed": 38,
    "scored": 38,
@@ -159,77 +161,77 @@
    "workload_uuid": "55b51e96-eecc-4dc9-814a-0f1301b2951e",
    "status": "PASSED",
    "latency_ms": 0.045079998672008514,
-   "score": 1.016957209019354,
+   "score": 0.9925603497577882,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "d30e4c23-bb35-4f61-adb9-2163db9f5ea7",
    "status": "PASSED",
    "latency_ms": 0.04356049932539463,
-   "score": 1.115010076880864,
+   "score": 0.9619794241366314,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "7572654f-7994-431a-bed1-65d7ec507b10",
    "status": "PASSED",
    "latency_ms": 0.0435004997998476,
-   "score": 1.0300557479606005,
+   "score": 0.9878766104862255,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "473e30ea-b329-4ef7-9961-7de140fd35da",
    "status": "PASSED",
    "latency_ms": 0.04618050158023834,
-   "score": 1.010917011380944,
+   "score": 0.9949678136316468,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "bda0e743-f862-4800-95e4-a7c5717c8e7e",
    "status": "PASSED",
    "latency_ms": 0.09338049963116646,
-   "score": 1.0009162494067465,
+   "score": 0.9983538867735223,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "7e602557-ff89-41a1-8650-6c3e48fdf52a",
    "status": "PASSED",
    "latency_ms": 0.08094000071287155,
-   "score": 1.0014735175135132,
+   "score": 0.9981443487340962,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "5ca61491-4ac7-426f-af85-cf592620a435",
    "status": "PASSED",
    "latency_ms": 0.04228049889206886,
-   "score": 1.0676347832807511,
+   "score": 0.9760895786327085,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "77737de2-b4e3-4f75-a275-2addbc9e175d",
    "status": "PASSED",
    "latency_ms": 0.3394615054130554,
-   "score": 0.9988975089692239,
+   "score": 0.9980823372843803,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -239,47 +241,47 @@
    "workload_uuid": "b270fd9c-8520-4bf1-87b7-f0bd87326ab6",
    "status": "PASSED",
    "latency_ms": 0.04287999868392944,
-   "score": 1.0446010222388131,
+   "score": 0.9830014577220438,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "3bdcf0e1-3855-44b4-9ef2-db4422074531",
    "status": "PASSED",
    "latency_ms": 0.04185999929904938,
-   "score": 1.0858454728452007,
+   "score": 0.9712926111155424,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "6c8fe593-d2b1-4abe-89e3-51bb93638186",
    "status": "PASSED",
    "latency_ms": 0.04300050064921379,
-   "score": 1.0370834654495147,
+   "score": 0.9855419250938552,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "98814691-2060-4bbe-8158-7bdd6868e7d0",
    "status": "PASSED",
    "latency_ms": 0.043220000341534615,
-   "score": 1.0208956284054609,
+   "score": 0.9914520490852657,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "74202b1d-e57c-424d-93ea-396a614e7864",
    "status": "PASSED",
    "latency_ms": 1.8224684596061707,
-   "score": 0.9987558581699256,
+   "score": 0.9986496531829768,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -289,27 +291,27 @@
    "workload_uuid": "6e3567c4-94d7-462d-b0af-b083ff8a9def",
    "status": "PASSED",
    "latency_ms": 0.044519999995827675,
-   "score": 1.0193217191322834,
+   "score": 0.991723573525446,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "a455e8fb-76b9-49ee-8bfb-4ac63bcd571c",
    "status": "PASSED",
    "latency_ms": 0.0435199998319149,
-   "score": 1.0859931462037642,
+   "score": 0.9697115403445337,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "bb28f188-53a9-45d4-89f3-b6bfe4b5fdb8",
    "status": "PASSED",
    "latency_ms": 0.3285614997148514,
-   "score": 0.9987913608967933,
+   "score": 0.9978477565295958,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -319,7 +321,7 @@
    "workload_uuid": "ed999c80-d4d1-4952-b063-cd39dfbf5612",
    "status": "PASSED",
    "latency_ms": 0.8506239950656891,
-   "score": 0.9039953088752879,
+   "score": 0.8892220852302336,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -329,27 +331,27 @@
    "workload_uuid": "cb60b649-f5da-49a7-b21e-0b9022bf9ff1",
    "status": "PASSED",
    "latency_ms": 0.04344100132584572,
-   "score": 1.0333736219478842,
+   "score": 0.9866774688427598,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "e6f75600-c981-4c46-9e7d-d82b41cff36c",
    "status": "PASSED",
    "latency_ms": 0.04560049995779991,
-   "score": 1.0086798314140997,
+   "score": 0.9960569540319694,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "733a7bbe-55fc-4834-82db-f428949e8ab2",
    "status": "PASSED",
    "latency_ms": 1.4556870460510254,
-   "score": 0.9970560955156428,
+   "score": 0.9967364532051659,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -359,7 +361,7 @@
    "workload_uuid": "892d1b8f-f6fe-40ad-aa3f-b6d391753bd3",
    "status": "PASSED",
    "latency_ms": 0.21900100260972977,
-   "score": 0.9997653573613176,
+   "score": 0.9992750809932985,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -369,37 +371,37 @@
    "workload_uuid": "4eeb9b51-ce9b-40a3-9f8f-2604fed79629",
    "status": "PASSED",
    "latency_ms": 0.07080049812793732,
-   "score": 1.0024513311283438,
+   "score": 0.9976616282558749,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "77573fb4-557b-430d-979f-5579a0349825",
    "status": "PASSED",
    "latency_ms": 0.09452100098133087,
-   "score": 1.0007130870200056,
+   "score": 0.998689170138735,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "9722a8a5-542e-4b96-b962-7ae93eb259ac",
    "status": "PASSED",
    "latency_ms": 0.05152000114321709,
-   "score": 1.0062175512646339,
+   "score": 0.9965913187803173,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "053a88a3-d024-4fbe-bc46-3f49d141de9f",
    "status": "PASSED",
    "latency_ms": 1.4620869755744934,
-   "score": 0.9986737795037086,
+   "score": 0.9985289509750731,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -409,7 +411,7 @@
    "workload_uuid": "a06f2653-81ce-449f-91dd-e5ae53a16b92",
    "status": "PASSED",
    "latency_ms": 42.173194885253906,
-   "score": 0.9848264987910296,
+   "score": 0.9847773587453839,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -419,27 +421,27 @@
    "workload_uuid": "a8cff3c6-0976-4dbb-833f-481091dc6a39",
    "status": "PASSED",
    "latency_ms": 0.04570099897682667,
-   "score": 1.0126523643072585,
+   "score": 0.9942770839767098,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "71df32c9-6f0f-4499-8599-c632f94ca83e",
    "status": "PASSED",
    "latency_ms": 0.04320000112056732,
-   "score": 1.0441167778305611,
+   "score": 0.9829869893257822,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "22689bbd-cd9e-4251-a90e-a2d367ddb7d8",
    "status": "PASSED",
    "latency_ms": 0.20646099746227264,
-   "score": 0.9995324524002863,
+   "score": 0.9984343115896986,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -449,37 +451,37 @@
    "workload_uuid": "a6fbb45c-905c-48b3-a74b-cc18bd963220",
    "status": "PASSED",
    "latency_ms": 0.046200500801205635,
-   "score": 1.0096775128550886,
+   "score": 0.9955240953202803,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "d44f32e1-f92e-4f37-ae26-29d71b0b105a",
    "status": "PASSED",
    "latency_ms": 0.051659999415278435,
-   "score": 1.0044644656339028,
+   "score": 0.9975381513140997,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "9265de63-6831-406b-b449-8bee4be7f372",
    "status": "PASSED",
    "latency_ms": 0.04323999956250191,
-   "score": 1.0584512823721606,
+   "score": 0.9782201674984635,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "805238ee-8470-4f4e-aa41-7c15f785173f",
    "status": "PASSED",
    "latency_ms": 0.6910830140113831,
-   "score": 0.9991370053637444,
+   "score": 0.9989071633586474,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -489,7 +491,7 @@
    "workload_uuid": "fe63f292-d826-4950-8785-0a516707527f",
    "status": "PASSED",
    "latency_ms": 6.665510177612305,
-   "score": 0.9974900441316121,
+   "score": 0.9974357907282665,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -499,7 +501,7 @@
    "workload_uuid": "54187805-1b18-4d39-83ca-46332f85da9e",
    "status": "PASSED",
    "latency_ms": 4.97156286239624,
-   "score": 0.9977833465168079,
+   "score": 0.997718341387634,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -509,27 +511,27 @@
    "workload_uuid": "f96b666d-373d-40ee-ad8d-0c3b74374558",
    "status": "PASSED",
    "latency_ms": 0.05309999920427799,
-   "score": 1.0038626020987855,
+   "score": 0.9977754275942302,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "d88c9577-ac5d-414c-9d57-d91cc14b7eed",
    "status": "PASSED",
    "latency_ms": 0.04322050139307976,
-   "score": 1.0513393480213344,
+   "score": 0.9805458051670748,
    "flagged": false,
-   "bound_violation": true,
-   "note": "authoritative gpu0, 50 iters -- FASTER THAN T_SOL: bound is invalid"
+   "bound_violation": false,
+   "note": "authoritative gpu0, 50 iters"
   },
   {
    "problem": "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1",
    "workload_uuid": "0e70750d-4274-4a1f-a626-0c981044138d",
    "status": "PASSED",
    "latency_ms": 9.857645034790039,
-   "score": 0.9940892478677357,
+   "score": 0.9940041072745174,
    "flagged": false,
    "bound_violation": false,
    "note": "authoritative gpu0, 50 iters"
@@ -1569,13 +1571,11 @@
   "problems": 8,
   "workloads_scored": 99,
   "workloads_flagged": 0,
-  "workloads_bound_violated": 25,
-  "problems_with_invalid_bound": [
-   "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1"
-  ],
-  "mean_score": 0.775684463248471,
-  "mean_score_including_invalid_bounds": 0.8401349000605929,
+  "workloads_bound_violated": 0,
+  "problems_with_invalid_bound": [],
+  "mean_score": 0.829158739755497,
+  "mean_score_including_invalid_bounds": 0.829158739755497,
   "min_score": 0.4116369299319051,
-  "max_score": 0.9997653573613176
+  "max_score": 0.9992750809932985
  }
 }

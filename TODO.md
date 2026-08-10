@@ -19,6 +19,8 @@ For per-item detail see `STATE.md`; the D-numbers below point into it.
 
 These are in the manifest and produce scores. The scores are not usable.
 
+**Fixed in manifest v1.1 on 2026-08-10 — 13 down to 6. Read `STATE.md` D36 for what moved, then D35 for why.** The table below describes v1, which is frozen and still reports 13. Under v1.1 the paged problems (D18) and five of the compute-bound ones are corrected; what remains is `L1__005`, `L1__006`, `L1__054`, `L1__057`, `L2__045` and a 1% residue on `L2__073`.
+
 **Read `STATE.md` D35 before this table.** The thirteen were diagnosed on
 2026-08-09 and they are not thirteen defects. Six of them are one cause that is
 not a SOLAR error at all — `T_SOL_ms` divides cycles by a single F_LOCK of

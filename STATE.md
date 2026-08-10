@@ -1162,6 +1162,65 @@ assumes it), that no `h2` is missing from the nav, and that a page passing no
 `toc` still renders single-column. Two files with no compiler between them
 would otherwise drift into links that render, look live, and scroll nowhere.
 
+### D36 — manifest v1.1: what the two corrections actually moved
+
+v1 is frozen and unchanged. `artifacts/09/manifest-v1.1.json` sits beside it,
+built by `scripts/rebuild_manifest_v11.py`, which repeats no measurement: every
+cycle count is v1's, and only the conversion to milliseconds and the paged byte
+count change.
+
+```
+clock-corrected workloads : 805   (fp32_sm 759 @ 1441 MHz, fp8_tc 46 @ 1314)
+paged-corrected workloads : 249   (6 FlashInfer problems)
+total T_SOL_ms changed    : 1048
+re-gated (kept v1 value)  : 0
+```
+
+**Bounds a real kernel beats: 13 -> 6.** Gone: `FlashInfer-Bench__018`,
+`L1__035`, `L2__030`, `L2__035`, `L2__068`. Remaining: `L1__005`, `L1__006`,
+`L1__054`, `L1__057`, `L2__045`, `L2__073`.
+
+The per-datapath clock is `max(F_LOCK, measured)`, not the measurement alone.
+T_SOL is a lower bound, so where the part can go faster the bound must assume
+it does — and the matrix-core measurements (bf16 1296, fp16 1299) sit inside
+scatter of 1300, so writing them in would assert a 0.3% correction the
+measurement does not support and move 926 bounds for nothing. Only fp32 (1441)
+and fp8 (1314) clear F_LOCK; only those move.
+
+D18 needed a second half nobody had noticed. Correcting the declared-traffic
+tier fixed four of the six paged problems and **not `018`**, because SOLAR has
+the same defect independently: its `memory_bytes` for that problem is
+1,140,133,554 — the whole allocation, to the byte — and its bottleneck is
+`memory`, so `max(solar, traffic)` kept exactly the number being corrected. A
+memory term computed over an allocation is the same error wherever it appears,
+so both tiers are recomputed from the gathered bytes and only SOLAR's
+*arithmetic* term survives from it. 018's first workload goes 185,274 cycles ->
+8.
+
+That is worth saying plainly: the corrected bound for a small paged workload is
+very loose, and the score there degenerates towards a plain speedup against
+T_b. That is a worse bound to read and a correct one to use — too small is
+loose, too large is wrong, and only one of the two lets a kernel score above 1.
+
+**The residue validates the diagnosis rather than surviving it.** `L2__073`
+falls from 1.120 to **1.010**: its kernel holds 1466 MHz where the saturating
+fp32 GEMM holds 1441, and 1.010 x (1441/1466) = 0.993. The 1% left is exactly
+the gap between "the clock this datapath holds flat out" and "the clock this
+particular kernel held", and closing it would mean dividing bounds by a clock
+the datapath does not sustain under load. `L1__006` 1.327 -> 1.197 and
+`L1__054` 1.269 -> 1.145 — part clock, part real defect. `L1__005` (bf16),
+`L2__045` (bf16) and `L1__057` (memory) do not move at all, which is what the
+diagnosis predicted for those two families.
+
+Rescored from stored `retimed/*.json` with `--reuse-retimed`; no GPU time and
+no re-measurement. `scored.json` now records `manifest_version`, because a
+score is only meaningful inside one. Published means change: glm-sweep-2
+0.6288 -> 0.6111, gpt56-40 0.6884 -> 0.6423.
+
+`verify_artifacts.py --task 03` still reports 13 and still fails check D. That
+check reads v1, which is the frozen release artifact and is meant to keep
+reporting what v1 shipped. It is not a regression and it is not stale.
+
 ### D35 — F_LOCK is a floor, not a lock, and most "wrong bounds" are that
 
 The thirteen problems whose T_SOL a real kernel beat are not thirteen defects,
