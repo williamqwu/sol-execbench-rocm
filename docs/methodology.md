@@ -222,12 +222,37 @@ Firmware on that node, since this is a firmware-level finding and not a claim ab
 the part: VBIOS `113-M355-01-1K1-000C`, SMC `04.86.10.05`, MEC 38, RLC 43, SOS
 `0x00450028`, identical across all eight; ROCm-SMI-LIB 7.8.0, amdgpu 6.16.6.
 
-Consequence for anyone in this position: `F_LOCK` may be chosen only on the cards that
-track it, and must be *verified* on every card regardless. Timing there ran on torch 1,
-which holds 1654–1656 MHz at ~1280 W whether idle-adjacent or with all eight saturated
-and tracks a request to 0.4%. Six of its neighbours would have produced timings ~20%
-slow while reporting `perf_determinism` and no violation, which is why every timing
-artifact records the clock it measured rather than the clock it asked for.
+#### On a node like this, do not lock
+
+The conclusion the measurements point at, stated plainly, because it inverts the
+premise §3 starts from. **Determinism is the less reproducible of the two modes here.**
+
+| | unlocked | locked |
+|---|---|---|
+| throughput spread, 8 cards, same kernel | **3.0–3.4%** (3 runs, 5 days, across a reboot) | 21.0–21.3% |
+| drift over 8 min sustained | **0.7%** | not measured |
+| sensitivity to seven busy neighbours | **1.0%** | up to −15% |
+| per-card behaviour stable run to run | **yes** | **no** — see above |
+
+So the lock buys nothing on this node and costs uniformity. What it *would* have bought
+is a frequency known in advance, and the honest position is that it never delivered
+that here either: the clock a measurement runs at has to be read back regardless, since
+a card can report `perf_determinism`, report no violation, and still be 20% low.
+
+Two things make unlocked workable rather than merely tidier. Frequency becomes a
+property of the *kernel* — 27.9% across workload types, because at `perf_level=auto`
+every card sits against the 1400 W cap and the clock falls out of how power-hungry the
+kernel is — so no single `F_LOCK` describes a run. That is what the split roofline
+terms in §5 are for: a bound can be evaluated at the clock its measurement observed,
+and for a memory-bound workload it does not move at all. And per §7 the timed window is
+too short to sample a clock anyway, which is a problem the lock did not solve either.
+
+What this means concretely, and none of it is specific to this node: read the clock back
+per measurement rather than trusting the setpoint; address per-device SMI calls through
+a PCI-resolved translation (`gpu_map`, and see the corrections above for what happens
+otherwise); and prefer `amd-smi` over `rocm-smi`, while knowing that the tool choice is
+*not* what fixes the index trap — the two enumerate identically, and both differ from
+torch.
 
 ## 4. Architectural constants: what may be shared between parts
 
