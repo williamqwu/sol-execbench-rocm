@@ -219,6 +219,21 @@
     p.addEventListener("focus", enter);
     p.addEventListener("mouseleave", leave);
     p.addEventListener("blur", leave);
+    /* The caption under the chart says a point lights up "its row in the table
+       below". Since 2026-08-10 that table starts collapsed, so clicking a point
+       has to open it -- otherwise the caption describes something the reader
+       cannot see happening, which is worse than not linking them at all. Same
+       affordance the workload grid already has. */
+    p.addEventListener("click", function () {
+      var det = p.closest("section, div, body").querySelector(".tbl-details")
+             || document.querySelector(".tbl-details");
+      if (det) det.open = true;
+      var tr = evalRows(p.dataset.eval)[0];
+      if (!tr) return;
+      tr.scrollIntoView({ block: "center", behavior: "smooth" });
+      tr.classList.add("flash");
+      setTimeout(function () { tr.classList.remove("flash"); }, 1600);
+    });
   });
   roving(pts);
 

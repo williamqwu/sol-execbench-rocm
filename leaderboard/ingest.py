@@ -70,6 +70,29 @@ VARIANT_LABELS = {
     "v4_contiguous": "PyTorch eager + contiguous",
 }
 
+# Who made the weights. Shown beside the run's name, which already carries the
+# model and the harness -- so this answers the question the name does not.
+#
+# Curated rather than derived, and that is the honest description: nothing in
+# the pipeline records it. The front door knows which upstream answered a call,
+# not who trained it, and guessing a provider from a model name is how a board
+# ends up asserting a company. A model absent from this table renders nothing.
+#
+# `OSS` is not a company and is deliberately not one. For an open-weights model
+# the useful fact is that the weights are public and anyone can rerun it, which
+# is a stronger statement about reproducibility than the name of whoever
+# uploaded them.
+PROVIDERS = {
+    "gpt-5.6-sol": "OpenAI",
+    "gpt-5.4": "OpenAI",
+    "GLM-5.2": "OSS",
+    "GLM-5.2-FP8": "OSS",
+    "Kimi-K2.7-Code": "OSS",
+    "Claude-Opus-5": "Anthropic",
+    "Claude-Sonnet-4.6": "Anthropic",
+}
+
+
 # Runs that stay on disk as artifacts but off the board. Deleting them would be
 # the wrong fix -- they were really run and their transcripts are evidence --
 # but a truncated pilot next to finished work invites a comparison that is not
@@ -333,18 +356,19 @@ def bounds(manifest: dict) -> dict:
 def add_submission(conn, **kw) -> int:
     cur = conn.execute(
         """INSERT OR REPLACE INTO submission
-           (slug,name,kind,author,model,created_utc,notes,provenance_json,
+           (slug,name,kind,author,model,provider,created_utc,notes,provenance_json,
             cost_usd,wall_seconds,gpu,group_slug,group_name,trial_label,
             constraint_json,board_visible,exclusion_reason,part,variant,
             depth_note)
-           VALUES (:slug,:name,:kind,:author,:model,:created_utc,:notes,
+           VALUES (:slug,:name,:kind,:author,:model,:provider,:created_utc,:notes,
                    :provenance_json,:cost_usd,:wall_seconds,:gpu,:group_slug,
                    :group_name,:trial_label,:constraint_json,:board_visible,
                    :exclusion_reason,:part,:variant,:depth_note)""",
         # `trial_n` is deliberately not settable here: it is a position within
         # a group and cannot be known until every member of the group has been
         # read. `assign_trial_numbers()` fills it once, at the end.
-        {"author": None, "model": None, "created_utc": None, "notes": None,
+        {"author": None, "model": None, "provider": None,
+         "created_utc": None, "notes": None,
          "provenance_json": None, "cost_usd": None, "wall_seconds": None,
          "gpu": None, "group_slug": None, "group_name": None,
          "trial_label": None, "constraint_json": None, "board_visible": 1,
@@ -699,6 +723,7 @@ def ingest_agent_runs(conn, part: str, extra_roots: list[Path] | None = None) ->
             conn,
             slug=f"agent-{run_id}",
             name=board_name(scored.parent, doc, run_id),
+            provider=board_provider(scored.parent, doc),
             kind="agent",
             author=doc.get("author", "claude-code"),
             model=doc.get("model"),
@@ -997,6 +1022,25 @@ HARNESS_LABELS = {
 }
 
 
+def board_model(run_dir: Path, doc: dict) -> str | None:
+    """The model that answered, preferring the upstream name over the request.
+
+    `model` in a run is the alias a job asked the front door for; `upstream_model`
+    is what the registry resolved it to and what actually ran. Naming the request
+    is naming our own configuration back to ourselves.
+    """
+    run = run_json(run_dir) or {}
+    return run.get("upstream_model") or run.get("model") or doc.get("model")
+
+
+def board_provider(run_dir: Path, doc: dict) -> str | None:
+    """Who made the weights, or None. Never inferred from the name."""
+    m = board_model(run_dir, doc)
+    if not m:
+        return None
+    return PROVIDERS.get(m) or PROVIDERS.get((run_json(run_dir) or {}).get("model"))
+
+
 def board_name(run_dir: Path, doc: dict, run_id: str) -> str:
     """What to call a run on the board: `<model> (w/ <harness>)`.
 
@@ -1017,7 +1061,7 @@ def board_name(run_dir: Path, doc: dict, run_id: str) -> str:
     is true of runs submitted through the write path rather than swept.
     """
     run = run_json(run_dir) or {}
-    model = run.get("upstream_model") or run.get("model") or doc.get("model")
+    model = board_model(run_dir, doc)
     harness = run.get("harness")
     if not model:
         return doc.get("display_name") or f"Agent run ({run_id})"

@@ -363,8 +363,12 @@ td.mono,.sm{font-size:12.5px}
 .board tr:last-child td{border-bottom:none}
 .board .rank{color:var(--dim);width:44px;font-family:var(--mono)}
 .board tr.kind-agent td.big{color:var(--accent2)}
-.model{display:inline-block;margin-left:8px;color:var(--dim);
-  font-family:var(--mono);font-size:11.5px}
+/* Beside the run's name, which already says the model and the harness. This
+   is the provider, so it must not read as a second copy of the name: no mono
+   face, and a rule beside it rather than more grey text. */
+.provider{display:inline-block;margin-left:9px;padding-left:9px;
+  border-left:1px solid var(--line);color:var(--dim);font-size:11.5px;
+  letter-spacing:.02em;vertical-align:1px}
 
 /* ------------------------------------------------------------------ tags */
 .tag{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;
@@ -506,10 +510,28 @@ html[data-theme="light"] .tag-memory{border-color:#2d5bbf;color:#2d5bbf}
 .grid-legend .edges{font-family:var(--mono);font-size:10.5px;opacity:.8;
   white-space:nowrap}
 
-.wl-details{margin:6px 0 4px}
-.wl-details>summary{cursor:pointer;color:var(--dim);font-size:13px;
-  padding:6px 0;user-select:none;list-style-position:outside}
-.wl-details>summary:hover{color:var(--fg)}
+.wl-details,.tbl-details{margin:10px 0 4px}
+
+/* A disclosure that reads as something to press.
+   Both of these used to be a grey line of 13px text with a native triangle,
+   and readers were not opening them -- which for the workload table means not
+   finding the numbers the whole page is about. The affordance is the fix, not
+   more prose: a bordered control, foreground text, and a chevron that turns.
+   `list-style:none` plus the ::-webkit- rule removes the native marker on both
+   engines; without the WebKit line Safari draws its triangle next to ours. */
+summary.disclose{cursor:pointer;user-select:none;display:flex;align-items:center;
+  gap:9px;padding:9px 13px;margin:0;font-size:13px;color:var(--fg);
+  border:1px solid var(--line);border-radius:7px;background:var(--panel);
+  list-style:none;transition:border-color .12s,background .12s}
+summary.disclose::-webkit-details-marker{display:none}
+summary.disclose::before{content:"";flex:none;width:7px;height:7px;
+  border-right:1.5px solid var(--accent);border-bottom:1.5px solid var(--accent);
+  transform:rotate(-45deg);margin-left:2px;transition:transform .15s}
+details[open]>summary.disclose::before{transform:rotate(45deg)}
+summary.disclose:hover{border-color:var(--accent);background:var(--row-hover)}
+summary.disclose:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details[open]>summary.disclose{border-bottom-left-radius:0;
+  border-bottom-right-radius:0;margin-bottom:-1px}
 /* A row the grid pointed at. `.hot` is the hover link, `.flash` is the landing
    after a click -- separate so releasing the hover does not cancel the jump. */
 tr.hot>td{background:var(--row-hover)}
@@ -771,6 +793,38 @@ time.localtime.localized{border-bottom:1px dotted var(--line2);cursor:help}
   pre.code{padding:12px 13px}
   .codewrap .copy{opacity:1}
   footer .wrap{flex-direction:column;gap:8px}
+
+  /* The disclosure buttons are the two controls on the run page that hide the
+     numbers behind them. A 13px line of text is not a phone target; these are
+     the same 44px the header nav already uses. */
+  summary.disclose{min-height:44px;padding:10px 13px;font-size:13.5px}
+  /* Section-nav pills. They wrap to two or three rows here and were 26px tall,
+     which is a row of links a thumb cannot separate. */
+  .sidenav a{min-height:38px;display:inline-flex;align-items:center}
+  /* The provider sits after a name that already wraps on a phone. Its border
+     becomes a stray vertical rule at the start of a line when it does, so on a
+     narrow screen it moves under the name instead of beside it. */
+  .provider{display:block;margin-left:0;padding-left:0;border-left:none;
+    margin-top:2px}
+
+  /* The board is nine columns wide and only the first three fit. Scrolling to
+     reach the coverage bar used to take the row's identity off screen with it,
+     which turns a comparison into a memory test. Rank and name are pinned; the
+     rest scrolls under them.
+     `--sticky-bg` rather than `--panel`, because these cells sit over other
+     cells while scrolling and a transparent or hover-tinted background lets
+     the text of column four show through the name. Set on the row so hover
+     and zebra states carry, and `background-clip:padding-box` keeps the fill
+     off the shared border. */
+  .board{--sticky-bg:var(--bg)}
+  .board tr:hover{--sticky-bg:var(--row-hover)}
+  .board th:nth-child(1),.board td:nth-child(1),
+  .board th:nth-child(2),.board td:nth-child(2){
+    position:sticky;background:var(--sticky-bg);background-clip:padding-box;z-index:1}
+  .board th:nth-child(1),.board td:nth-child(1){left:0;width:32px}
+  .board th:nth-child(2),.board td:nth-child(2){left:32px;
+    box-shadow:1px 0 0 var(--line);max-width:170px}
+  .board thead th{z-index:2}
 }
 
 /* Every table on this site is inside `.scroll`, which is what makes a phone

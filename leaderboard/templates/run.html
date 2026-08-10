@@ -23,7 +23,7 @@
 <p>
   <span class="tag tag-{{ submission.kind }}">{{ submission.kind.replace('_',' ') }}</span>
   <a href="{{ part_url('/submissions/' ~ submission.slug) }}">{{ submission.name }}</a>
-  {% if submission.model %}<span class="model">{{ submission.model }}</span>{% endif %}
+  {% if submission.provider %}<span class="provider">{{ submission.provider }}</span>{% endif %}
   <span class="sub">&middot; {{ problem.category }}</span>
   {# `run_part`, not `part`: the page context's `part` is the dataset being
      viewed, which is what part_url() builds links from. This is the part this
@@ -200,7 +200,7 @@
   {% endif %}
 </p>
 
-<h2>Per-workload</h2>
+<h2 id="workloads">Per-workload</h2>
 
 {# One cell per workload, in the manifest's own order, rendered here rather
    than by script: "view source" shows the data, and the grid is present before
@@ -320,8 +320,8 @@
    <details> opens without script, so with JS off this is one click, not a
    dead end. #}
 <details class="wl-details">
-  <summary>All {{ workloads|length }} workloads as a table, with T<sub>SOL</sub>,
-    T<sub>b</sub>, T<sub>k</sub> and S</summary>
+  <summary class="disclose">Show all {{ workloads|length }} workloads as a table
+    &mdash; T<sub>SOL</sub>, T<sub>b</sub>, T<sub>k</sub> and S per workload</summary>
 {# The .solbar legend lives HERE, next to the bars it describes. Above the grid
    it was the first of two stacked legends -- ten entries before any datum --
    and it explained a widget that only exists inside this closed <details>. #}
@@ -398,7 +398,7 @@
 {% endif %}
 
 {# ------------------------------------------------------------ the solution #}
-<h2>The solution it proposed</h2>
+<h2 id="solution">The solution it proposed</h2>
 {% if kernel %}
   {% if kernel.retime_error %}
     <div class="banner warn">
@@ -501,7 +501,7 @@
 {% endif %}
 
 {# ------------------------------------------------------------- trajectory #}
-<h2>How it got there</h2>
+<h2 id="trajectory">How it got there</h2>
 {% if trajectory %}
   {% if chart %}
   <svg class="traj" viewBox="0 0 {{ chart.w }} {{ chart.h }}" width="100%" height="{{ chart.h }}"
@@ -570,10 +570,21 @@
     kernel is faster than the best PyTorch formulation. Ticks on the axis are
     evals that produced no score.
     <span class="sub">Hover or focus a point &mdash; arrow keys walk them
-      &mdash; to see that eval and light up its row in the table below.</span>
+      &mdash; to see that eval; click one to open the table below at its
+      row.</span>
   </p>
   {% endif %}
 
+  {# Collapsed by default, behind a summary styled as a button rather than a
+     bare disclosure triangle. The chart above already answers "did it get
+     better"; this is the per-eval arithmetic behind it, and forty rows of it
+     pushed the cost and transcript sections a screen and a half down. The row
+     count is in the label because "expand" does not say what is behind it, and
+     a reader who cannot see that there are thirty-two evaluations has no
+     reason to look for them. #}
+  <details class="tbl-details">
+  <summary class="disclose">Show all {{ trajectory|length }} evaluations as a table
+    &mdash; passed, geomean vs reference, mean S, and &Delta; per eval</summary>
   <div class="scroll">
   <table class="grid sortable">
     <thead><tr>
@@ -614,6 +625,7 @@
     </tbody>
   </table>
   </div>
+  </details>
   <p class="sub footnote">
     <b>&Delta; carries no verdict.</b> Only a <i>correctness</i> regression is
     labelled &mdash; an eval that passes fewer workloads than an earlier one
@@ -627,7 +639,7 @@
 {% endif %}
 
 {# ----------------------------------------------------------------- effort #}
-<h2>What it cost</h2>
+<h2 id="cost">What it cost</h2>
 {% if effort %}
 <div class="cards">
   {% if effort.cost_usd %}<div class="card"><div class="num">${{ '%.2f'|format(effort.cost_usd) }}</div><div class="lbl">API cost, this problem</div></div>{% endif %}
@@ -654,7 +666,7 @@
 {% endif %}
 
 {% if transcript %}
-<h2>Transcript</h2>
+<h2 id="transcript">Transcript</h2>
 <p class="sub">
   {{ '{:,}'.format(transcript.n_lines) }} records &middot;
   {{ '{:,}'.format(transcript.n_turns) }} assistant turns &middot;
@@ -667,7 +679,7 @@
   only.</p>
 {% endif %}
 
-<h2>Everyone else on this problem</h2>
+<h2 id="others">Everyone else on this problem</h2>
 {% if peers %}
 <div class="scroll">
 <table class="grid sortable">

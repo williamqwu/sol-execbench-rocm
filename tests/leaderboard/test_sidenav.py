@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Every entry in the section nav must point at a heading that exists.
 
-The nav is authored in `app.py` (TOC_METHODOLOGY, TOC_PROBLEM) and the ids it
+The nav is authored in `app.py` (TOC_METHODOLOGY, TOC_PROBLEM, TOC_RUN_ALL)
+and the ids it
 points at are authored in the templates. Two files, no compiler between them --
 so renaming a heading, or deleting a section, leaves a link that scrolls
 nowhere. It fails silently in the worst way available: the link still renders,
@@ -52,7 +53,16 @@ def _body_ids(page: str) -> set[str]:
     return set(IDS.findall(body))
 
 
-@pytest.mark.parametrize("url", ["/methodology", "/problems/L1__001_alpha"])
+# The run page joined this list on 2026-08-10, when it got a nav of its own.
+# It is the page that most needs the check: five of its six headings render
+# unconditionally and one does not, so the nav is computed per request rather
+# than fixed, and a nav computed per request is a nav that can be computed
+# wrong for one run and right for the next.
+PAGES = ["/methodology", "/problems/L1__001_alpha",
+         "/submissions/agent-alpha/problems/L1__001_alpha"]
+
+
+@pytest.mark.parametrize("url", PAGES)
 def test_every_nav_entry_has_a_heading(client, url):
     page = _page(client, url)
     targets = _nav_targets(page)
@@ -61,7 +71,7 @@ def test_every_nav_entry_has_a_heading(client, url):
     assert not missing, f"{url}: nav points at ids that do not exist: {missing}"
 
 
-@pytest.mark.parametrize("url", ["/methodology", "/problems/L1__001_alpha"])
+@pytest.mark.parametrize("url", PAGES)
 def test_the_nav_is_in_reading_order(client, url):
     """The spy marks "the last heading seen above the fold", which is only the
     section you are reading if the nav lists them in document order."""
@@ -73,7 +83,7 @@ def test_the_nav_is_in_reading_order(client, url):
         f"{url}: nav order {order} is not document order"
 
 
-@pytest.mark.parametrize("url", ["/methodology", "/problems/L1__001_alpha"])
+@pytest.mark.parametrize("url", PAGES)
 def test_no_section_is_missing_from_the_nav(client, url):
     """An h2 with no nav entry is a section the reader cannot jump to."""
     body = _page(client, url).split("</aside>", 1)[1]

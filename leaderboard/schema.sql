@@ -82,6 +82,11 @@ CREATE TABLE submission (
     kind            TEXT NOT NULL,      -- reference_variant | agent | human
     author          TEXT,
     model           TEXT,
+    -- Who made the weights, for display beside the name. Curated, because it
+    -- is not a fact any service in the pipeline records: the front door knows
+    -- which upstream answered, not who trained it. An unrecognised model gets
+    -- NULL and renders nothing, rather than a guess from the name.
+    provider        TEXT,
     created_utc     TEXT,
     notes           TEXT,
     provenance_json TEXT,

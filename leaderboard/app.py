@@ -1289,6 +1289,26 @@ TOC_METHODOLOGY = [
     {"id": "bad-bounds", "label": "Known-wrong bounds"},
     {"id": "reading", "label": "Reading it honestly"},
 ]
+# The run page is the deepest page on the site and the longest -- kernel source,
+# a trajectory chart, a cost breakdown and a transcript, in that order. Until
+# 2026-08-10 it was the only long page with no section nav, so the sections
+# below the fold were reachable only by scrolling past a full kernel listing,
+# and readers were not finding them.
+#
+# Five of the six sections always render, including when the run recorded
+# nothing for them: an empty section that says "no trajectory was recorded" is
+# the point, not an omission, and a reader looking for that answer should be
+# able to jump to it. Only the transcript is genuinely absent when missing, so
+# only it is filtered -- an anchor to a section that is not there is worse than
+# no anchor, and an h2 with no nav entry is a section nobody can reach.
+TOC_RUN_ALL = [
+    {"id": "workloads", "label": "Per-workload"},
+    {"id": "solution", "label": "The solution it proposed"},
+    {"id": "trajectory", "label": "How it got there"},
+    {"id": "cost", "label": "What it cost"},
+    {"id": "transcript", "label": "Transcript"},
+    {"id": "others", "label": "Everyone else here"},
+]
 TOC_PROBLEM = [
     {"id": "bounds", "label": "Scoring bounds"},
     {"id": "submissions", "label": "Submissions"},
@@ -1435,7 +1455,13 @@ def run(request: Request, slug: str, key: str, part: str | None = None):
     # is the dataset being viewed, which is what `part_url()` reads off the
     # context to build links. The run's own goes under `run_part`.
     d["run_part"] = d.pop("part")
-    return page(request, "run.html", active,
+    # `run.html` renders the transcript heading inside `{% if transcript %}`
+    # and every other heading unconditionally, so the nav drops exactly that
+    # one and nothing else. test_sidenav.py holds both directions of this on
+    # the run page: no entry without a heading, no heading without an entry.
+    toc = [s for s in TOC_RUN_ALL
+           if s["id"] != "transcript" or d.get("transcript")]
+    return page(request, "run.html", active, toc=toc,
                 chart=trajectory_chart(d["trajectory"]), **d)
 
 
