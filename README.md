@@ -61,12 +61,24 @@ two things about the conversion to milliseconds:
 first version that re-derives rather than re-divides: SOLAR read a convolution's
 `groups` only from `nn.Module` arguments, and every convolution in this
 benchmark is functional, so a depthwise convolution was priced as a dense one —
-over by exactly the group count, 768× on `L1__006`'s arithmetic term. Seven
+over by exactly the group count, 768× on `L1__006`'s arithmetic term. **Six**
 problems, 81 workloads. The pipeline was re-run on `device="meta"`, so still no
 GPU and no measurement repeated. See D37 and `scripts/rebuild_manifest_v12.py`.
 
-Bounds a real kernel beats: **13 under v1, 6 under v1.1, 3 under v1.2** — and
-one of the four that came off in between was not a bound problem at all. The
+(An earlier version of this paragraph said *seven*. That came from an AST scan
+of the whole reference file; scanning `run()`'s body instead gives six.
+`L2__036`'s grouped convolution is in `get_inputs`, which SOLAR does not trace
+and the harness does not time.)
+
+Bounds a real kernel beats: **13 under v1, 6 under v1.1, 3 under v1.2, and 5
+today** — and the last move is not a regression. `gpt-5.6-sol` finishing all 220
+problems reached `L1__018` and `L1__042`, which nothing had ever run hard enough
+to expose; their bounds were just as wrong in v1. **A bad bound is only ever
+found by a kernel fast enough to cross it, so this count tracks how good the
+submissions are, not how good the model is.** All five are diagnosed (D42) and
+none is corrected — see *What is not fixed* below.
+
+One of the four that came off in between was not a bound problem at all. The
 harness was not seeing work a submission put on its own stream, so `L1__054`'s
 *time* was 32% short against a bound that was correct all along (D38). Two of
 the published scores were re-measured; the rest of the run was not, because
@@ -165,7 +177,7 @@ snapshot_download(\"nvidia/SOL-ExecBench\", repo_type=\"dataset\",
 env/solb bash -lc 'python scripts/fetch_flashinfer_traces.py'
 
 # 4. Sanity
-env/solb bash -lc 'python -m pytest tests/ -q'          # 503 passed, 56 skipped
+env/solb bash -lc 'python -m pytest tests/ -q'          # 519 passed, 75 skipped
 env/solb bash -lc 'bash scripts/node_acceptance.sh'
 env/solb bash -lc 'python scripts/verify_artifacts.py --task 00'
 ```
@@ -393,6 +405,50 @@ Scores on all of these are not usable in v1 and are marked wherever they appear.
 The v1.1 fixes are in `STATE.md`; the `T_SOL <= T_b` gate cannot catch any of
 them, because a bound that over-counts traffic is under-cut by the reference in
 exactly the same way.
+
+### Under v1.2: five, and they are two causes
+
+Diagnosed 2026-08-10 (`STATE.md` D42, `artifacts/11/bad-bounds-v12.json`). Every
+mechanism was checked by hand-computing the bound from the problem's own
+declared shapes, and every hand computation lands on the manifest number.
+
+| problem | min T_k/T_SOL | cause |
+|---|---|---|
+| `L1__018` | 0.312 | traffic tier prices the whole 262,144-slot k+v cache, read **and** written — 2.15 GB — for `seq_len` slots touched |
+| `L2__045` | 0.357 | SOLAR prices 21.5× of arithmetic the reference computes and discards |
+| `L1__042` | 0.839 | traffic tier prices `expert_mask` and `topk_idx`; `run()` reads neither — exactly **65/32** on all sixteen workloads |
+| `L1__057` | 0.871 | traffic tier prices the 157,184-row embedding table for a gather of `B×S` rows |
+| `L2__073` | 0.992 | not a modelling error — the D35 clock residue |
+
+**Three of the five are one defect, and it is D18 again.** The declared-traffic
+tier prices *every declared input at its full allocation*, whether the kernel
+reads all of it, part of it, or none of it. v1.1 fixed that for the two paged
+FlashInfer problems rather than at the tier, so it is still live: **328
+workloads across 38 problems** are scored against a bound where that tier won,
+p50 1.50× and max 128.9×. Most produce no violation only because nothing has got
+close enough. `scripts/bounds/scan_unread_inputs.py` finds 19 problems that
+declare a tensor `run()` never reads, 6 of them on the traffic tier.
+
+**None of the five is corrected.** A hand check that reproduces a manifest
+number proves what that number *is*, not what it should be.
+
+### The other tail: 827 bounds nobody can beat
+
+The only automatic check on a bound is that nothing may beat it, and that check
+is **one-sided**. A T_SOL that is too *small* is a valid lower bound, breaks no
+rule, and is reported by nothing. Over 3,717 scoreable workloads (p50 headroom
+15.6×): **504 under 2×**, 1086 at 2–10×, 1300 at 10–100×, 397 at 100–1000×, 430
+over 1000×. The 827 above 100× are where `S` collapses toward
+`T_b/(T_b + T_k)` and carries no roofline content — `L2__006` is the extreme at
+a median 115,005×.
+
+Worth being honest about: the worst offenders are there *because v1.1 was
+right*. Pricing a paged KV cache at the pages it gathers took
+`FlashInfer-Bench__018` from 185,274 cycles to **8** — correct, and vacuous.
+
+Every workload now carries a `bound_quality` mark (`narrow` / `ok` / `loose` /
+`vacuous`) beside its headroom figure on the problem page. It changes no score;
+it says what a score is worth. `STATE.md` D39.
 
 ## Licence
 

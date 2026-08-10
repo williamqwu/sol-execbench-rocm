@@ -93,7 +93,9 @@ benchmark's validity, and the damage is not visible in the output.
 All ten `tasks/NN-*.md` are `done`; they remain the specification of what each
 acceptance check means, and `verify_artifacts.py --task NN` still runs. Exactly
 **one check fails today** and it is known: task 03's `check D: no measurement
-beats its T_SOL` (the wrong bounds, D18/D21). Every other task is 0 failed.
+beats its T_SOL`. It reads manifest **v1**, the frozen release artifact, which
+is meant to go on reporting what v1 shipped — it is not a live signal about the
+board, which serves v1.2. Every other task is 0 failed.
 **A second failure is a regression** — find out what you broke before doing
 anything else.
 
@@ -166,6 +168,7 @@ Pin with `HIP_VISIBLE_DEVICES`. Record which GPU produced every timing artifact.
 | T_b candidate variants | `reference/tb-candidates/variants.py` | Source-to-source transforms; one set covers all 235. |
 | Anti-reward-hack corpus | `reference/exploits/` | 28/28 replay cases pass, 0 false positives on 235 references. |
 | Frozen scoring manifest | `artifacts/09/manifest-v1.json` | 220/235 problems, 3717 workloads. Do not edit; regenerate. |
+| Manifest the board serves | `artifacts/09/manifest-v1.2.json` | v1.1 (D18 paged traffic + D35 per-datapath clock) then v1.2 (D37 grouped conv). Both re-derive on `device="meta"`; no measurement was repeated. |
 | Leaderboard and submission service | `leaderboard/` | Board, typed `/api/v1`, submit queue, GPU-0 worker. |
 
 The activity package is the one piece you should be most reluctant to touch. Its
@@ -177,9 +180,22 @@ believe it is wrong, write a failing test first.
 
 `TODO.md` lists every known gap. The ones that will bite you first:
 
-* **Three T_SOL bounds are known wrong** and ship in v1 anyway, marked
-  everywhere they appear (D18, D21). Do not treat scores on those problems as
-  results, and do not "fix" a score by adjusting a bound without re-deriving it.
+* **Five T_SOL bounds are known wrong under v1.2**, all diagnosed (D42) and
+  **none corrected**. Do not treat scores on those problems as results, and do
+  not "fix" a score by adjusting a bound without re-deriving it. Three of the
+  five are one defect — the declared-traffic tier prices every declared input at
+  its full allocation regardless of what the kernel reads — which is D18, fixed
+  in v1.1 for two paged problems rather than at the tier. **328 workloads across
+  38 problems still rest on that tier.** Fixing the tier, not another problem,
+  is the v1.3 item.
+* **The bound check is one-sided and 827 workloads exploit that** (D39). Nothing
+  may beat a bound; nothing checks that a bound is tight. 22.3% of workloads sit
+  above 100× headroom, where `S` is a PyTorch comparison with no roofline
+  content. They are marked (`bound_quality`) and not fixed.
+* **`rocprofv3 --pmc` hangs in this container** (D43), so the counter path for
+  an independent traffic measurement is closed. The shim is *not* implicated —
+  it uses the dispatch-callback timestamp path and every measurement in the repo
+  runs on it. The counter-free route is a minimal independent kernel, timed.
 * **Some artifacts stamp `f_lock_mhz: null`** even though F_LOCK was measured.
   This is *not* a missing clock preset — `CLOCK_LOCK_PRESETS` has had an
   MI350X entry (`gpu_clk_mhz=1600`, `achieved_gpu_clk_mhz=1300`) since 2cdb7b0
@@ -230,12 +246,13 @@ it is listed there.
   **resumable** — assume the session dies mid-sweep, because it will.
 - Python: repo code targets 3.12 to match upstream's `requires-python`.
 - Run `pytest tests/` before and after touching anything in `src/`. Expect
-  **503 passed, 69 skipped** in the container, re-run 2026-08-07: 43 in
+  **519 passed, 75 skipped** in the container, re-run 2026-08-10: 43 in
   `sol_execbench` (CUPTI-only tests, the two D20 variance tests), 12 in
   `examples` (NVIDIA-only solution languages), and one collection-time skip per
   leaderboard module — each needs fastapi, so that suite runs in
   `leaderboard/.venv` instead: `leaderboard/.venv/bin/python -m pytest
-  tests/leaderboard`, all passing, 115 as of 2026-08-07. Do not read either
+  tests/leaderboard`, all passing, **152 passed / 1 skipped** as of
+  2026-08-10. Do not read either
   skip count as a gate: one leaderboard module added moves both by one, which
   is how the old figure of 56 here went stale. Only a drop in *passed*, or a
   skip whose reason is not one of the four above, is a regression.

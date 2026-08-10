@@ -10,8 +10,9 @@ exploit corpus and the manifest builder are all part-independent. What is not
 transferable is anything with a millisecond or a megahertz in it.
 
 **What is on `master` for MI355X today: nothing.** `artifacts/00/` and
-`artifacts/01/` are the MI350X record, `manifest-v1` is MI350X at F_LOCK 1300,
-and `leaderboard/db/` holds `solbench-MI350X.db` only. Read §1 before you
+`artifacts/01/` are the MI350X record, `manifest-v1` is MI350X at F_LOCK 1300
+(as are v1.1 and v1.2, which the board serves), and `leaderboard/db/` holds
+`solbench-MI350X.db` only. Read §1 before you
 conclude that no MI355X measurement has ever been taken — that is true of
 `master` and false of the repo.
 
@@ -93,7 +94,7 @@ snapshot_download(\"nvidia/SOL-ExecBench\", repo_type=\"dataset\",
 env/solb bash -lc 'python scripts/fetch_flashinfer_traces.py'
 
 # 4. Baseline.
-env/solb bash -lc 'python -m pytest tests/ -q'      # expect 503 passed, 56 skipped
+env/solb bash -lc 'python -m pytest tests/ -q'      # expect 519 passed, 75 skipped
 ```
 
 Environment gotchas, each of which cost a session somewhere:
@@ -565,7 +566,7 @@ Each line is a real command. Paste its real output into `STATE.md`.
 
 ```bash
 # setup
-env/solb bash -lc 'python -m pytest tests/ -q'                       # 503 passed, 56 skipped
+env/solb bash -lc 'python -m pytest tests/ -q'                       # 519 passed, 75 skipped
 env/solb bash -lc 'python scripts/verify_artifacts.py --task 00'
 
 # F_LOCK -- nothing below this line is trustworthy until it passes
