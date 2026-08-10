@@ -150,50 +150,68 @@ telemetry being right. `scripts/unlocked_clock_probe.py` then varies the workloa
 the duration and the neighbour load. Both use nothing from the benchmark harness.
 
 **Unlocked, the node is uniform.** All eight cards on `perf_level=auto`, saturating,
-45 s: 1447–1498 TFLOPS (**3.4% spread**), 1724–1837 MHz, 1377–1399 W each, 56–63 °C.
+45 s: 1454–1500 TFLOPS (**3.0% spread**), 1725–1829 MHz, 1381–1399 W each, 55–63 °C.
 Every socket delivers its full 1400 W at once. No weak card, no cooling imbalance.
 
 **Applying `--setperfdeterminism` is what breaks that.** Same run with 1660 requested
-on all eight: throughput spread widens to **21.2%**. Six cards sit ~330 MHz below the
-frequency they acknowledged, at ~980 W against a 1400 W cap, *cooler* than the one
-card that holds, and `amd-smi` reports no violation of any kind on them — not PPT,
-thermal, VR, HBM or PROCHOT. Not contention either: GPU 2 alone, all others idle,
-still sits at 1325 MHz.
+on all eight: throughput spread widens to **21.0%**. Six cards sit ~320 MHz below the
+frequency they acknowledged, at ~980 W against a 1400 W cap, *cooler* than the cards
+that hold, and `amd-smi` reports no violation of any kind on them — not PPT, thermal,
+VR, HBM or PROCHOT. Not contention either: torch 2 alone, all others idle, still sits
+at 1325 MHz.
 
-**And on two of the eight the setpoint does nothing at all.** Sweeping the request,
-one card at a time under load:
+Everything in this section was measured twice, three days apart and **across a hard
+reboot of the node**, with identical firmware: 3.4% then 3.0% unlocked, 21.2% then
+21.0% locked, the same six cards low by the same margin. One thing did change — torch
+0 held 1410 MHz under full-node load before the reboot and holds 1656 after — so the
+count of cards that keep a node-wide setpoint went from one to two. The defect is
+persistent; which cards fall on which side of it is not entirely.
 
-| requested | GPU 1 achieved | GPU 2 achieved |
+**The two groups differ in whether the setpoint is tracked or scaled.** The node-wide
+block above cannot tell those apart, because every card is given the same number.
+Sweeping the request one card at a time, on a card that holds and one that does not:
+
+| requested | torch 1 achieved | torch 2 achieved |
 |---|---|---|
-| 1200 MHz | **1657** (1.38×) | 1015 (0.85×) |
-| 1400 | **1656** (1.18×) | 1155 (0.83×) |
-| 1500 | **1655** (1.10×) | 1214 (0.81×) |
-| 1660 | 1656 (1.00×) | 1322 (0.80×) |
+| 1200 MHz | 1195 (**0.996×**) | 1026 (0.855×) |
+| 1400 | 1394 (**0.996×**) | 1162 (0.830×) |
+| 1660 | 1654 (**0.997×**) | 1325 (0.798×) |
 
-GPU 1 runs 1655–1657 MHz whatever it is asked for. It looks like the one healthy card
-only because 1656 happens to coincide with the 1660 being requested — a coincidence
-that survives exactly one setpoint, which is why the sweep matters and a single-point
-check does not. GPUs 2–7 are the ones where determinism functions as a control, with
-a 0.80–0.85 scale error. Neither group is correct and the two failure modes are
-opposite: one cannot be slowed, the other cannot reach speed. All eight accept the
-request and read back as `perf_determinism`.
+So determinism is not broken everywhere: torch 0 and 1 track a requested frequency to
+within 0.4%. On the other six it behaves as a control with a **0.80–0.86 scale error**
+that worsens as the request rises, and those cards stop at ~980 W of a 1400 W cap
+while reporting no violation. All eight accept the request and read back as
+`perf_determinism`.
+
+> **A correction, and a trap worth naming.** The first version of this section claimed
+> the setpoint was a *no-op* on two cards, on the strength of a sweep showing torch 1
+> at 1655–1657 MHz whatever was asked. That was wrong, and the cause was an index. The
+> sweep set the setpoint with `rocm-smi -d <torch index>`, but `rocm-smi` and `amd-smi`
+> order devices by PCI bus and torch does not — on this node torch 1 is device 0 to
+> both tools. The request went to a *neighbouring* card while the loaded card was left
+> alone at its own boost clock, which is exactly why the readings looked so clean and
+> so wrong. `scripts/gpu_parity_check.py` now translates through
+> `gpu_map.torch_to_amdsmi()` and carries the sweep itself, so the ad-hoc form cannot
+> recur. This is the third finding this repository has lost to that scrambled ordering
+> (D11, D20's clock alignment, and this one); the node-wide numbers above were never
+> affected, since a node-wide setting takes no index at all.
 
 **The telemetry is honest**, which is worth stating because it was the first
-suspicion. Throughput divided by reported clock is **813–856 TFLOPS/GHz on every
+suspicion. Throughput divided by reported clock is **788–859 TFLOPS/GHz on every
 card in every condition above** — locked, unlocked, alone, contended, fast and slow.
-A card reporting 1326 MHz delivers exactly the work 1326 MHz predicts. The cards
+A card reporting 1330 MHz delivers exactly the work 1330 MHz predicts. The cards
 really do run slow; nothing here is a sampling artifact.
 
 Firmware on that node, since this is a firmware-level finding and not a claim about
 the part: VBIOS `113-M355-01-1K1-000C`, SMC `04.86.10.05`, MEC 38, RLC 43, SOS
 `0x00450028`, identical across all eight; ROCm-SMI-LIB 7.8.0, amdgpu 6.16.6.
 
-Consequence for anyone in this position: `F_LOCK` cannot be *chosen* on such a node,
-only measured and verified afterwards. Timing there ran on the one card that holds a
-frequency invariantly — 1655–1657 MHz at ~1295 W whether idle-adjacent or with all
-eight saturated — while recording that the invariance comes from firmware pinning and
-not from the lock, so a firmware change would show up as a changed measurement rather
-than as silence.
+Consequence for anyone in this position: `F_LOCK` may be chosen only on the cards that
+track it, and must be *verified* on every card regardless. Timing there ran on torch 1,
+which holds 1654–1656 MHz at ~1280 W whether idle-adjacent or with all eight saturated
+and tracks a request to 0.4%. Six of its neighbours would have produced timings ~20%
+slow while reporting `perf_determinism` and no violation, which is why every timing
+artifact records the clock it measured rather than the clock it asked for.
 
 ## 4. Architectural constants: what may be shared between parts
 
