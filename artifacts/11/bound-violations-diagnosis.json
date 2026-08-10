@@ -27,8 +27,9 @@
     ],
     "state_md": "D18",
     "worst_ratio_t_sol_over_measured": 3.713,
-    "evidence": "t_sol_cycles is 185,274 for essentially every workload of both problems -- it varies by under 0.1% across workloads with very different shapes, which is the signature of a bound that does not depend on the work. It is exactly the time to stream the whole KV allocation once: 989,669 pages x 576 elements x 2 bytes = 1.140 GB, and 1.140 GB / 8 TB/s x 1300 MHz = 185,266 cycles against the manifest's 185,274.",
-    "status": "confirmed, fix known (derive paged traffic from the page table)"
+    "evidence": "t_sol_cycles has a FLOOR of 185,274 that many workloads sit exactly on, and that floor is the time to stream the whole KV allocation once: 989,669 pages x 576 elements x 2 bytes = 1.140 GB, and 1.140 GB / 8 TB/s x 1300 MHz = 185,266 cycles against the manifest's 185,274. The allocation term is workload-independent and swamps the part that is not.",
+    "status": "confirmed, fix known (derive paged traffic from the page table)",
+    "correction_2026_08_10": "An earlier version of this field said the bound 'varies by under 0.1% across workloads'. That is false and was generalised from the violating subset rather than from the problems. Measured over every workload: __018 spans 185,274-185,680, a 0.219% spread with 12 of 47 at the floor; __019 spans 185,274-278,144, a 50.1% spread with 1 of 38 at the floor. The floor claim is exact and is what the arithmetic above matches; the constancy claim was not checked before it was written."
   },
   "cause_2_f_lock_is_a_floor_not_a_lock": {
     "state_md": "D35",

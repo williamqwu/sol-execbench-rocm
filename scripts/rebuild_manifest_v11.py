@@ -363,13 +363,28 @@ def main() -> int:
         },
         "regated": n_regate,
         "still_wrong": {
-            "note": "Unfixed and still marked. Each is beaten by more than "
-                    "either correction above explains.",
+            "note": "Unfixed under v1.1 and still marked. The first five are "
+                    "beaten by more than either correction above can explain. "
+                    "The sixth is different and is listed with them because a "
+                    "run scored against v1.1 flags six, not five, and a field "
+                    "here saying five would be contradicted by the artifact "
+                    "beside it.",
             "problems": ["L2__045_audio_encoder_to_language_model_multimodal_fusion",
                          "L1__006_hyena_depthwise_conv1d_split_gate",
                          "L1__054_audio_attention_qkv_projection_with_normalization",
                          "L1__005_conv_gated_projection_with_causal_conv",
-                         "L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion"],
+                         "L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion",
+                         "L2__073_feedforward_mlp_backward"],
+            "l2_073_is_a_residue_not_a_defect": (
+                "1.120 under v1, 1.010 under v1.1. Its kernel holds 1466 MHz "
+                "where the saturating fp32 GEMM holds 1441, and "
+                "1.010 x (1441/1466) = 0.993 -- the 1% left is exactly the gap "
+                "between the clock the DATAPATH sustains and the clock that "
+                "one kernel happened to reach. Closing it would mean pricing a "
+                "bound at the clock a kernel achieved, which is circular: the "
+                "bound would then depend on the submission being scored "
+                "against it. 1441 is the defensible divisor and the residue "
+                "is the honest cost of using it."),
         },
     }
 

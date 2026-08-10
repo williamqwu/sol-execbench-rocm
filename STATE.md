@@ -1214,8 +1214,35 @@ diagnosis predicted for those two families.
 
 Rescored from stored `retimed/*.json` with `--reuse-retimed`; no GPU time and
 no re-measurement. `scored.json` now records `manifest_version`, because a
-score is only meaningful inside one. Published means change: glm-sweep-2
-0.6288 -> 0.6111, gpt56-40 0.6884 -> 0.6423.
+score is only meaningful inside one.
+
+**What it moved on the board, which is far less than the size of the
+correction suggests.** The published figure is `summary.mean_score`, and that
+already EXCLUDES bound-violating workloads — which are exactly the ones a bound
+correction moves most. So the correction mostly re-priced workloads that were
+not being scored in the first place:
+
+```
+                     mean_score          incl. invalid bounds     violated
+glm-sweep-2   0.6083 -> 0.6111 (+.0028)  0.6288 -> 0.6158          72 -> 26
+gpt56-40      0.6457 -> 0.6423 (-.0034)  0.6884 -> 0.6480          12 ->  9
+```
+
+glm-sweep-2 goes **up**: it had 72 violating workloads and now has 26, so 46
+workloads that scored nothing now score something. The two runs move in
+opposite directions and by about a third of a percent each.
+
+Head to head on the shared workloads both runs scored, which is the comparison
+that matters: **+0.0173 under v1 (n=643) and +0.0155 under v1.1 (n=656)**. The
+lead shrinks by a tenth and the ordering does not change.
+
+*Corrected 2026-08-10.* An earlier reading of this said the correction removed
+about two thirds of gpt-5.6-sol's lead. That was computed on
+`mean_score_including_invalid_bounds` — i.e. on a basis that includes the
+broken bounds — and `including_invalid` is not what anything publishes. On the
+published basis the effect is roughly a tenth. The error is worth keeping
+visible because it is the same shape as the defect being fixed: a number that
+looked like the headline, on a denominator nobody had checked.
 
 `verify_artifacts.py --task 03` still reports 13 and still fails check D. That
 check reads v1, which is the frozen release artifact and is meant to keep
@@ -1226,12 +1253,19 @@ reporting what v1 shipped. It is not a regression and it is not stale.
 The thirteen problems whose T_SOL a real kernel beat are not thirteen defects,
 or ten. They are **three causes**, and the largest one is not a SOLAR error.
 
-**D18, confirmed to four significant figures.** `t_sol_cycles` for both MLA
-paged problems is 185,274 for essentially every workload — it moves less than
-0.1% across workloads of very different shape, which is what a bound that does
-not depend on the work looks like. It is the time to stream the whole KV
-allocation once: 989,669 pages x 576 x 2 B = 1.140 GB, and 1.140 GB / 8 TB/s
-x 1300 MHz = **185,266** cycles against the manifest's **185,274**.
+**D18, confirmed to four significant figures.** Both MLA paged problems have a
+`t_sol_cycles` **floor** of 185,274 that many of their workloads sit exactly
+on, and that floor is the time to stream the whole KV allocation once:
+989,669 pages x 576 x 2 B = 1.140 GB, and 1.140 GB / 8 TB/s x 1300 MHz =
+**185,266** cycles against the manifest's **185,274**. The allocation term is
+workload-independent and swamps everything that is not.
+
+*Corrected 2026-08-10.* This paragraph first said the bound "moves less than
+0.1% across workloads of very different shape". It does not, and the claim was
+generalised from the violating subset rather than checked against the problems:
+`__018` spans 185,274–185,680 (0.219%, 12 of 47 at the floor) and `__019`
+spans 185,274–278,144 (**50.1%**, 1 of 38 at the floor). The floor is exact and
+is what the arithmetic matches. The constancy was never measured.
 
 **The new one.** `T_SOL_ms = t_sol_cycles / F_LOCK`, and F_LOCK is 1300 MHz.
 That is the clock the card holds under a dense bf16 matrix-core load, which is
