@@ -3,7 +3,7 @@
 """Measure achieved rooflines: HBM bandwidth, BF16 GEMM, and LLC bandwidth.
 
 These are the *empirical* ceilings published alongside the analytic SOL bounds
-(PLAN.md §7.1), so a reader can see what fraction of theoretical peak is
+(docs/plan-2026-07-31.md §7.1), so a reader can see what fraction of theoretical peak is
 actually reachable on this hardware. That is how "analytic peaks are reachable
 to different degrees on different microarchitectures" gets handled honestly
 instead of by quietly forking the methodology.

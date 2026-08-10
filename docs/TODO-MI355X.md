@@ -25,7 +25,6 @@ conclude that no MI355X measurement has ever been taken — that is true of
 | `CLAUDE.md` | the eight prime directives. Directives 1, 2 and 3 are the ones this task will tempt you to break. |
 | `STATE.md` | the ledger. Everything in it below the environment table is MI350X unless it says otherwise. |
 | `TODO.md` | the open gaps. Most of them follow you to MI355X (§8). |
-| `docs/HANDOFF.md` | the *other* direction of this same move (MI355X → MI350X), and the source of every environment gotcha in §2. Superseded as a plan, still correct as a record. |
 | `tasks/DEPENDENCIES.md` + `tasks/NN-*.md` | the specification of each acceptance check. Note that `tasks/01`, `02` and `03` are written *for MI355X* — they were authored in session 1 on this part, and `master` then executed them on MI350X. |
 
 ---
@@ -266,8 +265,10 @@ take now will be stamped with a clock it was not measured at.
 
 ## 4. What transfers from MI350X, and what does not
 
-Same discipline `docs/HANDOFF.md` used going the other way. "Transfers" means you may
-use it as-is; "confirm" means it is expected to hold and cheap to check.
+The same discipline the MI355X → MI350X move used, in the other direction.
+"Transfers" means you may use it as-is; "confirm" means it is expected to hold
+and is cheap to check. Nothing with a millisecond or a megahertz in it is in the
+first column, and that is not caution — going the other way, F_LOCK moved 21%.
 
 | Result | Transfers? | Why |
 |---|---|---|

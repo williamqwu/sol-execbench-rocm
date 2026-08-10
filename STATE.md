@@ -9,9 +9,14 @@ and say how. Never mark a task `done` without pasting its acceptance-check
 output.
 
 > Session 1 ran on `mia1-p02-g10` (8× **MI355X**). Session 2 onward runs on
-> `gbt350-odcdh1-a08-1` (8× **MI350X**). `docs/HANDOFF.md` says which session-1
-> results transfer. The MI355X numbers are kept in this file where they are
-> useful as a second data point, and are always labelled.
+> `gbt350-odcdh1-a08-1` (8× **MI350X**). **Everything session 1 measured was
+> re-measured here** — `artifacts/00/` and `artifacts/01/` were regenerated
+> rather than reused, because F_LOCK, the clock floors, the interference figure
+> and the stability CV are properties of the part *and its chassis*, not of
+> CDNA4. That was the right call: F_LOCK came back **1300 MHz**, not the 1650
+> measured on the liquid-cooled part — a 21% difference that would have
+> corrupted every T_SOL and every T_b. Session-1 numbers are kept in this file
+> where they are useful as a second data point, and are always labelled.
 
 ---
 
@@ -823,10 +828,11 @@ default, so that "rebuild" cannot mean two different things. Not done.
 Three documents (`CLAUDE.md` §3 and §5b, `TODO.md`, `leaderboard/DESIGN-v2.md`
 §6) stated that `CLOCK_LOCK_PRESETS` has no MI350X entry, that this is why some
 artifacts stamp `f_lock_mhz: null`, and that it is the one remaining task-01
-gate failure. All three claims were false. `docs/HANDOFF.md` §1 says the same
-and is *not* wrong — it was written before the entry existed and is marked
-superseded — but it is the sentence a grep lands on, so it now carries an
-inline correction. The entry was added in **2cdb7b0**, 2026-08-03 20:36 UTC,
+gate failure. All three claims were false. The claim originated in the session-1
+handoff, which was correct when written — the entry did not exist yet — and was
+then copied forward into documents that outlived it. That is the failure mode:
+not a wrong statement, a true one that nobody re-checked. The entry was added in
+**2cdb7b0**, 2026-08-03 20:36 UTC,
 and `--task 01` reports 11 checks, 0 failed.
 
 The null is real, and it has two causes — neither of which is a missing preset,

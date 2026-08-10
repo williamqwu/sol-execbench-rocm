@@ -1,8 +1,8 @@
 # Vendored upstream
 
 This tree is a fork of NVIDIA's `sol-execbench`, vendored so the AMD port can
-be kept as a thin, reviewable delta (PLAN.md R9: "keep AMD deltas as a thin
-layer"; PLAN.md §"Fork identity" recommends building as a fork structured for
+be kept as a thin, reviewable delta (docs/plan-2026-07-31.md R9: "keep AMD
+deltas as a thin layer"; its §"Fork identity" recommends building as a fork structured for
 upstreaming).
 
 | | |

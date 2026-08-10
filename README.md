@@ -290,14 +290,12 @@ stays hard to get wrong.
 CLAUDE.md                  agent contract: prime directives, node discipline
 STATE.md                   progress ledger — the handoff between sessions
 TODO.md                    every known gap, and which block v1.1
-PLAN.md                    the pre-work engineering plan (§§1–11, superseded in
-                           the four places its banner names) and §12, what is
-                           next — the one live section
+PLAN.md                    what to work on next, in order
+docs/plan-2026-07-31.md    the pre-work engineering plan. Archived, not
+                           maintained; kept for why the port is shaped as it is
 docs/methodology.md        how every AMD number was derived
 docs/TODO-MI355X.md        runbook for an agent landing on an MI355X node
 docs/agent-baseline.md     how the agent runs on the board were produced
-docs/HANDOFF.md            record of the MI355X → MI350X move. Superseded as a
-                           plan; kept for why artifacts/00 and /01 were redone
 tasks/                     10 ordered tasks, each with acceptance criteria
 scripts/
   runners/                 per-problem sweep runners (references, tolerances,

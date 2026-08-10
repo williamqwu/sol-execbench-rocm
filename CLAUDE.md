@@ -83,11 +83,13 @@ benchmark's validity, and the damage is not visible in the output.
 ## 3. How to work
 
 ```
-1. Read STATE.md            -> current progress, blockers, what is next
-2. Read TODO.md             -> the open gaps, and which are v1.1 blockers
-3. Execute the work
-4. Run the acceptance check -> paste real output
-5. Update STATE.md          -> status, artifacts produced, anything surprising
+1. Read STATE.md            -> what was done, and what it measured
+2. Read TODO.md             -> every known gap, as a defect list
+3. Read PLAN.md             -> which of those to do next, in order, and what
+                               "fixed" would mean for each
+4. Execute the work
+5. Run the acceptance check -> paste real output
+6. Update STATE.md          -> status, artifacts produced, anything surprising
 ```
 
 All ten `tasks/NN-*.md` are `done`; they remain the specification of what each
@@ -131,8 +133,12 @@ the graph and shows what can run in parallel.
   8-way via `scripts/shard_sweep.py` and are the difference between a 3-day and
   a 12-hour turnaround.
 
-Session 1 ran on an 8× MI355X node (1400 W, liquid). None of its measurements
-transfer; see `docs/HANDOFF.md`.
+Session 1 ran on an 8× MI355X node (1400 W, liquid). **None of its
+measurements transfer** — F_LOCK, the clock floors, the interference figure, the
+rooflines and the stability CV are all properties of the part *and its chassis*,
+and each was re-measured here. What does transfer is code: the harness keys off
+`gfx950` and `torch.version.hip`, not the SKU. `docs/TODO-MI355X.md` §4 draws the
+same line in the other direction, and is the one to read.
 
 ### GPU discipline
 
@@ -158,7 +164,7 @@ Pin with `HIP_VISIBLE_DEVICES`. Record which GPU produced every timing artifact.
 
 | Asset | Location | Status |
 |---|---|---|
-| Full engineering plan | `PLAN.md` | Reference. Six phases, risks, methodology. |
+| The original engineering plan | `docs/plan-2026-07-31.md` | Archived. Six phases, risks, methodology — the record of *why*, not of what is true. |
 | Upstream audit | `reference/upstream-audit.md` | Every NVIDIA-specific call site, located. |
 | Vendor-neutral timing attribution | `src/solexbench_rocm/activity/` | **CPU-verified, 19 tests, mutation-tested.** Do not rewrite. |
 | rocprofiler shim | `src/solexbench_rocm/shim/`, `reference/contracts/rocprof_shim.md` | **Built and validated.** Median divergence −0.61% over 1430 pairs; clock domain verified. |

@@ -28,7 +28,7 @@ None. This is the first task.
    different timings.
 
 3. **Measure the two rooflines.** These are the empirical ceilings that will sit
-   alongside the analytic SOL bounds in the scoring manifest (see `PLAN.md` §7.1).
+   alongside the analytic SOL bounds in the scoring manifest (see `docs/plan-2026-07-31.md` §7.1).
    ```bash
    python scripts/roofline_probe.py --gpu 0 --out artifacts/00/roofline-gpu0.json
    ```
