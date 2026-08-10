@@ -62,9 +62,28 @@ for run in gpt56-180 gpt56-canary; do
         >>"$LOG_DIR/finish.log" 2>&1 || say "  collect $run returned $?"
 done
 
-# ── 3. re-time whatever is not already done ───────────────────────────────────
+# ── 3a. discard measurements taken on a shared card ───────────────────────────
+# `authoritative_card_exclusive: false` means another container held the card
+# during that measurement. Contention makes a kernel look SLOWER, so those
+# scores are understated rather than inflated -- the safe direction, and still
+# not comparable to a T_b measured on an idle card. Deleting the artifact is
+# what makes `--reuse-retimed` measure it again.
+say "discarding measurements taken on a shared card"
+python3 - <<'PY'
+import json, glob, os
+n = 0
+for f in glob.glob("artifacts/10/gpt56-*/retimed/*.json"):
+    try:
+        if json.load(open(f)).get("authoritative_card_exclusive") is False:
+            os.unlink(f); n += 1
+    except Exception:
+        pass
+print(f"  discarded {n}")
+PY
+
+# ── 3b. re-time whatever is not already done ──────────────────────────────────
 # One at a time on GPU 0, which is what makes a number authoritative, and each
-# measurement checks the card is exclusively ours first (STATE.md D29).
+# measurement WAITS for the card to be exclusively ours first (STATE.md D29).
 for run in gpt56-180 gpt56-canary; do
     say "re-timing $run (reusing what the first pass measured)"
     python3 scripts/agent_score.py --run "artifacts/10/$run" --gpu 0 \

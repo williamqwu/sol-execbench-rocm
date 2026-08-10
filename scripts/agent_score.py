@@ -102,6 +102,46 @@ def _foreign_on_card(gpu: int) -> list[str]:
     return lines or [f"check exited {proc.returncode}"]
 
 
+#: How long to wait for the authoritative card to come free before measuring
+#: anyway. Bounded on purpose: blocking forever turns "somebody else is on the
+#: card" into "the sweep stopped and nobody knows why", which is a worse failure
+#: than a measurement that says on its face that it was not exclusive.
+CARD_WAIT_S = float(os.environ.get("SOLEXBENCH_CARD_WAIT_S", "900"))
+
+
+def _await_exclusive_card(gpu: int, max_wait: float = CARD_WAIT_S) -> tuple[list[str], float]:
+    """Wait for the authoritative card, then report what it looked like.
+
+    Returns `(foreign_at_measurement_time, seconds_waited)`.
+
+    Recording that a card was shared is not the same as not sharing it. On
+    2026-08-10 the first version of this only recorded, and 52 of 112 re-timed
+    problems came back marked non-exclusive -- another team's sglang and
+    Megatron container, which comes and goes in bursts rather than holding the
+    card. Bursty is the case where waiting works: the card was clean on 30 of
+    30 samples taken minutes later.
+
+    Contention makes a measurement SLOWER, so the scores it produces are
+    understated rather than inflated. That is the safe direction and it is
+    still wrong: T_b was measured on an idle card, and a T_k that was not is
+    not comparable to it.
+    """
+    started = time.time()
+    while True:
+        foreign = _foreign_on_card(gpu)
+        if not foreign:
+            return [], round(time.time() - started, 1)
+        waited = time.time() - started
+        if waited >= max_wait:
+            print(f"    card still shared after {waited:.0f}s; measuring anyway "
+                  f"and marking it", flush=True)
+            return foreign, round(waited, 1)
+        if waited == 0 or int(waited) % 60 < 10:
+            print(f"    waiting for the authoritative card ({len(foreign)} "
+                  f"foreign process(es), {waited:.0f}s)", flush=True)
+        time.sleep(10)
+
+
 def retime(problem_key: str, kernel: Path, out: Path, gpu: int,
            iterations: int, warmup: int, timeout: int) -> dict:
     """One kernel, through env/solb, pinned to `gpu`. Returns the eval payload.
@@ -144,7 +184,7 @@ def retime(problem_key: str, kernel: Path, out: Path, gpu: int,
     # because this is the last point where the answer can still change what
     # gets published. Recorded either way: a refusal that leaves no trace is
     # indistinguishable from a run nobody attempted.
-    foreign = _foreign_on_card(gpu)
+    foreign, waited = _await_exclusive_card(gpu)
     cmd = [
         str(ROOT / "env" / "solb"), "python", "/work/scripts/agent_eval.py",
         "--problem", f"/work/data/SOL-ExecBench/benchmark/{cat}/{name}",
@@ -170,6 +210,7 @@ def retime(problem_key: str, kernel: Path, out: Path, gpu: int,
     if staged.exists():
         payload = json.loads(staged.read_text())
         payload["authoritative_card_exclusive"] = not foreign
+        payload["authoritative_card_waited_s"] = waited
         if foreign:
             payload["authoritative_card_shared_with"] = foreign
         out.parent.mkdir(parents=True, exist_ok=True)
