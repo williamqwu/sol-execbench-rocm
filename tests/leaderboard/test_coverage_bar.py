@@ -137,10 +137,10 @@ def test_flagged_takes_priority_over_the_other_four(client):
     the segment exists to describe, and `overflow:hidden` on `.covbar` clips
     the excess so nobody sees it.
 
-    Priority rather than carving it out of `failed`, because on the real board
-    not one submission has a problem where EVERY workload was rejected: all 48
-    flagged results sit inside problems that also passed something. Carved out
-    of `failed`, this colour would never once be drawn.
+    Priority rather than carving it out of `failed` is a choice about a case
+    that is not on the board yet: a problem with some passing workloads and one
+    refused kernel. Today all three flagged problems have every workload
+    flagged and none passing, so the two rules agree.
     """
     for r in _rows(client):
         assert r["problems_flagged"] <= r["problems_attempted"], r["slug"]

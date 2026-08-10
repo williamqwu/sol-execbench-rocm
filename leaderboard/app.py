@@ -555,16 +555,21 @@ def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
         # count problems that produced something.
         buckets = conn.execute(
             # `nflag > 0` is tested FIRST, so a problem carrying a reward hack
-            # lands in the flagged bucket whatever else it did. The alternative
-            # -- carving flagged out of `failed` only -- was tried and renders
-            # an empty segment on the real board: not one submission has a
-            # problem where EVERY workload was rejected, so all 48 flagged
-            # results hide inside problems that also passed something, and the
-            # colour the maintainer asked for would never once be drawn.
+            # lands in the flagged bucket whatever else it did.
             #
-            # Priority is also the stronger reading. A submission whose entry
-            # for a problem contains a kernel that was refused has not cleanly
-            # solved that problem, even if its other workloads passed.
+            # On today's board this is indistinguishable from carving flagged
+            # out of `failed`: all three flagged problems have all 16 of their
+            # workloads flagged and none passing, so both rules give 2 and 1.
+            # Priority is chosen for the case that is not on the board yet -- a
+            # problem with some passing workloads and one refused kernel. That
+            # entry has not cleanly solved the problem, and the carve-out rule
+            # would draw it green.
+            #
+            # (An earlier revision of this comment justified priority by
+            # claiming the carve-out renders empty on the real board. That was
+            # read off `leaderboard/solbench.db`, a stale database that does not
+            # contain either agent run. It is wrong and the numbers above are
+            # the check.)
             f"""SELECT SUM(CASE WHEN seen = 0 THEN 1 ELSE 0 END) AS untouched,
                        SUM(CASE WHEN seen > 0 AND nflag > 0
                                 THEN 1 ELSE 0 END) AS flagged,

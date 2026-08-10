@@ -1,0 +1,39 @@
+{
+  "_provenance": {
+    "task": "11-measured-traffic",
+    "utc": "2026-08-10T21:11:15.103148+00:00",
+    "git_sha": "35765cb47f3c54c51b3564f27b088d599d803309-dirty",
+    "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+    "python": "3.11.7",
+    "torch": {
+      "available": false
+    },
+    "rocm": {
+      "version": "7.15.0",
+      "driver": "7.1.1.31500000",
+      "amd_smi": "AMDSMI Tool: 26.5.0+03d8462e | AMDSMI Library version: 26.5.0 | ROCm version: 7.15.0 | amdgpu version: 7.1.1.31500000 | ionic version: N/A"
+    },
+    "f_lock_mhz": null,
+    "visible_devices": null
+  },
+  "question": "D42 says the declared-traffic tier prices bytes the kernel never moves. Measured independently, does the problem's own reference move fewer bytes than the tier prices?",
+  "method": "rocprofv3 FETCH_SIZE + WRITE_SIZE over N calls of the reference, warmup outside the counted region, one workload per problem (the one where the tier beats SOLAR widest), cards 1-7, card 0 refused.",
+  "one_sided": "measured < tier PROVES the tier over-counts. measured >= tier proves NOTHING -- the reference is an upper bound on required traffic, not a lower one. A problem that does not falsify is not cleared.",
+  "not_a_timing_measurement": "counters perturb kernel duration. No number here may be used as a T_k or a T_b.",
+  "problems_measured": 0,
+  "problems_failed": 1,
+  "tier_falsified_on": 0,
+  "results": [
+    {
+      "problem": "L1__042_moe_expert_load_balancing_and_token_capacity_backward",
+      "workload_uuid": "3c6ef29c-d74e-5ad7-85a5-dc9bcb124221",
+      "gpu": 1,
+      "tier_over_solar": 2.031,
+      "t_sol_cycles_traffic": 1493,
+      "t_sol_cycles_solar": 735,
+      "ok": false,
+      "error": "rc=1",
+      "stderr_tail": "timer.cpp:55] [rocprofv3] tool initialization ::     0.213314 sec\nW20260810 21:11:13.502884 139874759429696 simple_timer.cpp:55] [rocprofv3] 'python /var/tmp/solbench/traffic/042_moe_expert_load_balancing_and_token_capacity_backward-3c6ef29c/drv.py /work/data/SOL-ExecBench/benchmark/L1/042_moe_expert_load_balancing_and_token_capacity_backward 3c6ef29c-d74e-5ad7-85a5-dc9bcb124221' ::     0.000000 sec\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/traffic/042_moe_expert_load_balancing_and_token_capacity_backward-3c6ef29c/drv.py\", line 21, in <module>\n    inputs = ref.get_inputs(axes, dev)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/work/data/SOL-ExecBench/benchmark/L1/042_moe_expert_load_balancing_and_token_capacity_backward/reference.py\", line 9, in get_inputs\n    n_routed_experts = axes_and_scalars[\"n_routed_experts\"]\n                       ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^\nKeyError: 'n_routed_experts'\nW20260810 21:11:14.681315 139874759429696 simple_timer.cpp:55] [rocprofv3] 'python /var/tmp/solbench/traffic/042_moe_expert_load_balancing_and_token_capacity_backward-3c6ef29c/drv.py /work/data/SOL-ExecBench/benchmark/L1/042_moe_expert_load_balancing_and_token_capacity_backward 3c6ef29c-d74e-5ad7-85a5-dc9bcb124221' ::     1.178431 sec\nW20260810 21:11:14.682440 139874759429696 simple_timer.cpp:55] [rocprofv3] output generation ::     0.000863 sec\nW20260810 21:11:14.682580 139874759429696 simple_timer.cpp:55] [rocprofv3] tool finalization ::     0.001012 sec\n"
+    }
+  ]
+}

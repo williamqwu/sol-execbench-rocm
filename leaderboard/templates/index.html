@@ -127,12 +127,18 @@
              the kernel ran and produced the right answer, and was refused. It
              It takes priority over clean/partial -- a problem whose entry
              contains a rejected kernel has not been cleanly solved -- so the
-             five segments stay disjoint and still sum to problems_total. #}
+             five segments stay disjoint and still sum to problems_total.
+
+             NOTE THE UNIT. This bar counts PROBLEMS; the flagged figure
+             elsewhere on the site counts WORKLOADS, and they differ by a lot:
+             48 flagged workloads are 3 problems, because each of the three has
+             all 16 of its workloads flagged. Two numbers with the same name and
+             different units invite exactly the misreading they got. #}
           {% for seg, n, lbl in [
                 ('clean',   s.problems_clean,     'every workload passed'),
                 ('partial', s.problems_partial,   'some workloads passed'),
                 ('failed',  s.problems_failed,    'attempted, nothing passed'),
-                ('flagged', s.problems_flagged,   'a workload was rejected as a reward hack'),
+                ('flagged', s.problems_flagged,   'problems with a workload rejected as a reward hack'),
                 ('none',    s.problems_untouched, 'never attempted')] %}
             {%- if n %}<span class="cs cs-{{ seg }}" style="width:{{ 100 * n / s.problems_total }}%"
               title="{{ n }} problem{{ 's' if n != 1 }} &mdash; {{ lbl }}"></span>{% endif -%}

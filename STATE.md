@@ -1232,6 +1232,28 @@ head-to-head gap of ~0.03: it does not flip the comparison and it is ~13% of it.
 Every artifact it produced carries `concurrent_cards: 8`. Reversible: a serial
 re-time costs 1.9 h. 113 problems took **10.5 min** this way.
 
+**Reverted on 2026-08-10. The published numbers are serial again.** All 220
+problems re-timed one at a time on GPU 0 (PID 2528350, 66 min wall, the 113
+8-wide artifacts backed up first). Result:
+
+| | 8-wide | serial | Δ |
+|---|---|---|---|
+| mean S over scored workloads | 0.6381 | **0.6391** | +0.0010 |
+| benchmark score on the board | 0.6332 | **0.6341** | +0.0009 |
+
+The direction is right — 8-wide measured slower, so removing it raises the
+score — and the size is **a quarter of what the 1.4% median ratio predicted**
+(~0.004 of S). Two things account for the gap and neither is a correction to
+the 1.4%: only 113 of 220 problems were 8-wide, and S is a saturating function
+of T_k, so a fixed fractional slowdown moves S less where a submission is
+already far from its bound. The projection was an upper bound and is now
+superseded by the direct measurement.
+
+**8-wide is a tool with a known cost, not a mistake.** `retime_parallel.py`
+stays. Use it for exploration and for anything not being compared against a
+serially-measured run; do not use it for a published number that shares a table
+with one.
+
 **Two more bad bounds, and that is the pattern not an accident.** `L1__018` and
 `L1__042` had never been reached. 3 → 5. The count tracks how hard anything has
 tried.
