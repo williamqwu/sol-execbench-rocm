@@ -1,0 +1,70 @@
+import torch
+import torch.nn.functional as F
+
+@torch.compile
+def _rope(x, cos, sin):
+    x1 = x[..., :64]
+    x2 = x[..., 64:]
+    return torch.cat((x1 * cos[..., :64] - x2 * sin[..., :64],
+                      x2 * cos[..., 64:] + x1 * sin[..., 64:]), dim=-1)
+
+@torch.no_grad()
+def run(
+    hidden_states: torch.Tensor,
+    cos: torch.Tensor,
+    sin: torch.Tensor,
+    q_proj_weight: torch.Tensor,
+    k_proj_weight: torch.Tensor,
+    v_proj_weight: torch.Tensor,
+    o_proj_weight: torch.Tensor,
+):
+    # Constants
+    num_attention_heads = 32
+    num_key_value_heads = 8
+    head_dim = 128
+    num_key_value_groups = 4
+    scaling = head_dim ** -0.5
+    
+    batch_size, seq_len, _ = hidden_states.shape
+    
+    # QKV projection
+    query_states = F.linear(hidden_states, q_proj_weight)
+    key_states = F.linear(hidden_states, k_proj_weight)
+    value_states = F.linear(hidden_states, v_proj_weight)
+    
+    # Reshape to [batch, seq_len, num_heads, head_dim] then transpose to [batch, num_heads, seq_len, head_dim]
+    query_states = query_states.view(batch_size, seq_len, num_attention_heads, head_dim).transpose(1, 2)
+    key_states = key_states.view(batch_size, seq_len, num_key_value_heads, head_dim).transpose(1, 2)
+    value_states = value_states.view(batch_size, seq_len, num_key_value_heads, head_dim).transpose(1, 2)
+    
+    # Apply RoPE
+    cos_expanded = cos.unsqueeze(1)  # [batch, 1, seq_len, head_dim]
+    sin_expanded = sin.unsqueeze(1)  # [batch, 1, seq_len, head_dim]
+    
+    query_states = _rope(query_states, cos_expanded, sin_expanded)
+    key_states = _rope(key_states, cos_expanded, sin_expanded)
+    
+    key_states = key_states[:, :, None, :, :].expand(
+        batch_size, num_key_value_heads, num_key_value_groups, seq_len, head_dim
+    ).reshape(batch_size, num_attention_heads, seq_len, head_dim)
+    value_states = value_states[:, :, None, :, :].expand(
+        batch_size, num_key_value_heads, num_key_value_groups, seq_len, head_dim
+    ).reshape(batch_size, num_attention_heads, seq_len, head_dim)
+
+    attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) * scaling
+    causal_mask = torch.triu(
+        torch.full((seq_len, seq_len), float('-inf'), device=hidden_states.device, dtype=hidden_states.dtype),
+        diagonal=1
+    )
+    attn_weights = attn_weights + causal_mask
+    attn_weights = F.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+    attn_output = torch.matmul(attn_weights, value_states)
+    
+    # Reshape: [batch, num_heads, seq_len, head_dim] -> [batch, seq_len, hidden_size]
+    attn_output = attn_output.transpose(1, 2).contiguous()
+    attn_output = attn_output.reshape(batch_size, seq_len, num_attention_heads * head_dim)
+    
+    # Output projection
+    output = F.linear(attn_output, o_proj_weight)
+    
+    return output

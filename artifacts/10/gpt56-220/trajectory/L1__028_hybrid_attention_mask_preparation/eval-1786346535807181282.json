@@ -1,0 +1,193 @@
+{
+ "_provenance": {
+  "task": "10-agent-eval",
+  "utc": "2026-08-10T07:22:20.465180+00:00",
+  "git_sha": null,
+  "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI350X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "7.1.1.31500000",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+  },
+  "f_lock_mhz": 1300,
+  "visible_devices": "4"
+ },
+ "workloads": 12,
+ "passed": 3,
+ "all_passed": false,
+ "per_workload": [
+  {
+   "index": 0,
+   "workload_uuid": "76e7b90c-7ad8-5e53-9dc2-a38ec9c3d3cc",
+   "status": "PASSED",
+   "latency_ms": 0.008080000057816505,
+   "reference_latency_ms": 0.05788099952042103,
+   "max_absolute_error": 0.0,
+   "max_relative_error": 0.0,
+   "has_nan": false,
+   "has_inf": false,
+   "methodology": "hip_events",
+   "log": "",
+   "speedup_vs_reference": 7.163489988397657
+  },
+  {
+   "index": 1,
+   "workload_uuid": "ceff51b2-75c3-5a50-97cc-4d53b8c9138a",
+   "status": "PASSED",
+   "latency_ms": 0.010359999723732471,
+   "reference_latency_ms": 0.05788000114262104,
+   "max_absolute_error": 0.0,
+   "max_relative_error": 0.0,
+   "has_nan": false,
+   "has_inf": false,
+   "methodology": "hip_events",
+   "log": "",
+   "speedup_vs_reference": 5.586872846147934
+  },
+  {
+   "index": 2,
+   "workload_uuid": "4fc0bf32-1f81-5290-b560-a08c129b261c",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "User function failed: <built-in method __reversed__ of list object at 0x7f5459ddf240> returned a result with an exception set\nRuntimeError: Triton Error [HIP]:  Code: 1, Messsage: invalid argument\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 560, in <module>\n    _user_outputs = _call_and_collect_outputs(\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/kernel.py\", line 28, in run\n    _make_masks[(triton.cdiv(source, 256), batch * 64 * seq)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 757, in run\n    kernel.run(grid_0, grid_1, grid_2, stream, kernel.function, kernel.packed_metadata, launch_metadata,\n  File \"/opt/venv/lib/python3.12/site-packages/triton/backends/amd/driver.py\", line 675, in __call__\n    self.launch(self.launch_cooperative_grid, gridX, gridY, gridZ, stream, function, profile_scratch, *args)\n  File \"/opt/venv/lib/python3.12/site-packages/triton/knobs.py\", line 418, in __call__\n    for call in self.calls if not self.reversed else reversed(self.calls):\n                                                     ^^^^^^^^^^^^^^^^^^^^\nSystemError: <built-in method __reversed__ of list object at 0x7f5459ddf240> returned a result with an exception set\n"
+  },
+  {
+   "index": 3,
+   "workload_uuid": "41c68948-d965-5b85-8577-623caacb7a2b",
+   "status": "INVALID_REFERENCE",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "Reference run() failed: HIP error: invalid argument\nSearch for `hipErrorInvalidValue' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__HIPRT__TYPES.html for more information.\nHIP kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\nTraceback (most recent call last):\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 529, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/_reference.py\", line 31, in run\n    full_mask = torch.ones(\n                ^^^^^^^^^^^\ntorch.AcceleratorError: HIP error: invalid argument\nSearch for `hipErrorInvalidValue' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__HIPRT__TYPES.html for more information.\nHIP kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\n"
+  },
+  {
+   "index": 4,
+   "workload_uuid": "aaa458f8-3f89-5205-a3c0-7d0dfd7fc78f",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "User function failed: <built-in method __reversed__ of list object at 0x7f5459ddf240> returned a result with an exception set\nRuntimeError: Triton Error [HIP]:  Code: 1, Messsage: invalid argument\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 560, in <module>\n    _user_outputs = _call_and_collect_outputs(\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/kernel.py\", line 28, in run\n    _make_masks[(triton.cdiv(source, 256), batch * 64 * seq)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 757, in run\n    kernel.run(grid_0, grid_1, grid_2, stream, kernel.function, kernel.packed_metadata, launch_metadata,\n  File \"/opt/venv/lib/python3.12/site-packages/triton/backends/amd/driver.py\", line 675, in __call__\n    self.launch(self.launch_cooperative_grid, gridX, gridY, gridZ, stream, function, profile_scratch, *args)\n  File \"/opt/venv/lib/python3.12/site-packages/triton/knobs.py\", line 418, in __call__\n    for call in self.calls if not self.reversed else reversed(self.calls):\n                                                     ^^^^^^^^^^^^^^^^^^^^\nSystemError: <built-in method __reversed__ of list object at 0x7f5459ddf240> returned a result with an exception set\n"
+  },
+  {
+   "index": 5,
+   "workload_uuid": "77e44044-6448-5a44-b3a8-4620aa60fdf4",
+   "status": "INVALID_REFERENCE",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "Reference run() failed: HIP error: invalid argument\nSearch for `hipErrorInvalidValue' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__HIPRT__TYPES.html for more information.\nHIP kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\nTraceback (most recent call last):\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 529, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/_reference.py\", line 31, in run\n    full_mask = torch.ones(\n                ^^^^^^^^^^^\ntorch.AcceleratorError: HIP error: invalid argument\nSearch for `hipErrorInvalidValue' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__HIPRT__TYPES.html for more information.\nHIP kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\n"
+  },
+  {
+   "index": 6,
+   "workload_uuid": "0ebd550a-4d71-5fff-a8e8-1480437f915f",
+   "status": "PASSED",
+   "latency_ms": 0.01140000019222498,
+   "reference_latency_ms": 0.06762050092220306,
+   "max_absolute_error": 0.0,
+   "max_relative_error": 0.0,
+   "has_nan": false,
+   "has_inf": false,
+   "methodology": "hip_events",
+   "log": "",
+   "speedup_vs_reference": 5.931622787894473
+  },
+  {
+   "index": 7,
+   "workload_uuid": "c2f00d24-43fb-5d37-be32-b3ea839f9989",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "User function failed: <built-in method __reversed__ of list object at 0x7f5459ddf240> returned a result with an exception set\nRuntimeError: Triton Error [HIP]:  Code: 1, Messsage: invalid argument\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 560, in <module>\n    _user_outputs = _call_and_collect_outputs(\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/kernel.py\", line 28, in run\n    _make_masks[(triton.cdiv(source, 256), batch * 64 * seq)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 757, in run\n    kernel.run(grid_0, grid_1, grid_2, stream, kernel.function, kernel.packed_metadata, launch_metadata,\n  File \"/opt/venv/lib/python3.12/site-packages/triton/backends/amd/driver.py\", line 675, in __call__\n    self.launch(self.launch_cooperative_grid, gridX, gridY, gridZ, stream, function, profile_scratch, *args)\n  File \"/opt/venv/lib/python3.12/site-packages/triton/knobs.py\", line 418, in __call__\n    for call in self.calls if not self.reversed else reversed(self.calls):\n                                                     ^^^^^^^^^^^^^^^^^^^^\nSystemError: <built-in method __reversed__ of list object at 0x7f5459ddf240> returned a result with an exception set\n"
+  },
+  {
+   "index": 8,
+   "workload_uuid": "771a5718-8ce4-5cde-bde5-4884f8771130",
+   "status": "INVALID_REFERENCE",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "Reference run() failed: HIP error: invalid argument\nSearch for `hipErrorInvalidValue' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__HIPRT__TYPES.html for more information.\nHIP kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\nTraceback (most recent call last):\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 529, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/_reference.py\", line 31, in run\n    full_mask = torch.ones(\n                ^^^^^^^^^^^\ntorch.AcceleratorError: HIP error: invalid argument\nSearch for `hipErrorInvalidValue' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__HIPRT__TYPES.html for more information.\nHIP kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\n"
+  },
+  {
+   "index": 9,
+   "workload_uuid": "89260bb9-bfb2-5d7c-81b8-1d6065e9a888",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "User function failed: <built-in method __reversed__ of list object at 0x7f5459ddf240> returned a result with an exception set\nRuntimeError: Triton Error [HIP]:  Code: 1, Messsage: invalid argument\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 560, in <module>\n    _user_outputs = _call_and_collect_outputs(\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/kernel.py\", line 28, in run\n    _make_masks[(triton.cdiv(source, 256), batch * 64 * seq)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 757, in run\n    kernel.run(grid_0, grid_1, grid_2, stream, kernel.function, kernel.packed_metadata, launch_metadata,\n  File \"/opt/venv/lib/python3.12/site-packages/triton/backends/amd/driver.py\", line 675, in __call__\n    self.launch(self.launch_cooperative_grid, gridX, gridY, gridZ, stream, function, profile_scratch, *args)\n  File \"/opt/venv/lib/python3.12/site-packages/triton/knobs.py\", line 418, in __call__\n    for call in self.calls if not self.reversed else reversed(self.calls):\n                                                     ^^^^^^^^^^^^^^^^^^^^\nSystemError: <built-in method __reversed__ of list object at 0x7f5459ddf240> returned a result with an exception set\n"
+  },
+  {
+   "index": 10,
+   "workload_uuid": "08f16d72-897d-53a4-99ba-786fb5c3fc83",
+   "status": "INVALID_REFERENCE",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "Reference run() failed: HIP error: invalid argument\nSearch for `hipErrorInvalidValue' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__HIPRT__TYPES.html for more information.\nHIP kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\nTraceback (most recent call last):\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 529, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/_reference.py\", line 31, in run\n    full_mask = torch.ones(\n                ^^^^^^^^^^^\ntorch.AcceleratorError: HIP error: invalid argument\nSearch for `hipErrorInvalidValue' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__HIPRT__TYPES.html for more information.\nHIP kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\n"
+  },
+  {
+   "index": 11,
+   "workload_uuid": "a8e26172-1272-5ef4-a2a4-b281114fbb5c",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "User function failed: <built-in method __reversed__ of list object at 0x7f5459ddf240> returned a result with an exception set\nRuntimeError: Triton Error [HIP]:  Code: 1, Messsage: invalid argument\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 560, in <module>\n    _user_outputs = _call_and_collect_outputs(\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_svkvi_1i/kernel.py\", line 28, in run\n    _make_masks[(triton.cdiv(source, 256), batch * 64 * seq)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 757, in run\n    kernel.run(grid_0, grid_1, grid_2, stream, kernel.function, kernel.packed_metadata, launch_metadata,\n  File \"/opt/venv/lib/python3.12/site-packages/triton/backends/amd/driver.py\", line 675, in __call__\n    self.launch(self.launch_cooperative_grid, gridX, gridY, gridZ, stream, function, profile_scratch, *args)\n  File \"/opt/venv/lib/python3.12/site-packages/triton/knobs.py\", line 418, in __call__\n    for call in self.calls if not self.reversed else reversed(self.calls):\n                                                     ^^^^^^^^^^^^^^^^^^^^\nSystemError: <built-in method __reversed__ of list object at 0x7f5459ddf240> returned a result with an exception set\n"
+  }
+ ],
+ "ok": true,
+ "problem": "L1__028_hybrid_attention_mask_preparation",
+ "geomean_speedup": 6.191877040758793
+}

@@ -1,0 +1,167 @@
+import torch
+import torch.nn.functional as F
+
+torch._dynamo.config.cache_size_limit = 32
+
+@torch.no_grad()
+def _run(
+    grad_output: torch.Tensor,
+    hidden_states: torch.Tensor,
+    cos: torch.Tensor,
+    sin: torch.Tensor,
+    q_weight: torch.Tensor,
+    k_weight: torch.Tensor,
+    v_weight: torch.Tensor,
+    o_weight: torch.Tensor,
+    query_states: torch.Tensor,
+    key_states: torch.Tensor,
+    value_states: torch.Tensor,
+    attn_weights: torch.Tensor,
+    attn_output: torch.Tensor,
+    scaling: float,
+):
+    """
+    Backward pass for GQA with RoPE.
+    
+    Computes gradients through:
+    1. Output projection
+    2. Attention output (softmax @ V)
+    3. Attention scores (Q @ K^T)
+    4. Repeat KV aggregation
+    5. RoPE
+    6. Q/K/V projections
+    """
+    batch_size, seq_len, hidden_size = hidden_states.shape
+    num_attention_heads = 32
+    num_key_value_heads = 8
+    head_dim = 128
+    num_key_value_groups = num_attention_heads // num_key_value_heads
+    kv_seq_len = key_states.shape[2]
+    
+    # 1. Gradient through output projection
+    # output = attn_output @ o_weight^T
+    # grad_attn_output = grad_output @ o_weight
+    # grad_o_weight = grad_output^T @ attn_output
+    grad_attn_output = torch.mm(
+        grad_output.reshape(-1, hidden_size), o_weight
+    ).reshape(batch_size, seq_len, -1)
+    grad_o_weight = torch.matmul(
+        grad_output.reshape(-1, grad_output.shape[-1]).t(),
+        attn_output.reshape(-1, attn_output.shape[-1])
+    )
+    
+    # 2. Gradient through reshape and transpose
+    # [batch, seq_len, 4096] -> [batch, seq_len, 32, 128] -> [batch, 32, seq_len, 128]
+    grad_attn_output = grad_attn_output.reshape(batch_size, seq_len, num_attention_heads, head_dim)
+    grad_attn_output = grad_attn_output.transpose(1, 2)
+    
+    # 3. Gradient through attention: attn_output = attn_weights @ value_states
+    # grad_attn_weights = grad_attn_output @ value_states^T
+    # grad_value_states = attn_weights^T @ grad_attn_output
+    grad_attn_weights = torch.bmm(
+        grad_attn_output.reshape(-1, seq_len, head_dim),
+        value_states.reshape(-1, seq_len, head_dim).transpose(1, 2),
+    ).reshape(batch_size, num_attention_heads, seq_len, seq_len)
+    grad_value_states = torch.bmm(
+        attn_weights.reshape(-1, seq_len, seq_len).transpose(1, 2),
+        grad_attn_output.reshape(-1, seq_len, head_dim),
+    ).reshape(batch_size, num_attention_heads, seq_len, head_dim)
+    
+    # 4. Gradient through softmax
+    # For softmax: grad_input = softmax * (grad_output - sum(grad_output * softmax))
+    attn_weights_fp32 = attn_weights.to(torch.float32)
+    grad_attn_weights_fp32 = grad_attn_weights.to(torch.float32)
+    grad_attn_scores = torch.ops.aten._softmax_backward_data.default(
+        grad_attn_weights_fp32, attn_weights_fp32, -1, torch.float32
+    )
+    grad_attn_scores = grad_attn_scores.to(query_states.dtype)
+
+    # 5. Gradient through attention scores: attn_scores = (Q @ K^T) * scaling
+    grad_attn_scores = grad_attn_scores * scaling
+    
+    # 6. Gradient through Q @ K^T
+    # grad_Q = grad_attn_scores @ K
+    # grad_K = grad_attn_scores^T @ Q
+    grad_query_states = torch.bmm(
+        grad_attn_scores.reshape(-1, seq_len, seq_len),
+        key_states.reshape(-1, seq_len, head_dim),
+    ).reshape(batch_size, num_attention_heads, seq_len, head_dim)
+    grad_key_states = torch.bmm(
+        grad_attn_scores.reshape(-1, seq_len, seq_len).transpose(1, 2),
+        query_states.reshape(-1, seq_len, head_dim),
+    ).reshape(batch_size, num_attention_heads, seq_len, head_dim)
+    
+    # 7. Gradient through repeat_kv (aggregate gradients for GQA)
+    # Sum over the repeated dimension
+    if num_key_value_groups != 1:
+        grad_key_states = grad_key_states.reshape(
+            batch_size, num_key_value_heads, num_key_value_groups, kv_seq_len, head_dim
+        ).sum(dim=2)
+        
+        grad_value_states = grad_value_states.reshape(
+            batch_size, num_key_value_heads, num_key_value_groups, kv_seq_len, head_dim
+        ).sum(dim=2)
+    
+    # 8. Gradient through RoPE for queries
+    # query_states = query_pre_rope * cos + rotate_half(query_pre_rope) * sin
+    # grad_query_pre_rope = grad_query_states * cos + rotate_half_inverse(grad_query_states * sin)
+    cos_expanded = cos.unsqueeze(1)  # [batch, 1, seq_len, head_dim]
+    sin_expanded = sin.unsqueeze(1)
+    
+    half = head_dim // 2
+    cos_1, cos_2 = cos_expanded[..., :half], cos_expanded[..., half:]
+    sin_1, sin_2 = sin_expanded[..., :half], sin_expanded[..., half:]
+
+    grad_q_1, grad_q_2 = grad_query_states[..., :half], grad_query_states[..., half:]
+    grad_query_states_pre_rope = torch.cat(
+        (grad_q_1 * cos_1 + grad_q_2 * sin_2,
+         grad_q_2 * cos_2 - grad_q_1 * sin_1),
+        dim=-1,
+    )
+
+    grad_k_1, grad_k_2 = grad_key_states[..., :half], grad_key_states[..., half:]
+    grad_key_states_pre_rope = torch.cat(
+        (grad_k_1 * cos_1 + grad_k_2 * sin_2,
+         grad_k_2 * cos_2 - grad_k_1 * sin_1),
+        dim=-1,
+    )
+    
+    # Value gradient (no RoPE applied to values)
+    grad_value_states_pre_rope = grad_value_states
+    
+    # 9. Gradient through transpose and reshape for Q/K/V
+    # [batch, heads, seq_len, head_dim] -> [batch, seq_len, heads, head_dim] -> [batch, seq_len, proj_size]
+    grad_query_states_pre_rope = grad_query_states_pre_rope.transpose(1, 2).contiguous()
+    grad_query_proj = grad_query_states_pre_rope.reshape(batch_size, seq_len, num_attention_heads * head_dim)
+    
+    grad_key_states_pre_rope = grad_key_states_pre_rope.transpose(1, 2).contiguous()
+    grad_key_proj = grad_key_states_pre_rope.reshape(batch_size, seq_len, num_key_value_heads * head_dim)
+    
+    grad_value_states_pre_rope = grad_value_states_pre_rope.transpose(1, 2).contiguous()
+    grad_value_proj = grad_value_states_pre_rope.reshape(batch_size, seq_len, num_key_value_heads * head_dim)
+    
+    # 10. Gradient through Q/K/V projections
+    # Q = hidden_states @ q_weight^T
+    # grad_hidden_states_q = grad_Q @ q_weight
+    # grad_q_weight = grad_Q^T @ hidden_states
+    all_proj = torch.cat((grad_query_proj, grad_key_proj, grad_value_proj), dim=-1)
+    all_weight = torch.cat((q_weight, k_weight, v_weight), dim=0)
+    grad_hidden_states = torch.mm(
+        all_proj.reshape(-1, all_proj.shape[-1]), all_weight
+    ).reshape(batch_size, seq_len, hidden_size)
+    all_grad_weight = torch.matmul(
+        all_proj.reshape(-1, all_proj.shape[-1]).t(),
+        hidden_states.reshape(-1, hidden_states.shape[-1]),
+    )
+    grad_q_weight, grad_k_weight, grad_v_weight = all_grad_weight.split((4096, 1024, 1024), dim=0)
+    
+    return (
+        grad_hidden_states.to(torch.bfloat16),
+        grad_q_weight.to(torch.bfloat16),
+        grad_k_weight.to(torch.bfloat16),
+        grad_v_weight.to(torch.bfloat16),
+        grad_o_weight.to(torch.bfloat16),
+    )
+
+
+run = torch.compile(_run, fullgraph=True, dynamic=False)

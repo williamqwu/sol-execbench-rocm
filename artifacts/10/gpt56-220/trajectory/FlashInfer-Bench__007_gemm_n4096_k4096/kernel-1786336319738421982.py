@@ -1,0 +1,6 @@
+import torch
+
+torch.backends.cuda.matmul.allow_fp16_accumulation = True
+
+def run(A, B):
+    return torch.matmul(A, B.T)

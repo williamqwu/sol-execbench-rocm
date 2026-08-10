@@ -1,0 +1,241 @@
+import torch
+import torch.nn.functional as F
+
+_causal_masks = {}
+
+def _causal_mask(size, device):
+    key = (size, device)
+    mask = _causal_masks.get(key)
+    if mask is None:
+        mask = torch.ones(size, size, device=device, dtype=torch.bool).tril_()
+        _causal_masks[key] = mask
+    return mask
+
+@torch.no_grad()
+def run(
+    hidden_states: torch.Tensor,
+    in_proj_weight: torch.Tensor,
+    conv1d_weight: torch.Tensor,
+    conv1d_bias: torch.Tensor,
+    dt_bias: torch.Tensor,
+    A_log: torch.Tensor,
+    D: torch.Tensor,
+    norm_weight: torch.Tensor,
+    out_proj_weight: torch.Tensor,
+    time_step_limit_min: float,
+    time_step_limit_max: float,
+    layer_norm_epsilon: float,
+):
+    # Constants
+    hidden_size = 8192
+    num_heads = 256
+    head_dim = 64
+    intermediate_size = 16384
+    ssm_state_size = 256
+    conv_kernel_size = 4
+    n_groups = 8
+    chunk_size = 128
+    groups_time_state_size = n_groups * ssm_state_size
+    conv_dim = intermediate_size + 2 * groups_time_state_size
+    
+    batch_size, seq_len, _ = hidden_states.shape
+    dtype = hidden_states.dtype
+    device = hidden_states.device
+    
+    # 1. Input projection
+    projected = torch.matmul(hidden_states, in_proj_weight.t())
+    
+    # Split projections
+    gate_start = projected.shape[-1] - intermediate_size - conv_dim - num_heads
+    gate = projected[..., gate_start:gate_start + intermediate_size]
+    hidden_B_C = projected[..., gate_start + intermediate_size:gate_start + intermediate_size + conv_dim]
+    dt = projected[..., -num_heads:]
+    
+    # 2. Causal Convolution
+    hidden_B_C_t = hidden_B_C.transpose(1, 2)
+    conv_out = F.conv1d(
+        hidden_B_C_t,
+        conv1d_weight,
+        conv1d_bias,
+        padding=conv_kernel_size - 1,
+        groups=conv_dim
+    )[..., :seq_len]
+    hidden_B_C = F.silu(conv_out).transpose(1, 2)
+    
+    # Split into hidden_states, B, C
+    hidden_states_ssm = hidden_B_C[..., :intermediate_size]
+    B = hidden_B_C[..., intermediate_size:intermediate_size + groups_time_state_size]
+    C = hidden_B_C[..., intermediate_size + groups_time_state_size:]
+    
+    # 3. Selective State Space Model with Chunking
+    
+    # Discretize time step
+    dt = F.softplus(dt + dt_bias)
+    dt = torch.clamp(dt, time_step_limit_min, time_step_limit_max)
+    
+    # Reshape for SSM computation
+    hidden_states_ssm = hidden_states_ssm.view(batch_size, seq_len, num_heads, head_dim).float()
+    B = B.view(batch_size, seq_len, n_groups, ssm_state_size).float()
+    C = C.view(batch_size, seq_len, n_groups, ssm_state_size).float()
+    
+    # Keep B and C grouped; view heads as (repeat, group) in contractions.
+    heads_per_group = num_heads // n_groups
+    
+    # Pad to chunk size
+    pad_size = (chunk_size - seq_len % chunk_size) % chunk_size
+    
+    def pad_tensor_4d(x, pad_size):
+        if pad_size > 0:
+            return F.pad(x, (0, 0, 0, 0, 0, pad_size, 0, 0))
+        return x
+    
+    def pad_tensor_3d(x, pad_size):
+        if pad_size > 0:
+            return F.pad(x, (0, 0, 0, pad_size, 0, 0))
+        return x
+    
+    # D residual (skip connection)
+    D_residual = D.float()[..., None] * pad_tensor_4d(hidden_states_ssm, pad_size)
+    
+    # Discretize x and A
+    hidden_states_ssm = hidden_states_ssm * dt[..., None]
+    A = -torch.exp(A_log.float()) * dt
+    
+    # Pad tensors
+    hidden_states_ssm_padded = pad_tensor_4d(hidden_states_ssm, pad_size)
+    A_padded = pad_tensor_3d(A, pad_size)
+    B_padded = pad_tensor_4d(B, pad_size)
+    C_padded = pad_tensor_4d(C, pad_size)
+    
+    padded_seq_len = hidden_states_ssm_padded.shape[1]
+    num_chunks = padded_seq_len // chunk_size
+    
+    # Reshape into chunks
+    hidden_states_ssm_chunked = hidden_states_ssm_padded.reshape(batch_size, num_chunks, chunk_size, num_heads, head_dim)
+    A_chunked = A_padded.reshape(batch_size, num_chunks, chunk_size, num_heads)
+    B_chunked = B_padded.reshape(batch_size, num_chunks, chunk_size, n_groups, ssm_state_size)
+    C_chunked = C_padded.reshape(batch_size, num_chunks, chunk_size, n_groups, ssm_state_size)
+    
+    # Permute A for computation: (batch, num_heads, num_chunks, chunk_size)
+    A_perm = A_chunked.permute(0, 3, 1, 2)
+    A_cumsum = torch.cumsum(A_perm, dim=-1)
+    
+    # 3a. Intra-chunk computation (diagonal blocks)
+    # Segment sum for causal mask
+    def segment_sum(x):
+        # x: (batch, num_heads, num_chunks, chunk_size)
+        cs = x.size(-1)
+        prefix = torch.cumsum(x, dim=-1)
+        seg = prefix[..., :, None] - prefix[..., None, :]
+        mask = _causal_mask(cs, device)
+        return seg.masked_fill_(~mask, -torch.inf)
+    
+    L = segment_sum(A_perm).exp_()  # (batch, heads, chunks, cs, cs)
+    
+    # Attention-like weights: G = C^T B
+    # C_chunked: (batch, chunks, cs, heads, state)
+    # B_chunked: (batch, chunks, cs, heads, state)
+    # G: (batch, chunks, cs_l, cs_s, heads)
+    G = torch.einsum('bclgn,bcsgn->bclsg', C_chunked, B_chunked)
+    
+    # L: (batch, heads, chunks, cs_l, cs_s) -> need (batch, chunks, cs_l, cs_s, heads)
+    L_perm = L.permute(0, 2, 3, 4, 1).reshape(batch_size, num_chunks, chunk_size, chunk_size, heads_per_group, n_groups)
+    
+    # M = G * L (element-wise)
+    M = G[..., None, :] * L_perm
+
+    # Y_diag = einsum(M, hidden_states_ssm_chunked)
+    # M: (batch, chunks, cs_l, cs_s, heads)
+    # hidden_states_ssm_chunked: (batch, chunks, cs_s, heads, head_dim)
+    x_grouped = hidden_states_ssm_chunked.reshape(batch_size, num_chunks, chunk_size, heads_per_group, n_groups, head_dim)
+    Y_diag = torch.einsum('bclsrg,bcsrgd->bclrgd', M, x_grouped).flatten(3, 4)
+    
+    # 3b. Compute states at chunk boundaries
+    # decay_states: exp(A_cumsum[:,:,:,-1:] - A_cumsum)
+    decay_states = torch.exp(A_cumsum[:, :, :, -1:] - A_cumsum)  # (batch, heads, chunks, cs)
+    # decay_states permuted: (batch, chunks, cs, heads)
+    decay_states_perm = decay_states.permute(0, 2, 3, 1)
+    
+    # B_decay = B * decay_states[..., None]
+    decay_states_grouped = decay_states_perm.reshape(batch_size, num_chunks, chunk_size, heads_per_group, n_groups)
+    B_decay = B_chunked[..., None, :, :] * decay_states_grouped[..., None]
+    
+    # states = einsum(hidden_states_ssm_chunked, B_decay)
+    # hidden_states_ssm_chunked: (batch, chunks, cs, heads, head_dim)
+    # B_decay: (batch, chunks, cs, heads, state)
+    # states: (batch, chunks, heads, head_dim, state)
+    states = torch.einsum('bcsrgd,bcsrgn->bcrgdn', x_grouped, B_decay).flatten(2, 3)
+    
+    # 3c. Inter-chunk recurrence
+    previous_states = torch.zeros_like(states[:, :1])  # (batch, 1, heads, head_dim, state)
+    states_with_prev = torch.cat([previous_states, states], dim=1)  # (batch, chunks+1, heads, head_dim, state)
+    
+    # decay_chunk computation
+    # A_cumsum[:, :, :, -1]: (batch, heads, chunks)
+    A_chunk_ends = A_cumsum[:, :, :, -1]  # (batch, heads, chunks)
+    A_chunk_ends_padded = F.pad(A_chunk_ends, (1, 0))  # (batch, heads, chunks+1)
+    
+    # segment_sum for inter-chunk decay
+    def segment_sum_1d(x):
+        # x: (batch, heads, chunks+1)
+        cs = x.size(-1)
+        prefix = torch.cumsum(x, dim=-1)
+        seg = prefix[..., :, None] - prefix[..., None, :]
+        mask = _causal_mask(cs, device)
+        return seg.masked_fill_(~mask, -torch.inf)
+    
+    decay_chunk = segment_sum_1d(A_chunk_ends_padded).exp_()  # (batch, heads, chunks+1, chunks+1)
+    
+    # new_states = einsum(decay_chunk, states_with_prev)
+    # decay_chunk: (batch, heads, chunks+1, chunks+1) -> need (batch, heads, c_out, c_in)
+    # states_with_prev: (batch, chunks+1, heads, head_dim, state)
+    # Permute states_with_prev: (batch, heads, chunks+1, head_dim, state)
+    states_with_prev_perm = states_with_prev.permute(0, 2, 1, 3, 4)
+    
+    # new_states: (batch, heads, chunks+1, head_dim, state)
+    new_states = torch.einsum('bhcd,bhdin->bhcin', decay_chunk, states_with_prev_perm)
+    
+    # Remove last chunk and permute back
+    new_states = new_states[:, :, :-1, :, :]  # (batch, heads, chunks, head_dim, state)
+    states_final = new_states.permute(0, 2, 1, 3, 4)  # (batch, chunks, heads, head_dim, state)
+    
+    # 3d. State to output (off-diagonal blocks)
+    # state_decay_out = exp(A_cumsum)
+    state_decay_out = torch.exp(A_cumsum)  # (batch, heads, chunks, cs)
+    state_decay_out_perm = state_decay_out.permute(0, 2, 3, 1)  # (batch, chunks, cs, heads)
+    
+    # Y_off = einsum(C_chunked, states_final, state_decay_out_perm)
+    # C_chunked: (batch, chunks, cs, heads, state)
+    # states_final: (batch, chunks, heads, head_dim, state)
+    # state_decay_out_perm: (batch, chunks, cs, heads)
+    # Y_off: (batch, chunks, cs, heads, head_dim)
+    states_grouped = states_final.reshape(batch_size, num_chunks, heads_per_group, n_groups, head_dim, ssm_state_size)
+    decay_out_grouped = state_decay_out_perm.reshape(batch_size, num_chunks, chunk_size, heads_per_group, n_groups)
+    Y_off = torch.einsum('bcsgn,bcrgdn,bcsrg->bcsrgd', C_chunked, states_grouped, decay_out_grouped).flatten(3, 4)
+    
+    # Combine intra and inter chunk outputs
+    y = Y_diag + Y_off  # (batch, chunks, cs, heads, head_dim)
+    y = y.reshape(batch_size, padded_seq_len, num_heads, head_dim)
+    
+    # Add skip connection
+    y.add_(D_residual)
+    
+    # Remove padding
+    if pad_size > 0:
+        y = y[:, :seq_len]
+    
+    # Reshape and convert back to original dtype
+    y = y.reshape(batch_size, seq_len, intermediate_size).to(dtype)
+    
+    # 4. Gated normalization
+    group_size = intermediate_size // n_groups
+    y_grouped = y.view(batch_size, seq_len, n_groups, group_size)
+    y_normed = F.rms_norm(y_grouped, (group_size,), eps=layer_norm_epsilon)
+    y_normed = y_normed.view(batch_size, seq_len, intermediate_size)
+    y_normed = y_normed * norm_weight
+    y = y_normed * F.silu(gate)
+    
+    # 5. Output projection
+    output = torch.matmul(y, out_proj_weight.t())
+    
+    return output

@@ -1,0 +1,103 @@
+{
+ "_provenance": {
+  "task": "10-agent-eval",
+  "utc": "2026-08-10T07:22:36.820470+00:00",
+  "git_sha": null,
+  "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI350X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "7.1.1.31500000",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 7.1.1.31500000 | hsmp version: N/A"
+  },
+  "f_lock_mhz": 1300,
+  "visible_devices": "4"
+ },
+ "workloads": 5,
+ "passed": 4,
+ "all_passed": false,
+ "per_workload": [
+  {
+   "index": 0,
+   "workload_uuid": "76e7b90c-7ad8-5e53-9dc2-a38ec9c3d3cc",
+   "status": "PASSED",
+   "latency_ms": 0.00800000037997961,
+   "reference_latency_ms": 0.05736050009727478,
+   "max_absolute_error": 0.0,
+   "max_relative_error": 0.0,
+   "has_nan": false,
+   "has_inf": false,
+   "methodology": "hip_events",
+   "log": "",
+   "speedup_vs_reference": 7.170062171599668
+  },
+  {
+   "index": 1,
+   "workload_uuid": "ceff51b2-75c3-5a50-97cc-4d53b8c9138a",
+   "status": "PASSED",
+   "latency_ms": 0.010160000063478947,
+   "reference_latency_ms": 0.05786050111055374,
+   "max_absolute_error": 0.0,
+   "max_relative_error": 0.0,
+   "has_nan": false,
+   "has_inf": false,
+   "methodology": "hip_events",
+   "log": "",
+   "speedup_vs_reference": 5.694931176087157
+  },
+  {
+   "index": 2,
+   "workload_uuid": "4fc0bf32-1f81-5290-b560-a08c129b261c",
+   "status": "PASSED",
+   "latency_ms": 2.6878929138183594,
+   "reference_latency_ms": 1.6460599899291992,
+   "max_absolute_error": 0.0,
+   "max_relative_error": 0.0,
+   "has_nan": false,
+   "has_inf": false,
+   "methodology": "hip_events",
+   "log": "",
+   "speedup_vs_reference": 0.6123979052390313
+  },
+  {
+   "index": 3,
+   "workload_uuid": "41c68948-d965-5b85-8577-623caacb7a2b",
+   "status": "PASSED",
+   "latency_ms": 0.0077599999494850636,
+   "reference_latency_ms": 0.05708100087940693,
+   "max_absolute_error": 0.0,
+   "max_relative_error": 0.0,
+   "has_nan": false,
+   "has_inf": false,
+   "methodology": "hip_events",
+   "log": "",
+   "speedup_vs_reference": 7.355799130281528
+  },
+  {
+   "index": 4,
+   "workload_uuid": "aaa458f8-3f89-5205-a3c0-7d0dfd7fc78f",
+   "status": "RUNTIME_ERROR",
+   "latency_ms": null,
+   "reference_latency_ms": null,
+   "max_absolute_error": null,
+   "max_relative_error": null,
+   "has_nan": null,
+   "has_inf": null,
+   "methodology": "hip_events",
+   "log": "might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\nTraceback (most recent call last):\n  File \"/opt/venv/lib/python3.12/site-packages/torch/cuda/__init__.py\", line 1083, in synchronize\n    return torch._C._cuda_synchronize()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntorch.AcceleratorError: HIP error: an illegal memory access was encountered\nSearch for `hipErrorIllegalAddress' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__HIPRT__TYPES.html for more information.\nHIP kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/solb_run_0zudp8fm/eval_driver.py\", line 560, in <module>\n    _user_outputs = _call_and_collect_outputs(\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/solb_run_0zudp8fm/eval_driver.py\", line 109, in _call_and_collect_outputs\n    torch.cuda.synchronize(device)\n  File \"/opt/venv/lib/python3.12/site-packages/torch/cuda/__init__.py\", line 1082, in synchronize\n    with torch.cuda.device(device):\n  File \"/opt/venv/lib/python3.12/site-packages/torch/cuda/__init__.py\", line 536, in __exit__\n    self.idx = torch.cuda._maybe_exchange_device(self.prev_idx)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntorch.AcceleratorError: HIP error: an illegal memory access was encountered\nSearch for `hipErrorIllegalAddress' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__HIPRT__TYPES.html for more information.\nHIP kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing AMD_SERIALIZE_KERNEL=3\nCompile with `TORCH_USE_HIP_DSA` to enable device-side assertions.\n\n"
+  }
+ ],
+ "ok": true,
+ "problem": "L1__028_hybrid_attention_mask_preparation",
+ "geomean_speedup": 3.682720334018842
+}

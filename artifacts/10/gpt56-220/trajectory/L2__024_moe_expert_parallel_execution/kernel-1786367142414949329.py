@@ -1,0 +1,123 @@
+import torch
+import torch.nn.functional as F
+
+
+@torch.compile(dynamic=True)
+def _expert_mlp(x, weight, gate_w, up_w, down_w):
+    gate = F.silu(torch.matmul(x, gate_w.t()))
+    up = torch.matmul(x, up_w.t())
+    out = torch.matmul(gate * up, down_w.t())
+    return (out * weight.unsqueeze(-1)).float()
+
+
+def get_inputs(
+    axes_and_scalars: dict[str, ...], device: torch.device
+) -> dict[str, torch.Tensor]:
+    """Generate inputs for MoE expert parallel execution."""
+    num_tokens = axes_and_scalars["num_tokens"]
+    hidden_size = axes_and_scalars["hidden_size"]
+    moe_intermediate_size = axes_and_scalars["moe_intermediate_size"]
+    n_routed_experts = axes_and_scalars["n_routed_experts"]
+    num_experts_per_tok = axes_and_scalars["num_experts_per_tok"]
+    
+    # Input hidden states
+    hidden_states = torch.randn(num_tokens, hidden_size, dtype=torch.bfloat16, device=device)
+    
+    # Expert selection indices - each token selects num_experts_per_tok experts
+    topk_indices = torch.randint(
+        0, n_routed_experts, (num_tokens, num_experts_per_tok), dtype=torch.int64, device=device
+    )
+    
+    # Expert weights - softmax normalized
+    topk_weights = torch.randn(num_tokens, num_experts_per_tok, dtype=torch.bfloat16, device=device)
+    topk_weights = F.softmax(topk_weights.float(), dim=-1).to(torch.bfloat16)
+    
+    # Expert weight matrices
+    gate_proj_weights = torch.randn(
+        n_routed_experts, moe_intermediate_size, hidden_size, dtype=torch.bfloat16, device=device
+    ) * 0.02
+    up_proj_weights = torch.randn(
+        n_routed_experts, moe_intermediate_size, hidden_size, dtype=torch.bfloat16, device=device
+    ) * 0.02
+    down_proj_weights = torch.randn(
+        n_routed_experts, hidden_size, moe_intermediate_size, dtype=torch.bfloat16, device=device
+    ) * 0.02
+    
+    return {
+        "hidden_states": hidden_states,
+        "topk_indices": topk_indices,
+        "topk_weights": topk_weights,
+        "gate_proj_weights": gate_proj_weights,
+        "up_proj_weights": up_proj_weights,
+        "down_proj_weights": down_proj_weights,
+    }
+
+
+@torch.no_grad()
+def run(
+    hidden_states: torch.Tensor,
+    topk_indices: torch.Tensor,
+    topk_weights: torch.Tensor,
+    gate_proj_weights: torch.Tensor,
+    up_proj_weights: torch.Tensor,
+    down_proj_weights: torch.Tensor,
+):
+    """Execute MoE experts in parallel with token dispatch and weighted aggregation.
+    
+    Args:
+        hidden_states: Input tokens [num_tokens, hidden_size]
+        topk_indices: Selected expert indices [num_tokens, num_experts_per_tok]
+        topk_weights: Expert weights [num_tokens, num_experts_per_tok]
+        gate_proj_weights: Gate projection weights [n_routed_experts, intermediate_size, hidden_size]
+        up_proj_weights: Up projection weights [n_routed_experts, intermediate_size, hidden_size]
+        down_proj_weights: Down projection weights [n_routed_experts, hidden_size, intermediate_size]
+    
+    Returns:
+        Aggregated expert outputs [num_tokens, hidden_size]
+    """
+    num_tokens = hidden_states.shape[0]
+    hidden_size = hidden_states.shape[1]
+    n_routed_experts = gate_proj_weights.shape[0]
+    num_experts_per_tok = topk_indices.shape[1]
+    
+    # Keep the accumulation in fp32, but use the native bf16 matrix engines for
+    # the three projections.  Converting the (very large) expert weights to
+    # fp32 was both bandwidth hungry and prevented MFMA use.
+    final_hidden_states = torch.zeros(
+        num_tokens, hidden_size, dtype=torch.float32, device=hidden_states.device
+    )
+    
+    # Sort routes once, making each expert's input a contiguous slice.  This
+    # replaces 256 full scans of the routing matrix.
+    flat_experts = topk_indices.reshape(-1).to(torch.int32)
+    order = torch.argsort(flat_experts)
+    counts = torch.bincount(flat_experts, minlength=n_routed_experts).cpu().tolist()
+    flat_weights = topk_weights.reshape(-1)
+    start = 0
+    for expert_idx, count in enumerate(counts):
+        if count:
+            routes = order[start:start + count]
+            token_indices = torch.div(routes, num_experts_per_tok, rounding_mode="floor")
+            expert_weights = flat_weights[routes]
+            start += count
+        
+        if count:
+            # Gather tokens for this expert
+            expert_input = hidden_states[token_indices]
+            
+            # Get corresponding weights
+            # Get expert weight matrices
+            gate_w = gate_proj_weights[expert_idx]
+            up_w = up_proj_weights[expert_idx]
+            down_w = down_proj_weights[expert_idx]
+            
+            # SwiGLU computation: down(silu(gate(x)) * up(x))
+            # gate_proj: [num_expert_tokens, hidden_size] @ [hidden_size, intermediate_size] = [num_expert_tokens, intermediate_size]
+            weighted_output = _expert_mlp(
+                expert_input, expert_weights, gate_w, up_w, down_w
+            )
+            
+            # Scatter-add back to original positions
+            final_hidden_states.index_add_(0, token_indices, weighted_output)
+    
+    return final_hidden_states.to(torch.bfloat16)

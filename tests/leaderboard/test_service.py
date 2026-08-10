@@ -261,3 +261,49 @@ def test_rebuild_never_serves_an_empty_board(real_db, tmp_path):
     assert set(seen) == {expected}, (
         f"a reader saw {sorted(set(seen))} during the rebuild; expected only "
         f"{expected}")
+
+
+def test_flagged_is_counted_over_every_result_not_just_the_scored_ones(tmp_path):
+    """A flagged workload must reach the board row.
+
+    It did not, from the day the board was built. `n_flagged` was computed
+    inside the aggregate whose WHERE is `status='PASSED' AND score IS NOT NULL`
+    -- and a flagged workload has status REWARD_HACK and a NULL score, so each
+    of those clauses on its own excluded it. The column could not return
+    anything but zero, /methodology asserted that zero in prose, and on
+    2026-08-10 the harness caught 48 real ones while the board still read 0.
+
+    A negative result guaranteed by construction is not evidence of anything,
+    which is why this test builds a board with one flagged row rather than
+    asserting against whatever the current artifacts happen to contain.
+    """
+    import sqlite3
+    import app as app_mod
+
+    db = tmp_path / "solbench-TEST.db"
+    conn = sqlite3.connect(db)
+    conn.executescript((ROOT / "leaderboard" / "schema.sql").read_text())
+    conn.executemany("INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)",
+                     [("part", "TEST"), ("manifest_version", "vtest")])
+    conn.execute("INSERT INTO problem(key,category,name,n_workloads,n_scoreable,deferred) "
+                 "VALUES ('L1__x','L1','x',2,2,0)")
+    conn.executemany(
+        "INSERT INTO workload(problem_key,uuid,scoreable,t_sol_ms,t_b_ms) VALUES (?,?,?,?,?)",
+        [("L1__x", "u1", 1, 0.1, 1.0), ("L1__x", "u2", 1, 0.1, 1.0)])
+    conn.execute("INSERT INTO submission(id,slug,name,kind,board_visible,part) "
+                 "VALUES (1,'probe','probe','agent',1,'TEST')")
+    conn.executemany(
+        "INSERT INTO result(submission_id,problem_key,workload_uuid,status,"
+        "latency_ms,score,flagged,note) VALUES (?,?,?,?,?,?,?,?)",
+        [(1, "L1__x", "u1", "PASSED", 0.5, 0.6, 0, ""),
+         # The shape that was invisible: not PASSED, no score.
+         (1, "L1__x", "u2", "REWARD_HACK", None, None, 1, "")])
+    conn.commit()
+    conn.close()
+
+    with sqlite3.connect(db) as c:
+        c.row_factory = sqlite3.Row
+        rows = app_mod.leaderboard_rows(c)
+    assert rows, "no board row built"
+    assert rows[0]["n_flagged"] == 1, (
+        f"a flagged workload did not reach the board row: {dict(rows[0])}")

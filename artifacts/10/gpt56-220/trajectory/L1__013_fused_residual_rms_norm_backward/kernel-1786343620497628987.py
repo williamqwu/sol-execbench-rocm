@@ -1,0 +1,24 @@
+import torch
+
+torch._dynamo.config.recompile_limit = 32
+
+@torch.compile(fullgraph=True, dynamic=False)
+def _compiled(grad_output: torch.Tensor, x: torch.Tensor,
+              normalized: torch.Tensor, rstd: torch.Tensor,
+    weight: torch.Tensor):
+    g = grad_output.float()
+    g2 = g.reshape(-1, 2560)
+    n2 = normalized.reshape(-1, 2560)
+    grad_weight = (g2 * n2).sum(dim=0)
+    gn = g2 * weight
+    mean = (gn * n2).mean(dim=1, keepdim=True)
+    dx = (rstd.reshape(-1, 1) * (gn - mean * n2)).reshape_as(
+        grad_output).to(torch.bfloat16)
+    return dx, dx.clone(), grad_weight
+
+
+@torch.no_grad()
+def run(grad_output: torch.Tensor, x: torch.Tensor,
+        normalized: torch.Tensor, rstd: torch.Tensor,
+        weight: torch.Tensor):
+    return _compiled(grad_output, x, normalized, rstd, weight)

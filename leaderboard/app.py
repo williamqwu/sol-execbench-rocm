@@ -512,14 +512,30 @@ def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
         agg = conn.execute(
             f"""SELECT COUNT(*) AS n_passed,
                        COALESCE(SUM(r.score),0) AS score_sum,
-                       COALESCE(AVG(r.score),0) AS score_mean,
-                       COALESCE(SUM(r.flagged),0) AS n_flagged
+                       COALESCE(AVG(r.score),0) AS score_mean
                   FROM result r
                   JOIN workload w ON w.problem_key=r.problem_key
                                  AND w.uuid=r.workload_uuid
                  WHERE r.submission_id=? AND r.status='PASSED'
                    AND r.score IS NOT NULL AND w.scoreable=1 {where_cat}""",
             (s["id"], *cat_arg)).fetchone()
+        # Flagged is counted on its OWN, over every result, and that is the
+        # whole point. It used to live in the aggregate above, whose WHERE is
+        # `status='PASSED' AND score IS NOT NULL` -- and a flagged workload has
+        # status REWARD_HACK and a NULL score, so each of those clauses on its
+        # own excluded it. The counter could not return anything but zero.
+        #
+        # The board read "0 flagged" from the day it was built, /methodology
+        # said so in prose, and on 2026-08-10 the harness caught 48 real ones
+        # and the column still read 0. A negative result that is guaranteed by
+        # construction is not evidence of anything.
+        n_flagged = conn.execute(
+            f"""SELECT COALESCE(SUM(r.flagged),0)
+                  FROM result r
+                  JOIN workload w ON w.problem_key=r.problem_key
+                                 AND w.uuid=r.workload_uuid
+                 WHERE r.submission_id=? {where_cat}""",
+            (s["id"], *cat_arg)).fetchone()[0]
         attempted = conn.execute(
             f"""SELECT COUNT(*) FROM result r
                   JOIN workload w ON w.problem_key=r.problem_key
@@ -599,7 +615,7 @@ def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
             "mean_score_passed": agg["score_mean"],
             "coverage": (agg["n_passed"] / total) if total else 0.0,
             "coverage_attempted": (agg["n_passed"] / attempted) if attempted else 0.0,
-            "n_flagged": agg["n_flagged"],
+            "n_flagged": n_flagged,
         })
     # Two orderings, both computed here, because the ranking is not a view of
     # the score -- it IS the score's scope, and a rank recomputed in the browser

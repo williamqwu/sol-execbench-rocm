@@ -1,0 +1,22 @@
+import torch
+import triton
+import triton.language as tl
+from triton.language.extra import libdevice
+
+
+@triton.jit
+def _gelu_kernel(x_ptr, out_ptr, n: tl.constexpr, BLOCK: tl.constexpr):
+    offsets = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
+    mask = offsets < n
+    x = tl.load(x_ptr + offsets, mask=mask)
+    inner = x * (0.7978845608028654 + 0.035677408136300125 * x * x)
+    y = 0.5 * x * (1.0 + libdevice.fast_tanhf(inner))
+    tl.store(out_ptr + offsets, y, mask=mask)
+
+
+@torch.no_grad()
+def run(x: torch.Tensor) -> torch.Tensor:
+    out = torch.empty_like(x)
+    n = x.numel()
+    _gelu_kernel[(triton.cdiv(n, 256),)](x, out, n, BLOCK=256)
+    return out

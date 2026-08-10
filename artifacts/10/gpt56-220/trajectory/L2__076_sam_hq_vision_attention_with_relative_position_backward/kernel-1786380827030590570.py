@@ -1,0 +1,220 @@
+import torch
+import torch.nn.functional as F
+
+torch._dynamo.config.cache_size_limit = 32
+
+
+def get_inputs(axes_and_scalars: dict, device: torch.device) -> dict:
+    batch_size = axes_and_scalars["batch_size"]
+    height = axes_and_scalars["height"]
+    width = axes_and_scalars["width"]
+    hidden_size = axes_and_scalars["hidden_size"]
+    num_attention_heads = axes_and_scalars["num_attention_heads"]
+    head_dim = axes_and_scalars["head_dim"]
+    qkv_out_size = hidden_size * 3
+    rel_pos_h_size = height * 2 - 1
+    rel_pos_w_size = width * 2 - 1
+
+    scale = 1.0 / (head_dim ** 0.5)
+
+    # Realistic weight initialization (Xavier/Kaiming-style)
+    qkv_weight = torch.randn(qkv_out_size, hidden_size, device=device) * (2.0 / hidden_size) ** 0.5
+    qkv_bias = torch.zeros(qkv_out_size, device=device)
+    proj_weight = torch.randn(hidden_size, hidden_size, device=device) * (2.0 / hidden_size) ** 0.5
+    proj_bias = torch.zeros(hidden_size, device=device)
+
+    # Relative position embeddings at small scale (like learned embeddings init)
+    rel_pos_h = torch.randn(rel_pos_h_size, head_dim, device=device) * 0.02
+    rel_pos_w = torch.randn(rel_pos_w_size, head_dim, device=device) * 0.02
+
+    # Input hidden states at small scale (like outputs of a layer norm)
+    hidden_states = torch.randn(batch_size, height, width, hidden_size, device=device) * 0.1
+
+    # Unit-scale grad_output
+    grad_output = torch.randn(batch_size, height, width, hidden_size, device=device)
+
+    return {
+        "grad_output": grad_output,
+        "hidden_states": hidden_states,
+        "qkv_weight": qkv_weight,
+        "qkv_bias": qkv_bias,
+        "proj_weight": proj_weight,
+        "proj_bias": proj_bias,
+        "rel_pos_h": rel_pos_h,
+        "rel_pos_w": rel_pos_w,
+        "scale": scale,
+    }
+
+
+def get_rel_pos_interpolated(q_size: int, k_size: int, rel_pos: torch.Tensor) -> torch.Tensor:
+    """Interpolate relative positional embeddings."""
+    max_rel_dist = int(2 * max(q_size, k_size) - 1)
+    # In this operator q_size == k_size and rel_pos already has 2*S-1 rows,
+    # so linear interpolation is an identity operation.
+    q_coords = torch.arange(q_size, device=rel_pos.device)[:, None]
+    k_coords = torch.arange(k_size, device=rel_pos.device)[None, :]
+    return rel_pos[(q_coords - k_coords) + (k_size - 1)]
+
+
+def get_rel_pos_interpolated_backward(q_size: int, k_size: int, rel_pos: torch.Tensor, grad_output: torch.Tensor) -> torch.Tensor:
+    """Backward pass for relative position interpolation."""
+    max_rel_dist = int(2 * max(q_size, k_size) - 1)
+    
+    q_coords = torch.arange(q_size, device=rel_pos.device)[:, None]
+    k_coords = torch.arange(k_size, device=rel_pos.device)[None, :]
+    indices = (q_coords - k_coords) + (k_size - 1)
+    
+    grad_rel_pos_resized = torch.zeros(
+        max_rel_dist, rel_pos.shape[1],
+        dtype=grad_output.dtype,
+        device=grad_output.device
+    )
+    
+    grad_output_flat = grad_output.reshape(-1, grad_output.shape[-1])
+    indices_flat = indices.reshape(-1)
+    grad_rel_pos_resized.index_add_(0, indices_flat, grad_output_flat)
+    
+    return grad_rel_pos_resized
+
+
+@torch.no_grad()
+def run(
+    grad_output: torch.Tensor,
+    hidden_states: torch.Tensor,
+    qkv_weight: torch.Tensor,
+    qkv_bias: torch.Tensor,
+    proj_weight: torch.Tensor,
+    proj_bias: torch.Tensor,
+    rel_pos_h: torch.Tensor,
+    rel_pos_w: torch.Tensor,
+    scale: float,
+):
+    """Backward pass for SAM-HQ vision attention with relative position."""
+    batch_size, height, width, hidden_size = hidden_states.shape
+    num_attention_heads = 12
+    head_dim = hidden_size // num_attention_heads
+    
+    # Forward pass recomputation for saved tensors
+    hidden_states_flat = hidden_states.reshape(batch_size * height * width, hidden_size)
+    qkv_out = F.linear(hidden_states_flat, qkv_weight, qkv_bias)
+    qkv_out = qkv_out.reshape(batch_size, height * width, 3, num_attention_heads, head_dim)
+    qkv_out = qkv_out.permute(2, 0, 3, 1, 4)
+    
+    query, key, value = qkv_out.reshape(3, batch_size * num_attention_heads, height * width, head_dim).unbind(0)
+    
+    attn_weights = (query * scale) @ key.transpose(-2, -1)
+    
+    rel_pos_h_interp = get_rel_pos_interpolated(height, height, rel_pos_h)
+    rel_pos_w_interp = get_rel_pos_interpolated(width, width, rel_pos_w)
+    
+    query_2d = query.reshape(batch_size, num_attention_heads, height, width, head_dim)
+    query_2d = query_2d.reshape(batch_size * num_attention_heads, height, width, head_dim)
+    
+    # Group equal-height/width contractions into strided batched GEMMs.
+    query_by_h = query_2d.permute(1, 0, 2, 3).reshape(height, -1, head_dim)
+    rel_h = torch.bmm(query_by_h, rel_pos_h_interp.transpose(1, 2))
+    rel_h = rel_h.reshape(height, batch_size * num_attention_heads, width, height).permute(1, 0, 2, 3)
+    query_by_w = query_2d.permute(2, 0, 1, 3).reshape(width, -1, head_dim)
+    rel_w = torch.bmm(query_by_w, rel_pos_w_interp.transpose(1, 2))
+    rel_w = rel_w.reshape(width, batch_size * num_attention_heads, height, width).permute(1, 2, 0, 3)
+    
+    rel_pos_bias = rel_h[:, :, :, :, None] + rel_w[:, :, :, None, :]
+    rel_pos_bias = rel_pos_bias.reshape(batch_size, num_attention_heads, height * width, height * width)
+    
+    attn_weights_reshaped = attn_weights.reshape(batch_size, num_attention_heads, height * width, height * width)
+    attn_weights_reshaped = attn_weights_reshaped + rel_pos_bias
+    attn_weights = attn_weights_reshaped.reshape(batch_size * num_attention_heads, height * width, height * width)
+    
+    attn_weights_softmax = F.softmax(attn_weights, dim=-1, dtype=torch.float32)
+    attn_probs = attn_weights_softmax
+    
+    attn_output = attn_probs @ value
+    attn_output = attn_output.reshape(batch_size, num_attention_heads, height, width, head_dim)
+    attn_output = attn_output.permute(0, 2, 3, 1, 4).reshape(batch_size, height, width, hidden_size)
+    attn_output_flat = attn_output.reshape(batch_size * height * width, hidden_size)
+    
+    # Backward pass
+    grad_output_flat = grad_output.reshape(batch_size * height * width, hidden_size)
+    
+    grad_proj_weight = grad_output_flat.t() @ attn_output_flat
+    grad_proj_bias = grad_output_flat.sum(dim=0)
+    
+    grad_attn_output_flat = grad_output_flat @ proj_weight
+    grad_attn_output = grad_attn_output_flat.reshape(batch_size, height, width, hidden_size)
+    
+    grad_attn_output = grad_attn_output.reshape(batch_size, height, width, num_attention_heads, head_dim)
+    grad_attn_output = grad_attn_output.permute(0, 3, 1, 2, 4)
+    grad_attn_output = grad_attn_output.reshape(batch_size * num_attention_heads, height * width, head_dim)
+    
+    grad_attn_probs = grad_attn_output @ value.transpose(-2, -1)
+    grad_value = attn_probs.transpose(-2, -1) @ grad_attn_output
+    
+    grad_attn_weights_softmax = grad_attn_probs
+    
+    sum_grad = (grad_attn_weights_softmax * attn_weights_softmax).sum(dim=-1, keepdim=True)
+    grad_attn_weights = attn_weights_softmax * (grad_attn_weights_softmax - sum_grad)
+    
+    grad_rel_pos_bias = grad_attn_weights.reshape(
+        batch_size, num_attention_heads, height * width, height * width
+    )
+    
+    grad_query = (grad_attn_weights @ key) * scale
+    grad_key = grad_attn_weights.transpose(-2, -1) @ (query * scale)
+    
+    grad_rel_pos_bias_5d = grad_rel_pos_bias.reshape(
+        batch_size * num_attention_heads, height, width, height, width
+    )
+    
+    grad_rel_h = grad_rel_pos_bias_5d.sum(dim=-1)
+    grad_rel_w = grad_rel_pos_bias_5d.sum(dim=-2)
+    
+    grad_h_grouped = grad_rel_h.permute(1, 0, 2, 3).reshape(height, -1, height)
+    grad_query_from_rel_h = torch.bmm(grad_h_grouped, rel_pos_h_interp)
+    grad_query_from_rel_h = grad_query_from_rel_h.reshape(height, batch_size * num_attention_heads, width, head_dim).permute(1, 0, 2, 3)
+    grad_rel_pos_h_interp = torch.bmm(query_by_h.transpose(1, 2), grad_h_grouped).transpose(1, 2)
+
+    grad_w_grouped = grad_rel_w.permute(2, 0, 1, 3).reshape(width, -1, width)
+    grad_query_from_rel_w = torch.bmm(grad_w_grouped, rel_pos_w_interp)
+    grad_query_from_rel_w = grad_query_from_rel_w.reshape(width, batch_size * num_attention_heads, height, head_dim).permute(1, 2, 0, 3)
+    grad_rel_pos_w_interp = torch.bmm(query_by_w.transpose(1, 2), grad_w_grouped).transpose(1, 2)
+    
+    grad_query_2d = grad_query_from_rel_h + grad_query_from_rel_w
+    
+    grad_query_from_relpos = grad_query_2d.reshape(
+        batch_size * num_attention_heads, height * width, head_dim
+    )
+    grad_query = grad_query + grad_query_from_relpos
+    
+    grad_rel_pos_h = get_rel_pos_interpolated_backward(
+        height, height, rel_pos_h, grad_rel_pos_h_interp
+    )
+    
+    grad_rel_pos_w = get_rel_pos_interpolated_backward(
+        width, width, rel_pos_w, grad_rel_pos_w_interp
+    )
+    
+    def token_major(x):
+        return x.reshape(batch_size, num_attention_heads, height * width, head_dim).permute(0, 2, 1, 3).reshape(batch_size * height * width, hidden_size)
+
+    grad_qkv_flat = torch.cat(
+        (token_major(grad_query), token_major(grad_key), token_major(grad_value)), dim=-1
+    )
+    
+    grad_hidden_states_flat = grad_qkv_flat @ qkv_weight
+    grad_hidden_states = grad_hidden_states_flat.reshape(batch_size, height, width, hidden_size)
+    
+    grad_qkv_weight = grad_qkv_flat.t() @ hidden_states_flat
+    grad_qkv_bias = grad_qkv_flat.sum(dim=0)
+    
+    return (
+        grad_hidden_states,
+        grad_qkv_weight,
+        grad_qkv_bias,
+        grad_proj_weight,
+        grad_proj_bias,
+        grad_rel_pos_h,
+        grad_rel_pos_w,
+    )
+
+
+run = torch.compile(run, fullgraph=True, dynamic=False)

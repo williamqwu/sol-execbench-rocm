@@ -1162,6 +1162,54 @@ assumes it), that no `h2` is missing from the nav, and that a page passing no
 `toc` still renders single-column. Two files with no compiler between them
 would otherwise drift into links that render, look live, and scroll nowhere.
 
+### D41 — gpt-5.6-sol over all 220, and the counter that could not count
+
+**2026-08-10.** `agent-gpt56-220`: 220 of 220 problems, 3,717 workloads,
+**3,701 scored, mean S = 0.6381**, 16 flagged, 4 problems whose bound a kernel
+beat. Benchmark score **0.6332** at 99.2% coverage, against GLM-5.2-FP8's
+0.5989 at 98.1%. `check_coverage.py` reports 235/235 with the 15 NVFP4
+deferrals accounted for.
+
+180 problems ran through the fleet as J2 backfill in **11.9 h at a mean
+concurrency of 6.93 of 7 cards**, zero failed, zero cancelled. The port needed
+`scripts/port_via_fleet.py` because the queue's write guard had been switched on
+ahead of its callers.
+
+**The re-time was done 8-wide and that is a departure with a measured cost.**
+`artifacts/11/parallel-retime-validation.json`: eight problems with an existing
+GPU-0 number, re-measured under full 8-card load, 98 workloads. Median ratio
+**1.0139** — 8-wide is 1.4% slower, systematically, which is 13× task 01's
+sanctioned sibling interference. In score terms ~0.004 of S at S≈0.6 against a
+head-to-head gap of ~0.03: it does not flip the comparison and it is ~13% of it.
+Every artifact it produced carries `concurrent_cards: 8`. Reversible: a serial
+re-time costs 1.9 h. 113 problems took **10.5 min** this way.
+
+**Two more bad bounds, and that is the pattern not an accident.** `L1__018` and
+`L1__042` had never been reached. 3 → 5. The count tracks how hard anything has
+tried.
+
+**The flagged column could not have reported them.** `n_flagged` was computed
+inside `leaderboard_rows`'s aggregate, whose `WHERE` is
+`status='PASSED' AND score IS NOT NULL` — and a flagged workload has status
+`REWARD_HACK` and a NULL score, so each clause on its own excluded it. The
+counter was structurally incapable of returning anything but zero. The board
+read 0 from the day it was built, `/methodology` asserted that zero in prose,
+and it read 0 for hours after the harness caught 48 real ones. **A negative
+result guaranteed by construction is not evidence of anything.** Counted on its
+own query now, with `test_flagged_is_counted_over_every_result_not_just_the_scored_ones`
+building a one-flagged-row board rather than trusting the artifacts, and
+mutation-checked: putting the filter back makes it fail.
+
+**Three operational mistakes worth recording.** Two `agent_score.py` processes
+ran on GPU 0 at once, because the unattended finish script woke on the fleet
+draining while a hand-started pass was still going — the exact collision this
+node's discipline exists to prevent, made by the person who wrote the guard for
+it. 52 of 112 measurements were taken on a card another team's container was
+sharing, because the exclusivity check I added that morning *recorded* and did
+not *wait*; they were discarded and re-measured. And a host path was handed to a
+container, which fails as `FileNotFoundError` on the kernel and reads like a
+missing submission rather than a mount mistake.
+
 ### D40 — the first reward hacks on this board, and they were already published
 
 **2026-08-10.** The tf32 guard added earlier the same day (D35) was run for the

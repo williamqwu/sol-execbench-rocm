@@ -1,0 +1,76 @@
+{
+  "_provenance": {
+    "task": "11-parallel-retime-validation",
+    "utc": "2026-08-10T19:11:26.554539+00:00",
+    "git_sha": "da4ce09471e1696f0503797136923dfb0b6c462b-dirty",
+    "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+    "python": "3.11.7",
+    "torch": {
+      "available": false
+    },
+    "rocm": {
+      "version": "7.15.0",
+      "driver": "7.1.1.31500000",
+      "amd_smi": "AMDSMI Tool: 26.5.0+03d8462e | AMDSMI Library version: 26.5.0 | ROCm version: 7.15.0 | amdgpu version: 7.1.1.31500000 | ionic version: N/A"
+    },
+    "f_lock_mhz": null,
+    "visible_devices": null
+  },
+  "question": "Does re-timing on all eight cards at once give the same number as one card at a time?",
+  "why_it_is_asked": "CLAUDE.md s4 reserves GPU 0 for authoritative timing. What task 01 measured is narrower than 'the node is fine': -0.11% for ONE authoritative timing beside SWEEP work. Eight simultaneous timing runs is a different load, and the node's power envelope pulling clocks down is exactly the mechanism STATE.md D35 is about.",
+  "method": "Eight problems that already had a GPU-0 number were re-measured with all eight cards running a timing job at once, same iterations (50) and warmup (10), same kernels. Ratio is parallel/solo per workload.",
+  "baseline_caveat": "The 'solo' numbers were themselves taken on GPU 0 while the fleet sweep occupied cards 1-7. So this compares 'GPU 0 + 7 agent jobs' against '8 concurrent re-times', not against an idle node. T_b, which the score divides by, was measured on an idle node in task 06 -- neither side of this comparison matches that.",
+  "n_workloads": 98,
+  "median_ratio": 1.0139,
+  "p10": 0.9428,
+  "p90": 1.035,
+  "max": 1.1368,
+  "within_2pct": 39.8,
+  "within_5pct": 86.7,
+  "verdict": "8-wide is 1.4% SLOWER at the median, and that is systematic rather than noise -- a median sits where it sits. It is 13x task 01's sanctioned sibling interference. In score terms a 1.4% increase in T_k costs about 0.004 of S at S~0.6, against a head-to-head gap between this run and glm-sweep-2 of about 0.03: it does not flip the comparison, and it is about 13% of it.",
+  "decision": "Used, with the cost recorded on every artifact it produced (`concurrent_cards: 8`) rather than folded in silently. Reversible: deleting the retimed artifacts and re-running serially costs about 1.9 h and nothing else.",
+  "per_problem": [
+    {
+      "problem": "L2__025_moe_expert_parallel_execution_backward",
+      "n_workloads": 16,
+      "solo_total_ms": 1958.9426,
+      "parallel8_total_ms": 1938.9647,
+      "median_ratio": 1.0004
+    },
+    {
+      "problem": "L2__023_video_latent_vae_encoder_downsampling",
+      "n_workloads": 16,
+      "solo_total_ms": 1651.0453,
+      "parallel8_total_ms": 1672.3493,
+      "median_ratio": 1.0128
+    },
+    {
+      "problem": "L2__005_swiglu_mlp_backward",
+      "n_workloads": 18,
+      "solo_total_ms": 562.8888,
+      "parallel8_total_ms": 564.5964,
+      "median_ratio": 1.0286
+    },
+    {
+      "problem": "L2__009_decoder_layer_with_residual_connections",
+      "n_workloads": 16,
+      "solo_total_ms": 377.0274,
+      "parallel8_total_ms": 360.5893,
+      "median_ratio": 0.9659
+    },
+    {
+      "problem": "L2__019_decoder_layer_fused_attention_mlp",
+      "n_workloads": 16,
+      "solo_total_ms": 316.7955,
+      "parallel8_total_ms": 324.2135,
+      "median_ratio": 1.0236
+    },
+    {
+      "problem": "L2__008_moe_sparse_routing_and_dispatch",
+      "n_workloads": 16,
+      "solo_total_ms": 279.4693,
+      "parallel8_total_ms": 280.3186,
+      "median_ratio": 1.026
+    }
+  ]
+}

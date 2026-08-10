@@ -1,0 +1,164 @@
+import torch
+import math
+
+def get_inputs(axes_and_scalars: dict, device: torch.device) -> dict:
+    batch_size = axes_and_scalars["batch_size"]
+    seq_len = axes_and_scalars["seq_len"]
+    hidden_size = 5120
+    num_attention_heads = 40
+    num_key_value_heads = 8
+    head_dim = 128
+    kv_hidden_size = num_key_value_heads * head_dim
+    half_head_dim = head_dim // 2
+    sliding_window = 4096
+    
+    dtype = torch.bfloat16
+    
+    hidden_states = torch.randn(batch_size, seq_len, hidden_size, dtype=dtype, device=device)
+    position_ids = torch.arange(seq_len, dtype=torch.int64, device=device).unsqueeze(0).expand(batch_size, -1)
+    
+    # Create sliding window causal mask
+    mask = torch.full((seq_len, seq_len), float("-inf"), dtype=dtype, device=device)
+    mask = torch.triu(mask, diagonal=1)
+    # Apply sliding window
+    for i in range(seq_len):
+        start = max(0, i - sliding_window + 1)
+        if start > 0:
+            mask[i, :start] = float("-inf")
+    attention_mask = mask.unsqueeze(0).unsqueeze(0).expand(batch_size, 1, seq_len, seq_len)
+    
+    q_proj_weight = torch.randn(hidden_size, hidden_size, dtype=dtype, device=device) * 0.02
+    k_proj_weight = torch.randn(kv_hidden_size, hidden_size, dtype=dtype, device=device) * 0.02
+    v_proj_weight = torch.randn(kv_hidden_size, hidden_size, dtype=dtype, device=device) * 0.02
+    o_proj_weight = torch.randn(hidden_size, hidden_size, dtype=dtype, device=device) * 0.02
+    
+    q_norm_weight = torch.ones(hidden_size, dtype=dtype, device=device)
+    k_norm_weight = torch.ones(kv_hidden_size, dtype=dtype, device=device)
+    
+    # Compute YARN RoPE inv_freq
+    rope_theta = 500000.0
+    rope_scaling_factor = 8.0
+    beta_fast = 32
+    beta_slow = 1
+    original_max_position_embeddings = 8192
+    
+    inv_freq_base = 1.0 / (rope_theta ** (torch.arange(0, head_dim, 2, dtype=torch.float32, device=device) / head_dim))
+    old_context_len = original_max_position_embeddings
+    low_freq_wavelen = old_context_len / beta_fast
+    high_freq_wavelen = old_context_len / beta_slow
+    wavelen = 2 * math.pi / inv_freq_base
+    smooth_factor = (old_context_len / wavelen - beta_fast) / (beta_slow - beta_fast)
+    smooth_factor = torch.clamp(smooth_factor, 0.0, 1.0)
+    inv_freq = (1 - smooth_factor) * (inv_freq_base / rope_scaling_factor) + smooth_factor * inv_freq_base
+    
+    rms_norm_eps = 1e-6
+    attention_factor_val = 1.2079441541679836
+    scaling_val = head_dim ** -0.5
+    
+    return {
+        "hidden_states": hidden_states,
+        "position_ids": position_ids,
+        "attention_mask": attention_mask,
+        "q_proj_weight": q_proj_weight,
+        "k_proj_weight": k_proj_weight,
+        "v_proj_weight": v_proj_weight,
+        "o_proj_weight": o_proj_weight,
+        "q_norm_weight": q_norm_weight,
+        "k_norm_weight": k_norm_weight,
+        "inv_freq": inv_freq,
+        "rms_norm_eps": rms_norm_eps,
+        "attention_factor": attention_factor_val,
+        "scaling": scaling_val,
+    }
+
+@torch.no_grad()
+def run(
+    hidden_states: torch.Tensor,
+    position_ids: torch.Tensor,
+    attention_mask: torch.Tensor,
+    q_proj_weight: torch.Tensor,
+    k_proj_weight: torch.Tensor,
+    v_proj_weight: torch.Tensor,
+    o_proj_weight: torch.Tensor,
+    q_norm_weight: torch.Tensor,
+    k_norm_weight: torch.Tensor,
+    inv_freq: torch.Tensor,
+    rms_norm_eps: float,
+    attention_factor: float,
+    scaling: float,
+):
+    batch_size, seq_len, hidden_size = hidden_states.shape
+    num_attention_heads = 40
+    num_key_value_heads = 8
+    head_dim = 128
+    num_key_value_groups = 5
+    
+    # Project Q, K, V
+    hidden_2d = hidden_states.reshape(-1, hidden_size)
+    query_states = torch.mm(hidden_2d, q_proj_weight.t()).view(
+        batch_size, seq_len, hidden_size
+    )
+    key_states = torch.mm(hidden_2d, k_proj_weight.t()).view(
+        batch_size, seq_len, num_key_value_heads * head_dim
+    )
+    value_states = torch.mm(hidden_2d, v_proj_weight.t()).view(
+        batch_size, seq_len, num_key_value_heads * head_dim
+    )
+    
+    # Apply Q/K normalization (RMS norm)
+    query_states = torch.nn.functional.rms_norm(
+        query_states, (hidden_size,), q_norm_weight, rms_norm_eps
+    )
+    key_states = torch.nn.functional.rms_norm(
+        key_states, (num_key_value_heads * head_dim,), k_norm_weight, rms_norm_eps
+    )
+    
+    # Reshape to [batch, num_heads, seq_len, head_dim]
+    query_states = query_states.view(batch_size, seq_len, num_attention_heads, head_dim).transpose(1, 2)
+    key_states = key_states.view(batch_size, seq_len, num_key_value_heads, head_dim).transpose(1, 2)
+    value_states = value_states.view(batch_size, seq_len, num_key_value_heads, head_dim).transpose(1, 2)
+    
+    # Apply YARN RoPE
+    freqs = position_ids.to(torch.float32).unsqueeze(-1) * inv_freq.float()
+    emb = torch.cat((freqs, freqs), dim=-1)
+    cos = (emb.cos() * attention_factor).unsqueeze(1).to(query_states.dtype)
+    sin = (emb.sin() * attention_factor).unsqueeze(1).to(query_states.dtype)
+    
+    # Apply the two rotation halves directly, avoiding a full rotate_half copy.
+    q1, q2 = query_states.chunk(2, dim=-1)
+    k1, k2 = key_states.chunk(2, dim=-1)
+    c = cos[..., : head_dim // 2]
+    s = sin[..., : head_dim // 2]
+    query_states = torch.cat((q1 * c - q2 * s, q2 * c + q1 * s), dim=-1)
+    key_states = torch.cat((k1 * c - k2 * s, k2 * c + k1 * s), dim=-1)
+    
+    # Repeat KV for GQA
+    key_states = key_states[:, :, None, :, :].expand(
+        batch_size, num_key_value_heads, num_key_value_groups, seq_len, head_dim
+    ).reshape(batch_size, num_attention_heads, seq_len, head_dim)
+    value_states = value_states[:, :, None, :, :].expand(
+        batch_size, num_key_value_heads, num_key_value_groups, seq_len, head_dim
+    ).reshape(batch_size, num_attention_heads, seq_len, head_dim)
+
+    # Compute attention scores
+    attn_weights = torch.matmul(query_states, key_states.transpose(2, 3))
+    attn_weights.mul_(scaling)
+
+    # Apply attention mask (includes sliding window)
+    attn_weights.add_(attention_mask)
+
+    # Softmax
+    attn_weights = torch.nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+
+    # Compute output
+    attn_output = torch.matmul(attn_weights, value_states)
+    attn_output = attn_output.transpose(1, 2).reshape(
+        batch_size, seq_len, hidden_size
+    )
+    
+    # Output projection
+    output = torch.mm(
+        attn_output.reshape(-1, hidden_size), o_proj_weight.t()
+    ).view(batch_size, seq_len, hidden_size)
+    
+    return output
