@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Watch the authoritative GPU and record anything that lands on it.
 
-    python scripts/guard_authoritative_gpu.py --owner-pid 350088 \
+    python scripts/guard_authoritative_gpu.py --gpu-id 36538 \
         --out artifacts/11/gpu0-guard.json --interval 20
 
 **Why this is not redundant with the scheduler's reservation.** `TODO.md` D29:
@@ -22,9 +22,16 @@ timing run that shared its card produces a plausible number with no sign on it.
 
 `/sys/class/kfd/kfd/proc/<pid>/queues/<q>/gpuid` sidesteps both: the KFD
 `gpu_id` is the device's own identifier and is the same number no matter which
-tool, container or index space is asking. The authoritative card is identified
-by whatever `--owner-pid` is running on, so this needs no index mapping at all
-and cannot be fooled by a container renumbering its devices.
+tool, container or index space is asking -- so this needs no index mapping at
+all and cannot be fooled by a container renumbering its devices. Name the card
+with `--gpu-id`, or resolve it once from a process with `--owner-pid`.
+
+**The invariant is "one job at a time on this card", not "this pid is here".**
+The first version of this guard tracked a pid, and `agent_score.py` shells each
+problem into its own container -- so the pid it was watching left the card after
+one problem out of forty, the guard concluded the run was over, and it reported
+CLEAN on 45 seconds of a two-hour window. Watching the card survives the worker
+rotating; watching a worker does not.
 
 Read-only. Samples, records, and says so; it does not kill anything, because
 killing somebody else's job on a suspicion is worse than recording the overlap
@@ -81,26 +88,46 @@ def cmdline(pid: int) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--owner-pid", type=int, required=True,
-                    help="the process whose card is authoritative. Its gpu_id "
+    ap.add_argument("--owner-pid", type=int, default=None,
+                    help="resolve the authoritative card from whatever this "
+                         "process is running on, once, at startup. Its gpu_id "
                          "IS the definition -- no index mapping involved.")
+    ap.add_argument("--gpu-id", default=None,
+                    help="the KFD gpu_id to guard, if it is already known. "
+                         "Prefer this for a run whose worker process ROTATES: "
+                         "`agent_score.py` shells each problem into its own "
+                         "container, so any single pid leaves the card between "
+                         "problems and an owner-pid guard stops after the "
+                         "first one. That is how the first version of this "
+                         "guard watched 45 seconds of a two-hour re-time and "
+                         "reported CLEAN.")
     ap.add_argument("--out", type=Path,
                     default=ROOT / "artifacts" / "11" / "gpu0-guard.json")
     ap.add_argument("--interval", type=float, default=20.0)
     ap.add_argument("--max-seconds", type=float, default=0.0,
-                    help="stop after this long; 0 means run until the owner "
-                         "process exits")
+                    help="stop after this long; 0 means run until stopped")
+    ap.add_argument("--until-idle", action="store_true",
+                    help="stop once nothing at all is on the card. Off by "
+                         "default: a run that shells one container per problem "
+                         "leaves the card briefly between them, and stopping "
+                         "there ends the guard in the first gap.")
     a = ap.parse_args()
 
-    owner = gpu_ids_by_pid().get(a.owner_pid)
-    if not owner:
-        print(f"pid {a.owner_pid} has no GPU queue open -- nothing to guard. "
-              f"Start this while the authoritative run is already on the card.",
-              file=sys.stderr)
+    if a.gpu_id:
+        owner = {a.gpu_id}
+    elif a.owner_pid:
+        owner = gpu_ids_by_pid().get(a.owner_pid) or set()
+        if not owner:
+            print(f"pid {a.owner_pid} has no GPU queue open -- nothing to "
+                  f"resolve. Start this while the run is already on the card, "
+                  f"or pass --gpu-id.", file=sys.stderr)
+            return 2
+        if len(owner) > 1:
+            print(f"pid {a.owner_pid} spans {sorted(owner)}; guarding all",
+                  file=sys.stderr)
+    else:
+        print("need --gpu-id or --owner-pid", file=sys.stderr)
         return 2
-    if len(owner) > 1:
-        print(f"pid {a.owner_pid} spans {sorted(owner)}; guarding all of them",
-              file=sys.stderr)
 
     started = time.time()
     samples = 0
@@ -108,28 +135,34 @@ def main() -> int:
     seen: set[tuple[int, str]] = set()
     print(f"guarding gpu_id {sorted(owner)} (owner pid {a.owner_pid})", flush=True)
 
+    reason = "interrupted"
+    occupants: dict[str, set[int]] = {}
     while True:
         by_pid = gpu_ids_by_pid()
-        if a.owner_pid not in by_pid:
-            reason = "owner process left the card"
-            break
-        for pid, ids in by_pid.items():
-            if pid == a.owner_pid:
-                continue
-            shared = ids & owner
-            for gid in sorted(shared):
-                key = (pid, gid)
+        # The invariant is not "this pid is here". It is "one job at a time on
+        # this card" -- which is what makes an authoritative timing
+        # authoritative, and which survives the timing run rotating pids.
+        for gid in owner:
+            here = sorted(p for p, ids in by_pid.items() if gid in ids)
+            occupants.setdefault(gid, set()).update(here)
+            if len(here) > 1:
+                key = (tuple(here), gid)
                 if key in seen:
                     continue
                 seen.add(key)
                 row = {"utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                       "pid": pid, "gpu_id": gid, "cmdline": cmdline(pid)[:400]}
+                       "gpu_id": gid, "pids": here,
+                       "cmdlines": {p: cmdline(p)[:300] for p in here}}
                 overlaps.append(row)
-                print(f"!! OVERLAP on gpu_id {gid}: pid {pid} -- {row['cmdline'][:160]}",
+                print(f"!! {len(here)} processes on gpu_id {gid}: {here}",
                       file=sys.stderr, flush=True)
         samples += 1
         if a.max_seconds and time.time() - started > a.max_seconds:
             reason = "max-seconds reached"
+            break
+        if a.until_idle and not any(
+                any(gid in ids for gid in owner) for ids in by_pid.values()):
+            reason = "card went idle"
             break
         time.sleep(a.interval)
 
@@ -141,6 +174,7 @@ def main() -> int:
         "method": "/sys/class/kfd/kfd/proc/<pid>/queues/<q>/gpuid, sampled",
         "interval_s": a.interval,
         "samples": samples,
+        "distinct_pids_seen_on_card": {g: sorted(v) for g, v in occupants.items()},
         "watched_seconds": round(time.time() - started, 1),
         "stopped_because": reason,
         "overlaps": overlaps,
