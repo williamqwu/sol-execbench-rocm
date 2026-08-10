@@ -17,8 +17,20 @@
 
 <h2 id="bounds">Where the bounds came from</h2>
 <p>T<sub>SOL</sub> is computed in cycles, which is architectural and therefore
-   independent of the clock, then divided by F<sub>LOCK</sub> = {{ meta.f_lock_mhz }} MHz.
-   Two derivations run independently and are combined with <code>max</code>:</p>
+   independent of the clock, then divided by the clock that datapath actually
+   holds. Two derivations run independently and are combined with
+   <code>max</code>:</p>
+{# Until manifest v1.1 this sentence said "divided by F_LOCK = 1300 MHz", one
+   number for everything, and that is what made 6 of the 13 known-wrong bounds
+   wrong. Corrected here as well as in the manifest, because a methodology page
+   describing a division the scorer no longer performs is its own defect. #}
+<p class="sub">F<sub>LOCK</sub> = {{ meta.f_lock_mhz }} MHz is what the part
+   holds under a dense bf16 matrix-core load, and every matrix path does hold
+   it &mdash; bf16 1296, fp16 1299, fp8 1314, measured under 20&nbsp;s of
+   saturating GEMM each. The fp32 vector path does not: it draws far less power
+   and sustains <b>1441 MHz</b>. Dividing every bound by one clock made 805
+   fp32 and fp8 bounds too large, which is why manifest v1.1 divides each by
+   its own datapath's measured clock. Cycle counts did not change.</p>
 <div class="scroll">
 <table class="grid">
   <thead><tr><th>bound source</th><th class="r">workloads</th><th>meaning</th></tr></thead>
@@ -139,14 +151,26 @@
   than a result. Those workloads are stored with <b>no score</b> so they cannot
   lift any ranking, and are still shown on the problem page.
 </div>
-<p class="sub">More than one mechanism is involved, so no single cause is
-   claimed here. Two are identified so far &mdash; the paged&#8209;cache traffic
-   defect (<b>D18</b>), where the declared&#8209;traffic tier prices a KV cache at
-   its full allocation while the kernel gathers only the pages
-   <code>kv_indices</code> names; and <b>D21</b>, where a compute roofline came
-   out ~15% slow on one problem and another was beaten by 0.3&ndash;1.3% on a
-   bound with almost no headroom to begin with. Which applies to which is
-   recorded in <code>STATE.md</code>, not inferred here.</p>
+<p class="sub">There were thirteen of these under manifest v1 and they were
+   carried as thirteen defects. They were three causes, and v1.1 fixes two of
+   them &mdash; <b>13 down to 6</b>.</p>
+<p class="sub"><b>D18</b>, the paged&#8209;cache traffic defect: the bound
+   priced a KV cache at its full allocation while the kernel gathers only the
+   pages <code>kv_indices</code> names. For one problem the bound was the same
+   185,274 cycles for <i>every</i> workload, which is exactly the time to
+   stream the whole 1.140&nbsp;GB allocation once. <b>D35</b>, the clock:
+   T<sub>SOL</sub> was divided by a single F<sub>LOCK</sub> that only the
+   matrix&#8209;core paths hold (see above). Six of the thirteen were that
+   alone.</p>
+<p class="sub">D35 is the one worth understanding as a reader, because the list
+   below was never the set of inflated bounds. Three kernels that have
+   <i>never</i> been beaten by anything were measured holding the same high
+   clock as the ones that did &mdash; one of them higher than any violation on
+   this board. The list is the subset where a kernel got good enough to expose
+   a bound, not the subset of bounds that were wrong. What remains below is
+   genuinely undiagnosed, and three of those problems involve a convolution.
+   Which applies to which is recorded in <code>STATE.md</code> D18, D35 and
+   D36, not inferred here.</p>
 <div class="scroll">
 <table class="grid">
   <thead><tr><th>problem</th><th class="r">workloads</th><th>headroom T<sub>b</sub>/T<sub>SOL</sub></th></tr></thead>
