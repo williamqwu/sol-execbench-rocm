@@ -28,6 +28,7 @@ html[data-theme="dark"]{
   --fg:#e3e7ee; --fg2:#b8c0cd; --dim:#8c94a3;
   --link:#8ab4f8;
   --accent2:#67d3a0; --warn:#f0b429; --bad:#e5534b; --ok:#67d3a0;
+  --flag:#b98ae0;                         /* reward hack, see .cs-flagged */
   --row-hover:#171c25;
   --shadow:0 1px 2px rgba(0,0,0,.4);
   --bar-bg:#232935;
@@ -60,6 +61,7 @@ html[data-theme="light"]{
   --fg:#161a20; --fg2:#3d4551; --dim:#6b7482;
   --link:#1a56b8;
   --accent2:#0f8a5f; --warn:#a86400; --bad:#c62f26; --ok:#0f8a5f;
+  --flag:#7b3fa0;                         /* reward hack, see .cs-flagged */
   --row-hover:#f0f3f8;
   --shadow:0 1px 2px rgba(16,24,40,.06);
   --bar-bg:#e2e6ec;
@@ -299,7 +301,14 @@ h3{font-size:14px;margin:24px 0 10px;color:var(--dim);text-transform:uppercase;
 .covbar-cell{min-width:230px;width:32%}
 .covbar{display:flex;height:11px;border-radius:6px;overflow:hidden;
   background:var(--bar-bg);border:1px solid var(--line)}
-.covbar .cs{display:block;height:100%}
+.covbar .cs{display:block;height:100%;
+  /* A non-zero count must be visible. One problem out of 220 is 0.45% of the
+     track -- under a pixel -- so the segment renders as nothing and the bar
+     says the submission is clean when it is not. The template emits no span at
+     all for a zero count, so this floor can only ever apply to a real one.
+     It costs the widest segment a pixel or two of accuracy, which is the right
+     trade: the bar is read for shape, the legend beside it carries the counts. */
+  min-width:2px}
 /* The three outcome colours are the board's existing ok / warn / bad, so a
    green segment here and a green cell in the workload grid mean the same
    thing. Never-attempted is the page background, not a fourth hue: it is the
@@ -307,6 +316,13 @@ h3{font-size:14px;margin:24px 0 10px;color:var(--dim);text-transform:uppercase;
 .cs-clean{background:var(--ok)}
 .cs-partial{background:var(--warn)}
 .cs-failed{background:var(--bad)}
+/* Reward hacks get a hue that is NOT one of the three outcome colours, on
+   purpose. ok/warn/bad answer "how well did it do"; a flagged problem did not
+   do badly -- it produced the right answer by a route the rules exclude, and
+   was scored zero for it. Reusing --bad would say the kernel failed, which is
+   the one thing that did not happen. Purple is unused elsewhere on the board,
+   so it cannot be confused with a result. */
+.cs-flagged{background:var(--flag)}
 .cs-none{background:var(--bar-bg)}
 .covlegend{display:flex;gap:9px;align-items:baseline;margin-top:5px;
   font:11.5px/1 var(--mono);color:var(--dim)}
@@ -320,8 +336,9 @@ h3{font-size:14px;margin:24px 0 10px;color:var(--dim);text-transform:uppercase;
 .cn-clean::before{background:var(--ok)}
 .cn-partial::before{background:var(--warn)}
 .cn-failed::before{background:var(--bad)}
+.cn-flagged::before{background:var(--flag)}
 .cn-none::before{background:var(--bar-bg);border:1px solid var(--line2)}
-/* The key above the table, stating the same four in words, once. */
+/* The key above the table, stating the same five in words, once. */
 .covkey{display:flex;flex-wrap:wrap;gap:14px;margin:0;font-size:12px;
   color:var(--dim)}
 .covkey span::before{content:"";display:inline-block;width:9px;height:9px;
@@ -329,6 +346,7 @@ h3{font-size:14px;margin:24px 0 10px;color:var(--dim);text-transform:uppercase;
 .covkey .k-clean::before{background:var(--ok)}
 .covkey .k-partial::before{background:var(--warn)}
 .covkey .k-failed::before{background:var(--bad)}
+.covkey .k-flagged::before{background:var(--flag)}
 .covkey .k-none::before{background:var(--bar-bg);border:1px solid var(--line2)}
 
 /* ---------------------------------------------------------------- tables */
@@ -869,3 +887,15 @@ footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
 .den-short{color:var(--warn);cursor:help;border-bottom:1px dotted var(--warn)}
 .t-warn{color:var(--warn);cursor:help}
 
+
+/* ------------------------------------------------- bound quality marking */
+/* A word beside the headroom number on the problem page. Deliberately quiet:
+   this is not a result and not a defect, it is a note about how much the score
+   next to it is worth. `ok` renders nothing at all -- a marker on every row is
+   a marker on none. */
+.bq{display:inline-block;margin-left:5px;padding:0 4px;border-radius:4px;
+  font:10.5px/1.6 var(--mono);text-transform:lowercase;vertical-align:middle;
+  border:1px solid currentColor;opacity:.85}
+.bq-vacuous{color:var(--flag)}
+.bq-loose{color:var(--warn)}
+.bq-narrow{color:var(--dim)}

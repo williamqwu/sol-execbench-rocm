@@ -1162,6 +1162,54 @@ assumes it), that no `h2` is missing from the nav, and that a page passing no
 `toc` still renders single-column. Two files with no compiler between them
 would otherwise drift into links that render, look live, and scroll nowhere.
 
+### D42 — the five surviving bad bounds are two causes, and one is D18 again
+
+**2026-08-10.** `scripts/bounds/diagnose_bad_bounds.py`,
+`artifacts/11/bad-bounds-v12.json`. Under manifest v1.2, five problems still
+have a `T_SOL` that a measured kernel beat. They are not five modelling errors.
+
+**Cause A — the declared-traffic tier prices every declared input at its full
+allocation, whether or not the kernel reads it.** Three of the five, and the
+hand computation lands on the manifest number exactly in every case:
+
+| problem | what is priced but not read | hand ÷ tier |
+|---|---|---|
+| `L1__018` | the whole 262,144-slot k+v cache, read **and** written (2.15 GB), for `seq_len` slots touched | 0.996, 1/1 |
+| `L1__042` | `expert_mask` (int64) and `topk_idx` — `run()` reads neither, it uses `topk_idx.shape[0]` | 1.000, 16/16 |
+| `L1__057` | the 157,184-row embedding table (1.29 GB), for a gather of `B×S` rows | 1.000, 11/11 |
+
+`L1__042` is exact to the bit: the tier is 4.0625 units of `batch_seq_len×256×4`
+against a live 2 units — **65/32 = 2.03125× on all sixteen workloads**.
+
+**This is D18.** Pricing a KV cache at its allocation rather than at the part
+touched is the same defect; v1.1 fixed it for the two FlashInfer problems
+rather than at the tier, so it is still live. **328 workloads across 38
+problems** are scored against a bound where `max_of_both` picked traffic over
+SOLAR — p50 1.50×, p90 5.00×, max **128.9×** (`L1__087`, the embedding table
+again). Most produce no violation only because nothing has got close enough.
+
+**Cause B — SOLAR counts arithmetic the reference discards.** `L2__045` prices
+the Q-Former and projector over all `ceil(audio_seq_len/15)` windows, but the
+reference reads only the first `ceil(num_audio_tokens/40)`: **21.3–22.0× of the
+counted MACs never reach the output**. A second, independent error partly masks
+it — those fp32 einsums are priced at the **bf16** MAC rate, exactly 1/16 on all
+sixteen workloads. Net 1.34× too large against an fp32 kernel, and a kernel
+using bf16 where the tolerance permits crosses it by 2.8×.
+
+Note the direction of that second error: pricing fp32 work at the bf16 rate
+makes the bound *smaller*, which never breaks the lower-bound invariant and so
+is never reported. It is D39, not a violation — and here it hid a 21.5×
+over-count for long enough that only a kernel doing both could expose either.
+
+**`L2__073` is not a modelling error.** Worst violation 0.9916, inside the band
+D35 predicts for a compute-bound fp32 workload clocking above the 1300 MHz
+divisor. Nothing to derive.
+
+The mechanisms are confirmed; **no bound is corrected by this entry.** A hand
+check that matches proves what the number *is*, not what it should be, and
+re-deriving is a separate step that must not be done by adjusting a value until
+the violation disappears.
+
 ### D41 — gpt-5.6-sol over all 220, and the counter that could not count
 
 **2026-08-10.** `agent-gpt56-220`: 220 of 220 problems, 3,717 workloads,

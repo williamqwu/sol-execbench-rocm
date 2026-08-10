@@ -39,8 +39,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 LB = ROOT / "leaderboard"
 SCHEMA = LB / "schema.sql"
+
 if str(LB) not in sys.path:
     sys.path.insert(0, str(LB))
+from ingest import bound_quality as _ingest_bound_quality  # noqa: E402
 
 
 # --------------------------------------------------------------------------
@@ -238,11 +240,15 @@ def build_fixture_db(path: Path, part: str = "MI350X") -> Path:
             """INSERT INTO workload (problem_key, uuid, axes_json, t_sol_ms,
                                      t_sol_cycles, t_sol_source, sol_bottleneck,
                                      t_b_ms, t_b_variant, tol_atol, tol_rtol,
-                                     scoreable)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                                     scoreable, bound_quality, bound_headroom)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (key, uuid, json.dumps({"n": 1024}), t_sol,
              int(t_sol * 1.3e6) if t_sol else None, "solar_fused", "memory",
-             t_b, "v1_eager" if t_b else None, 1e-3, 1e-3, scoreable))
+             t_b, "v1_eager" if t_b else None, 1e-3, 1e-3, scoreable,
+             # Through ingest's own function, not a literal. A derived column
+             # hand-filled here would agree with the template and disagree with
+             # the board, which is the one combination no test can catch.
+             *_ingest_bound_quality(t_sol, t_b)))
     ids = {}
     for s in SUBMISSIONS:
         cols = ["slug", "name", "kind", "model", "created_utc", "board_visible",

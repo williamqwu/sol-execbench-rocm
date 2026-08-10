@@ -68,6 +68,15 @@ CREATE TABLE workload (
     tol_ratio          REAL,
     tol_derivation     TEXT,
     scoreable          INTEGER NOT NULL DEFAULT 0,
+    -- How much roofline content the score on this workload actually carries.
+    -- Derived at ingest from T_b / T_SOL, not measured: narrow | ok | loose |
+    -- vacuous. The board enforces one invariant on a bound -- nothing may beat
+    -- it -- which catches a T_SOL too LARGE and is blind to one too small. A
+    -- weak lower bound breaks no rule, so nothing reported it; 22.3% of
+    -- workloads sit above 100x headroom, where S collapses toward
+    -- T_b/(T_b+T_k) and is a PyTorch comparison wearing a roofline's clothes.
+    bound_quality      TEXT,
+    bound_headroom     REAL,   -- T_b / T_SOL
     PRIMARY KEY (problem_key, uuid)
 );
 CREATE INDEX idx_workload_problem ON workload(problem_key);

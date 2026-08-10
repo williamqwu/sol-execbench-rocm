@@ -1,0 +1,910 @@
+{
+  "_provenance": {
+    "task": "11-bad-bounds-v12",
+    "utc": "2026-08-10T20:32:04.133283+00:00",
+    "git_sha": "e48afcc8ebdb325803a2f41c5e264986f042f72d-dirty",
+    "host": "gbt350-odcdh1-a08-1.png-odc.dcgpu",
+    "python": "3.11.7",
+    "torch": {
+      "available": false
+    },
+    "rocm": {
+      "version": "7.15.0",
+      "driver": "7.1.1.31500000",
+      "amd_smi": "AMDSMI Tool: 26.5.0+03d8462e | AMDSMI Library version: 26.5.0 | ROCm version: 7.15.0 | amdgpu version: 7.1.1.31500000 | ionic version: N/A"
+    },
+    "f_lock_mhz": null,
+    "visible_devices": null
+  },
+  "question": "Under manifest v1.2, five problems still have a T_SOL a kernel beat. Are they five modelling errors?",
+  "answer": "Two causes. Three of the five are one defect -- the declared-traffic tier prices every declared input at its full allocation regardless of what the kernel reads -- and that is D18 seen a third, fourth and fifth time, because v1.1 fixed D18 per-problem rather than at the tier. The fourth is SOLAR counting arithmetic the reference discards. The fifth is the D35 clock residue at 0.8% and is not a modelling error.",
+  "manifest": "artifacts/09/manifest-v1.2.json",
+  "problems": [
+    {
+      "problem": "L1__018_fused_rope_with_qk_norm_and_kv_cache_update",
+      "n_violating_workloads": 1,
+      "min_tk_over_tsol": 0.3117,
+      "bottleneck": "memory",
+      "t_sol_source": "max_of_both",
+      "cause": "declared_traffic_over_count",
+      "mechanism": "full 262144-slot k+v cache read and written (2.15 GB) for 1 slots touched",
+      "hand_check_matches_tier": "1/1",
+      "tier_present_on": "1/13 workloads",
+      "violating_workloads_not_explained": [],
+      "workloads": [
+        {
+          "uuid": "052e17c9-2fdd-5b2d-a3bc-376d9ffac3e4",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 8861,
+          "tier_is_what_scored": false,
+          "hand_cycles": 707820,
+          "hand_over_tier": null,
+          "live_cycles": 9883,
+          "over_count": 71.6
+        },
+        {
+          "uuid": "13f5b933-268b-5baa-bf48-452cd48dd0e5",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 4682,
+          "tier_is_what_scored": false,
+          "hand_cycles": 354190,
+          "hand_over_tier": null,
+          "live_cycles": 5221,
+          "over_count": 67.8
+        },
+        {
+          "uuid": "2ff5eaf3-5138-5135-b35a-ea14e9014cd2",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 9,
+          "tier_is_what_scored": false,
+          "hand_cycles": 348978,
+          "hand_over_tier": null,
+          "live_cycles": 10,
+          "over_count": 36158.8
+        },
+        {
+          "uuid": "39eb0040-eb8e-5cb0-b4f6-130a35f589d9",
+          "violating": true,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 367377,
+          "manifest_cycles": 367377,
+          "tier_is_what_scored": true,
+          "hand_cycles": 368735,
+          "hand_over_tier": 1.0037,
+          "live_cycles": 19766,
+          "over_count": 18.7
+        },
+        {
+          "uuid": "3c3b2b9b-5b67-582b-b183-a34a3199ddd2",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 2216,
+          "tier_is_what_scored": false,
+          "hand_cycles": 351439,
+          "hand_over_tier": null,
+          "live_cycles": 2471,
+          "over_count": 142.2
+        },
+        {
+          "uuid": "3c5b9152-7a47-5bb5-9b79-8515dea00500",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 8861,
+          "tier_is_what_scored": false,
+          "hand_cycles": 2801633,
+          "hand_over_tier": null,
+          "live_cycles": 9883,
+          "over_count": 283.5
+        },
+        {
+          "uuid": "520daee2-844e-528d-ba34-10eafa62b0a4",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 1108,
+          "tier_is_what_scored": false,
+          "hand_cycles": 350204,
+          "hand_over_tier": null,
+          "live_cycles": 1235,
+          "over_count": 283.5
+        },
+        {
+          "uuid": "6a214883-9138-51d9-aa5a-8d3c81f8ad89",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 8861,
+          "tier_is_what_scored": false,
+          "hand_cycles": 358852,
+          "hand_over_tier": null,
+          "live_cycles": 9883,
+          "over_count": 36.3
+        },
+        {
+          "uuid": "8603b54e-8690-5562-bbfe-24037a153750",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 35444,
+          "tier_is_what_scored": false,
+          "hand_cycles": 388500,
+          "hand_over_tier": null,
+          "live_cycles": 39532,
+          "over_count": 9.8
+        },
+        {
+          "uuid": "8f5402ae-9b88-5eed-afe5-cba4c51a72cb",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 35,
+          "tier_is_what_scored": false,
+          "hand_cycles": 1395913,
+          "hand_over_tier": null,
+          "live_cycles": 39,
+          "over_count": 36158.8
+        },
+        {
+          "uuid": "d1dbaf22-9513-5482-99bc-ac28bd971a79",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 2216,
+          "tier_is_what_scored": false,
+          "hand_cycles": 700408,
+          "hand_over_tier": null,
+          "live_cycles": 2471,
+          "over_count": 283.5
+        },
+        {
+          "uuid": "d90ee047-589a-5943-968d-3c0f966d1957",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 17722,
+          "tier_is_what_scored": false,
+          "hand_cycles": 2811515,
+          "hand_over_tier": null,
+          "live_cycles": 19766,
+          "over_count": 142.2
+        },
+        {
+          "uuid": "f71286e4-c31d-5da8-a0b1-150e7ad5ea32",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 2536,
+          "tier_is_what_scored": false,
+          "hand_cycles": 351797,
+          "hand_over_tier": null,
+          "live_cycles": 2828,
+          "over_count": 124.4
+        }
+      ]
+    },
+    {
+      "problem": "L1__042_moe_expert_load_balancing_and_token_capacity_backward",
+      "n_violating_workloads": 3,
+      "min_tk_over_tsol": 0.8391,
+      "bottleneck": "memory",
+      "t_sol_source": "max_of_both",
+      "cause": "declared_traffic_over_count",
+      "mechanism": "expert_mask (int64) and topk_idx are declared inputs that run() never reads -- it uses topk_idx.shape[0] only",
+      "hand_check_matches_tier": "16/16",
+      "tier_present_on": "16/16 workloads",
+      "violating_workloads_not_explained": [],
+      "workloads": [
+        {
+          "uuid": "182ea87a-9c46-5811-a969-2689aa6426da",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 22152,
+          "manifest_cycles": 22152,
+          "tier_is_what_scored": true,
+          "hand_cycles": 22151,
+          "hand_over_tier": 1.0,
+          "live_cycles": 10905,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "1e008395-ab7a-5831-aaf4-64c3d8a49fb2",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 1450,
+          "manifest_cycles": 1450,
+          "tier_is_what_scored": true,
+          "hand_cycles": 1449,
+          "hand_over_tier": 0.9996,
+          "live_cycles": 714,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "21f99877-c6a5-502c-b193-bbb7f501d5cf",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 1407,
+          "manifest_cycles": 1407,
+          "tier_is_what_scored": true,
+          "hand_cycles": 1406,
+          "hand_over_tier": 0.9994,
+          "live_cycles": 692,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "30d53ea4-d59f-5ed6-ab7f-371f87b310aa",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 1429,
+          "manifest_cycles": 1429,
+          "tier_is_what_scored": true,
+          "hand_cycles": 1428,
+          "hand_over_tier": 0.9991,
+          "live_cycles": 703,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "3c6ef29c-d74e-5ad7-85a5-dc9bcb124221",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 1493,
+          "manifest_cycles": 1493,
+          "tier_is_what_scored": true,
+          "hand_cycles": 1493,
+          "hand_over_tier": 0.9997,
+          "live_cycles": 735,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "3eb8958c-8c52-5d00-91ce-a374a39a8238",
+          "violating": true,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 177212,
+          "manifest_cycles": 177212,
+          "tier_is_what_scored": true,
+          "hand_cycles": 177211,
+          "hand_over_tier": 1.0,
+          "live_cycles": 87242,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "60b6e5ee-0d8e-58dd-aaee-c5c18a476c94",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 1385,
+          "manifest_cycles": 1385,
+          "tier_is_what_scored": true,
+          "hand_cycles": 1384,
+          "hand_over_tier": 0.9996,
+          "live_cycles": 682,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "64f7ab27-73fa-5a89-ac8f-c8b97433cdcb",
+          "violating": true,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 354422,
+          "manifest_cycles": 354422,
+          "tier_is_what_scored": true,
+          "hand_cycles": 354421,
+          "hand_over_tier": 1.0,
+          "live_cycles": 174484,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "6e5356c1-ec67-5244-9e70-1debe392c0e9",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 1472,
+          "manifest_cycles": 1472,
+          "tier_is_what_scored": true,
+          "hand_cycles": 1471,
+          "hand_over_tier": 0.9993,
+          "live_cycles": 724,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "70a46060-54b1-5128-9828-e604271dbc91",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 2078,
+          "manifest_cycles": 2078,
+          "tier_is_what_scored": true,
+          "hand_cycles": 2077,
+          "hand_over_tier": 0.9994,
+          "live_cycles": 1022,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "76db30e8-9e91-5df9-8603-cf51e5536bbb",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 2405,
+          "manifest_cycles": 2405,
+          "tier_is_what_scored": true,
+          "hand_cycles": 2405,
+          "hand_over_tier": 0.9998,
+          "live_cycles": 1184,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "8234ff5a-0104-5f27-b484-cb37d7f12188",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 1604,
+          "manifest_cycles": 1604,
+          "tier_is_what_scored": true,
+          "hand_cycles": 1603,
+          "hand_over_tier": 0.9993,
+          "live_cycles": 789,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "89852177-6d23-5f62-8212-7b869be67867",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 2770,
+          "manifest_cycles": 2770,
+          "tier_is_what_scored": true,
+          "hand_cycles": 2769,
+          "hand_over_tier": 0.9996,
+          "live_cycles": 1363,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "d335796f-3fcf-508e-82f9-5bb8f4fc6c58",
+          "violating": true,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 88606,
+          "manifest_cycles": 88606,
+          "tier_is_what_scored": true,
+          "hand_cycles": 88605,
+          "hand_over_tier": 1.0,
+          "live_cycles": 43621,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "d45e6249-93a8-52bd-bb32-145755bdc530",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 44304,
+          "manifest_cycles": 44304,
+          "tier_is_what_scored": true,
+          "hand_cycles": 44303,
+          "hand_over_tier": 1.0,
+          "live_cycles": 21811,
+          "over_count": 2.0
+        },
+        {
+          "uuid": "ddb7f6d5-0384-5a62-880f-d9b6a855c17b",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 2143,
+          "manifest_cycles": 2143,
+          "tier_is_what_scored": true,
+          "hand_cycles": 2142,
+          "hand_over_tier": 0.9997,
+          "live_cycles": 1055,
+          "over_count": 2.0
+        }
+      ]
+    },
+    {
+      "problem": "L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion",
+      "n_violating_workloads": 2,
+      "min_tk_over_tsol": 0.871,
+      "bottleneck": "memory",
+      "t_sol_source": "max_of_both",
+      "cause": "declared_traffic_over_count",
+      "mechanism": "the 157184-row embedding table (1.29 GB) is priced as streamed for a gather of 8192 rows",
+      "hand_check_matches_tier": "11/11",
+      "tier_present_on": "11/16 workloads",
+      "violating_workloads_not_explained": [],
+      "workloads": [
+        {
+          "uuid": "04495130-2f80-5e9a-a62a-f47a9e6328a5",
+          "violating": true,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 222881,
+          "manifest_cycles": 222881,
+          "tier_is_what_scored": true,
+          "hand_cycles": 222878,
+          "hand_over_tier": 1.0,
+          "live_cycles": 16359,
+          "over_count": 13.6
+        },
+        {
+          "uuid": "134aebc8-28b8-50d1-8fbe-5a6a2c656cca",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 241975,
+          "manifest_cycles": 524288,
+          "tier_is_what_scored": false,
+          "hand_cycles": 241971,
+          "hand_over_tier": 1.0,
+          "live_cycles": 54537,
+          "over_count": 4.4
+        },
+        {
+          "uuid": "2526dbd4-a0f9-5576-ba19-b696316a1a34",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 225609,
+          "manifest_cycles": 225609,
+          "tier_is_what_scored": true,
+          "hand_cycles": 225605,
+          "hand_over_tier": 1.0,
+          "live_cycles": 21813,
+          "over_count": 10.3
+        },
+        {
+          "uuid": "4c57a7dc-67cc-52e3-8161-a46b9428ef76",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 231064,
+          "manifest_cycles": 262144,
+          "tier_is_what_scored": false,
+          "hand_cycles": 231061,
+          "hand_over_tier": 1.0,
+          "live_cycles": 32721,
+          "over_count": 7.1
+        },
+        {
+          "uuid": "650d87fb-9e7d-5436-8e9a-61774c6c4f5c",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 32768,
+          "tier_is_what_scored": false,
+          "hand_cycles": 221514,
+          "hand_over_tier": null,
+          "live_cycles": 13632,
+          "over_count": 16.2
+        },
+        {
+          "uuid": "6889cd52-dff0-5059-8c31-b2df6097c34e",
+          "violating": true,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 222881,
+          "manifest_cycles": 222881,
+          "tier_is_what_scored": true,
+          "hand_cycles": 222878,
+          "hand_over_tier": 1.0,
+          "live_cycles": 16359,
+          "over_count": 13.6
+        },
+        {
+          "uuid": "86c5446e-0b3d-5de5-b0d1-2c259aca8f32",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 65536,
+          "tier_is_what_scored": false,
+          "hand_cycles": 222878,
+          "hand_over_tier": null,
+          "live_cycles": 16359,
+          "over_count": 13.6
+        },
+        {
+          "uuid": "96ed26b8-cc74-5c93-babe-14bd995faa67",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 231064,
+          "manifest_cycles": 262144,
+          "tier_is_what_scored": false,
+          "hand_cycles": 231061,
+          "hand_over_tier": 1.0,
+          "live_cycles": 32721,
+          "over_count": 7.1
+        },
+        {
+          "uuid": "9fec4efe-7071-5124-8d65-c154615c2b42",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 16384,
+          "tier_is_what_scored": false,
+          "hand_cycles": 220832,
+          "hand_over_tier": null,
+          "live_cycles": 12269,
+          "over_count": 18.0
+        },
+        {
+          "uuid": "c89aeac9-b56c-503e-9fd2-7e2b1674c8e6",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 231064,
+          "manifest_cycles": 262144,
+          "tier_is_what_scored": false,
+          "hand_cycles": 231061,
+          "hand_over_tier": 1.0,
+          "live_cycles": 32721,
+          "over_count": 7.1
+        },
+        {
+          "uuid": "c9ff1488-168f-5163-90fe-05850495e41c",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 231091,
+          "manifest_cycles": 262784,
+          "tier_is_what_scored": false,
+          "hand_cycles": 231087,
+          "hand_over_tier": 1.0,
+          "live_cycles": 32774,
+          "over_count": 7.1
+        },
+        {
+          "uuid": "d6336a79-14b7-5c49-b42c-e439fb3063ce",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 225609,
+          "manifest_cycles": 225609,
+          "tier_is_what_scored": true,
+          "hand_cycles": 225605,
+          "hand_over_tier": 1.0,
+          "live_cycles": 21813,
+          "over_count": 10.3
+        },
+        {
+          "uuid": "de44fcc4-9559-5506-8a74-30c23535368d",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 241975,
+          "manifest_cycles": 524288,
+          "tier_is_what_scored": false,
+          "hand_cycles": 241971,
+          "hand_over_tier": 1.0,
+          "live_cycles": 54537,
+          "over_count": 4.4
+        },
+        {
+          "uuid": "eacb8cf0-4348-5790-a971-059d9c506cc7",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": 231064,
+          "manifest_cycles": 262144,
+          "tier_is_what_scored": false,
+          "hand_cycles": 231061,
+          "hand_over_tier": 1.0,
+          "live_cycles": 32721,
+          "over_count": 7.1
+        },
+        {
+          "uuid": "f801d302-6919-5cf4-83ae-65ae1b14bb48",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 65536,
+          "tier_is_what_scored": false,
+          "hand_cycles": 222878,
+          "hand_over_tier": null,
+          "live_cycles": 16359,
+          "over_count": 13.6
+        },
+        {
+          "uuid": "fc939eea-a1d3-590a-97b6-3b574390c857",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_traffic",
+          "tier_cycles": null,
+          "manifest_cycles": 11420,
+          "tier_is_what_scored": false,
+          "hand_cycles": 220491,
+          "hand_over_tier": null,
+          "live_cycles": 11587,
+          "over_count": 19.0
+        }
+      ]
+    },
+    {
+      "problem": "L2__045_audio_encoder_to_language_model_multimodal_fusion",
+      "n_violating_workloads": 7,
+      "min_tk_over_tsol": 0.3569,
+      "bottleneck": "compute",
+      "t_sol_source": "solar_fused",
+      "cause": "solar_counts_discarded_arithmetic",
+      "mechanism": "22 windows priced, 1 read -- 22.0x of the counted MACs are discarded; and the fp32 einsums are priced at the bf16 rate (exactly 1/16)",
+      "hand_check_matches_tier": "16/16",
+      "tier_present_on": "16/16 workloads",
+      "violating_workloads_not_explained": [],
+      "workloads": [
+        {
+          "uuid": "04aadfb4-8b50-5192-9699-f0760f5cd36a",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 116292,
+          "manifest_cycles": 116292,
+          "tier_is_what_scored": true,
+          "hand_cycles": 116292,
+          "hand_over_tier": 1.0,
+          "live_cycles": 86962,
+          "over_count": 1.3
+        },
+        {
+          "uuid": "134127a6-6885-5f58-8716-699f66c5f0a8",
+          "violating": true,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 381970,
+          "manifest_cycles": 381970,
+          "tier_is_what_scored": true,
+          "hand_cycles": 381970,
+          "hand_over_tier": 1.0,
+          "live_cycles": 278280,
+          "over_count": 1.4
+        },
+        {
+          "uuid": "2eb19954-aaa7-59f2-9997-d8bfcce00b7e",
+          "violating": true,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 556560,
+          "manifest_cycles": 556560,
+          "tier_is_what_scored": true,
+          "hand_cycles": 556560,
+          "hand_over_tier": 1.0,
+          "live_cycles": 417420,
+          "over_count": 1.3
+        },
+        {
+          "uuid": "4e052186-6f55-5b31-8525-de2502b50a27",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 1495090,
+          "manifest_cycles": 1495090,
+          "tier_is_what_scored": true,
+          "hand_cycles": 1495090,
+          "hand_over_tier": 1.0,
+          "live_cycles": 1113120,
+          "over_count": 1.3
+        },
+        {
+          "uuid": "67e03fd7-fe90-5309-82aa-e170dba6ad60",
+          "violating": true,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 373773,
+          "manifest_cycles": 373773,
+          "tier_is_what_scored": true,
+          "hand_cycles": 373772,
+          "hand_over_tier": 1.0,
+          "live_cycles": 278280,
+          "over_count": 1.3
+        },
+        {
+          "uuid": "695d520f-9c2a-5fbd-b8f8-107f367e36ec",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 69570,
+          "manifest_cycles": 69570,
+          "tier_is_what_scored": true,
+          "hand_cycles": 69570,
+          "hand_over_tier": 1.0,
+          "live_cycles": 52178,
+          "over_count": 1.3
+        },
+        {
+          "uuid": "6c0c9824-d45d-5580-a034-c8205a4a7aad",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 23874,
+          "manifest_cycles": 23874,
+          "tier_is_what_scored": true,
+          "hand_cycles": 23873,
+          "hand_over_tier": 1.0,
+          "live_cycles": 17392,
+          "over_count": 1.4
+        },
+        {
+          "uuid": "6cb7367d-77c8-51cd-a014-f1d38283fffa",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 186887,
+          "manifest_cycles": 186887,
+          "tier_is_what_scored": true,
+          "hand_cycles": 186886,
+          "hand_over_tier": 1.0,
+          "live_cycles": 139140,
+          "over_count": 1.3
+        },
+        {
+          "uuid": "6f31aa9d-6d9d-5250-a4de-7e34d5943be0",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 23361,
+          "manifest_cycles": 23361,
+          "tier_is_what_scored": true,
+          "hand_cycles": 23361,
+          "hand_over_tier": 1.0,
+          "live_cycles": 17392,
+          "over_count": 1.3
+        },
+        {
+          "uuid": "76a560a9-dfc7-5abe-a2ee-a1e67c12af87",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 139140,
+          "manifest_cycles": 139140,
+          "tier_is_what_scored": true,
+          "hand_cycles": 139140,
+          "hand_over_tier": 1.0,
+          "live_cycles": 104355,
+          "over_count": 1.3
+        },
+        {
+          "uuid": "8f6ce93b-67fd-5b77-8433-ce10f60c5f35",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 163014,
+          "manifest_cycles": 163014,
+          "tier_is_what_scored": true,
+          "hand_cycles": 163013,
+          "hand_over_tier": 1.0,
+          "live_cycles": 121748,
+          "over_count": 1.3
+        },
+        {
+          "uuid": "c7839bb1-6514-5041-8ad9-098bd5bcafc9",
+          "violating": true,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 556560,
+          "manifest_cycles": 556560,
+          "tier_is_what_scored": true,
+          "hand_cycles": 556560,
+          "hand_over_tier": 1.0,
+          "live_cycles": 417420,
+          "over_count": 1.3
+        },
+        {
+          "uuid": "d843f6cc-af9d-5076-9cc3-2b1a80970193",
+          "violating": true,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 1495090,
+          "manifest_cycles": 1495090,
+          "tier_is_what_scored": true,
+          "hand_cycles": 1495090,
+          "hand_over_tier": 1.0,
+          "live_cycles": 1113120,
+          "over_count": 1.3
+        },
+        {
+          "uuid": "e25b4acb-5b87-50d4-bda1-c66bfc552283",
+          "violating": true,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 763940,
+          "manifest_cycles": 763940,
+          "tier_is_what_scored": true,
+          "hand_cycles": 763940,
+          "hand_over_tier": 1.0,
+          "live_cycles": 556560,
+          "over_count": 1.4
+        },
+        {
+          "uuid": "e710341d-db26-5127-85a0-7a4961f63e01",
+          "violating": true,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 373773,
+          "manifest_cycles": 373773,
+          "tier_is_what_scored": true,
+          "hand_cycles": 373772,
+          "hand_over_tier": 1.0,
+          "live_cycles": 278280,
+          "over_count": 1.3
+        },
+        {
+          "uuid": "e94163d6-431a-5bec-b58a-210b7d1d1dff",
+          "violating": false,
+          "tier_checked": "t_sol_cycles_solar",
+          "tier_cycles": 190985,
+          "manifest_cycles": 190985,
+          "tier_is_what_scored": true,
+          "hand_cycles": 190985,
+          "hand_over_tier": 1.0,
+          "live_cycles": 139140,
+          "over_count": 1.4
+        }
+      ]
+    },
+    {
+      "problem": "L2__073_feedforward_mlp_backward",
+      "n_violating_workloads": 3,
+      "min_tk_over_tsol": 0.9916,
+      "bottleneck": "compute",
+      "t_sol_source": "solar_fused",
+      "cause": "residual_clock_error",
+      "mechanism": "worst violation 0.992 -- inside the band D35 predicts for a compute-bound fp32 workload that clocks above the 1300 MHz F_LOCK divisor. Nothing further to derive; see STATE.md D35/D36."
+    }
+  ],
+  "traffic_tier_blast_radius": {
+    "scoreable_workloads": 3717,
+    "workloads_where_traffic_tier_wins": 328,
+    "fraction": 0.0882,
+    "problems": 38,
+    "ratio_traffic_over_solar": {
+      "p50": 1.5,
+      "p90": 5.005,
+      "max": 128.9
+    },
+    "worst_by_ratio": [
+      {
+        "problem": "L1__087_embedding_with_initial_layernorm_backward",
+        "n": 16,
+        "max_ratio": 128.9
+      },
+      {
+        "problem": "L2__031_flux_timestep_guidance_projection_embedding",
+        "n": 10,
+        "max_ratio": 21.3
+      },
+      {
+        "problem": "L1__086_sam_hq_mask_decoder_iou_hypernetwork_fusion",
+        "n": 12,
+        "max_ratio": 21.1
+      },
+      {
+        "problem": "L1__018_fused_rope_with_qk_norm_and_kv_cache_update",
+        "n": 1,
+        "max_ratio": 20.7
+      },
+      {
+        "problem": "L1__080_adaptive_layernorm_continuous_with_modulation",
+        "n": 16,
+        "max_ratio": 19.9
+      },
+      {
+        "problem": "L1__036_flux_output_norm_projection_chain",
+        "n": 8,
+        "max_ratio": 9.4
+      },
+      {
+        "problem": "L2__006_multimodal_rope_position_calculation",
+        "n": 16,
+        "max_ratio": 7.1
+      },
+      {
+        "problem": "L1__008_expert_output_weighted_index_add_accumulation",
+        "n": 16,
+        "max_ratio": 5.0
+      },
+      {
+        "problem": "L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion",
+        "n": 4,
+        "max_ratio": 3.4
+      },
+      {
+        "problem": "L1__013_fused_residual_rms_norm_backward",
+        "n": 16,
+        "max_ratio": 2.3
+      },
+      {
+        "problem": "L1__073_fused_encoder_final_norm_to_decoder_cross_attention_kv_projection",
+        "n": 4,
+        "max_ratio": 2.1
+      },
+      {
+        "problem": "L1__042_moe_expert_load_balancing_and_token_capacity_backward",
+        "n": 16,
+        "max_ratio": 2.0
+      },
+      {
+        "problem": "L1__014_rotary_embedding_with_attention_scaling_backward",
+        "n": 16,
+        "max_ratio": 1.6
+      },
+      {
+        "problem": "L1__006_hyena_depthwise_conv1d_split_gate",
+        "n": 16,
+        "max_ratio": 1.5
+      },
+      {
+        "problem": "L1__085_geglu_activation",
+        "n": 16,
+        "max_ratio": 1.5
+      }
+    ]
+  },
+  "caveat": "A hand check that matches the manifest confirms the mechanism, not the fix. Deriving the corrected bound is a separate step and must not be done by adjusting a number until the violation disappears."
+}

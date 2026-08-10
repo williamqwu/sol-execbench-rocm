@@ -554,15 +554,32 @@ def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
         # and lands in `untouched`. Grouping the other way round can only ever
         # count problems that produced something.
         buckets = conn.execute(
+            # `nflag > 0` is tested FIRST, so a problem carrying a reward hack
+            # lands in the flagged bucket whatever else it did. The alternative
+            # -- carving flagged out of `failed` only -- was tried and renders
+            # an empty segment on the real board: not one submission has a
+            # problem where EVERY workload was rejected, so all 48 flagged
+            # results hide inside problems that also passed something, and the
+            # colour the maintainer asked for would never once be drawn.
+            #
+            # Priority is also the stronger reading. A submission whose entry
+            # for a problem contains a kernel that was refused has not cleanly
+            # solved that problem, even if its other workloads passed.
             f"""SELECT SUM(CASE WHEN seen = 0 THEN 1 ELSE 0 END) AS untouched,
-                       SUM(CASE WHEN seen > 0 AND ok = 0 THEN 1 ELSE 0 END) AS failed,
-                       SUM(CASE WHEN ok > 0 AND ok < n_scoreable THEN 1 ELSE 0 END) AS partial,
-                       SUM(CASE WHEN ok > 0 AND ok = n_scoreable THEN 1 ELSE 0 END) AS clean,
+                       SUM(CASE WHEN seen > 0 AND nflag > 0
+                                THEN 1 ELSE 0 END) AS flagged,
+                       SUM(CASE WHEN seen > 0 AND ok = 0 AND nflag = 0
+                                THEN 1 ELSE 0 END) AS failed,
+                       SUM(CASE WHEN ok > 0 AND ok < n_scoreable AND nflag = 0
+                                THEN 1 ELSE 0 END) AS partial,
+                       SUM(CASE WHEN ok > 0 AND ok = n_scoreable AND nflag = 0
+                                THEN 1 ELSE 0 END) AS clean,
                        COUNT(*) AS n
                   FROM (
                     SELECT p.key, p.n_scoreable,
                            COUNT(r.workload_uuid) AS seen,
-                           SUM(CASE WHEN r.status='PASSED' THEN 1 ELSE 0 END) AS ok
+                           SUM(CASE WHEN r.status='PASSED' THEN 1 ELSE 0 END) AS ok,
+                           COALESCE(SUM(r.flagged), 0) AS nflag
                       FROM problem p
                       JOIN workload w ON w.problem_key=p.key AND w.scoreable=1
                       LEFT JOIN result r ON r.problem_key=w.problem_key
@@ -597,6 +614,7 @@ def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
             "problems_clean": clean,
             "problems_partial": buckets["partial"] or 0,
             "problems_failed": buckets["failed"] or 0,
+            "problems_flagged": buckets["flagged"] or 0,
             "problems_untouched": buckets["untouched"] or 0,
             # ONE score, two scopes, and the board switches between them rather
             # than printing both side by side -- see the `scope` note below.

@@ -255,6 +255,31 @@ HEADROOM_BANDS = ((1000.0, "over 1000x"), (100.0, "100x - 1000x"),
                   (10.0, "10x - 100x"), (2.0, "2x - 10x"), (0.0, "under 2x"))
 
 
+#: Headroom -> a word, for the per-workload marking. The bands above exist to
+#: show a distribution; these exist to warn a reader about one number, so they
+#: are named for what the score MEANS in each range rather than for the range.
+#:
+#: `narrow` is a warning too, and in the opposite direction: below 2x, T_b and
+#: T_SOL are close enough that run-to-run variance is a material share of S.
+#: 13.6% of workloads are there. Neither tail is a defect in a specific bound;
+#: both are ranges where the score says less than its four decimal places
+#: suggest.
+BOUND_QUALITY = ((1000.0, "vacuous"), (100.0, "loose"), (2.0, "ok"),
+                 (0.0, "narrow"))
+
+
+def bound_quality(t_sol: float | None, t_b: float | None) -> tuple[str | None,
+                                                                   float | None]:
+    """(quality, headroom) for one workload. (None, None) if unscoreable."""
+    if not t_sol or not t_b or t_sol <= 0:
+        return None, None
+    h = t_b / t_sol
+    for lo, label in BOUND_QUALITY:
+        if h >= lo:
+            return label, h
+    return None, h
+
+
 def headroom_bands(manifest: dict) -> dict:
     """Count scoreable workloads per `T_b / T_SOL` band."""
     counts = {label: 0 for _, label in HEADROOM_BANDS}
@@ -381,15 +406,16 @@ def ingest_problems(conn, manifest: dict) -> None:
                    (problem_key,uuid,axes_json,t_sol_cycles,t_sol_ms,t_sol_source,
                     t_sol_cycles_solar,t_sol_cycles_traffic,sol_bottleneck,
                     t_b_ms,t_b_variant,tol_atol,tol_rtol,tol_ratio,
-                    tol_derivation,scoreable)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    tol_derivation,scoreable,bound_quality,bound_headroom)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (key, uuid, json.dumps(w.get("axes") or {}),
                  w.get("t_sol_cycles"), w.get("t_sol_ms"), w.get("t_sol_source"),
                  w.get("t_sol_cycles_solar"), w.get("t_sol_cycles_traffic"),
                  w.get("sol_bottleneck"), w.get("t_b_ms"), w.get("t_b_variant"),
                  tol.get("max_atol"), tol.get("max_rtol"),
                  tol.get("required_matched_ratio"), tol.get("_derivation"),
-                 1 if w.get("scoreable") else 0))
+                 1 if w.get("scoreable") else 0,
+                 *bound_quality(w.get("t_sol_ms"), w.get("t_b_ms"))))
 
 
 def bounds(manifest: dict) -> dict:

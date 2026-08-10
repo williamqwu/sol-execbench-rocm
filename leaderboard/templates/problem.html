@@ -56,6 +56,17 @@
   <code>t_sol_source</code> records which one bound each workload, and any candidate
   that came out <i>faster</i> than the measured T<sub>b</sub> was rejected rather than used.
 </p>
+<p class="sub">
+  <b>Headroom is marked, because the board cannot check it.</b> The one invariant
+  enforced on a bound is that nothing may beat it &mdash; which catches a
+  T<sub>SOL</sub> that is too <i>large</i> and is blind to one that is too small.
+  A weak lower bound breaks no rule, so nothing reports it. Where
+  T<sub>b</sub>/T<sub>SOL</sub> runs into the hundreds the roofline is far enough
+  away that S is really a comparison against PyTorch; below 2× the range is
+  narrow enough that run-to-run variance is a material share of the score.
+  Neither is a defect in the number beside it, and neither changes a score
+  &mdash; they say how much the score is worth.
+</p>
 <div class="scroll">
 <table class="grid">
   <thead>
@@ -80,7 +91,15 @@
       <td class="sm">{% if w.sol_bottleneck %}<span class="tag tag-{{ w.sol_bottleneck }}">{{ w.sol_bottleneck }}</span>{% endif %}</td>
       <td class="r mono">{{ '%.5f'|format(w.t_b_ms) if w.t_b_ms else '&mdash;'|safe }}</td>
       <td class="sm">{{ w.t_b_variant or '—' }}</td>
-      <td class="r mono">{{ '%.1f'|format(w.headroom) + '×' if w.headroom else '—' }}</td>
+      {# The number and the word it earns, in one cell. A reader who does not
+         already know that 19,000x means the arithmetic term went unmodelled
+         gets nothing from the number alone. #}
+      <td class="r mono">{{ '%.1f'|format(w.headroom) + '×' if w.headroom else '—' }}
+        {% if w.bound_quality and w.bound_quality != 'ok' %}<span
+          class="bq bq-{{ w.bound_quality }}"
+          title="{{ {'vacuous': 'T_b is over 1000x T_SOL: the bound is a valid lower bound and carries essentially no roofline content. S here is close to T_b/(T_b+T_k), a PyTorch comparison.',
+                     'loose':   'T_b is 100-1000x T_SOL. S is dominated by the T_b comparison rather than by distance from the roofline.',
+                     'narrow':  'T_b is under 2x T_SOL. The scoring range is narrow enough that run-to-run variance is a material share of the score.'}[w.bound_quality] }}">{{ w.bound_quality }}</span>{% endif %}</td>
       <td class="r mono sm">{{ '%.2e'|format(w.tol_atol) if w.tol_atol else '&mdash;'|safe }}</td>
       <td class="r mono sm">{{ '%.2e'|format(w.tol_rtol) if w.tol_rtol else '&mdash;'|safe }}</td>
     </tr>

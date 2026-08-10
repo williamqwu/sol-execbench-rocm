@@ -65,6 +65,7 @@
   <span class="k-clean">every workload passed</span>
   <span class="k-partial">some passed</span>
   <span class="k-failed">attempted, none passed</span>
+  <span class="k-flagged">rejected as a reward hack</span>
   <span class="k-none">never attempted</span>
 </p>
 <p class="sub hint">Coverage is the same in both scopes &mdash; the switch above
@@ -87,7 +88,7 @@
          follow the score switch: what a submission was run on is a fact about
          the submission, and only the denominator the score is divided by
          changes. Showing two coverage figures implied otherwise. #}
-      <th class="nosort cov-h" title="All {{ meta.scoreable_problems }} scoreable problems, left to right: swept clean, partly passed, attempted and nothing passed, never attempted.">coverage &mdash; all {{ meta.scoreable_problems }} problems</th>
+      <th class="nosort cov-h" title="All {{ meta.scoreable_problems }} scoreable problems, left to right: swept clean, partly passed, attempted and nothing passed, rejected as a reward hack, never attempted.">coverage &mdash; all {{ meta.scoreable_problems }} problems</th>
     </tr>
   </thead>
   <tbody>
@@ -121,11 +122,17 @@
          gap shows up as a hairline of background inside the track. #}
       <td class="covbar-cell" data-sort="{{ s.problems_clean }}">
         <div class="covbar" role="img"
-             aria-label="{{ s.problems_clean }} clean, {{ s.problems_partial }} partial, {{ s.problems_failed }} all failed, {{ s.problems_untouched }} never attempted, of {{ s.problems_total }}">
+             aria-label="{{ s.problems_clean }} clean, {{ s.problems_partial }} partial, {{ s.problems_failed }} all failed, {{ s.problems_flagged }} rejected as reward hacks, {{ s.problems_untouched }} never attempted, of {{ s.problems_total }}">
+          {# `flagged` sits between failed and untouched because it is neither:
+             the kernel ran and produced the right answer, and was refused. It
+             It takes priority over clean/partial -- a problem whose entry
+             contains a rejected kernel has not been cleanly solved -- so the
+             five segments stay disjoint and still sum to problems_total. #}
           {% for seg, n, lbl in [
                 ('clean',   s.problems_clean,     'every workload passed'),
                 ('partial', s.problems_partial,   'some workloads passed'),
                 ('failed',  s.problems_failed,    'attempted, nothing passed'),
+                ('flagged', s.problems_flagged,   'a workload was rejected as a reward hack'),
                 ('none',    s.problems_untouched, 'never attempted')] %}
             {%- if n %}<span class="cs cs-{{ seg }}" style="width:{{ 100 * n / s.problems_total }}%"
               title="{{ n }} problem{{ 's' if n != 1 }} &mdash; {{ lbl }}"></span>{% endif -%}
@@ -135,6 +142,7 @@
           <span class="cn cn-clean">{{ s.problems_clean }}</span>
           <span class="cn cn-partial">{{ s.problems_partial }}</span>
           <span class="cn cn-failed">{{ s.problems_failed }}</span>
+          <span class="cn cn-flagged">{{ s.problems_flagged }}</span>
           <span class="cn cn-none">{{ s.problems_untouched }}</span>
           <span class="sub">of {{ s.problems_total }}</span>
         </div>

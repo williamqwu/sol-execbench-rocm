@@ -107,7 +107,7 @@ class LeaderboardRow(BaseModel):
         default=0,
         description="Problems this submission has at least one result on. "
                     "`problems_complete` is the subset it swept clean.")
-    # The four states the board's coverage bar draws. Disjoint, and they sum to
+    # The five states the board's coverage bar draws. Disjoint, and they sum to
     # problems_total -- which is the property that makes the bar readable and
     # the one to assert if these are ever recomputed.
     problems_clean: int = Field(
@@ -117,7 +117,16 @@ class LeaderboardRow(BaseModel):
     problems_failed: int = Field(
         default=0, description="Attempted, and no workload passed. NOT the "
                                "same as never attempted, which is the next "
-                               "field.")
+                               "field. Excludes problems rejected outright, "
+                               "which are counted in `problems_flagged`.")
+    problems_flagged: int = Field(
+        default=0,
+        description="Attempted, no workload counted, and at least one was "
+                    "flagged as a reward hack. Carved OUT of `problems_failed` "
+                    "rather than added beside it, so the five still sum to "
+                    "`problems_total`. The kernel produced the right answer by "
+                    "a route the rules exclude -- which is a different fact "
+                    "about a submission than a kernel that did not work.")
     problems_untouched: int = Field(
         default=0, description="No result of any kind. Never run on it.")
     rank: int = Field(
