@@ -109,10 +109,25 @@ def test_a_part_with_no_database_renders_the_empty_state(client):
     r = client.get("/?part=MI355X")
     assert r.status_code == 200
     assert "Nothing has been measured on MI355X" in r.text
-    assert "TODO-MI355X.md" in r.text
+    # The path, not just the basename: a bare-basename assertion survives
+    # the file moving and leaves the board pointing at nothing.
+    assert "docs/TODO-MI355X.md" in r.text
     for url in ("/problems", "/problems/L1__001_alpha", "/methodology",
                 "/submissions/agent-alpha"):
         assert client.get(url, params={"part": "MI355X"}).status_code == 200, url
+
+
+def test_the_runbook_pointer_is_checked_against_the_disk():
+    """The page names a runbook only when one was written.
+
+    The path used to be f"TODO-{part}.md" -- synthesised, never checked. Add a
+    third part to PARTS and the empty state would send a reader to a file that
+    does not exist, which reads as "someone planned this" rather than "nobody
+    has". The MI355X case must keep resolving, or the moved file is unlinked.
+    """
+    from leaderboard.app import todo_runbook
+    assert todo_runbook("MI355X") == "docs/TODO-MI355X.md"
+    assert todo_runbook("MI999X") is None
 
 
 def test_the_api_answers_503_for_a_part_with_no_database(client):

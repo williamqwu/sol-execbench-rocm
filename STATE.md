@@ -9,7 +9,7 @@ and say how. Never mark a task `done` without pasting its acceptance-check
 output.
 
 > Session 1 ran on `mia1-p02-g10` (8× **MI355X**). Session 2 onward runs on
-> `gbt350-odcdh1-a08-1` (8× **MI350X**). `HANDOFF.md` says which session-1
+> `gbt350-odcdh1-a08-1` (8× **MI350X**). `docs/HANDOFF.md` says which session-1
 > results transfer. The MI355X numbers are kept in this file where they are
 > useful as a second data point, and are always labelled.
 
@@ -823,7 +823,7 @@ default, so that "rebuild" cannot mean two different things. Not done.
 Three documents (`CLAUDE.md` §3 and §5b, `TODO.md`, `leaderboard/DESIGN-v2.md`
 §6) stated that `CLOCK_LOCK_PRESETS` has no MI350X entry, that this is why some
 artifacts stamp `f_lock_mhz: null`, and that it is the one remaining task-01
-gate failure. All three claims were false. `HANDOFF.md` §1 says the same thing
+gate failure. All three claims were false. `docs/HANDOFF.md` §1 says the same
 and is *not* wrong — it was written before the entry existed and is marked
 superseded — but it is the sentence a grep lands on, so it now carries an
 inline correction. The entry was added in **2cdb7b0**, 2026-08-03 20:36 UTC,
@@ -2449,7 +2449,7 @@ Worked: leaderboard only — no GPU work, no measurement taken or changed.
 Produced: D25 (f_lock null misattributed), D26 (mean-S denominator),
           D27 (code pane untested), grid ramp distribution + contrast closed
           tests/leaderboard/ — 11 files, 91 passed, was 0 before this session
-          MI350X<->MI355X part switch: db/solbench-<PART>.db, TODO-MI355X.md
+          MI350X<->MI355X part switch: db/solbench-<PART>.db, docs/TODO-MI355X.md
 Verified: container `pytest tests/` 503 passed / 66 skipped (65 -> 66 is
           test_code_pane.py's module-level importorskip, not a regression)
           /api/v1/leaderboard byte-identical to the pre-session baseline on

@@ -10,7 +10,7 @@
 >
 > | the plan said | what happened |
 > |---|---|
-> | target **MI355X** (the correct B200 peer) | the node available is **8× MI350X**, and everything is measured there. **Nothing has been measured on MI355X** — the port needs no work for it, every number does. See `TODO-MI355X.md`. |
+> | target **MI355X** (the correct B200 peer) | the node available is **8× MI350X**, and everything is measured there. **Nothing has been measured on MI355X** — the port needs no work for it, every number does. See `docs/TODO-MI355X.md`. |
 > | locked clock "TBD (calibration item C1)" | **F_LOCK = 1300 MHz measured**, at `--setperfdeterminism 1600`. The request is not what you get: this part yields ≈0.83× of it. |
 > | ~14–18 engineer-weeks, six phases | all ten work items in `tasks/` are **`done`**; the benchmark evaluates end to end and publishes a board. |
 > | full parity, 235 problems | **220 of 235 scoreable**, 3,717 workloads. The 15 NVFP4 problems are deferred under the sanctioned task-07 contingency, recorded in `artifacts/deferred.json`. |
@@ -413,7 +413,7 @@ liquid-cooled part), tolerances, `T_b`, and therefore every score. The database
 is already per-part (`leaderboard/db/solbench-<PART>.db`) precisely so that a
 MI350X number and a MI355X number cannot be averaged by accident.
 
-`TODO-MI355X.md` is the checklist. The blocker is node access, not code.
+`docs/TODO-MI355X.md` is the checklist. The blocker is node access, not code.
 
 ---
 

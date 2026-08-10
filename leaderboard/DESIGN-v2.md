@@ -334,7 +334,7 @@ Known parts come from `src/solexbench_rocm/parts.py: PARTS` — MI350X, MI355X,
 MI300X. A part in that registry with no database is a **first-class page**, not
 a 404 and not an empty table: it says that nothing has been measured on that
 part, that the port itself needs no work, and it links to the runbook
-(`TODO-MI355X.md`). MI300X is CDNA3 and is out of scope for this port — the
+(`docs/TODO-MI355X.md`). MI300X is CDNA3 and is out of scope for this port — the
 switch lists only parts the port targets.
 
 ### The switch itself
@@ -363,7 +363,7 @@ gate. That was wrong. The entry has been there since **2cdb7b0** (2026-08-03
 *11 checks, 0 failed*. Across all ten tasks the only failing gate is task 03's
 D18/D21 bound check. Nothing in the part switch depends on the preset table.
 
-What *is* in scope: `TODO-MI355X.md`, a runbook precise enough that an agent
+What *is* in scope: `docs/TODO-MI355X.md`, a runbook precise enough that an agent
 landing on an MI355X node can execute it without re-deriving the plan.
 
 ### Amendment — the storage contract cannot be executed as written

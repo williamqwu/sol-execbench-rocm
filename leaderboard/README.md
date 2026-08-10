@@ -143,7 +143,7 @@ skipping the hard problems.
   `scripts/score_solutions.py` refuses that comparison rather than rescaling it.
   The part switch selects a whole database (above); it never joins two. MI355X
   is in the switch and has **no** database, because nothing has been measured on
-  it — the port needs no work there, every number does. See `TODO-MI355X.md`.
+  it — the port needs no work there, every number does. See `docs/TODO-MI355X.md`.
 * **Reference variants are labelled as such.** The four PyTorch formulations are
   what T_b is *derived from* — the winner of each workload scores exactly 0.5
   there by construction. They calibrate the scale rather than compete on it.

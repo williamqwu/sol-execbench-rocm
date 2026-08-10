@@ -3,7 +3,7 @@
 > **Superseded — this migration is complete.** Kept as the record of *why*
 > `artifacts/00/` and `artifacts/01/` were regenerated rather than reused, which
 > is not visible from the artifacts themselves. For current state read
-> [`STATE.md`](STATE.md); for what is still open read [`TODO.md`](TODO.md).
+> [`STATE.md`](../STATE.md); for what is still open read [`TODO.md`](../TODO.md).
 >
 > What actually happened, against the predictions below: **F_LOCK on MI350X
 > measured 1300 MHz**, not the 1650 carried from MI355X — a 21% difference, and

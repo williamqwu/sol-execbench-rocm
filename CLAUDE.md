@@ -132,7 +132,7 @@ the graph and shows what can run in parallel.
   a 12-hour turnaround.
 
 Session 1 ran on an 8× MI355X node (1400 W, liquid). None of its measurements
-transfer; see `HANDOFF.md`.
+transfer; see `docs/HANDOFF.md`.
 
 ### GPU discipline
 
@@ -251,7 +251,7 @@ it is listed there.
   `examples` (NVIDIA-only solution languages), and one collection-time skip per
   leaderboard module — each needs fastapi, so that suite runs in
   `leaderboard/.venv` instead: `leaderboard/.venv/bin/python -m pytest
-  tests/leaderboard`, all passing, **152 passed / 1 skipped** as of
+  tests/leaderboard`, all passing, **153 passed / 1 skipped** as of
   2026-08-10. Do not read either
   skip count as a gate: one leaderboard module added moves both by one, which
   is how the old figure of 56 here went stale. Only a drop in *passed*, or a

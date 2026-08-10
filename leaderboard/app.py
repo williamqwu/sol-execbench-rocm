@@ -366,6 +366,12 @@ def empty_meta(part: str) -> dict:
     return {"part": part, "freshness": None}
 
 
+def todo_runbook(part: str) -> str | None:
+    """Repo-relative path of the runbook for `part`, or None if none is written."""
+    rel = f"docs/TODO-{part}.md"
+    return rel if (ROOT / rel).is_file() else None
+
+
 @app.exception_handler(NoDataForPart)
 def no_data_for_part(request: Request, exc: NoDataForPart) -> Response:
     if request.url.path.startswith("/api"):
@@ -382,7 +388,12 @@ def no_data_for_part(request: Request, exc: NoDataForPart) -> Response:
          # one, and the empty list is the honest answer -- a part with no
          # database holds no submissions to be measured on the wrong part.
          "part_mismatch": [],
-         "todo_path": f"TODO-{exc.part}.md", "nav": None})
+         # Checked on disk, not interpolated and hoped for. The old form was
+         # f"TODO-{part}.md", which names a runbook for every part the config
+         # admits -- including ones nobody ever wrote. Sending a reader to a
+         # file that does not exist is worse than saying there is no runbook,
+         # because it reads as "someone planned this".
+         "todo_path": todo_runbook(exc.part), "nav": None})
 
 
 def freshness(m: dict, path: Path | None = None) -> dict:
