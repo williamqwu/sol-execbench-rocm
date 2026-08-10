@@ -1162,7 +1162,141 @@ assumes it), that no `h2` is missing from the nav, and that a page passing no
 `toc` still renders single-column. Two files with no compiler between them
 would otherwise drift into links that render, look live, and scroll nowhere.
 
+### D38 — the timer never saw a submission's own stream, and one of the "wrong bounds" was a wrong measurement
+
+**Fixed 2026-08-10.** Two probe artifacts, before and after, on the same
+probes: `artifacts/11/side-stream-timing-hole.json` and
+`…-hole-fixed.json`. Script `scripts/bounds/side_stream_timing.py`. GPU 0,
+idle, F_LOCK stamped, hip_events — the methodology every published score on
+this board was measured with (`manifest.methodology`).
+
+`bench_time_with_cuda_events` brackets each timed iteration with two events
+recorded on the **current** stream, and the loop deliberately does not
+synchronize between iterations "to keep the driver's GPU queue full". So the
+default stream carries a deep backlog while a submission's own stream is empty:
+work launched there executes immediately, against *earlier* iterations, and its
+duration never lands inside the bracket that enqueued it.
+
+| probe | before | after | true (serialized wall) |
+|---|---|---|---|
+| 8192³ fp32 GEMM, side stream, host-synced in-call | 12.059 | 12.049 | 12.04 |
+| same, default stream (control) | 12.067 | 12.021 | 12.03 |
+| **same, join deferred to the next call** | **0.0069** | **12.058** | 12.04 |
+| **`L1__054` as submitted** | **0.4780** | **0.6974** | 0.707 |
+| the same computation, one stream (control) | 0.6781 | 0.6855 | 0.699 |
+| the same overlap, joined with `wait_stream` | 0.6867 | 0.7107 | 0.725 |
+
+Milliseconds, medians of 50. **1743x** on the deferred-join probe: that is a
+bypass, not a shave.
+
+**What the guard that existed did and did not do.** `check_default_stream` has
+been in `reward_hack.py` since the port, and its own docstring names this
+exact hole — "an event pair recorded on the default stream simply does not
+observe a kernel running on another one, so the work is free". It catches a
+submission that *leaves* a non-default stream current. `test_side_stream_restored`
+in the corpus records, in writing, that a submission which restores it walks
+past. So the gap was known and documented for months. What was never done was
+**measure it**, and a status assertion cannot see a time. It is 1743x.
+
+**The fix closes the bracket at both ends** (`core/bench/streams.py`). Streams
+constructed after `install_stream_tracking()` are tracked; the timed loop
+fences them from the current stream before the start event and joins them into
+it before the end event. Closing only the end was tried first and only half
+worked — a kernel that host-synchronizes inside `run()` has already drained its
+stream by the time control returns, so the join waits on nothing, and `L1__054`
+still read 1.41x fast. Both halves together are exactly what
+`current_stream().wait_stream(s)` does, which is why a kernel already written
+that way measures the same either way.
+
+Neutralize, do not flag: a kernel that overlaps its work is a legitimate
+kernel, and nothing in the source distinguishes the incidental case from the
+adversarial one. Two corpus cases, `test_side_stream_host_sync_no_advantage`
+and `test_side_stream_join_deferred_to_next_call`, assert **no time advantage**
+rather than a status, and are mutation-checked: both fail with the join
+removed, both pass with it.
+
+**What it cost, in published numbers.** Five kernels in `agent-glm-sweep-2`
+create a stream; they were re-timed on GPU 0 and nothing else was
+(`--retime`, new in `agent_score.py`, because re-timing 220 problems to fix
+five moves 215 numbers that had nothing wrong with them).
+
+```
+L1__054   0.14395 -> 0.18948 ms  (1.316x)   mean S 1.0735 -> 0.5487
+L1__055   0.05871 -> 0.07320 ms  (1.247x)   mean S 0.5651 -> 0.5064
+L2__073   3.02058 -> 3.02197 ms  (1.000x)   mean S 0.9067 -> 0.9027
+FIB__008  0.04800 -> 0.04784 ms  (0.997x)   mean S 0.5472 -> 0.5460
+FIB__004  no timings either way (its kernel calls cpp_extension.load, refused)
+```
+
+Run mean S 0.6111 → 0.6104. Bound violations 26 workloads / 6 problems → 21 / 5.
+
+Two things in that table matter more than the mean.
+
+**`L1__054` was never a wrong bound.** It was carried as one of the thirteen,
+and it was scoring a mean of **1.0735** — above the roofline, which is what a
+wrong bound looks like from outside. Its bound was fine. Its *measurement* was
+short by 32%. So the thirteen were not two causes plus a residue; they were
+**three kinds of defect wearing one symptom**, and "a kernel beat its T_SOL" is
+evidence that something is wrong, not evidence of *what*.
+
+**`L1__055` never appeared on any list.** It was undercounted by 25%, its score
+inflated by 10%, and nothing anywhere detected it — because a 25% inflation on
+a kernel scoring 0.57 does not push it past 1. This is D35's blindness argument
+again with a different subject: the bad-bounds list finds only defects large
+enough to break the one invariant we check, and this one was not.
+
+**What it costs a legitimate kernel.** The fence is recorded outside the
+bracket, but the join cannot be, so a submission that creates streams pays
+roughly **6–7 µs per tracked stream per iteration** inside its own
+measurement. On `L1__054`'s 0.7 ms that is ~1%; on a 20 µs kernel it would be
+material. It is in the safe direction — over-measuring cannot inflate a score
+— but it is a real penalty on honest overlapping kernels and it is in
+`TODO.md`. The durable answer is the rocprofiler methodology, which stamps each
+window's end after a full synchronize and closes this by construction; but
+switching the methodology of record would move every measurement ever taken,
+which is not something to do to get past an obstacle.
+
+**Not re-timed:** `glm-run1`'s `FlashInfer-Bench__007`, the sixth stream-using
+kernel found. That run is withdrawn from the board, so its numbers are not
+published; recorded here so the omission is a decision.
+
 ### D37 — SOLAR prices a grouped convolution as a dense one
+
+**Fixed 2026-08-10 in manifest v1.2**, six problems of seven. Correction:
+`src/solexbench_rocm/solar/conv_groups.py`, applied explicitly by
+`sol_bounds.py`. Re-derived bounds: `artifacts/11/d37/`. Manifest:
+`scripts/rebuild_manifest_v12.py` → `artifacts/09/manifest-v1.2.json`, 81
+workloads moved, 25 bottleneck flips, 0 re-gated. Bound violations 5 → **3**
+(`L1__005` and `L1__006` cleared).
+
+`groups` is recovered from the tensor shapes —
+`groups = in_channels // weight.shape[1]`, exact for every convolution however
+it was called — rather than from a new argument-parsing branch. The argument can
+be positional, a keyword, or carried on a module, and a parser that misses one
+spelling fails silently in the direction that inflates the bound, which is the
+failure being fixed. Shapes cannot be spelled two ways.
+
+Measured MAC ratios after the fix: `L1__006` **×768.000** exactly, `L2__035`
+×6.70–7.07, `L1__029` ×4.999, `L2__058` ×4.66–4.75, `L2__051` ×3.17–3.26,
+`L1__005` ×1.999.
+
+**`L2__036` did not move and is not fixed.** ×1.000. It is a backward problem,
+and SOLAR routes backward graphs through `graph/backward_processor.py`, which
+builds its own `module_args` and never reaches the forward conv handler the
+correction wraps. Left open deliberately: concluding it is fine because six
+siblings moved is the reasoning this ledger exists to prevent — and `L2__036`
+is precisely the problem this entry already identified as the one whose bound is
+too wrong for any kernel to expose.
+
+The wrapper is not a patch to SOLAR. SOLAR is pinned by SHA in `env/Dockerfile`
+and deliberately not vendored; a patch file would mean rebuilding the
+measurement image to change a bound derivation, and the image is the thing that
+must not move under a measurement. The wrapper lives in the port, is
+version-controlled with the artifacts it produces, and `apply()` raises if
+SOLAR's handler class names move rather than silently deriving bounds that lost
+the fix.
+
+---
 
 The five problems v1.1 could not explain are not five defects either. At least
 two are one mechanism, and it is exact: **SOLAR ignores `groups`**, so a

@@ -47,13 +47,20 @@ import inputs  # noqa: E402
 from sol_execbench.sol_score import sol_score  # noqa: E402
 
 DATASET = ROOT / "data" / "SOL-ExecBench" / "benchmark"
-# The board publishes v1.1. v1 is frozen and unchanged, and every score
-# published against it stays valid against it -- but v1.1 corrected 1,048
-# bounds (STATE.md D35 and D18) and a board mixing the two would be comparing
-# submissions scored against different rooflines, which is the one thing this
-# file's own part-per-database rule exists to prevent. `meta.manifest_version`
-# carries which, and /methodology renders it.
-MANIFEST = ROOT / "artifacts" / "09" / "manifest-v1.1.json"
+# The board publishes v1.2. v1 and v1.1 are frozen and unchanged, and every
+# score published against either stays valid against it -- but v1.1 corrected
+# 1,048 bounds (STATE.md D35 and D18) and v1.2 corrected 81 more (D37), and a
+# board mixing versions would be comparing submissions scored against different
+# rooflines, which is the one thing this file's own part-per-database rule
+# exists to prevent. `meta.manifest_version` carries which, and /methodology
+# renders it.
+#
+# Changing this constant is not enough on its own: every `artifacts/10/*/
+# scored.json` must be re-derived against the same manifest first, with
+# `agent_score.py --reuse-retimed --manifest ...`, which needs no GPU. The
+# ingest reads those files and cannot tell that one of them was scored against
+# an older roofline.
+MANIFEST = ROOT / "artifacts" / "09" / "manifest-v1.2.json"
 DEFERRED = ROOT / "artifacts" / "deferred.json"
 CANDIDATES = ROOT / "artifacts" / "06" / "candidates"
 AUTHORITATIVE = ROOT / "artifacts" / "06" / "authoritative"

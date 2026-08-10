@@ -19,7 +19,19 @@ For per-item detail see `STATE.md`; the D-numbers below point into it.
 
 These are in the manifest and produce scores. The scores are not usable.
 
-**Fixed in manifest v1.1 on 2026-08-10 — 13 down to 6. Read `STATE.md` D36 for what moved, then D35 for why.** The table below describes v1, which is frozen and still reports 13. Under v1.1 the paged problems (D18) and five of the compute-bound ones are corrected; what remains is `L1__005`, `L1__006`, `L1__054`, `L1__057`, `L2__045` and a 1% residue on `L2__073`.
+**13 → 6 → 5 → 3, all on 2026-08-10. The board serves manifest v1.2.** The
+table below describes v1, which is frozen and still reports 13. Three separate
+corrections landed on top of it:
+
+| step | correction | where | left |
+|---|---|---|---|
+| v1.1 | paged-cache traffic (D18) + per-datapath clock divisor (D35) | D36 | 6 |
+| — | **not a bound at all**: the timer did not see work a kernel put on its own stream, so `L1__054`'s *time* was 32% short against a correct bound | D38 | 5 |
+| v1.2 | SOLAR priced a grouped convolution as a dense one | D37 | 3 |
+
+What remains is `L1__057`, `L2__045`, and a 1% residue on `L2__073`.
+
+**Read that as a warning about the list itself.** "A kernel beat its T_SOL" is one symptom with at least three causes — an over-counted traffic term, a wrong clock divisor, and a measurement that missed work — and the symptom does not say which. Nor does the list catch the same defects when they are too small to break the invariant: `L1__055` was undercounted 25% by D38 and never appeared anywhere, because a kernel scoring 0.57 can be inflated 10% without passing 1.
 
 **Read `STATE.md` D35 before this table.** The thirteen were diagnosed on
 2026-08-09 and they are not thirteen defects. Six of them are one cause that is
@@ -43,11 +55,17 @@ below.
 | **Nine more bounds beaten**, found as a real optimizer covered the benchmark: `L1__006`, `L1__057`, `L2__030`, `L2__035`, `L2__045`, `L2__068`, `L2__073`, and — once coverage reached 220 — `FlashInfer-Bench__018` and `L1__054`. Undiagnosed; not yet separated into D18-style over-counting vs D21-style roofline error. | 72 workloads across 11 problems in that run | D31, D31b |
 | **`L2__051` bound beaten**, found by `gpt56-40` on 2026-08-09. A different model, on 40 problems rather than 220, exposed one that 220 problems of GLM-5.2 did not. Undiagnosed. | 4 workloads | D31c |
 
-The v1.1 fix for D18 is to derive paged traffic from the page table rather than
-from `num_pages`. D21 has no fix yet, only a diagnosis, and the eight new ones
-have neither. **v1 marks three of these thirteen**; the other ten are marked
-nowhere in the shipped manifest and are known only from this file, `STATE.md`
-D31/D31b/D31c, and the run pages that found them.
+**v1 marks three of these thirteen**; the other ten are marked nowhere in the
+shipped manifest and are known only from this file, `STATE.md`
+D31/D31b/D31c/D36/D37/D38, and the run pages that found them.
+
+**`L2__036` is the one still open from D37.** Six of the seven grouped-conv
+problems were corrected in v1.2; `L2__036` is a backward problem and SOLAR
+routes backward graphs through `graph/backward_processor.py`, which never
+reaches the conv handler the fix wraps. It has never appeared on the list above
+and it is not fine: it is the kernel that clocked 1586 MHz, the highest measured
+anywhere on this node, which is what a kernel that is not saturating the
+datapath its bound was priced against looks like from outside.
 
 The count has risen every time a stronger optimizer covered more of the
 benchmark — 3, then 10, then 12, then 13 — which is the finding, not an
@@ -204,6 +222,37 @@ anchor-verified, so it has no `S` to publish.
   for `glm-run1`. Whether that budget is simply too small for a paged-prefill
   problem of that size, or whether it is another instance of D18's trouble on
   the same family, was not investigated.
+
+## The stream-join defense charges honest kernels for itself
+
+D38's fix fences and joins a submission's own streams around the timed region.
+The fence sits outside the bracket; the join cannot, so a submission that
+creates streams pays about **6–7 µs per tracked stream per iteration** inside
+its own measurement — measured by running the same single-stream computation
+with 0 and with 4 streams live in the process
+(`artifacts/11/side-stream-timing-hole-fixed.json`, probes `C` and `C2`).
+
+On a 0.7 ms kernel that is ~1% and invisible. On a 20 µs kernel it is not, and
+several FlashInfer problems are that small. It is in the safe direction —
+over-measuring cannot inflate a score — but it is a penalty on exactly the
+submissions that overlap honestly.
+
+Two ways out, neither free:
+
+1. **Move to the rocprofiler methodology**, which stamps each window's end
+   after a full synchronize and closes this by construction, with no per-stream
+   event ops. Task 04 is built and validated. It is not the default because
+   changing the methodology of record moves every measurement ever taken, so it
+   needs a clean batch, not a patch.
+2. **Join only streams with pending work.** There is no API for that; the
+   nearest is a per-stream `query()` before the join, which is a host round trip
+   and may cost more than it saves. Unmeasured.
+
+Also unresolved: the probe could not get a rocprofiler reading at all
+(`No GPU activities recorded during discovery iteration`, all six probes, both
+runs). The independent confirmation of D38 is the serialized host wall clock,
+which is sufficient — it cannot miss a stream — but the shim not working in
+that script is its own small unknown.
 
 ## Service and tooling
 

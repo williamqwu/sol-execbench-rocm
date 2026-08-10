@@ -46,11 +46,10 @@ by a constant nobody can see.
 Scores are valid only *within* a manifest version. Any stack change that moves
 `T_b` requires a new version, and so does a change to `T_SOL`.
 
-There are two. **v1** (`artifacts/09/manifest-v1.json`) is frozen: it is what
+There are three. **v1** (`artifacts/09/manifest-v1.json`) is frozen: it is what
 the release shipped and every score published against it stays valid against
-it. **v1.1** (`artifacts/09/manifest-v1.1.json`) is what the board serves. It
-repeats no measurement — every cycle count is v1's — and corrects two things
-about the conversion to milliseconds:
+it. **v1.1** repeats no measurement — every cycle count is v1's — and corrects
+two things about the conversion to milliseconds:
 
 * `T_SOL_ms` divides cycles by the measured clock of the datapath the workload
   runs on, not by a single F<sub>LOCK</sub>. Every matrix path holds 1300 MHz;
@@ -58,9 +57,23 @@ about the conversion to milliseconds:
 * A paged KV cache is priced at the pages the workload gathers, not at its
   allocation. See D18 and D36.
 
-Bounds a real kernel beats: **13 under v1, 6 under v1.1.** `scored.json`
-records which manifest produced it, because a score read against the wrong one
-is not off by a little.
+**v1.2** (`artifacts/09/manifest-v1.2.json`) is what the board serves. It is the
+first version that re-derives rather than re-divides: SOLAR read a convolution's
+`groups` only from `nn.Module` arguments, and every convolution in this
+benchmark is functional, so a depthwise convolution was priced as a dense one —
+over by exactly the group count, 768× on `L1__006`'s arithmetic term. Seven
+problems, 81 workloads. The pipeline was re-run on `device="meta"`, so still no
+GPU and no measurement repeated. See D37 and `scripts/rebuild_manifest_v12.py`.
+
+Bounds a real kernel beats: **13 under v1, 6 under v1.1, 3 under v1.2** — and
+one of the four that came off in between was not a bound problem at all. The
+harness was not seeing work a submission put on its own stream, so `L1__054`'s
+*time* was 32% short against a bound that was correct all along (D38). Two of
+the published scores were re-measured; the rest of the run was not, because
+re-timing 220 problems to correct two moves 218 numbers that were fine.
+
+`scored.json` records which manifest produced it, because a score read against
+the wrong one is not off by a little.
 
 ### Two means, and they are not interchangeable
 

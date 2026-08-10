@@ -69,6 +69,40 @@
 </table>
 </div>
 
+<h2 id="timing">How a submission is timed &mdash; and one way that went wrong</h2>
+<p>Each timed iteration is bracketed by two GPU events recorded on the default
+   stream, and the loop does not synchronize between iterations, so the driver's
+   queue stays full and launch latency does not leak into the number.</p>
+<div class="banner warn">
+  <p style="margin:0 0 8px"><b>Until 2026-08-10 that bracket could not see work
+     a submission put on a stream of its own.</b> With the queue deliberately
+     kept full, a freshly created side stream is empty, so work launched there
+     ran immediately &mdash; against <i>earlier</i> iterations &mdash; and its
+     duration never landed inside the bracket that paid for it. Measured on this
+     part: a 12.06&nbsp;ms GEMM reported as <b>0.0069&nbsp;ms</b>.</p>
+  <p style="margin:0">The timed region now fences the submission's own streams
+     from the default stream before the start event and joins them back before
+     the end event, which is what the <code>wait_stream</code> idiom does by
+     hand. A submission that creates no stream takes no new path, so no
+     single-stream measurement moved.</p>
+</div>
+<p class="sub">Two of the published scores were affected and were re-measured on
+   GPU 0. <code>L1__054</code> went 0.14395&nbsp;&rarr;&nbsp;0.18948&nbsp;ms and
+   <code>L1__055</code> 0.05871&nbsp;&rarr;&nbsp;0.07320&nbsp;ms; three more
+   kernels that create a stream turned out not to have been affected and are
+   unchanged, which is recorded rather than assumed. Nothing else in the run was
+   re-timed, because re-timing 220 problems to correct five would move 215
+   numbers that had nothing wrong with them.</p>
+<p class="sub">Worth being plain about what this changes in how the rest of this
+   page reads. <code>L1__054</code> was on the known-wrong-bounds list below and
+   is not any more &mdash; and its bound was never wrong. It was scoring a mean
+   of 1.07, above the roofline, because its <i>time</i> was 32% short. Meanwhile
+   <code>L1__055</code> was undercounted by 25% and appeared on no list at all,
+   because a kernel scoring 0.57 can be inflated by 10% without crossing 1.
+   &ldquo;A kernel beat its T<sub>SOL</sub>&rdquo; is one symptom with several
+   causes, and it only fires when the error is large enough to break that single
+   invariant.</p>
+
 <h2 id="coverage">Coverage</h2>
 <p>{{ meta.scoreable_problems }} of {{ meta.total_problems }} problems are scoreable in
    manifest {{ meta.manifest_version }}, covering {{ meta.scoreable_workloads }} workload
@@ -152,8 +186,22 @@
   lift any ranking, and are still shown on the problem page.
 </div>
 <p class="sub">There were thirteen of these under manifest v1 and they were
-   carried as thirteen defects. They were three causes, and v1.1 fixes two of
-   them &mdash; <b>13 down to 6</b>.</p>
+   carried as thirteen defects. They were not thirteen defects, and they were
+   not even all bound defects. <b>13 &rarr; 3</b>, in three steps:</p>
+<ul class="sub">
+  <li><b>v1.1</b> corrected the paged-cache traffic term (D18) and the single
+      F<sub>LOCK</sub> divisor (D35). <b>13 &rarr; 6.</b></li>
+  <li><b>The timer</b>, not a bound: <code>L1__054</code>'s T<sub>SOL</sub> was
+      right and its measured time was 32% short, because the harness did not see
+      work the kernel put on its own stream (<a href="#timing">above</a>).
+      <b>6 &rarr; 5.</b></li>
+  <li><b>v1.2</b> corrected SOLAR's pricing of a grouped convolution: it read
+      <code>groups</code> only from <code>nn.Module</code> arguments, and every
+      convolution here is functional, so a depthwise convolution was costed as
+      though every input channel fed every output channel &mdash; over by
+      exactly the group count, 768&times; on <code>L1__006</code>'s arithmetic
+      term. <b>5 &rarr; 3.</b></li>
+</ul>
 <p class="sub"><b>D18</b>, the paged&#8209;cache traffic defect: the bound
    priced a KV cache at its full allocation while the kernel gathers only the
    pages <code>kv_indices</code> names. For one problem the bound was the same
@@ -167,10 +215,18 @@
    <i>never</i> been beaten by anything were measured holding the same high
    clock as the ones that did &mdash; one of them higher than any violation on
    this board. The list is the subset where a kernel got good enough to expose
-   a bound, not the subset of bounds that were wrong. What remains below is
-   genuinely undiagnosed, and three of those problems involve a convolution.
-   Which applies to which is recorded in <code>STATE.md</code> D18, D35 and
-   D36, not inferred here.</p>
+   a bound, not the subset of bounds that were wrong.</p>
+<p class="sub">The grouped-convolution correction is the proof of that.
+   <b>Seven</b> problems had it. Four had appeared on this list and three never
+   had &mdash; and the three were not the ones whose bounds were right. They
+   were the ones whose bounds were too wrong for anything to get near.
+   <code>L2__036</code> is the case in point: never flagged, and the kernel that
+   clocked the highest frequency measured anywhere on this node, which is what a
+   kernel not saturating the datapath its bound was priced against looks like
+   from outside. It is also the one problem of the seven that v1.2 did
+   <i>not</i> fix, because SOLAR routes backward graphs down a different path.
+   Which correction applies to which problem is recorded in
+   <code>STATE.md</code> D18, D35, D36, D37 and D38, not inferred here.</p>
 <div class="scroll">
 <table class="grid">
   <thead><tr><th>problem</th><th class="r">workloads</th><th>headroom T<sub>b</sub>/T<sub>SOL</sub></th></tr></thead>

@@ -1283,6 +1283,7 @@ TOC_METHODOLOGY = [
     {"id": "score", "label": "The score"},
     {"id": "bounds", "label": "Where the bounds came from"},
     {"id": "measured", "label": "What is measured"},
+    {"id": "timing", "label": "How a submission is timed"},
     {"id": "coverage", "label": "Coverage"},
     {"id": "deferred", "label": "Deferred problems"},
     {"id": "not-covered", "label": "What it does not cover"},
