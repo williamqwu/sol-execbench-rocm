@@ -1,0 +1,4441 @@
+{
+ "run_id": "gpt56-180",
+ "model": "gpt-5.6-sol",
+ "harness": "codex-cli",
+ "gateway": "http://127.0.0.1:7204/v1",
+ "gpus_used_by_agents": [],
+ "n_problems": 158,
+ "problems": [
+  "FlashInfer-Bench__002_fused_add_rmsnorm_h4096",
+  "FlashInfer-Bench__003_fused_add_rmsnorm_h7168",
+  "FlashInfer-Bench__004_gemm_n128_k2048",
+  "FlashInfer-Bench__006_gemm_n2048_k4096",
+  "FlashInfer-Bench__007_gemm_n4096_k4096",
+  "FlashInfer-Bench__008_gemm_n4096_k14336",
+  "FlashInfer-Bench__009_gemm_n5120_k2048",
+  "FlashInfer-Bench__011_gemm_n28672_k4096",
+  "FlashInfer-Bench__012_gqa_paged_decode_h32_kv4_d128_ps1",
+  "FlashInfer-Bench__013_gqa_paged_decode_h32_kv8_d128_ps1",
+  "FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1",
+  "FlashInfer-Bench__015_gqa_paged_prefill_causal_h32_kv8_d128_ps1",
+  "FlashInfer-Bench__017_gqa_ragged_prefill_causal_h32_kv8_d128",
+  "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1",
+  "FlashInfer-Bench__020_moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048",
+  "FlashInfer-Bench__022_rmsnorm_h512",
+  "FlashInfer-Bench__023_rmsnorm_h1536",
+  "FlashInfer-Bench__024_rmsnorm_h2048",
+  "FlashInfer-Bench__025_rmsnorm_h4096",
+  "FlashInfer-Bench__026_rmsnorm_h7168",
+  "L1__001_attention_softmax_dropout_value_matmul_backward",
+  "L1__002_vae_conv3x3_groupnorm_silu_residual_fused",
+  "L1__003_lm_head_projection_with_logit_slicing",
+  "L1__004_attention_output_projection_with_reshape_backward",
+  "L1__005_conv_gated_projection_with_causal_conv",
+  "L1__008_expert_output_weighted_index_add_accumulation",
+  "L1__009_expert_token_scatter_with_weighted_forward_backward",
+  "L1__011_rotary_position_embedding",
+  "L1__012_fused_cos_sin_embedding_generation",
+  "L1__013_fused_residual_rms_norm_backward",
+  "L1__014_rotary_embedding_with_attention_scaling_backward",
+  "L1__015_grouped_query_attention_with_rope_and_qk_norm",
+  "L1__016_rope_inverse_frequency_computation",
+  "L1__017_moe_expert_swiglu_with_down_projection_backward",
+  "L1__018_fused_rope_with_qk_norm_and_kv_cache_update",
+  "L1__019_vision_3d_rotary_embedding_with_spatial_merge_indexing_backward",
+  "L1__020_vision_patch_merger_spatial_shuffle_mlp",
+  "L1__022_vision_mlp_gelu_backward",
+  "L1__023_multimodal_rope_position_computation_with_grid_based_indexing",
+  "L1__024_vision_rotary_position_embedding_generation_backward",
+  "L1__025_video_latent_gelu_activation",
+  "L1__027_video_spatial_attention_with_rope_3d",
+  "L1__028_hybrid_attention_mask_preparation",
+  "L1__029_mamba_conv1d_with_gating",
+  "L1__030_attention_output_projection_with_residual",
+  "L1__031_repeat_kv_attention_matmul",
+  "L1__032_attention_weights_matmul_with_value_projection",
+  "L1__033_post_norm_residual",
+  "L1__034_flux_multi_axis_rope_frequency_computation",
+  "L1__035_flux_ada_layer_norm_zero_modulation_extraction",
+  "L1__036_flux_output_norm_projection_chain",
+  "L1__037_flux_feedforward_gelu_approximate",
+  "L1__038_flux_multi_head_rmsnorm_qk",
+  "L1__039_adaptive_instance_normalization_2d_backward",
+  "L1__040_conv2d_residual_block",
+  "L1__041_strided_conv2d_downsampling",
+  "L1__042_moe_expert_load_balancing_and_token_capacity_backward",
+  "L1__043_mla_fused_qkv_rope_split",
+  "L1__044_moe_expert_computation",
+  "L1__045_fused_linear_gelu_grn_linear",
+  "L1__047_attention_with_qk_norm_and_rope",
+  "L1__048_fused_gate_up_projection_with_swiglu",
+  "L1__049_attention_qk_matmul_with_gqa_repeat_and_scaling",
+  "L1__051_attention_qkv_with_qk_norm_single_kernel_backward",
+  "L1__052_altup_hidden_state_collapse_with_magnitude_normalization",
+  "L1__053_gaussian_topk_sparse_activation",
+  "L1__055_attention_qkv_projection_with_gqa_reshape",
+  "L1__056_mamba_ssm_dt_projection_softplus_clamp_backward",
+  "L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion",
+  "L1__058_moe_expert_token_radix_sort_with_prefix_sum",
+  "L1__060_fused_attention_qk_matmul_scale_mask_softmax_backward",
+  "L1__061_tanh_gated_residual_add_backward",
+  "L1__062_kv_cache_update_with_rope_backward",
+  "L1__063_attention_output_reshape_and_projection",
+  "L1__064_latent_kv_expansion_with_split",
+  "L1__066_masked_softmax_with_attention_dropout_backward",
+  "L1__067_flash_attention_gqa_ultralong",
+  "L1__068_fused_rope_application_backward",
+  "L1__069_rms_norm",
+  "L1__070_mamba2_fused_intra_chunk_diagonal_computation",
+  "L1__071_kv_cache_update_with_rope",
+  "L1__072_cross_attention_qkv_projection_with_gqa_repeat_backward",
+  "L1__075_grouped_query_self_attention_with_rope",
+  "L1__076_batched_expert_forward",
+  "L1__078_group_norm_fusion",
+  "L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward",
+  "L1__080_adaptive_layernorm_continuous_with_modulation",
+  "L1__081_joint_attention_context_projection",
+  "L1__082_qk_norm_scaled_dot_product_attention",
+  "L1__084_silu_activation_backward",
+  "L1__085_geglu_activation",
+  "L1__086_sam_hq_mask_decoder_iou_hypernetwork_fusion",
+  "L1__087_embedding_with_initial_layernorm_backward",
+  "L1__089_vae_attention_block_with_groupnorm",
+  "L1__091_fused_gqa_qkv_rope_qk_norm_backward",
+  "L1__092_gqa_attention_with_qk_norm",
+  "L1__093_grouped_topk_moe_routing_backward",
+  "L2__001_fused_vision_multihead_attention_with_norms_backward",
+  "L2__002_decoder_layer_full_block",
+  "L2__003_grouped_query_attention_with_rope_backward",
+  "L2__004_fused_residual_rms_mlp",
+  "L2__005_swiglu_mlp_backward",
+  "L2__006_multimodal_rope_position_calculation",
+  "L2__008_moe_sparse_routing_and_dispatch",
+  "L2__009_decoder_layer_with_residual_connections",
+  "L2__010_moe_expert_computation_with_weighted_accumulation",
+  "L2__012_moe_expert_batched_execution_with_capacity_factor",
+  "L2__013_expert_weighted_aggregation_with_shared_expert",
+  "L2__014_audio_encoder_varlen_attention_with_chunking_backward",
+  "L2__016_moe_expert_mlp_with_load_balancing",
+  "L2__017_fused_vision_cu_seqlens_attention_with_2d_rope_backward",
+  "L2__019_decoder_layer_fused_attention_mlp",
+  "L2__020_decoder_layer_pre_post_norm_residual",
+  "L2__021_cross_attention_text_video_conditioning_backward",
+  "L2__022_video_latent_denoising_unet_block",
+  "L2__023_video_latent_vae_encoder_downsampling",
+  "L2__024_moe_expert_parallel_execution",
+  "L2__025_moe_expert_parallel_execution_backward",
+  "L2__026_moe_expert_parallel_execution_with_weighted_aggregation",
+  "L2__027_grouped_query_attention_with_yarn_rope_and_qk_norm",
+  "L2__028_gqa_rotary_attention_core_backward",
+  "L2__029_moe_sparse_routing_and_dispatch",
+  "L2__030_flux_concatenated_sequence_processing_with_split",
+  "L2__031_flux_timestep_guidance_projection_embedding",
+  "L2__033_multi_scale_feature_pyramid",
+  "L2__034_vision_language_cross_attention_fusion",
+  "L2__035_convnextv2_block_with_grn",
+  "L2__036_convnextv2_layer_with_nhwc_persistence_backward",
+  "L2__037_qk_norm_rope_attention_core_backward",
+  "L2__038_audio_relative_position_attention",
+  "L2__039_kv_shared_attention_with_rope",
+  "L2__040_altup_predict_correction_cycle_backward",
+  "L2__041_kv_shared_attention_with_dual_rope",
+  "L2__042_ffn_gelu_projection_fused_backward",
+  "L2__043_mamba_chunk_scan_with_segsum",
+  "L2__044_mamba_discretization_and_segsum",
+  "L2__046_conformer_relative_position_attention",
+  "L2__047_moe_training_token_repeat_and_expert_computation",
+  "L2__048_moe_expert_inference_batched_dispatch",
+  "L2__049_group_limited_topk_routing",
+  "L2__052_seqlen-finetuned-reconstructed_hyena_gating_and_output_projection",
+  "L2__053_text_decoder_layer_with_self_attention_and_mlp",
+  "L2__054_vision_encoder_layer_with_gated_residuals",
+  "L2__055_audio_encoder_conv_positional_layer_stack",
+  "L2__057_residual_coupling_flow_block",
+  "L2__058_mamba2_selective_scan",
+  "L2__059_decoder_layer_full_block",
+  "L2__061_sparse_moe_routing_and_experts",
+  "L2__062_decoder_complete_layer",
+  "L2__063_encoder_layer_dual_residual_norm_chain",
+  "L2__064_multi_head_qkv_projection_with_rope_backward",
+  "L2__065_sparse_expert_dispatch_and_combine",
+  "L2__066_resnet_block_with_time_embedding",
+  "L2__070_basic_transformer_block",
+  "L2__071_edit_consistency_loss_with_perceptual_weighting",
+  "L2__073_feedforward_mlp_backward",
+  "L2__074_sam_hq_mask_decoder_iou_hypernetwork_fusion_backward",
+  "L2__075_sam_hq_mask_decoder_two_way_transformer"
+ ],
+ "sessions": {
+  "FlashInfer-Bench__002_fused_add_rmsnorm_h4096": {
+   "problem": "FlashInfer-Bench__002_fused_add_rmsnorm_h4096",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__002_fused_add_rmsnorm_h4096",
+   "definition": "002_fused_add_rmsnorm_h4096",
+   "n_workloads": 14,
+   "task_chars": 5171,
+   "job_id": "j-15275bc0b50b",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2256943,
+     "completion_tokens": 10029,
+     "reasoning_tokens": 1476,
+     "total_tokens": 2266972,
+     "calls": 88,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__003_fused_add_rmsnorm_h7168": {
+   "problem": "FlashInfer-Bench__003_fused_add_rmsnorm_h7168",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__003_fused_add_rmsnorm_h7168",
+   "definition": "003_fused_add_rmsnorm_h7168",
+   "n_workloads": 8,
+   "task_chars": 5067,
+   "job_id": "j-373846c8813c",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3055460,
+     "completion_tokens": 15465,
+     "reasoning_tokens": 2892,
+     "total_tokens": 3070925,
+     "calls": 99,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__004_gemm_n128_k2048": {
+   "problem": "FlashInfer-Bench__004_gemm_n128_k2048",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__004_gemm_n128_k2048",
+   "definition": "004_gemm_n128_k2048",
+   "n_workloads": 25,
+   "task_chars": 4608,
+   "job_id": "j-0480cd0f0fa8",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2304384,
+     "completion_tokens": 10513,
+     "reasoning_tokens": 2337,
+     "total_tokens": 2314897,
+     "calls": 70,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__006_gemm_n2048_k4096": {
+   "problem": "FlashInfer-Bench__006_gemm_n2048_k4096",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__006_gemm_n2048_k4096",
+   "definition": "006_gemm_n2048_k4096",
+   "n_workloads": 29,
+   "task_chars": 4620,
+   "job_id": "j-c029aa90cff6",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2932849,
+     "completion_tokens": 11983,
+     "reasoning_tokens": 2768,
+     "total_tokens": 2944832,
+     "calls": 81,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__007_gemm_n4096_k4096": {
+   "problem": "FlashInfer-Bench__007_gemm_n4096_k4096",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__007_gemm_n4096_k4096",
+   "definition": "007_gemm_n4096_k4096",
+   "n_workloads": 43,
+   "task_chars": 4628,
+   "job_id": "j-c7c67dd26ba3",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4478429,
+     "completion_tokens": 13126,
+     "reasoning_tokens": 2490,
+     "total_tokens": 4491555,
+     "calls": 87,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__008_gemm_n4096_k14336": {
+   "problem": "FlashInfer-Bench__008_gemm_n4096_k14336",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__008_gemm_n4096_k14336",
+   "definition": "008_gemm_n4096_k14336",
+   "n_workloads": 43,
+   "task_chars": 4635,
+   "job_id": "j-30dfb28225b7",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 6466842,
+     "completion_tokens": 14777,
+     "reasoning_tokens": 3918,
+     "total_tokens": 6481619,
+     "calls": 111,
+     "failed_calls": 2
+    }
+   }
+  },
+  "FlashInfer-Bench__009_gemm_n5120_k2048": {
+   "problem": "FlashInfer-Bench__009_gemm_n5120_k2048",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__009_gemm_n5120_k2048",
+   "definition": "009_gemm_n5120_k2048",
+   "n_workloads": 25,
+   "task_chars": 4618,
+   "job_id": "j-2d94a9c24cfc",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2744000,
+     "completion_tokens": 13075,
+     "reasoning_tokens": 2606,
+     "total_tokens": 2757075,
+     "calls": 79,
+     "failed_calls": 1
+    }
+   }
+  },
+  "FlashInfer-Bench__011_gemm_n28672_k4096": {
+   "problem": "FlashInfer-Bench__011_gemm_n28672_k4096",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__011_gemm_n28672_k4096",
+   "definition": "011_gemm_n28672_k4096",
+   "n_workloads": 43,
+   "task_chars": 4638,
+   "job_id": "j-93d2e57f930c",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5024967,
+     "completion_tokens": 14428,
+     "reasoning_tokens": 3059,
+     "total_tokens": 5039395,
+     "calls": 91,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__012_gqa_paged_decode_h32_kv4_d128_ps1": {
+   "problem": "FlashInfer-Bench__012_gqa_paged_decode_h32_kv4_d128_ps1",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__012_gqa_paged_decode_h32_kv4_d128_ps1",
+   "definition": "012_gqa_paged_decode_h32_kv4_d128_ps1",
+   "n_workloads": 48,
+   "task_chars": 9264,
+   "job_id": "j-0cb173eb5462",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 7533413,
+     "completion_tokens": 14954,
+     "reasoning_tokens": 2368,
+     "total_tokens": 7548367,
+     "calls": 145,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__013_gqa_paged_decode_h32_kv8_d128_ps1": {
+   "problem": "FlashInfer-Bench__013_gqa_paged_decode_h32_kv8_d128_ps1",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__013_gqa_paged_decode_h32_kv8_d128_ps1",
+   "definition": "013_gqa_paged_decode_h32_kv8_d128_ps1",
+   "n_workloads": 48,
+   "task_chars": 9215,
+   "job_id": "j-6b90caeba3d9",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2890780,
+     "completion_tokens": 8939,
+     "reasoning_tokens": 1744,
+     "total_tokens": 2899719,
+     "calls": 93,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1": {
+   "problem": "FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1",
+   "definition": "014_gqa_paged_prefill_causal_h32_kv4_d128_ps1",
+   "n_workloads": 30,
+   "task_chars": 9946,
+   "job_id": "j-ff5b28adeb6b",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 6004822,
+     "completion_tokens": 13465,
+     "reasoning_tokens": 2435,
+     "total_tokens": 6018287,
+     "calls": 156,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__015_gqa_paged_prefill_causal_h32_kv8_d128_ps1": {
+   "problem": "FlashInfer-Bench__015_gqa_paged_prefill_causal_h32_kv8_d128_ps1",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__015_gqa_paged_prefill_causal_h32_kv8_d128_ps1",
+   "definition": "015_gqa_paged_prefill_causal_h32_kv8_d128_ps1",
+   "n_workloads": 38,
+   "task_chars": 9927,
+   "job_id": "j-811f9dc0eb38",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4862349,
+     "completion_tokens": 11166,
+     "reasoning_tokens": 2707,
+     "total_tokens": 4873515,
+     "calls": 118,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__017_gqa_ragged_prefill_causal_h32_kv8_d128": {
+   "problem": "FlashInfer-Bench__017_gqa_ragged_prefill_causal_h32_kv8_d128",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__017_gqa_ragged_prefill_causal_h32_kv8_d128",
+   "definition": "017_gqa_ragged_prefill_causal_h32_kv8_d128",
+   "n_workloads": 21,
+   "task_chars": 8853,
+   "job_id": "j-dfa57e92d4a7",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2682735,
+     "completion_tokens": 12127,
+     "reasoning_tokens": 2524,
+     "total_tokens": 2694862,
+     "calls": 74,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1": {
+   "problem": "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1",
+   "definition": "018_mla_paged_decode_h16_ckv512_kpe64_ps1",
+   "n_workloads": 47,
+   "task_chars": 9440,
+   "job_id": "j-29485d2b0dfc",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3806116,
+     "completion_tokens": 18703,
+     "reasoning_tokens": 3959,
+     "total_tokens": 3824819,
+     "calls": 80,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__020_moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048": {
+   "problem": "FlashInfer-Bench__020_moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__020_moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048",
+   "definition": "020_moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048",
+   "n_workloads": 19,
+   "task_chars": 13945,
+   "job_id": "j-d55971a0dafd",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 11688687,
+     "completion_tokens": 28826,
+     "reasoning_tokens": 5818,
+     "total_tokens": 11717513,
+     "calls": 178,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__022_rmsnorm_h512": {
+   "problem": "FlashInfer-Bench__022_rmsnorm_h512",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__022_rmsnorm_h512",
+   "definition": "022_rmsnorm_h512",
+   "n_workloads": 8,
+   "task_chars": 4957,
+   "job_id": "j-e4e4eb9c4055",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1080436,
+     "completion_tokens": 11670,
+     "reasoning_tokens": 2319,
+     "total_tokens": 1092106,
+     "calls": 45,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__023_rmsnorm_h1536": {
+   "problem": "FlashInfer-Bench__023_rmsnorm_h1536",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__023_rmsnorm_h1536",
+   "definition": "023_rmsnorm_h1536",
+   "n_workloads": 8,
+   "task_chars": 4964,
+   "job_id": "j-38a863a1f194",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1854055,
+     "completion_tokens": 11294,
+     "reasoning_tokens": 1759,
+     "total_tokens": 1865349,
+     "calls": 75,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__024_rmsnorm_h2048": {
+   "problem": "FlashInfer-Bench__024_rmsnorm_h2048",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__024_rmsnorm_h2048",
+   "definition": "024_rmsnorm_h2048",
+   "n_workloads": 7,
+   "task_chars": 4946,
+   "job_id": "j-4bb6980f20f7",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1632674,
+     "completion_tokens": 13772,
+     "reasoning_tokens": 2597,
+     "total_tokens": 1646446,
+     "calls": 71,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__025_rmsnorm_h4096": {
+   "problem": "FlashInfer-Bench__025_rmsnorm_h4096",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__025_rmsnorm_h4096",
+   "definition": "025_rmsnorm_h4096",
+   "n_workloads": 14,
+   "task_chars": 5068,
+   "job_id": "j-01fc5596bbb2",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2564416,
+     "completion_tokens": 11394,
+     "reasoning_tokens": 1930,
+     "total_tokens": 2575810,
+     "calls": 85,
+     "failed_calls": 0
+    }
+   }
+  },
+  "FlashInfer-Bench__026_rmsnorm_h7168": {
+   "problem": "FlashInfer-Bench__026_rmsnorm_h7168",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/FlashInfer-Bench__026_rmsnorm_h7168",
+   "definition": "026_rmsnorm_h7168",
+   "n_workloads": 8,
+   "task_chars": 4964,
+   "job_id": "j-4c9539843c3e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2855288,
+     "completion_tokens": 15920,
+     "reasoning_tokens": 3437,
+     "total_tokens": 2871208,
+     "calls": 85,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__001_attention_softmax_dropout_value_matmul_backward": {
+   "problem": "L1__001_attention_softmax_dropout_value_matmul_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__001_attention_softmax_dropout_value_matmul_backward",
+   "definition": "001_attention_softmax_dropout_value_matmul_backward",
+   "n_workloads": 16,
+   "task_chars": 11580,
+   "job_id": "j-9287bbc17ca6",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3454177,
+     "completion_tokens": 13972,
+     "reasoning_tokens": 2426,
+     "total_tokens": 3468149,
+     "calls": 102,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__002_vae_conv3x3_groupnorm_silu_residual_fused": {
+   "problem": "L1__002_vae_conv3x3_groupnorm_silu_residual_fused",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__002_vae_conv3x3_groupnorm_silu_residual_fused",
+   "definition": "002_vae_conv3x3_groupnorm_silu_residual_fused",
+   "n_workloads": 20,
+   "task_chars": 7855,
+   "job_id": "j-493f34153145",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 7525276,
+     "completion_tokens": 15054,
+     "reasoning_tokens": 3221,
+     "total_tokens": 7540330,
+     "calls": 133,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__003_lm_head_projection_with_logit_slicing": {
+   "problem": "L1__003_lm_head_projection_with_logit_slicing",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__003_lm_head_projection_with_logit_slicing",
+   "definition": "003_lm_head_projection_with_logit_slicing",
+   "n_workloads": 16,
+   "task_chars": 8116,
+   "job_id": "j-d910463b57fb",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3309533,
+     "completion_tokens": 17465,
+     "reasoning_tokens": 4741,
+     "total_tokens": 3326998,
+     "calls": 91,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__004_attention_output_projection_with_reshape_backward": {
+   "problem": "L1__004_attention_output_projection_with_reshape_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__004_attention_output_projection_with_reshape_backward",
+   "definition": "004_attention_output_projection_with_reshape_backward",
+   "n_workloads": 16,
+   "task_chars": 7638,
+   "job_id": "j-efec2d781508",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2763278,
+     "completion_tokens": 12665,
+     "reasoning_tokens": 2856,
+     "total_tokens": 2775943,
+     "calls": 88,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__005_conv_gated_projection_with_causal_conv": {
+   "problem": "L1__005_conv_gated_projection_with_causal_conv",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__005_conv_gated_projection_with_causal_conv",
+   "definition": "005_conv_gated_projection_with_causal_conv",
+   "n_workloads": 16,
+   "task_chars": 7903,
+   "job_id": "j-0ca8dcbde6a3",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3934014,
+     "completion_tokens": 22432,
+     "reasoning_tokens": 4498,
+     "total_tokens": 3956446,
+     "calls": 92,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__008_expert_output_weighted_index_add_accumulation": {
+   "problem": "L1__008_expert_output_weighted_index_add_accumulation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__008_expert_output_weighted_index_add_accumulation",
+   "definition": "008_expert_output_weighted_index_add_accumulation",
+   "n_workloads": 16,
+   "task_chars": 7937,
+   "job_id": "j-ee688b338b69",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4473184,
+     "completion_tokens": 15387,
+     "reasoning_tokens": 2605,
+     "total_tokens": 4488571,
+     "calls": 124,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__009_expert_token_scatter_with_weighted_forward_backward": {
+   "problem": "L1__009_expert_token_scatter_with_weighted_forward_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__009_expert_token_scatter_with_weighted_forward_backward",
+   "definition": "009_expert_token_scatter_with_weighted_forward_backward",
+   "n_workloads": 16,
+   "task_chars": 13683,
+   "job_id": "j-4b2ef95a2ee3",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5951889,
+     "completion_tokens": 19374,
+     "reasoning_tokens": 3850,
+     "total_tokens": 5971263,
+     "calls": 139,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__011_rotary_position_embedding": {
+   "problem": "L1__011_rotary_position_embedding",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__011_rotary_position_embedding",
+   "definition": "011_rotary_position_embedding",
+   "n_workloads": 16,
+   "task_chars": 8624,
+   "job_id": "j-6e38a3b17372",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2396143,
+     "completion_tokens": 12069,
+     "reasoning_tokens": 2124,
+     "total_tokens": 2408212,
+     "calls": 75,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__012_fused_cos_sin_embedding_generation": {
+   "problem": "L1__012_fused_cos_sin_embedding_generation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__012_fused_cos_sin_embedding_generation",
+   "definition": "012_fused_cos_sin_embedding_generation",
+   "n_workloads": 16,
+   "task_chars": 6416,
+   "job_id": "j-56bf303e3593",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2537206,
+     "completion_tokens": 13627,
+     "reasoning_tokens": 2531,
+     "total_tokens": 2550833,
+     "calls": 76,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__013_fused_residual_rms_norm_backward": {
+   "problem": "L1__013_fused_residual_rms_norm_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__013_fused_residual_rms_norm_backward",
+   "definition": "013_fused_residual_rms_norm_backward",
+   "n_workloads": 16,
+   "task_chars": 7081,
+   "job_id": "j-ee14402a2761",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3702614,
+     "completion_tokens": 13617,
+     "reasoning_tokens": 3099,
+     "total_tokens": 3716231,
+     "calls": 118,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__014_rotary_embedding_with_attention_scaling_backward": {
+   "problem": "L1__014_rotary_embedding_with_attention_scaling_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__014_rotary_embedding_with_attention_scaling_backward",
+   "definition": "014_rotary_embedding_with_attention_scaling_backward",
+   "n_workloads": 16,
+   "task_chars": 8848,
+   "job_id": "j-e81e58aa6cbc",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3258877,
+     "completion_tokens": 16327,
+     "reasoning_tokens": 3315,
+     "total_tokens": 3275204,
+     "calls": 85,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__015_grouped_query_attention_with_rope_and_qk_norm": {
+   "problem": "L1__015_grouped_query_attention_with_rope_and_qk_norm",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__015_grouped_query_attention_with_rope_and_qk_norm",
+   "definition": "015_grouped_query_attention_with_rope_and_qk_norm",
+   "n_workloads": 16,
+   "task_chars": 10632,
+   "job_id": "j-59ab34dc2f3e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4075928,
+     "completion_tokens": 17838,
+     "reasoning_tokens": 3912,
+     "total_tokens": 4093766,
+     "calls": 100,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__016_rope_inverse_frequency_computation": {
+   "problem": "L1__016_rope_inverse_frequency_computation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__016_rope_inverse_frequency_computation",
+   "definition": "016_rope_inverse_frequency_computation",
+   "n_workloads": 16,
+   "task_chars": 5813,
+   "job_id": "j-c0c5a3bb3aa9",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2477317,
+     "completion_tokens": 11780,
+     "reasoning_tokens": 2543,
+     "total_tokens": 2489097,
+     "calls": 75,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__017_moe_expert_swiglu_with_down_projection_backward": {
+   "problem": "L1__017_moe_expert_swiglu_with_down_projection_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__017_moe_expert_swiglu_with_down_projection_backward",
+   "definition": "017_moe_expert_swiglu_with_down_projection_backward",
+   "n_workloads": 16,
+   "task_chars": 10061,
+   "job_id": "j-246b2c2a4d15",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4900835,
+     "completion_tokens": 19117,
+     "reasoning_tokens": 4446,
+     "total_tokens": 4919952,
+     "calls": 117,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__018_fused_rope_with_qk_norm_and_kv_cache_update": {
+   "problem": "L1__018_fused_rope_with_qk_norm_and_kv_cache_update",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__018_fused_rope_with_qk_norm_and_kv_cache_update",
+   "definition": "018_fused_rope_with_qk_norm_and_kv_cache_update",
+   "n_workloads": 13,
+   "task_chars": 10662,
+   "job_id": "j-1ad48093d5a5",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4184433,
+     "completion_tokens": 12621,
+     "reasoning_tokens": 1549,
+     "total_tokens": 4197054,
+     "calls": 138,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__019_vision_3d_rotary_embedding_with_spatial_merge_indexing_backward": {
+   "problem": "L1__019_vision_3d_rotary_embedding_with_spatial_merge_indexing_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__019_vision_3d_rotary_embedding_with_spatial_merge_indexing_backward",
+   "definition": "019_vision_3d_rotary_embedding_with_spatial_merge_indexing_backward",
+   "n_workloads": 16,
+   "task_chars": 9161,
+   "job_id": "j-269fae59033e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3204838,
+     "completion_tokens": 16081,
+     "reasoning_tokens": 3204,
+     "total_tokens": 3220919,
+     "calls": 94,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__020_vision_patch_merger_spatial_shuffle_mlp": {
+   "problem": "L1__020_vision_patch_merger_spatial_shuffle_mlp",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__020_vision_patch_merger_spatial_shuffle_mlp",
+   "definition": "020_vision_patch_merger_spatial_shuffle_mlp",
+   "n_workloads": 15,
+   "task_chars": 12318,
+   "job_id": "j-67db31a7f89a",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3165047,
+     "completion_tokens": 13955,
+     "reasoning_tokens": 2635,
+     "total_tokens": 3179002,
+     "calls": 97,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__022_vision_mlp_gelu_backward": {
+   "problem": "L1__022_vision_mlp_gelu_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__022_vision_mlp_gelu_backward",
+   "definition": "022_vision_mlp_gelu_backward",
+   "n_workloads": 16,
+   "task_chars": 8502,
+   "job_id": "j-cb32b76cd482",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2574814,
+     "completion_tokens": 14873,
+     "reasoning_tokens": 3810,
+     "total_tokens": 2589687,
+     "calls": 81,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__023_multimodal_rope_position_computation_with_grid_based_indexing": {
+   "problem": "L1__023_multimodal_rope_position_computation_with_grid_based_indexing",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__023_multimodal_rope_position_computation_with_grid_based_indexing",
+   "definition": "023_multimodal_rope_position_computation_with_grid_based_indexing",
+   "n_workloads": 16,
+   "task_chars": 14111,
+   "job_id": "j-0450552b964e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2686462,
+     "completion_tokens": 18800,
+     "reasoning_tokens": 3399,
+     "total_tokens": 2705262,
+     "calls": 74,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__024_vision_rotary_position_embedding_generation_backward": {
+   "problem": "L1__024_vision_rotary_position_embedding_generation_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__024_vision_rotary_position_embedding_generation_backward",
+   "definition": "024_vision_rotary_position_embedding_generation_backward",
+   "n_workloads": 16,
+   "task_chars": 10093,
+   "job_id": "j-929d79e03d6a",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1557598,
+     "completion_tokens": 13130,
+     "reasoning_tokens": 2730,
+     "total_tokens": 1570728,
+     "calls": 48,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__025_video_latent_gelu_activation": {
+   "problem": "L1__025_video_latent_gelu_activation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__025_video_latent_gelu_activation",
+   "definition": "025_video_latent_gelu_activation",
+   "n_workloads": 16,
+   "task_chars": 5804,
+   "job_id": "j-7ceed28551a1",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1683347,
+     "completion_tokens": 10735,
+     "reasoning_tokens": 1728,
+     "total_tokens": 1694082,
+     "calls": 59,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__027_video_spatial_attention_with_rope_3d": {
+   "problem": "L1__027_video_spatial_attention_with_rope_3d",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__027_video_spatial_attention_with_rope_3d",
+   "definition": "027_video_spatial_attention_with_rope_3d",
+   "n_workloads": 16,
+   "task_chars": 12715,
+   "job_id": "j-214d63ad154d",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1348442,
+     "completion_tokens": 15625,
+     "reasoning_tokens": 3557,
+     "total_tokens": 1364067,
+     "calls": 46,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__028_hybrid_attention_mask_preparation": {
+   "problem": "L1__028_hybrid_attention_mask_preparation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__028_hybrid_attention_mask_preparation",
+   "definition": "028_hybrid_attention_mask_preparation",
+   "n_workloads": 12,
+   "task_chars": 8493,
+   "job_id": "j-9e604dfd8683",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4029452,
+     "completion_tokens": 20343,
+     "reasoning_tokens": 4577,
+     "total_tokens": 4049795,
+     "calls": 104,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__029_mamba_conv1d_with_gating": {
+   "problem": "L1__029_mamba_conv1d_with_gating",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__029_mamba_conv1d_with_gating",
+   "definition": "029_mamba_conv1d_with_gating",
+   "n_workloads": 16,
+   "task_chars": 8074,
+   "job_id": "j-c6507c5cc5e4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5726520,
+     "completion_tokens": 16177,
+     "reasoning_tokens": 2399,
+     "total_tokens": 5742697,
+     "calls": 158,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__030_attention_output_projection_with_residual": {
+   "problem": "L1__030_attention_output_projection_with_residual",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__030_attention_output_projection_with_residual",
+   "definition": "030_attention_output_projection_with_residual",
+   "n_workloads": 16,
+   "task_chars": 6804,
+   "job_id": "j-9be03f1032ea",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1787694,
+     "completion_tokens": 9826,
+     "reasoning_tokens": 2126,
+     "total_tokens": 1797520,
+     "calls": 66,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__031_repeat_kv_attention_matmul": {
+   "problem": "L1__031_repeat_kv_attention_matmul",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__031_repeat_kv_attention_matmul",
+   "definition": "031_repeat_kv_attention_matmul",
+   "n_workloads": 16,
+   "task_chars": 6990,
+   "job_id": "j-1adcfc9c7850",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2806452,
+     "completion_tokens": 12199,
+     "reasoning_tokens": 2476,
+     "total_tokens": 2818651,
+     "calls": 94,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__032_attention_weights_matmul_with_value_projection": {
+   "problem": "L1__032_attention_weights_matmul_with_value_projection",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__032_attention_weights_matmul_with_value_projection",
+   "definition": "032_attention_weights_matmul_with_value_projection",
+   "n_workloads": 16,
+   "task_chars": 7025,
+   "job_id": "j-b0982c6bf810",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3246194,
+     "completion_tokens": 12396,
+     "reasoning_tokens": 2753,
+     "total_tokens": 3258590,
+     "calls": 102,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__033_post_norm_residual": {
+   "problem": "L1__033_post_norm_residual",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__033_post_norm_residual",
+   "definition": "033_post_norm_residual",
+   "n_workloads": 16,
+   "task_chars": 7020,
+   "job_id": "j-4f3386969511",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3218754,
+     "completion_tokens": 14561,
+     "reasoning_tokens": 2255,
+     "total_tokens": 3233315,
+     "calls": 92,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__034_flux_multi_axis_rope_frequency_computation": {
+   "problem": "L1__034_flux_multi_axis_rope_frequency_computation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__034_flux_multi_axis_rope_frequency_computation",
+   "definition": "034_flux_multi_axis_rope_frequency_computation",
+   "n_workloads": 16,
+   "task_chars": 7660,
+   "job_id": "j-080a5991748b",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3101211,
+     "completion_tokens": 14965,
+     "reasoning_tokens": 2374,
+     "total_tokens": 3116176,
+     "calls": 87,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__035_flux_ada_layer_norm_zero_modulation_extraction": {
+   "problem": "L1__035_flux_ada_layer_norm_zero_modulation_extraction",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__035_flux_ada_layer_norm_zero_modulation_extraction",
+   "definition": "035_flux_ada_layer_norm_zero_modulation_extraction",
+   "n_workloads": 16,
+   "task_chars": 6774,
+   "job_id": "j-3b3cde4363b1",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3001770,
+     "completion_tokens": 11782,
+     "reasoning_tokens": 1993,
+     "total_tokens": 3013552,
+     "calls": 99,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__036_flux_output_norm_projection_chain": {
+   "problem": "L1__036_flux_output_norm_projection_chain",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__036_flux_output_norm_projection_chain",
+   "definition": "036_flux_output_norm_projection_chain",
+   "n_workloads": 16,
+   "task_chars": 8233,
+   "job_id": "j-b5186c80490a",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2135689,
+     "completion_tokens": 17107,
+     "reasoning_tokens": 4587,
+     "total_tokens": 2152796,
+     "calls": 58,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__037_flux_feedforward_gelu_approximate": {
+   "problem": "L1__037_flux_feedforward_gelu_approximate",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__037_flux_feedforward_gelu_approximate",
+   "definition": "037_flux_feedforward_gelu_approximate",
+   "n_workloads": 16,
+   "task_chars": 6638,
+   "job_id": "j-2c18a3d5d623",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 6380775,
+     "completion_tokens": 21556,
+     "reasoning_tokens": 4957,
+     "total_tokens": 6402331,
+     "calls": 170,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__038_flux_multi_head_rmsnorm_qk": {
+   "problem": "L1__038_flux_multi_head_rmsnorm_qk",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__038_flux_multi_head_rmsnorm_qk",
+   "definition": "038_flux_multi_head_rmsnorm_qk",
+   "n_workloads": 16,
+   "task_chars": 7134,
+   "job_id": "j-eb4ee4c51de5",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4112129,
+     "completion_tokens": 14083,
+     "reasoning_tokens": 2782,
+     "total_tokens": 4126212,
+     "calls": 118,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__039_adaptive_instance_normalization_2d_backward": {
+   "problem": "L1__039_adaptive_instance_normalization_2d_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__039_adaptive_instance_normalization_2d_backward",
+   "definition": "039_adaptive_instance_normalization_2d_backward",
+   "n_workloads": 16,
+   "task_chars": 7994,
+   "job_id": "j-c9a4b357bd7b",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4872303,
+     "completion_tokens": 15612,
+     "reasoning_tokens": 3085,
+     "total_tokens": 4887915,
+     "calls": 133,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__040_conv2d_residual_block": {
+   "problem": "L1__040_conv2d_residual_block",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__040_conv2d_residual_block",
+   "definition": "040_conv2d_residual_block",
+   "n_workloads": 16,
+   "task_chars": 6808,
+   "job_id": "j-eb263f179dcf",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4990661,
+     "completion_tokens": 16326,
+     "reasoning_tokens": 3275,
+     "total_tokens": 5006987,
+     "calls": 136,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__041_strided_conv2d_downsampling": {
+   "problem": "L1__041_strided_conv2d_downsampling",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__041_strided_conv2d_downsampling",
+   "definition": "041_strided_conv2d_downsampling",
+   "n_workloads": 16,
+   "task_chars": 6874,
+   "job_id": "j-f5d2a784f11e",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 9108101,
+     "completion_tokens": 25113,
+     "reasoning_tokens": 6263,
+     "total_tokens": 9133214,
+     "calls": 169,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__042_moe_expert_load_balancing_and_token_capacity_backward": {
+   "problem": "L1__042_moe_expert_load_balancing_and_token_capacity_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__042_moe_expert_load_balancing_and_token_capacity_backward",
+   "definition": "042_moe_expert_load_balancing_and_token_capacity_backward",
+   "n_workloads": 16,
+   "task_chars": 10026,
+   "job_id": "j-5a305a6114fc",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1486598,
+     "completion_tokens": 13009,
+     "reasoning_tokens": 2367,
+     "total_tokens": 1499607,
+     "calls": 46,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__043_mla_fused_qkv_rope_split": {
+   "problem": "L1__043_mla_fused_qkv_rope_split",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__043_mla_fused_qkv_rope_split",
+   "definition": "043_mla_fused_qkv_rope_split",
+   "n_workloads": 16,
+   "task_chars": 8623,
+   "job_id": "j-5f068cfcf8b4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4522192,
+     "completion_tokens": 17007,
+     "reasoning_tokens": 3089,
+     "total_tokens": 4539199,
+     "calls": 127,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__044_moe_expert_computation": {
+   "problem": "L1__044_moe_expert_computation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__044_moe_expert_computation",
+   "definition": "044_moe_expert_computation",
+   "n_workloads": 16,
+   "task_chars": 10459,
+   "job_id": "j-2a64afe6971d",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 6854176,
+     "completion_tokens": 12823,
+     "reasoning_tokens": 1957,
+     "total_tokens": 6866999,
+     "calls": 135,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__045_fused_linear_gelu_grn_linear": {
+   "problem": "L1__045_fused_linear_gelu_grn_linear",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__045_fused_linear_gelu_grn_linear",
+   "definition": "045_fused_linear_gelu_grn_linear",
+   "n_workloads": 14,
+   "task_chars": 7016,
+   "job_id": "j-05375692a795",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2098396,
+     "completion_tokens": 13628,
+     "reasoning_tokens": 2349,
+     "total_tokens": 2112024,
+     "calls": 70,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__047_attention_with_qk_norm_and_rope": {
+   "problem": "L1__047_attention_with_qk_norm_and_rope",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__047_attention_with_qk_norm_and_rope",
+   "definition": "047_attention_with_qk_norm_and_rope",
+   "n_workloads": 16,
+   "task_chars": 10360,
+   "job_id": "j-df00714eaa35",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 6246350,
+     "completion_tokens": 21281,
+     "reasoning_tokens": 4084,
+     "total_tokens": 6267631,
+     "calls": 137,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__048_fused_gate_up_projection_with_swiglu": {
+   "problem": "L1__048_fused_gate_up_projection_with_swiglu",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__048_fused_gate_up_projection_with_swiglu",
+   "definition": "048_fused_gate_up_projection_with_swiglu",
+   "n_workloads": 16,
+   "task_chars": 7200,
+   "job_id": "j-8064d048bc56",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4137998,
+     "completion_tokens": 14808,
+     "reasoning_tokens": 3414,
+     "total_tokens": 4152806,
+     "calls": 128,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__049_attention_qk_matmul_with_gqa_repeat_and_scaling": {
+   "problem": "L1__049_attention_qk_matmul_with_gqa_repeat_and_scaling",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__049_attention_qk_matmul_with_gqa_repeat_and_scaling",
+   "definition": "049_attention_qk_matmul_with_gqa_repeat_and_scaling",
+   "n_workloads": 16,
+   "task_chars": 7342,
+   "job_id": "j-42d744ad9762",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1915295,
+     "completion_tokens": 14445,
+     "reasoning_tokens": 3247,
+     "total_tokens": 1929740,
+     "calls": 58,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__051_attention_qkv_with_qk_norm_single_kernel_backward": {
+   "problem": "L1__051_attention_qkv_with_qk_norm_single_kernel_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__051_attention_qkv_with_qk_norm_single_kernel_backward",
+   "definition": "051_attention_qkv_with_qk_norm_single_kernel_backward",
+   "n_workloads": 16,
+   "task_chars": 11527,
+   "job_id": "j-be8e2d968121",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3907992,
+     "completion_tokens": 13953,
+     "reasoning_tokens": 3017,
+     "total_tokens": 3921945,
+     "calls": 116,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__052_altup_hidden_state_collapse_with_magnitude_normalization": {
+   "problem": "L1__052_altup_hidden_state_collapse_with_magnitude_normalization",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__052_altup_hidden_state_collapse_with_magnitude_normalization",
+   "definition": "052_altup_hidden_state_collapse_with_magnitude_normalization",
+   "n_workloads": 16,
+   "task_chars": 8273,
+   "job_id": "j-b5baf29cd0a7",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2158159,
+     "completion_tokens": 11584,
+     "reasoning_tokens": 1915,
+     "total_tokens": 2169743,
+     "calls": 84,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__053_gaussian_topk_sparse_activation": {
+   "problem": "L1__053_gaussian_topk_sparse_activation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__053_gaussian_topk_sparse_activation",
+   "definition": "053_gaussian_topk_sparse_activation",
+   "n_workloads": 12,
+   "task_chars": 9601,
+   "job_id": "j-fa92f6c4572d",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3184521,
+     "completion_tokens": 17428,
+     "reasoning_tokens": 3887,
+     "total_tokens": 3201949,
+     "calls": 90,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__055_attention_qkv_projection_with_gqa_reshape": {
+   "problem": "L1__055_attention_qkv_projection_with_gqa_reshape",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__055_attention_qkv_projection_with_gqa_reshape",
+   "definition": "055_attention_qkv_projection_with_gqa_reshape",
+   "n_workloads": 16,
+   "task_chars": 7908,
+   "job_id": "j-1ddf2d39b9d8",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3923555,
+     "completion_tokens": 12496,
+     "reasoning_tokens": 1590,
+     "total_tokens": 3936051,
+     "calls": 116,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__056_mamba_ssm_dt_projection_softplus_clamp_backward": {
+   "problem": "L1__056_mamba_ssm_dt_projection_softplus_clamp_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__056_mamba_ssm_dt_projection_softplus_clamp_backward",
+   "definition": "056_mamba_ssm_dt_projection_softplus_clamp_backward",
+   "n_workloads": 16,
+   "task_chars": 7790,
+   "job_id": "j-4d05762dcd93",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2663989,
+     "completion_tokens": 12900,
+     "reasoning_tokens": 2797,
+     "total_tokens": 2676889,
+     "calls": 85,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion": {
+   "problem": "L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion",
+   "definition": "057_mtp_shifted_embedding_with_dual_rms_norm_fusion",
+   "n_workloads": 16,
+   "task_chars": 10463,
+   "job_id": "j-cf0316709247",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5587792,
+     "completion_tokens": 16294,
+     "reasoning_tokens": 2545,
+     "total_tokens": 5604086,
+     "calls": 141,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__058_moe_expert_token_radix_sort_with_prefix_sum": {
+   "problem": "L1__058_moe_expert_token_radix_sort_with_prefix_sum",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__058_moe_expert_token_radix_sort_with_prefix_sum",
+   "definition": "058_moe_expert_token_radix_sort_with_prefix_sum",
+   "n_workloads": 16,
+   "task_chars": 7288,
+   "job_id": "j-e562d167245d",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4188184,
+     "completion_tokens": 19597,
+     "reasoning_tokens": 4569,
+     "total_tokens": 4207781,
+     "calls": 98,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__060_fused_attention_qk_matmul_scale_mask_softmax_backward": {
+   "problem": "L1__060_fused_attention_qk_matmul_scale_mask_softmax_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__060_fused_attention_qk_matmul_scale_mask_softmax_backward",
+   "definition": "060_fused_attention_qk_matmul_scale_mask_softmax_backward",
+   "n_workloads": 16,
+   "task_chars": 8555,
+   "job_id": "j-2c66532f8e19",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3693049,
+     "completion_tokens": 15702,
+     "reasoning_tokens": 3141,
+     "total_tokens": 3708751,
+     "calls": 106,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__061_tanh_gated_residual_add_backward": {
+   "problem": "L1__061_tanh_gated_residual_add_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__061_tanh_gated_residual_add_backward",
+   "definition": "061_tanh_gated_residual_add_backward",
+   "n_workloads": 16,
+   "task_chars": 7230,
+   "job_id": "j-f05b8f9896f4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1736375,
+     "completion_tokens": 13460,
+     "reasoning_tokens": 3009,
+     "total_tokens": 1749835,
+     "calls": 58,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__062_kv_cache_update_with_rope_backward": {
+   "problem": "L1__062_kv_cache_update_with_rope_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__062_kv_cache_update_with_rope_backward",
+   "definition": "062_kv_cache_update_with_rope_backward",
+   "n_workloads": 16,
+   "task_chars": 9928,
+   "job_id": "j-50b1c9c95a35",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2077439,
+     "completion_tokens": 13026,
+     "reasoning_tokens": 2396,
+     "total_tokens": 2090465,
+     "calls": 68,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__063_attention_output_reshape_and_projection": {
+   "problem": "L1__063_attention_output_reshape_and_projection",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__063_attention_output_reshape_and_projection",
+   "definition": "063_attention_output_reshape_and_projection",
+   "n_workloads": 16,
+   "task_chars": 7228,
+   "job_id": "j-f63ad739b2d4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2976189,
+     "completion_tokens": 16079,
+     "reasoning_tokens": 3091,
+     "total_tokens": 2992268,
+     "calls": 85,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__064_latent_kv_expansion_with_split": {
+   "problem": "L1__064_latent_kv_expansion_with_split",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__064_latent_kv_expansion_with_split",
+   "definition": "064_latent_kv_expansion_with_split",
+   "n_workloads": 16,
+   "task_chars": 8051,
+   "job_id": "j-0a66f45f2673",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3224934,
+     "completion_tokens": 14456,
+     "reasoning_tokens": 2901,
+     "total_tokens": 3239390,
+     "calls": 97,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__066_masked_softmax_with_attention_dropout_backward": {
+   "problem": "L1__066_masked_softmax_with_attention_dropout_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__066_masked_softmax_with_attention_dropout_backward",
+   "definition": "066_masked_softmax_with_attention_dropout_backward",
+   "n_workloads": 16,
+   "task_chars": 7938,
+   "job_id": "j-bc7009c0bbfe",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1756144,
+     "completion_tokens": 14195,
+     "reasoning_tokens": 3104,
+     "total_tokens": 1770339,
+     "calls": 54,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__067_flash_attention_gqa_ultralong": {
+   "problem": "L1__067_flash_attention_gqa_ultralong",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__067_flash_attention_gqa_ultralong",
+   "definition": "067_flash_attention_gqa_ultralong",
+   "n_workloads": 18,
+   "task_chars": 9058,
+   "job_id": "j-3e37c8072703",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3919286,
+     "completion_tokens": 15370,
+     "reasoning_tokens": 3206,
+     "total_tokens": 3934656,
+     "calls": 118,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__068_fused_rope_application_backward": {
+   "problem": "L1__068_fused_rope_application_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__068_fused_rope_application_backward",
+   "definition": "068_fused_rope_application_backward",
+   "n_workloads": 16,
+   "task_chars": 9136,
+   "job_id": "j-5add3d205518",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2901354,
+     "completion_tokens": 15397,
+     "reasoning_tokens": 4083,
+     "total_tokens": 2916751,
+     "calls": 84,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__069_rms_norm": {
+   "problem": "L1__069_rms_norm",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__069_rms_norm",
+   "definition": "069_rms_norm",
+   "n_workloads": 16,
+   "task_chars": 5988,
+   "job_id": "j-0e2bd63f88c3",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2027053,
+     "completion_tokens": 10389,
+     "reasoning_tokens": 1525,
+     "total_tokens": 2037442,
+     "calls": 72,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__070_mamba2_fused_intra_chunk_diagonal_computation": {
+   "problem": "L1__070_mamba2_fused_intra_chunk_diagonal_computation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__070_mamba2_fused_intra_chunk_diagonal_computation",
+   "definition": "070_mamba2_fused_intra_chunk_diagonal_computation",
+   "n_workloads": 14,
+   "task_chars": 10726,
+   "job_id": "j-6bcbee8289f8",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2473115,
+     "completion_tokens": 13666,
+     "reasoning_tokens": 2619,
+     "total_tokens": 2486781,
+     "calls": 79,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__071_kv_cache_update_with_rope": {
+   "problem": "L1__071_kv_cache_update_with_rope",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__071_kv_cache_update_with_rope",
+   "definition": "071_kv_cache_update_with_rope",
+   "n_workloads": 16,
+   "task_chars": 8180,
+   "job_id": "j-fa1915ff0d16",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4308698,
+     "completion_tokens": 17475,
+     "reasoning_tokens": 3841,
+     "total_tokens": 4326173,
+     "calls": 119,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__072_cross_attention_qkv_projection_with_gqa_repeat_backward": {
+   "problem": "L1__072_cross_attention_qkv_projection_with_gqa_repeat_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__072_cross_attention_qkv_projection_with_gqa_repeat_backward",
+   "definition": "072_cross_attention_qkv_projection_with_gqa_repeat_backward",
+   "n_workloads": 16,
+   "task_chars": 13167,
+   "job_id": "j-e39bb6ba66af",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4611765,
+     "completion_tokens": 17429,
+     "reasoning_tokens": 3874,
+     "total_tokens": 4629194,
+     "calls": 127,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__075_grouped_query_self_attention_with_rope": {
+   "problem": "L1__075_grouped_query_self_attention_with_rope",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__075_grouped_query_self_attention_with_rope",
+   "definition": "075_grouped_query_self_attention_with_rope",
+   "n_workloads": 16,
+   "task_chars": 10784,
+   "job_id": "j-27c13f77c673",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3076993,
+     "completion_tokens": 13127,
+     "reasoning_tokens": 2277,
+     "total_tokens": 3090120,
+     "calls": 97,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__076_batched_expert_forward": {
+   "problem": "L1__076_batched_expert_forward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__076_batched_expert_forward",
+   "definition": "076_batched_expert_forward",
+   "n_workloads": 14,
+   "task_chars": 9085,
+   "job_id": "j-c2472bdc2b30",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3933876,
+     "completion_tokens": 11935,
+     "reasoning_tokens": 1623,
+     "total_tokens": 3945811,
+     "calls": 139,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__078_group_norm_fusion": {
+   "problem": "L1__078_group_norm_fusion",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__078_group_norm_fusion",
+   "definition": "078_group_norm_fusion",
+   "n_workloads": 16,
+   "task_chars": 7314,
+   "job_id": "j-6a2262028ca5",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1895702,
+     "completion_tokens": 10556,
+     "reasoning_tokens": 2104,
+     "total_tokens": 1906258,
+     "calls": 70,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward": {
+   "problem": "L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward",
+   "definition": "079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward",
+   "n_workloads": 16,
+   "task_chars": 8521,
+   "job_id": "j-556b5613aead",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3224505,
+     "completion_tokens": 13503,
+     "reasoning_tokens": 2996,
+     "total_tokens": 3238008,
+     "calls": 99,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__080_adaptive_layernorm_continuous_with_modulation": {
+   "problem": "L1__080_adaptive_layernorm_continuous_with_modulation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__080_adaptive_layernorm_continuous_with_modulation",
+   "definition": "080_adaptive_layernorm_continuous_with_modulation",
+   "n_workloads": 16,
+   "task_chars": 7771,
+   "job_id": "j-c148426f8ec8",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2121395,
+     "completion_tokens": 11227,
+     "reasoning_tokens": 1931,
+     "total_tokens": 2132622,
+     "calls": 70,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__081_joint_attention_context_projection": {
+   "problem": "L1__081_joint_attention_context_projection",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__081_joint_attention_context_projection",
+   "definition": "081_joint_attention_context_projection",
+   "n_workloads": 16,
+   "task_chars": 8219,
+   "job_id": "j-1509b2ea0bef",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2867657,
+     "completion_tokens": 10926,
+     "reasoning_tokens": 1725,
+     "total_tokens": 2878583,
+     "calls": 98,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__082_qk_norm_scaled_dot_product_attention": {
+   "problem": "L1__082_qk_norm_scaled_dot_product_attention",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__082_qk_norm_scaled_dot_product_attention",
+   "definition": "082_qk_norm_scaled_dot_product_attention",
+   "n_workloads": 16,
+   "task_chars": 8159,
+   "job_id": "j-bf7f3e0231d7",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1146623,
+     "completion_tokens": 11902,
+     "reasoning_tokens": 3236,
+     "total_tokens": 1158525,
+     "calls": 40,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__084_silu_activation_backward": {
+   "problem": "L1__084_silu_activation_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__084_silu_activation_backward",
+   "definition": "084_silu_activation_backward",
+   "n_workloads": 16,
+   "task_chars": 6150,
+   "job_id": "j-f282be1b9cec",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4714674,
+     "completion_tokens": 18440,
+     "reasoning_tokens": 4710,
+     "total_tokens": 4733114,
+     "calls": 111,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__085_geglu_activation": {
+   "problem": "L1__085_geglu_activation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__085_geglu_activation",
+   "definition": "085_geglu_activation",
+   "n_workloads": 16,
+   "task_chars": 6000,
+   "job_id": "j-183c47e7ba61",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4325390,
+     "completion_tokens": 17530,
+     "reasoning_tokens": 3488,
+     "total_tokens": 4342920,
+     "calls": 108,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__086_sam_hq_mask_decoder_iou_hypernetwork_fusion": {
+   "problem": "L1__086_sam_hq_mask_decoder_iou_hypernetwork_fusion",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__086_sam_hq_mask_decoder_iou_hypernetwork_fusion",
+   "definition": "086_sam_hq_mask_decoder_iou_hypernetwork_fusion",
+   "n_workloads": 16,
+   "task_chars": 12693,
+   "job_id": "j-e1d20fb4b4fa",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2237089,
+     "completion_tokens": 16986,
+     "reasoning_tokens": 3110,
+     "total_tokens": 2254075,
+     "calls": 70,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L1__087_embedding_with_initial_layernorm_backward": {
+   "problem": "L1__087_embedding_with_initial_layernorm_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__087_embedding_with_initial_layernorm_backward",
+   "definition": "087_embedding_with_initial_layernorm_backward",
+   "n_workloads": 16,
+   "task_chars": 9803,
+   "job_id": "j-1f09cbd78ed9",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2790590,
+     "completion_tokens": 12182,
+     "reasoning_tokens": 1935,
+     "total_tokens": 2802772,
+     "calls": 97,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__089_vae_attention_block_with_groupnorm": {
+   "problem": "L1__089_vae_attention_block_with_groupnorm",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__089_vae_attention_block_with_groupnorm",
+   "definition": "089_vae_attention_block_with_groupnorm",
+   "n_workloads": 16,
+   "task_chars": 8627,
+   "job_id": "j-2f52d03048fa",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2635823,
+     "completion_tokens": 18008,
+     "reasoning_tokens": 6109,
+     "total_tokens": 2653831,
+     "calls": 76,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__091_fused_gqa_qkv_rope_qk_norm_backward": {
+   "problem": "L1__091_fused_gqa_qkv_rope_qk_norm_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__091_fused_gqa_qkv_rope_qk_norm_backward",
+   "definition": "091_fused_gqa_qkv_rope_qk_norm_backward",
+   "n_workloads": 16,
+   "task_chars": 13795,
+   "job_id": "j-2e7ae16108a4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3300459,
+     "completion_tokens": 10300,
+     "reasoning_tokens": 2342,
+     "total_tokens": 3310759,
+     "calls": 115,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L1__092_gqa_attention_with_qk_norm": {
+   "problem": "L1__092_gqa_attention_with_qk_norm",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__092_gqa_attention_with_qk_norm",
+   "definition": "092_gqa_attention_with_qk_norm",
+   "n_workloads": 16,
+   "task_chars": 9876,
+   "job_id": "j-9e7e5973b0a7",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4422300,
+     "completion_tokens": 17939,
+     "reasoning_tokens": 3027,
+     "total_tokens": 4440239,
+     "calls": 112,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L1__093_grouped_topk_moe_routing_backward": {
+   "problem": "L1__093_grouped_topk_moe_routing_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L1__093_grouped_topk_moe_routing_backward",
+   "definition": "093_grouped_topk_moe_routing_backward",
+   "n_workloads": 16,
+   "task_chars": 9851,
+   "job_id": "j-08d2935622a3",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3160021,
+     "completion_tokens": 16016,
+     "reasoning_tokens": 3762,
+     "total_tokens": 3176037,
+     "calls": 95,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__001_fused_vision_multihead_attention_with_norms_backward": {
+   "problem": "L2__001_fused_vision_multihead_attention_with_norms_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__001_fused_vision_multihead_attention_with_norms_backward",
+   "definition": "001_fused_vision_multihead_attention_with_norms_backward",
+   "n_workloads": 16,
+   "task_chars": 10870,
+   "job_id": "j-c348bbed03fb",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4608494,
+     "completion_tokens": 19220,
+     "reasoning_tokens": 4486,
+     "total_tokens": 4627714,
+     "calls": 124,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__002_decoder_layer_full_block": {
+   "problem": "L2__002_decoder_layer_full_block",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__002_decoder_layer_full_block",
+   "definition": "002_decoder_layer_full_block",
+   "n_workloads": 18,
+   "task_chars": 10543,
+   "job_id": "j-4621f8c9dd32",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 6414396,
+     "completion_tokens": 19091,
+     "reasoning_tokens": 3987,
+     "total_tokens": 6433487,
+     "calls": 161,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__003_grouped_query_attention_with_rope_backward": {
+   "problem": "L2__003_grouped_query_attention_with_rope_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__003_grouped_query_attention_with_rope_backward",
+   "definition": "003_grouped_query_attention_with_rope_backward",
+   "n_workloads": 16,
+   "task_chars": 13672,
+   "job_id": "j-0a0852cf6dc7",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4820258,
+     "completion_tokens": 17181,
+     "reasoning_tokens": 3276,
+     "total_tokens": 4837439,
+     "calls": 122,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__004_fused_residual_rms_mlp": {
+   "problem": "L2__004_fused_residual_rms_mlp",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__004_fused_residual_rms_mlp",
+   "definition": "004_fused_residual_rms_mlp",
+   "n_workloads": 16,
+   "task_chars": 8226,
+   "job_id": "j-259939f6d417",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5856372,
+     "completion_tokens": 18043,
+     "reasoning_tokens": 3420,
+     "total_tokens": 5874415,
+     "calls": 162,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__005_swiglu_mlp_backward": {
+   "problem": "L2__005_swiglu_mlp_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__005_swiglu_mlp_backward",
+   "definition": "005_swiglu_mlp_backward",
+   "n_workloads": 18,
+   "task_chars": 9267,
+   "job_id": "j-8c87235ac76c",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3149471,
+     "completion_tokens": 11390,
+     "reasoning_tokens": 1430,
+     "total_tokens": 3160861,
+     "calls": 113,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__006_multimodal_rope_position_calculation": {
+   "problem": "L2__006_multimodal_rope_position_calculation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__006_multimodal_rope_position_calculation",
+   "definition": "006_multimodal_rope_position_calculation",
+   "n_workloads": 16,
+   "task_chars": 18556,
+   "job_id": "j-dcbf325e35e5",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2766660,
+     "completion_tokens": 16461,
+     "reasoning_tokens": 4066,
+     "total_tokens": 2783121,
+     "calls": 77,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__008_moe_sparse_routing_and_dispatch": {
+   "problem": "L2__008_moe_sparse_routing_and_dispatch",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__008_moe_sparse_routing_and_dispatch",
+   "definition": "008_moe_sparse_routing_and_dispatch",
+   "n_workloads": 16,
+   "task_chars": 9423,
+   "job_id": "j-1d887e956d53",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3263888,
+     "completion_tokens": 13222,
+     "reasoning_tokens": 2584,
+     "total_tokens": 3277110,
+     "calls": 83,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__009_decoder_layer_with_residual_connections": {
+   "problem": "L2__009_decoder_layer_with_residual_connections",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__009_decoder_layer_with_residual_connections",
+   "definition": "009_decoder_layer_with_residual_connections",
+   "n_workloads": 16,
+   "task_chars": 15753,
+   "job_id": "j-ce6e5a7b3379",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3606789,
+     "completion_tokens": 14965,
+     "reasoning_tokens": 3773,
+     "total_tokens": 3621754,
+     "calls": 110,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__010_moe_expert_computation_with_weighted_accumulation": {
+   "problem": "L2__010_moe_expert_computation_with_weighted_accumulation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__010_moe_expert_computation_with_weighted_accumulation",
+   "definition": "010_moe_expert_computation_with_weighted_accumulation",
+   "n_workloads": 16,
+   "task_chars": 10998,
+   "job_id": "j-d34b2c39f3b9",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5058072,
+     "completion_tokens": 16180,
+     "reasoning_tokens": 3006,
+     "total_tokens": 5074252,
+     "calls": 152,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__012_moe_expert_batched_execution_with_capacity_factor": {
+   "problem": "L2__012_moe_expert_batched_execution_with_capacity_factor",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__012_moe_expert_batched_execution_with_capacity_factor",
+   "definition": "012_moe_expert_batched_execution_with_capacity_factor",
+   "n_workloads": 16,
+   "task_chars": 10866,
+   "job_id": "j-7b7345e0d8ea",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4332585,
+     "completion_tokens": 16357,
+     "reasoning_tokens": 4648,
+     "total_tokens": 4348942,
+     "calls": 132,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__013_expert_weighted_aggregation_with_shared_expert": {
+   "problem": "L2__013_expert_weighted_aggregation_with_shared_expert",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__013_expert_weighted_aggregation_with_shared_expert",
+   "definition": "013_expert_weighted_aggregation_with_shared_expert",
+   "n_workloads": 16,
+   "task_chars": 14268,
+   "job_id": "j-6f269caac021",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 6115621,
+     "completion_tokens": 15386,
+     "reasoning_tokens": 2068,
+     "total_tokens": 6131007,
+     "calls": 171,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__014_audio_encoder_varlen_attention_with_chunking_backward": {
+   "problem": "L2__014_audio_encoder_varlen_attention_with_chunking_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__014_audio_encoder_varlen_attention_with_chunking_backward",
+   "definition": "014_audio_encoder_varlen_attention_with_chunking_backward",
+   "n_workloads": 16,
+   "task_chars": 16144,
+   "job_id": "j-fbbfaed77398",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3460580,
+     "completion_tokens": 17782,
+     "reasoning_tokens": 4541,
+     "total_tokens": 3478362,
+     "calls": 88,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__016_moe_expert_mlp_with_load_balancing": {
+   "problem": "L2__016_moe_expert_mlp_with_load_balancing",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__016_moe_expert_mlp_with_load_balancing",
+   "definition": "016_moe_expert_mlp_with_load_balancing",
+   "n_workloads": 16,
+   "task_chars": 9924,
+   "job_id": "j-263617c9f8e0",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5302725,
+     "completion_tokens": 19449,
+     "reasoning_tokens": 4435,
+     "total_tokens": 5322174,
+     "calls": 145,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__017_fused_vision_cu_seqlens_attention_with_2d_rope_backward": {
+   "problem": "L2__017_fused_vision_cu_seqlens_attention_with_2d_rope_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__017_fused_vision_cu_seqlens_attention_with_2d_rope_backward",
+   "definition": "017_fused_vision_cu_seqlens_attention_with_2d_rope_backward",
+   "n_workloads": 16,
+   "task_chars": 14857,
+   "job_id": "j-56afdd933bb1",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5073769,
+     "completion_tokens": 24041,
+     "reasoning_tokens": 5310,
+     "total_tokens": 5097810,
+     "calls": 111,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__019_decoder_layer_fused_attention_mlp": {
+   "problem": "L2__019_decoder_layer_fused_attention_mlp",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__019_decoder_layer_fused_attention_mlp",
+   "definition": "019_decoder_layer_fused_attention_mlp",
+   "n_workloads": 16,
+   "task_chars": 12500,
+   "job_id": "j-ba84ea6475af",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4380773,
+     "completion_tokens": 17382,
+     "reasoning_tokens": 2836,
+     "total_tokens": 4398155,
+     "calls": 117,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__020_decoder_layer_pre_post_norm_residual": {
+   "problem": "L2__020_decoder_layer_pre_post_norm_residual",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__020_decoder_layer_pre_post_norm_residual",
+   "definition": "020_decoder_layer_pre_post_norm_residual",
+   "n_workloads": 16,
+   "task_chars": 10662,
+   "job_id": "j-de6e1a7df7cf",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5755635,
+     "completion_tokens": 14201,
+     "reasoning_tokens": 1934,
+     "total_tokens": 5769836,
+     "calls": 179,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__021_cross_attention_text_video_conditioning_backward": {
+   "problem": "L2__021_cross_attention_text_video_conditioning_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__021_cross_attention_text_video_conditioning_backward",
+   "definition": "021_cross_attention_text_video_conditioning_backward",
+   "n_workloads": 16,
+   "task_chars": 13876,
+   "job_id": "j-190e212c16a0",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3467587,
+     "completion_tokens": 16169,
+     "reasoning_tokens": 3383,
+     "total_tokens": 3483756,
+     "calls": 109,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__022_video_latent_denoising_unet_block": {
+   "problem": "L2__022_video_latent_denoising_unet_block",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__022_video_latent_denoising_unet_block",
+   "definition": "022_video_latent_denoising_unet_block",
+   "n_workloads": 16,
+   "task_chars": 16286,
+   "job_id": "j-ea2a01e2f208",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2604036,
+     "completion_tokens": 14070,
+     "reasoning_tokens": 4536,
+     "total_tokens": 2618106,
+     "calls": 94,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__023_video_latent_vae_encoder_downsampling": {
+   "problem": "L2__023_video_latent_vae_encoder_downsampling",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__023_video_latent_vae_encoder_downsampling",
+   "definition": "023_video_latent_vae_encoder_downsampling",
+   "n_workloads": 16,
+   "task_chars": 10686,
+   "job_id": "j-b6ad565a7c8b",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2735141,
+     "completion_tokens": 7582,
+     "reasoning_tokens": 1342,
+     "total_tokens": 2742723,
+     "calls": 89,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__024_moe_expert_parallel_execution": {
+   "problem": "L2__024_moe_expert_parallel_execution",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__024_moe_expert_parallel_execution",
+   "definition": "024_moe_expert_parallel_execution",
+   "n_workloads": 16,
+   "task_chars": 11168,
+   "job_id": "j-2afc70ef779c",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5033838,
+     "completion_tokens": 13795,
+     "reasoning_tokens": 2268,
+     "total_tokens": 5047633,
+     "calls": 171,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__025_moe_expert_parallel_execution_backward": {
+   "problem": "L2__025_moe_expert_parallel_execution_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__025_moe_expert_parallel_execution_backward",
+   "definition": "025_moe_expert_parallel_execution_backward",
+   "n_workloads": 16,
+   "task_chars": 13364,
+   "job_id": "j-fecfb00592e5",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2456871,
+     "completion_tokens": 10872,
+     "reasoning_tokens": 2531,
+     "total_tokens": 2467743,
+     "calls": 104,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__026_moe_expert_parallel_execution_with_weighted_aggregation": {
+   "problem": "L2__026_moe_expert_parallel_execution_with_weighted_aggregation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__026_moe_expert_parallel_execution_with_weighted_aggregation",
+   "definition": "026_moe_expert_parallel_execution_with_weighted_aggregation",
+   "n_workloads": 16,
+   "task_chars": 12200,
+   "job_id": "j-a1233d3c597c",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3303242,
+     "completion_tokens": 10501,
+     "reasoning_tokens": 1549,
+     "total_tokens": 3313743,
+     "calls": 121,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__027_grouped_query_attention_with_yarn_rope_and_qk_norm": {
+   "problem": "L2__027_grouped_query_attention_with_yarn_rope_and_qk_norm",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__027_grouped_query_attention_with_yarn_rope_and_qk_norm",
+   "definition": "027_grouped_query_attention_with_yarn_rope_and_qk_norm",
+   "n_workloads": 16,
+   "task_chars": 13312,
+   "job_id": "j-0b2cc3214310",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4772155,
+     "completion_tokens": 19349,
+     "reasoning_tokens": 4100,
+     "total_tokens": 4791504,
+     "calls": 122,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__028_gqa_rotary_attention_core_backward": {
+   "problem": "L2__028_gqa_rotary_attention_core_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__028_gqa_rotary_attention_core_backward",
+   "definition": "028_gqa_rotary_attention_core_backward",
+   "n_workloads": 16,
+   "task_chars": 15584,
+   "job_id": "j-d908163f9d19",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 6321748,
+     "completion_tokens": 23639,
+     "reasoning_tokens": 4460,
+     "total_tokens": 6345387,
+     "calls": 156,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__029_moe_sparse_routing_and_dispatch": {
+   "problem": "L2__029_moe_sparse_routing_and_dispatch",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__029_moe_sparse_routing_and_dispatch",
+   "definition": "029_moe_sparse_routing_and_dispatch",
+   "n_workloads": 9,
+   "task_chars": 10545,
+   "job_id": "j-83bfe7d69e5b",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 6491297,
+     "completion_tokens": 24736,
+     "reasoning_tokens": 5742,
+     "total_tokens": 6516033,
+     "calls": 166,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__030_flux_concatenated_sequence_processing_with_split": {
+   "problem": "L2__030_flux_concatenated_sequence_processing_with_split",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__030_flux_concatenated_sequence_processing_with_split",
+   "definition": "030_flux_concatenated_sequence_processing_with_split",
+   "n_workloads": 16,
+   "task_chars": 7483,
+   "job_id": "j-196ab9c13fc9",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2368081,
+     "completion_tokens": 15407,
+     "reasoning_tokens": 4008,
+     "total_tokens": 2383488,
+     "calls": 73,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__031_flux_timestep_guidance_projection_embedding": {
+   "problem": "L2__031_flux_timestep_guidance_projection_embedding",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__031_flux_timestep_guidance_projection_embedding",
+   "definition": "031_flux_timestep_guidance_projection_embedding",
+   "n_workloads": 16,
+   "task_chars": 9988,
+   "job_id": "j-c8768aded0c0",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3108785,
+     "completion_tokens": 11228,
+     "reasoning_tokens": 2050,
+     "total_tokens": 3120013,
+     "calls": 99,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__033_multi_scale_feature_pyramid": {
+   "problem": "L2__033_multi_scale_feature_pyramid",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__033_multi_scale_feature_pyramid",
+   "definition": "033_multi_scale_feature_pyramid",
+   "n_workloads": 16,
+   "task_chars": 12578,
+   "job_id": "j-baeb0147daac",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 6960539,
+     "completion_tokens": 21859,
+     "reasoning_tokens": 4561,
+     "total_tokens": 6982398,
+     "calls": 153,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__034_vision_language_cross_attention_fusion": {
+   "problem": "L2__034_vision_language_cross_attention_fusion",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__034_vision_language_cross_attention_fusion",
+   "definition": "034_vision_language_cross_attention_fusion",
+   "n_workloads": 16,
+   "task_chars": 15492,
+   "job_id": "j-4eb099f34cc8",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5803303,
+     "completion_tokens": 17020,
+     "reasoning_tokens": 3331,
+     "total_tokens": 5820323,
+     "calls": 160,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__035_convnextv2_block_with_grn": {
+   "problem": "L2__035_convnextv2_block_with_grn",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__035_convnextv2_block_with_grn",
+   "definition": "035_convnextv2_block_with_grn",
+   "n_workloads": 16,
+   "task_chars": 8584,
+   "job_id": "j-ba0ff70896de",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2697492,
+     "completion_tokens": 13779,
+     "reasoning_tokens": 4045,
+     "total_tokens": 2711271,
+     "calls": 81,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__036_convnextv2_layer_with_nhwc_persistence_backward": {
+   "problem": "L2__036_convnextv2_layer_with_nhwc_persistence_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__036_convnextv2_layer_with_nhwc_persistence_backward",
+   "definition": "036_convnextv2_layer_with_nhwc_persistence_backward",
+   "n_workloads": 14,
+   "task_chars": 18206,
+   "job_id": "j-03e8dfc10b80",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4696296,
+     "completion_tokens": 22418,
+     "reasoning_tokens": 4472,
+     "total_tokens": 4718714,
+     "calls": 114,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__037_qk_norm_rope_attention_core_backward": {
+   "problem": "L2__037_qk_norm_rope_attention_core_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__037_qk_norm_rope_attention_core_backward",
+   "definition": "037_qk_norm_rope_attention_core_backward",
+   "n_workloads": 16,
+   "task_chars": 18299,
+   "job_id": "j-a21855014da4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3342160,
+     "completion_tokens": 18043,
+     "reasoning_tokens": 4011,
+     "total_tokens": 3360203,
+     "calls": 96,
+     "failed_calls": 2
+    }
+   }
+  },
+  "L2__038_audio_relative_position_attention": {
+   "problem": "L2__038_audio_relative_position_attention",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__038_audio_relative_position_attention",
+   "definition": "038_audio_relative_position_attention",
+   "n_workloads": 14,
+   "task_chars": 15793,
+   "job_id": "j-03345c7e0980",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4087162,
+     "completion_tokens": 19018,
+     "reasoning_tokens": 6566,
+     "total_tokens": 4106180,
+     "calls": 112,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__039_kv_shared_attention_with_rope": {
+   "problem": "L2__039_kv_shared_attention_with_rope",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__039_kv_shared_attention_with_rope",
+   "definition": "039_kv_shared_attention_with_rope",
+   "n_workloads": 16,
+   "task_chars": 13433,
+   "job_id": "j-15acad0c854f",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3228270,
+     "completion_tokens": 14618,
+     "reasoning_tokens": 2836,
+     "total_tokens": 3242888,
+     "calls": 90,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__040_altup_predict_correction_cycle_backward": {
+   "problem": "L2__040_altup_predict_correction_cycle_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__040_altup_predict_correction_cycle_backward",
+   "definition": "040_altup_predict_correction_cycle_backward",
+   "n_workloads": 16,
+   "task_chars": 14811,
+   "job_id": "j-b7d767d6beaa",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5468245,
+     "completion_tokens": 21326,
+     "reasoning_tokens": 5541,
+     "total_tokens": 5489571,
+     "calls": 135,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__041_kv_shared_attention_with_dual_rope": {
+   "problem": "L2__041_kv_shared_attention_with_dual_rope",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__041_kv_shared_attention_with_dual_rope",
+   "definition": "041_kv_shared_attention_with_dual_rope",
+   "n_workloads": 16,
+   "task_chars": 14351,
+   "job_id": "j-e4780ec8e74f",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 9157016,
+     "completion_tokens": 20631,
+     "reasoning_tokens": 5107,
+     "total_tokens": 9177647,
+     "calls": 149,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__042_ffn_gelu_projection_fused_backward": {
+   "problem": "L2__042_ffn_gelu_projection_fused_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__042_ffn_gelu_projection_fused_backward",
+   "definition": "042_ffn_gelu_projection_fused_backward",
+   "n_workloads": 16,
+   "task_chars": 13687,
+   "job_id": "j-5c5b1a22690c",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 6040013,
+     "completion_tokens": 23097,
+     "reasoning_tokens": 5801,
+     "total_tokens": 6063110,
+     "calls": 131,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__043_mamba_chunk_scan_with_segsum": {
+   "problem": "L2__043_mamba_chunk_scan_with_segsum",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__043_mamba_chunk_scan_with_segsum",
+   "definition": "043_mamba_chunk_scan_with_segsum",
+   "n_workloads": 16,
+   "task_chars": 15591,
+   "job_id": "j-28c042e00ce4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3532567,
+     "completion_tokens": 14786,
+     "reasoning_tokens": 2830,
+     "total_tokens": 3547353,
+     "calls": 99,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__044_mamba_discretization_and_segsum": {
+   "problem": "L2__044_mamba_discretization_and_segsum",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__044_mamba_discretization_and_segsum",
+   "definition": "044_mamba_discretization_and_segsum",
+   "n_workloads": 16,
+   "task_chars": 11041,
+   "job_id": "j-c8d388487792",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2898255,
+     "completion_tokens": 12272,
+     "reasoning_tokens": 2611,
+     "total_tokens": 2910527,
+     "calls": 94,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__046_conformer_relative_position_attention": {
+   "problem": "L2__046_conformer_relative_position_attention",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__046_conformer_relative_position_attention",
+   "definition": "046_conformer_relative_position_attention",
+   "n_workloads": 16,
+   "task_chars": 10118,
+   "job_id": "j-3546f88c8e4a",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3793563,
+     "completion_tokens": 19674,
+     "reasoning_tokens": 4977,
+     "total_tokens": 3813237,
+     "calls": 104,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__047_moe_training_token_repeat_and_expert_computation": {
+   "problem": "L2__047_moe_training_token_repeat_and_expert_computation",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__047_moe_training_token_repeat_and_expert_computation",
+   "definition": "047_moe_training_token_repeat_and_expert_computation",
+   "n_workloads": 16,
+   "task_chars": 10948,
+   "job_id": "j-529a910c37f2",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4010856,
+     "completion_tokens": 14350,
+     "reasoning_tokens": 2429,
+     "total_tokens": 4025206,
+     "calls": 124,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__048_moe_expert_inference_batched_dispatch": {
+   "problem": "L2__048_moe_expert_inference_batched_dispatch",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__048_moe_expert_inference_batched_dispatch",
+   "definition": "048_moe_expert_inference_batched_dispatch",
+   "n_workloads": 16,
+   "task_chars": 11627,
+   "job_id": "j-a583a5b78a43",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5062880,
+     "completion_tokens": 13816,
+     "reasoning_tokens": 1879,
+     "total_tokens": 5076696,
+     "calls": 160,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__049_group_limited_topk_routing": {
+   "problem": "L2__049_group_limited_topk_routing",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__049_group_limited_topk_routing",
+   "definition": "049_group_limited_topk_routing",
+   "n_workloads": 16,
+   "task_chars": 8631,
+   "job_id": "j-4e52472187e6",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4252697,
+     "completion_tokens": 17141,
+     "reasoning_tokens": 5152,
+     "total_tokens": 4269838,
+     "calls": 120,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__052_seqlen-finetuned-reconstructed_hyena_gating_and_output_projection": {
+   "problem": "L2__052_seqlen-finetuned-reconstructed_hyena_gating_and_output_projection",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__052_seqlen-finetuned-reconstructed_hyena_gating_and_output_projection",
+   "definition": "052_seqlen-finetuned-reconstructed_hyena_gating_and_output_projection",
+   "n_workloads": 16,
+   "task_chars": 7947,
+   "job_id": "j-a8991fac2668",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2262511,
+     "completion_tokens": 13230,
+     "reasoning_tokens": 3571,
+     "total_tokens": 2275741,
+     "calls": 70,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__053_text_decoder_layer_with_self_attention_and_mlp": {
+   "problem": "L2__053_text_decoder_layer_with_self_attention_and_mlp",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__053_text_decoder_layer_with_self_attention_and_mlp",
+   "definition": "053_text_decoder_layer_with_self_attention_and_mlp",
+   "n_workloads": 16,
+   "task_chars": 10982,
+   "job_id": "j-93f6301afb4b",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5473326,
+     "completion_tokens": 17106,
+     "reasoning_tokens": 2760,
+     "total_tokens": 5490432,
+     "calls": 148,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__054_vision_encoder_layer_with_gated_residuals": {
+   "problem": "L2__054_vision_encoder_layer_with_gated_residuals",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__054_vision_encoder_layer_with_gated_residuals",
+   "definition": "054_vision_encoder_layer_with_gated_residuals",
+   "n_workloads": 16,
+   "task_chars": 9954,
+   "job_id": "j-442e77d373a4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3685522,
+     "completion_tokens": 15373,
+     "reasoning_tokens": 3058,
+     "total_tokens": 3700895,
+     "calls": 107,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__055_audio_encoder_conv_positional_layer_stack": {
+   "problem": "L2__055_audio_encoder_conv_positional_layer_stack",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__055_audio_encoder_conv_positional_layer_stack",
+   "definition": "055_audio_encoder_conv_positional_layer_stack",
+   "n_workloads": 15,
+   "task_chars": 14490,
+   "job_id": "j-f22afff2755f",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3217875,
+     "completion_tokens": 10239,
+     "reasoning_tokens": 1628,
+     "total_tokens": 3228114,
+     "calls": 129,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__057_residual_coupling_flow_block": {
+   "problem": "L2__057_residual_coupling_flow_block",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__057_residual_coupling_flow_block",
+   "definition": "057_residual_coupling_flow_block",
+   "n_workloads": 16,
+   "task_chars": 13616,
+   "job_id": "j-63d5488062f3",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4118468,
+     "completion_tokens": 14005,
+     "reasoning_tokens": 3281,
+     "total_tokens": 4132473,
+     "calls": 104,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__058_mamba2_selective_scan": {
+   "problem": "L2__058_mamba2_selective_scan",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__058_mamba2_selective_scan",
+   "definition": "058_mamba2_selective_scan",
+   "n_workloads": 16,
+   "task_chars": 16430,
+   "job_id": "j-9e053ebb0054",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5268031,
+     "completion_tokens": 19287,
+     "reasoning_tokens": 4722,
+     "total_tokens": 5287318,
+     "calls": 136,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__059_decoder_layer_full_block": {
+   "problem": "L2__059_decoder_layer_full_block",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__059_decoder_layer_full_block",
+   "definition": "059_decoder_layer_full_block",
+   "n_workloads": 16,
+   "task_chars": 10889,
+   "job_id": "j-26664c1254c6",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3684989,
+     "completion_tokens": 13783,
+     "reasoning_tokens": 2079,
+     "total_tokens": 3698772,
+     "calls": 127,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__061_sparse_moe_routing_and_experts": {
+   "problem": "L2__061_sparse_moe_routing_and_experts",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__061_sparse_moe_routing_and_experts",
+   "definition": "061_sparse_moe_routing_and_experts",
+   "n_workloads": 16,
+   "task_chars": 11717,
+   "job_id": "j-e892ab1566c7",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5039491,
+     "completion_tokens": 13258,
+     "reasoning_tokens": 2382,
+     "total_tokens": 5052749,
+     "calls": 169,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__062_decoder_complete_layer": {
+   "problem": "L2__062_decoder_complete_layer",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__062_decoder_complete_layer",
+   "definition": "062_decoder_complete_layer",
+   "n_workloads": 16,
+   "task_chars": 13764,
+   "job_id": "j-228d9778cc3b",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 7169839,
+     "completion_tokens": 24416,
+     "reasoning_tokens": 3948,
+     "total_tokens": 7194255,
+     "calls": 162,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__063_encoder_layer_dual_residual_norm_chain": {
+   "problem": "L2__063_encoder_layer_dual_residual_norm_chain",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__063_encoder_layer_dual_residual_norm_chain",
+   "definition": "063_encoder_layer_dual_residual_norm_chain",
+   "n_workloads": 16,
+   "task_chars": 10492,
+   "job_id": "j-39b4429d5f73",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4135979,
+     "completion_tokens": 15274,
+     "reasoning_tokens": 2081,
+     "total_tokens": 4151253,
+     "calls": 115,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__064_multi_head_qkv_projection_with_rope_backward": {
+   "problem": "L2__064_multi_head_qkv_projection_with_rope_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__064_multi_head_qkv_projection_with_rope_backward",
+   "definition": "064_multi_head_qkv_projection_with_rope_backward",
+   "n_workloads": 16,
+   "task_chars": 10122,
+   "job_id": "j-4b3ea90b074d",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3034201,
+     "completion_tokens": 19920,
+     "reasoning_tokens": 3320,
+     "total_tokens": 3054121,
+     "calls": 77,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__065_sparse_expert_dispatch_and_combine": {
+   "problem": "L2__065_sparse_expert_dispatch_and_combine",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__065_sparse_expert_dispatch_and_combine",
+   "definition": "065_sparse_expert_dispatch_and_combine",
+   "n_workloads": 16,
+   "task_chars": 11264,
+   "job_id": "j-8dff58514445",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 4037288,
+     "completion_tokens": 14216,
+     "reasoning_tokens": 3241,
+     "total_tokens": 4051504,
+     "calls": 128,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__066_resnet_block_with_time_embedding": {
+   "problem": "L2__066_resnet_block_with_time_embedding",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__066_resnet_block_with_time_embedding",
+   "definition": "066_resnet_block_with_time_embedding",
+   "n_workloads": 16,
+   "task_chars": 8606,
+   "job_id": "j-a21ca0a38f1a",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 3094802,
+     "completion_tokens": 14512,
+     "reasoning_tokens": 5152,
+     "total_tokens": 3109314,
+     "calls": 86,
+     "failed_calls": 1
+    }
+   }
+  },
+  "L2__070_basic_transformer_block": {
+   "problem": "L2__070_basic_transformer_block",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__070_basic_transformer_block",
+   "definition": "070_basic_transformer_block",
+   "n_workloads": 16,
+   "task_chars": 13097,
+   "job_id": "j-bfd5b3a1968c",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 5521976,
+     "completion_tokens": 19257,
+     "reasoning_tokens": 4517,
+     "total_tokens": 5541233,
+     "calls": 138,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__071_edit_consistency_loss_with_perceptual_weighting": {
+   "problem": "L2__071_edit_consistency_loss_with_perceptual_weighting",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__071_edit_consistency_loss_with_perceptual_weighting",
+   "definition": "071_edit_consistency_loss_with_perceptual_weighting",
+   "n_workloads": 16,
+   "task_chars": 15346,
+   "job_id": "j-333de079ea89",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1995539,
+     "completion_tokens": 8048,
+     "reasoning_tokens": 1032,
+     "total_tokens": 2003587,
+     "calls": 84,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__073_feedforward_mlp_backward": {
+   "problem": "L2__073_feedforward_mlp_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__073_feedforward_mlp_backward",
+   "definition": "073_feedforward_mlp_backward",
+   "n_workloads": 16,
+   "task_chars": 9827,
+   "job_id": "j-1e8e3ddde18d",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 2391580,
+     "completion_tokens": 12526,
+     "reasoning_tokens": 2685,
+     "total_tokens": 2404106,
+     "calls": 84,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__074_sam_hq_mask_decoder_iou_hypernetwork_fusion_backward": {
+   "problem": "L2__074_sam_hq_mask_decoder_iou_hypernetwork_fusion_backward",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__074_sam_hq_mask_decoder_iou_hypernetwork_fusion_backward",
+   "definition": "074_sam_hq_mask_decoder_iou_hypernetwork_fusion_backward",
+   "n_workloads": 16,
+   "task_chars": 19172,
+   "job_id": "j-88b5ec6bc8bd",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 1746381,
+     "completion_tokens": 13210,
+     "reasoning_tokens": 3358,
+     "total_tokens": 1759591,
+     "calls": 49,
+     "failed_calls": 0
+    }
+   }
+  },
+  "L2__075_sam_hq_mask_decoder_two_way_transformer": {
+   "problem": "L2__075_sam_hq_mask_decoder_two_way_transformer",
+   "gpu": null,
+   "sandbox": "/var/tmp/solbench/amdpilot/gpt56-180/L2__075_sam_hq_mask_decoder_two_way_transformer",
+   "definition": "075_sam_hq_mask_decoder_two_way_transformer",
+   "n_workloads": 16,
+   "task_chars": 14416,
+   "job_id": "j-a149bad63ac4",
+   "wall_seconds": null,
+   "n_evals": null,
+   "kernel_changed": null,
+   "session": {
+    "num_turns": null,
+    "is_error": true,
+    "state": "queued",
+    "exit_code": null,
+    "total_cost_usd": 0.0,
+    "usage": {
+     "prompt_tokens": 730667,
+     "completion_tokens": 4586,
+     "reasoning_tokens": 491,
+     "total_tokens": 735253,
+     "calls": 37,
+     "failed_calls": 0
+    }
+   }
+  }
+ },
+ "eval_settings": {
+  "iterations": 20,
+  "warmup": 5
+ },
+ "note": "Run through the amdpilot fleet: J2 backfill jobs placed by the real GPU Scheduler, each in its own container with one MI350X, driven by codex-cli against gpt-5.6-sol through the Model API front door. Trajectories are the front door's own record, not the harness's self-report."
+}

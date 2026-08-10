@@ -199,6 +199,14 @@ def main() -> int:
     ap.add_argument("--reuse-retimed", action="store_true",
                     help="re-derive scores from existing retimed/*.json "
                          "without touching the GPU")
+    ap.add_argument("--only", action="append", default=[], metavar="PROBLEM",
+                    help="process ONLY these problems and ignore the rest of "
+                         "the run. For scoring a sweep that is still going: "
+                         "`sbt collect` writes a session for every job it has "
+                         "a record of, including ones still running, and their "
+                         "sandbox holds whatever the agent has written so far. "
+                         "Re-timing one of those measures a kernel mid-edit. "
+                         "Repeatable.")
     ap.add_argument("--retime", action="append", default=[], metavar="PROBLEM",
                     help="force a fresh re-time for this problem even under "
                          "--reuse-retimed. Repeatable. For when a harness "
@@ -225,6 +233,13 @@ def main() -> int:
 
     # Consumed as it matches, so a typo in a problem name is an error rather
     # than a silent no-op that looks exactly like "re-timed and nothing moved".
+    only = set(a.only)
+    unknown_only = only - set(run["sessions"])
+    if unknown_only:
+        print(f"--only names no session in this run: {sorted(unknown_only)}",
+              file=sys.stderr)
+        return 2
+
     force_retime = set(a.retime)
     unknown = force_retime - set(run["sessions"])
     if unknown:
@@ -237,6 +252,8 @@ def main() -> int:
     t0 = time.time()
 
     for key, sess in sorted(run["sessions"].items()):
+        if only and key not in only:
+            continue
         sandbox = Path(sess.get("sandbox", ""))
         kernel = sandbox / "kernel.py"
         reference = sandbox / "reference.py"

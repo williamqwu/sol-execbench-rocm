@@ -78,12 +78,20 @@ def install_headers() -> list[str]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--cmd", default="port",
+                    choices=["port", "collect", "status", "report", "guard"],
+                    help="which sbt subcommand to run with the tokens "
+                         "attached. `collect` needs them too: it reads the "
+                         "database, and the write guards that broke `port` are "
+                         "per service, not per verb.")
     ap.add_argument("--run-id", required=True)
-    ap.add_argument("--model", required=True,
-                    help="reaches the container as the model to ask for; sbt "
+    ap.add_argument("--model", default=None,
+                    help="required for --cmd port. "
+                         "Reaches the container as the model to ask for; sbt "
                          "records it as `model_requested` and `sbt collect` "
-                         "reads back which upstream actually answered")
-    ap.add_argument("--problems-file", type=Path, required=True)
+                         "reads back which upstream actually answered.")
+    ap.add_argument("--problems-file", type=Path, default=None,
+                    help="required for --cmd port")
     ap.add_argument("--canary", action="store_true",
                     help="port only the FIRST problem in the file. Use this "
                          "before a sweep: a J2 the scheduler cannot start "
@@ -91,6 +99,17 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
 
+    if a.cmd != "port":
+        if not SBT_ROOT.is_dir():
+            raise SystemExit(f"{SBT_ROOT} is not there; the fleet moved")
+        sys.path.insert(0, str(SBT_ROOT))
+        sent = install_headers()
+        print(f"tokens attached: {sent or 'none'}")
+        from sbt.cli import main as sbt_main
+        return sbt_main([a.cmd, a.run_id])
+
+    if a.problems_file is None or a.model is None:
+        raise SystemExit("--problems-file and --model are required for --cmd port")
     problems = [ln.strip() for ln in a.problems_file.read_text().splitlines()
                 if ln.strip()]
     if not problems:
