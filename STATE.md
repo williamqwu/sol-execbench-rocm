@@ -1220,10 +1220,25 @@ Still open, and stated as open. **`L1__005`**: SOLAR is exactly **2.0x** a hand
 count of its three terms, and its conv is 0.05% of the work, so `groups` does
 not explain a factor of two — an exact 2.0 smells like a MAC/FLOP conflation on
 part of the graph. **`L1__054`**: SOLAR's MAC count is **correct** to the digit,
-so it is not an arithmetic-count defect at all; the kernel does 25.77e9 fp32
-MACs in 476.5 us, which at its measured 1449 MHz is ~37,300 MAC/cycle against
-the table's 32,768, and one plain fp32 GEMM at that shape would settle whether
-the fp32 matmul rate exceeds the vector rate the table carries.
+so it is not a counting defect. That GEMM was measured and it points at the
+arch table. At this problem's exact shape a plain fp32 GEMM reaches **29,627
+MAC/cycle**, *below* the table's 32,768; transposing B the way the kernel does
+changes nothing; the three GEMMs the reference performs take 602.5 us back to
+back and the fused single GEMM 590.5 us. The kernel is timed at 476.5 us, and
+its source explains the wall clock honestly — for M >= 1024 it runs the `value`
+GEMM on a second stream, so two of three overlap, and 602.5 x 2/3 = 402 us is
+the right order. It stays on the default stream and synchronises before
+returning, so it is an optimisation and not an exploit.
+
+What is left is the rate. 25.77e9 MACs in 476.5 us at 1449 MHz is ~37,300
+MAC/cycle, about **14% above** the table's 32,768, and no arrangement of
+streams exceeds a device's peak. So either `MAC_per_cycle_fp32_sm` is too low —
+an 8192-cube GEMM cannot tell "the peak is 32,768 and one GEMM reaches 97%"
+apart from "the peak is higher and one GEMM cannot reach it", and two
+concurrent GEMMs is exactly the experiment that separates them — or the
+harness's reported latency for this workload is not the wall time of `run()`.
+Either answer matters more than the one problem: the first moves every
+compute-bound fp32 bound again.
 **`L2__045`**: 2.13x residue after its 1554 MHz is accounted for; largest and
 least understood. **`L1__057`**: memory-bound, so the clock cancels; a traffic
 question.
