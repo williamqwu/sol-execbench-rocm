@@ -8,7 +8,16 @@
 {# Deferred, and opt-in per pane: it enhances only `pre.code[data-lang]`, so a
    page that has not said what a block holds is served exactly as rendered. #}
 <script src="{{ asset("/static/highlight.js") }}" defer></script>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>&#9889;</text></svg>">
+{# The mark, not an emoji. The old favicon and the old header glyph were both
+   the same U+26A1 character set as text, which means the tab icon was whatever
+   colour emoji font the reader's OS ships -- a glossy yellow bolt beside a
+   monochrome wordmark, at a size the font was never hinted for, and different
+   on every platform. This is the same three strokes the header draws: the red
+   rule is the bound, the bars are measurements under it, and the space between
+   the tallest bar and the rule is the headroom the whole board is about.
+   Encoded as a data URI so it stays one request and no build step; only `#`
+   needs escaping. #}
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%2312151b'/><path d='M4.5 5.2h15' stroke='%23ed1c24' stroke-width='2.4' stroke-linecap='round'/><path d='M7 19v-4M12 19v-7.5M17 19v-11' stroke='%23ffffff' stroke-width='2.6' stroke-linecap='round'/></svg>">
 <script>
 /* Applied before first paint. Reading the stored theme in <body> instead makes
    the page render dark, then flash to light -- worse than no toggle at all. */
@@ -25,9 +34,17 @@
 <header>
   <div class="wrap">
     <a class="brand" href="{{ part_url('/') }}">
-      <span class="spark">&#9889;</span>
+      {# Drawn, so it inherits the theme: the bars are `currentColor` and the
+         bound is the AMD red the wordmark's suffix already uses. `aria-hidden`
+         because the wordmark beside it is the accessible name -- a second
+         reading of "SOL-ExecBench-ROCm" helps nobody. #}
+      <svg class="mark" width="20" height="20" viewBox="0 0 24 24" fill="none"
+           stroke-linecap="round" stroke-width="2.6" aria-hidden="true">
+        <path class="m-sol" d="M4.5 5.2h15" stroke-width="2.4"/>
+        <path class="m-bars" d="M7 19v-4M12 19v-7.5M17 19v-11"/>
+      </svg>
       {# One flex item, not two. `.brand` is an inline-flex with `gap:8px` to
-         space the bolt off the wordmark, and a bare text node followed by
+         space the mark off the wordmark, and a bare text node followed by
          <span class="amd"> made the suffix a SECOND flex item -- so the gap
          opened up inside the product name, rendering "SOL-ExecBench  -ROCm".
          Wrapping the whole wordmark keeps the gap where it was meant to be. #}

@@ -25,9 +25,11 @@
    its own query string from its controls, so submitting a search on an
    explicitly pinned listing would drop `?part=` exactly like a bare href does. #}
 <form class="filters" method="get" action="/problems">
-  <a class="chip {% if not category %}on{% endif %}" href="{{ part_url('/problems') }}">all</a>
+  <a class="chip {% if not category %}on{% endif %}" href="{{ part_url('/problems') }}"
+     {% if not category %}aria-current="true"{% endif %}>all</a>
   {% for c in categories %}
-    <a class="chip {% if category == c %}on{% endif %}" href="{{ part_url('/problems', category=c) }}">{{ c }}</a>
+    <a class="chip {% if category == c %}on{% endif %}" href="{{ part_url('/problems', category=c) }}"
+       {% if category == c %}aria-current="true"{% endif %}>{{ c }}</a>
   {% endfor %}
   <input type="search" name="q" value="{{ q }}" placeholder="search name or description">
   {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}

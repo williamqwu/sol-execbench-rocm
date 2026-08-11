@@ -28,6 +28,33 @@ That last row is the load-bearing one. Adding fastapi to
 this repo was measured under, which prime directive 6 forbids. The web app
 never touches a GPU, so it has no business in that image.
 
+## The B200 overlay
+
+Every problem page can show, beside our T_b and T_SOL, **NVIDIA's own published
+figures for the same workload on B200**. It is off by default, behind a switch
+that is remembered per reader, and the columns never appear without the
+paragraph that says what they are not.
+
+```bash
+python scripts/fetch_nvidia_b200_reference.py    # -> reference/nvidia-b200/published.json
+leaderboard/.venv/bin/python leaderboard/ingest.py
+```
+
+The file is optional. Without it the ingest sets `b200_matched` to 0 and the
+switch does not render. With it, `ingest.py` matches NVIDIA's workloads to ours
+**by axes**, uses a match only where it is unique, and prints how many it could
+not place (42 of 3,957 today, on three problems whose own workloads do not
+differ in their axes).
+
+What it is for: orientation. The same workload, on the part the benchmark was
+designed for, tells you something about the shape that no AMD number does. What
+it must never be: an input. Different part, different power cap, different
+clock — the ratio between a B200 millisecond and an MI350X one is not a
+speedup. And `b200_sol_ms` is NVIDIA's roofline from NVIDIA's arch constants,
+which is the exact value prime directive 2 forbids becoming, seeding or
+checking an AMD T_SOL. It is not in `/api/v1`, not in any manifest, and nothing
+computes with it.
+
 ## One database per part
 
 A score measured on MI350X and one measured on MI355X are **not comparable**:

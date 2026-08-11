@@ -2462,4 +2462,95 @@ Verified: container `pytest tests/` 503 passed / 66 skipped (65 -> 66 is
           every field the baseline records — six runs, six ranks, unchanged
 Open:     nothing committed; the HTML explainer stack (a separate repo,
           branch qwu-dev/solrocm-bench) was still being written at session end
+
+### 2026-08-11 — session 4  (node: gbt350-odcdh1-a08-1, 8x MI350X)
+Worked: leaderboard front end only — no GPU work, no measurement taken,
+        changed or re-scored. /api/v1 response bodies are unchanged for every
+        category the board has; the only new API behaviour is a 400.
+Produced: D44 — `/?category=X` filtered the rows and NOT their labels. The
+          scope notes, the "whole benchmark" segment and the coverage header
+          quoted the manifest's 3,717 / 220 above a table divided by (L1)
+          1,480 / 94. Fixed at the source: `scoreable_totals()` is now the one
+          implementation of the denominator and the page quotes what the rows
+          used.
+          D45 — an unknown `?category=` matched nothing and rendered a full
+          board of 0.0000 scores with empty coverage bars. Now a 400, on both
+          HTML routes and all four JSON ones, like an unknown `?part=`.
+          The two board filters (which problems / which denominator) are one
+          row, one colour each — blue for the set, red for the denominator —
+          each with its own label, `aria-label` and `aria-current`.
+          The bolt emoji is gone from the favicon and the header: an OS-
+          dependent colour glyph replaced by a drawn mark (red bound, three
+          bars under it), theme-aware in the header.
+          `press ⌘C` on a copy failure now names Ctrl+C off a Mac.
+Verified: `leaderboard/.venv/bin/python -m pytest tests/leaderboard` —
+          165 passed, 1 skipped (was 153/1; +12 in tests/leaderboard/
+          test_category_filter.py). Crawled all 201 reachable pages: no non-200.
+
+Then the problem page, same session:
+Produced: D46 — every per-workload `axes_json` in the database was `{}`, on all
+          3,957 rows, so the problem page's axes column had rendered empty
+          since it was written. The manifest carries no axes (it is a scoring
+          artifact); the dataset's own `workload.jsonl` does, and `ingest.py`
+          now reads it. 3,941 of 3,957 have axes; the other 16 (L1__016)
+          declare none in the dataset and say so on the page.
+          Problem page rebuilt in reading order: what it computes (inputs,
+          outputs, axes) -> reference (now syntax-highlighted) -> workloads
+          with T_b and T_SOL as the default columns -> submissions -> the
+          per-workload evidence, collapsed. The eleven derivation columns are
+          behind a switch on the same rows. Both tables filter and sort.
+          Result statuses render in words (`STATUS_LABELS` in app.py) with the
+          enum kept in `title`; REWARD_HACK reads "reward hacking" everywhere.
+          A submission's name on a problem page now links to that run ON THIS
+          PROBLEM rather than to the run's own overview.
+          NVIDIA B200 overlay: `scripts/fetch_nvidia_b200_reference.py` pulls
+          their published per-workload baseline and SOL for all 235 problems
+          from their public JSON API into `reference/nvidia-b200/
+          published.json`; the ingest matches 3,915 of 3,957 by axes (unique
+          matches only) into two new `workload` columns. **Display only** —
+          off by default, absent from /api/v1, never an input to a bound, a
+          tolerance or a score. Prime directive 2 is the reason the columns are
+          tinted, captioned and switchable rather than simply printed.
+Observed: B200 SOL / AMD T_SOL agrees within 2x on 58% of matched scoreable
+          workloads and the disagreeing tail lands where `bound_quality`
+          already says the bound is loose or vacuous — an independent smell
+          test that mostly confirms the existing marking. Two exceptions, both
+          `declared_traffic`, are recorded in TODO.md under D39. No bound was
+          changed and none may be changed on this evidence.
+Verified: 184 passed, 1 skipped (+19: test_problem_page.py,
+          test_b200_overlay.py). Database rebuilt: 235 problems, 3,957
+          workloads, 22,357 results — unchanged counts, and no score moved.
+
+Second pass on the same page, same session:
+Produced: D47 — a workload's parameters were only the axes that VARY (3 of 7 on
+          L1__001), because `workload.jsonl` carries only those. The const
+          values come from `definition.json` and the `expr` ones are now
+          computed from the rest by an AST walk over a whitelist
+          (`eval_axis_expr`, 123 distinct expressions in the dataset, none of
+          them anything but arithmetic). All 3,957 workloads now list their
+          full parameter set, as upstream does, with const/expr chips dimmed.
+          D48 — workload identity was an 8-char uuid prefix, which corresponds
+          to nothing anybody else prints. `dataset_index` is the position in
+          the dataset's own workload.jsonl; checked across all 235 problems,
+          that is also the order upstream returns its workloads in, so #4 here
+          is #4 there. The table is ordered by it (the manifest sorts by uuid).
+          Reference implementation moved BELOW the workload table and clamped
+          to 25 lines with a button; the clamp is applied by JS so a
+          script-less reader gets the whole listing.
+          The two optional column groups are now colour-banded — green for the
+          B200 reference, red for the derivation — each with a caption that
+          appears with its columns and, for the derivation band, defines every
+          one of its six columns.
+          The score formula is one shared partial rendered as stacked
+          fractions instead of `1 / (1 + (T_k - T_SOL) / (T_b - T_SOL))` in a
+          <code> span, with both anchors keyed beside it. The manifest's own
+          string stays printed verbatim on /methodology.
+          `fmt_ms`: a timing below 1e-4 ms renders in scientific rather than as
+          `0.00000`. FlashInfer-Bench__001's T_SOL is 2.3e-6 ms — three cycles,
+          itself a D39 symptom — and it read as no bound at all.
+          Submissions table on a problem: the duplicate trailing link is gone
+          (the name carries it) and "workloads passed" is the board's own
+          five-state coverage bar, which distinguishes failed from never given.
+Verified: 193 passed, 1 skipped (+8: test_score_formula.py). 261 reachable
+          pages crawled, no non-200.
 ```

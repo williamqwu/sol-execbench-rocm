@@ -77,6 +77,24 @@ CREATE TABLE workload (
     -- T_b/(T_b+T_k) and is a PyTorch comparison wearing a roofline's clothes.
     bound_quality      TEXT,
     bound_headroom     REAL,   -- T_b / T_SOL
+    -- NVIDIA's OWN published figures for this workload, on B200, fetched from
+    -- the upstream site by scripts/fetch_nvidia_b200_reference.py and matched
+    -- to this row by axes. Display only, and off by default in the UI.
+    --
+    -- These are not a comparison and nothing may compute with them: different
+    -- part, different clock, and `b200_sol_ms` is NVIDIA's roofline from
+    -- NVIDIA's arch constants -- the exact value prime directive 2 forbids
+    -- becoming, seeding or checking an AMD T_SOL. NULL where no unique axes
+    -- match exists (42 workloads across 3 problems whose own axes do not
+    -- separate them), never a nearest guess.
+    b200_baseline_ms   REAL,
+    b200_sol_ms        REAL,
+    -- 1-based position in the dataset's own `workload.jsonl`, which is the
+    -- order upstream lists the same problem's workloads in (checked across all
+    -- 235). It is what lets a reader line row #4 here up with row #4 there;
+    -- the manifest sorts by uuid instead, and a uuid prefix corresponds to
+    -- nothing anybody else prints.
+    dataset_index      INTEGER,
     PRIMARY KEY (problem_key, uuid)
 );
 CREATE INDEX idx_workload_problem ON workload(problem_key);

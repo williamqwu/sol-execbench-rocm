@@ -181,7 +181,7 @@
     <div class="lbl" title="What this problem contributes to the benchmark score: scores summed over every scoreable workload, including the ones that failed or were never run.">contribution to benchmark</div>
   </div>
   {% if summary.n_flagged %}
-  <div class="card"><div class="num bad">{{ summary.n_flagged }}</div><div class="lbl">flagged (reward hack)</div></div>
+  <div class="card"><div class="num bad">{{ summary.n_flagged }}</div><div class="lbl">rejected as reward hacking</div></div>
   {% endif %}
 </div>
 
@@ -279,16 +279,16 @@
     {%- endif -%}
     {%- set foot = none -%}
   {%- else -%}
-    {%- set cls, state = 'g-fail', w.status|lower -%}
+    {%- set cls, state = 'g-fail', w.status|status_label -%}
     {%- set foot = 'A kernel ran and did not pass. That is not the same as one that was never written.' -%}
   {%- endif -%}
   {%- set axes = w.axes.items()|map('join','=')|join(' ') -%}
   <button type="button" class="cell {{ cls }}" data-i="{{ loop.index }}"
           data-uuid="{{ w.uuid }}" data-row="wl-{{ loop.index }}"
           data-axes="{{ axes }}" data-state="{{ state }}"
-          {% if w.t_sol_ms %}data-tsol="{{ '%.5f'|format(w.t_sol_ms) }}"{% endif %}
-          {% if w.t_b_ms %}data-tb="{{ '%.5f'|format(w.t_b_ms) }}"{% endif %}
-          {% if w.latency_ms %}data-tk="{{ '%.5f'|format(w.latency_ms) }}"{% endif %}
+          {% if w.t_sol_ms %}data-tsol="{{ w.t_sol_ms|ms }}"{% endif %}
+          {% if w.t_b_ms %}data-tb="{{ w.t_b_ms|ms }}"{% endif %}
+          {% if w.latency_ms %}data-tk="{{ w.latency_ms|ms }}"{% endif %}
           {% if w.speedup_vs_tb %}data-speedup="{{ '%.2f'|format(w.speedup_vs_tb) }}×"{% endif %}
           {% if s is not none %}data-s="{{ '%.4f'|format(s) }}"{% endif %}
           {% if s is not none and s >= 0.5 %}data-beat="1"{% endif %}
@@ -358,13 +358,16 @@
         {%- elif not w.attempted and retime_failed %}<span class="sub"
           title="A kernel was submitted; the authoritative re-time did not complete.">submitted, never measured</span>
         {%- elif not w.attempted %}<span class="sub">not attempted</span>
-        {%- elif w.passed %}<span class="ok">PASSED</span>
-        {%- else %}<span class="bad">{{ w.status }}</span>{% endif %}
-        {%- if w.flagged %} <span class="flag">reward hack</span>{% endif %}
+        {%- elif w.passed %}<span class="ok">passed</span>
+        {# The enum in words, from app.py's one mapping, with the raw value in
+           `title`. A status column that reads INCORRECT_NUMERICAL is a column
+           with a key nobody wrote down. #}
+        {%- else %}<span class="bad" title="{{ w.status }}">{{ w.status|status_label }}</span>{% endif %}
+        {%- if w.flagged and w.status != 'REWARD_HACK' %} <span class="flag">reward hacking</span>{% endif %}
       </td>
-      <td class="r mono">{{ '%.5f'|format(w.t_sol_ms) if w.t_sol_ms else '&mdash;'|safe }}</td>
-      <td class="r mono">{{ '%.5f'|format(w.t_b_ms) if w.t_b_ms else '&mdash;'|safe }}</td>
-      <td class="r mono">{{ '%.5f'|format(w.latency_ms) if w.latency_ms else '&mdash;'|safe }}</td>
+      <td class="r mono">{{ w.t_sol_ms|ms }}</td>
+      <td class="r mono">{{ w.t_b_ms|ms }}</td>
+      <td class="r mono">{{ w.latency_ms|ms }}</td>
       <td class="r mono {% if w.speedup_vs_tb and w.speedup_vs_tb >= 1 %}ok{% endif %}">{{
         '%.2f'|format(w.speedup_vs_tb) + '×' if w.speedup_vs_tb else '—' }}</td>
       <td class="r mono">{{ '%.4f'|format(w.score) if w.score is not none else '&mdash;'|safe }}</td>
@@ -378,7 +381,7 @@
             <span class="tick"></span>
           </span>
         {%- elif w.attempted %}
-          <span class="sub">no score &mdash; {{ w.status|lower }}</span>
+          <span class="sub">no score &mdash; {{ w.status|status_label }}</span>
         {%- elif retime_failed %}
           <span class="sub">no measurement &mdash; the re-time did not complete.
             Counts as zero, like a workload never attempted, and is not one.</span>

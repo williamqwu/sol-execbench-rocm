@@ -139,9 +139,17 @@
     return out;
   }
 
+  /* The key the reader actually has. The fallback message said "press ⌘C"
+     unconditionally, and this board is served from a Linux node to Linux and
+     Windows browsers far more often than to a Mac -- so the one message that
+     appears when copying has FAILED was naming a key most readers do not have.
+     Sniffed once, from the platform string, defaulting to the majority case. */
+  var COPY_KEY = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)
+    ? "⌘C" : "Ctrl+C";
+
   function copyText(text, btn) {
     var done = function (ok) {
-      btn.textContent = ok ? "copied" : "press ⌘C";
+      btn.textContent = ok ? "copied" : "press " + COPY_KEY;
       btn.classList.toggle("ok", ok);
       setTimeout(function () {
         btn.textContent = "copy";

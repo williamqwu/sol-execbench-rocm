@@ -83,6 +83,45 @@ templates = Jinja2Templates(directory=str(HERE / "templates"))
 # `meta` is a flat string->string table, so JSON-valued rows come back as text.
 templates.env.filters["from_json"] = lambda s: json.loads(s) if s else []
 
+# The result enum, in words. The pages printed the raw value -- a reader met
+# `REWARD_HACK` and `INCORRECT_NUMERICAL` in a status column with no key
+# anywhere on the site, and the first of those is an accusation that deserves
+# to be legible. The enum stays: it is what `/api/v1` returns and what the
+# artifacts hold, so the templates keep it in the cell's `title` and sort by it.
+# Anything unmapped degrades to the enum lowercased rather than to a blank.
+STATUS_LABELS = {
+    "PASSED": "passed",
+    "REWARD_HACK": "reward hacking",
+    "INCORRECT_NUMERICAL": "wrong output",
+    "RUNTIME_ERROR": "runtime error",
+    "COMPILE_ERROR": "compile error",
+    "TIMEOUT": "timed out",
+    "ERROR": "error",
+}
+templates.env.filters["status_label"] = (
+    lambda s: STATUS_LABELS.get(s, (s or "").replace("_", " ").lower()))
+
+
+def fmt_ms(v) -> str:
+    """A millisecond figure, without printing a real number as zero.
+
+    Every timing column was `%.5f`, which is right for the range most of them
+    live in and wrong at the bottom of it: `FlashInfer-Bench__001`'s T_SOL is
+    2.3e-6 ms — three GPU cycles, itself a symptom (D39) — and it rendered as
+    `0.00000`. A bound displayed as zero is not a small bound, it reads as no
+    bound at all, and it is the rows with the most questionable bounds that hit
+    it. Below 1e-4 ms the number switches to scientific rather than losing its
+    digits; `parseFloat` still sorts it, so the column order is unaffected.
+    """
+    if v is None:
+        return "—"
+    if v == 0:
+        return "0"
+    return f"{v:.5f}" if abs(v) >= 1e-4 else f"{v:.2e}"
+
+
+templates.env.filters["ms"] = fmt_ms
+
 
 def asset(path: str) -> str:
     """`/static/x.js` -> `/static/x.js?v=<hash of x.js>`.
@@ -490,6 +529,54 @@ def part_mismatches_for(part: str) -> list[dict]:
     return _cached(_mismatch_cache, path, part_mismatches) or []
 
 
+def known_categories(conn) -> list[str]:
+    """The categories this database actually holds, in listing order."""
+    return [r["category"] for r in conn.execute(
+        "SELECT DISTINCT category FROM problem ORDER BY category")]
+
+
+def check_category(conn, category: str | None) -> None:
+    """An unknown `?category=` is a 400, exactly like an unknown `?part=`.
+
+    It used to be a filter that matched nothing, and the board answered with a
+    full table of 0.0000 scores and empty coverage bars -- every submission
+    rendered as having achieved nothing, on a benchmark subset that does not
+    exist. A page of plausible zeros nobody measured is the failure mode this
+    whole repo is organised against; refusing the request is the only reading
+    that is true.
+    """
+    if category is None:
+        return
+    known = known_categories(conn)
+    if category not in known:
+        raise HTTPException(
+            400, f"unknown category {category!r}: this board has {known}")
+
+
+def scoreable_totals(conn, category: str | None = None) -> dict:
+    """The denominators the board divides by, in the scope on screen.
+
+    One implementation, read both by `leaderboard_rows()` and by the page that
+    LABELS those rows -- because the two disagreed. The rows honour
+    `?category=`; the labels above them quoted the manifest's whole-benchmark
+    figures, so `/?category=L1` printed "divide by all 3,717 scoreable
+    workloads" and "coverage -- all 220 problems" over a table divided by
+    1,480 workloads across 94. A mislabelled denominator is not a cosmetic
+    defect: it is the reader being told which question the number answers,
+    wrongly.
+    """
+    return {
+        "workloads": conn.execute(
+            f"""SELECT COUNT(*) FROM workload w WHERE w.scoreable=1
+                {'AND w.problem_key LIKE ?' if category else ''}""",
+            (f"{category}__%",) if category else ()).fetchone()[0],
+        "problems": conn.execute(
+            f"""SELECT COUNT(*) FROM problem p WHERE p.n_scoreable > 0
+                {'AND p.category = ?' if category else ''}""",
+            (category,) if category else ()).fetchone()[0],
+    }
+
+
 def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
     """One row per submission. Missing workloads score zero, by construction."""
     where_cat = "AND w.problem_key LIKE ?" if category else ""
@@ -504,13 +591,9 @@ def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
     part_guard = "AND (part IS NULL OR part = ?)" if want_part else ""
     part_arg = (want_part,) if want_part else ()
 
-    total = conn.execute(
-        f"SELECT COUNT(*) FROM workload w WHERE w.scoreable=1 {where_cat}",
-        cat_arg).fetchone()[0]
-    total_problems = conn.execute(
-        f"""SELECT COUNT(*) FROM problem p WHERE p.n_scoreable > 0
-            {'AND p.category = ?' if category else ''}""",
-        (category,) if category else ()).fetchone()[0]
+    totals = scoreable_totals(conn, category)
+    total = totals["workloads"]
+    total_problems = totals["problems"]
 
     out = []
     # `board_visible = 0` is read HERE and nowhere in the ingest of results, so
@@ -712,7 +795,14 @@ def problem_detail(conn, key: str) -> dict:
     for f in ("axes_json", "inputs_json", "outputs_json"):
         p[f.replace("_json", "")] = json.loads(p.pop(f) or "{}")
 
-    wls = rows(conn, "SELECT * FROM workload WHERE problem_key=? ORDER BY rowid", (key,))
+    # Dataset order, not manifest order. The manifest sorts workloads by uuid,
+    # which is an ordering nobody else shares; `dataset_index` is the position
+    # in the dataset's own workload.jsonl and therefore the position upstream
+    # lists the same workload at. Rows with no index (no dataset checked out)
+    # keep the old ordering behind the ones that have one.
+    wls = rows(conn, """SELECT * FROM workload WHERE problem_key=?
+                         ORDER BY (dataset_index IS NULL), dataset_index, rowid""",
+               (key,))
     for w in wls:
         w["axes"] = json.loads(w.pop("axes_json") or "{}")
         # Both, not just t_sol_ms. A deferred problem has a T_SOL (it is
@@ -746,6 +836,7 @@ def problem_detail(conn, key: str) -> dict:
     # here changes a number; it says what each one was divided by.
     per_sub = rows(conn, """
         SELECT s.slug, s.name, s.kind, s.model, s.board_visible, s.exclusion_reason,
+               COUNT(*) AS attempted,
                SUM(CASE WHEN r.status='PASSED' THEN 1 ELSE 0 END) AS passed,
                SUM(CASE WHEN r.status='PASSED' AND r.score IS NOT NULL
                         THEN 1 ELSE 0 END) AS scored,
@@ -757,7 +848,16 @@ def problem_detail(conn, key: str) -> dict:
          GROUP BY s.id
          ORDER BY (mean_score IS NULL), mean_score DESC""", (key,))
 
-    return {"problem": p, "workloads": wls, "submissions": per_sub}
+    # Which axes actually MOVE across this problem's workloads. The workload
+    # table prints every axis, the way upstream does -- `head_dim=128` is part
+    # of the shape whether or not it varies -- but the results table below it
+    # is one row per workload PER SUBMISSION, and seven identical chips on 288
+    # rows is noise that hides the one or two that differ. Same data, and the
+    # set is derived rather than declared so it cannot go stale.
+    varying = sorted({k for w in wls for k, v in w["axes"].items()
+                      if any(o["axes"].get(k) != v for o in wls)})
+    return {"problem": p, "workloads": wls, "submissions": per_sub,
+            "varying_axes": varying}
 
 
 def trials(conn, s: dict, key: str | None = None) -> list[dict]:
@@ -1209,6 +1309,7 @@ def v1_leaderboard(request: Request, category: str | None = None,
     row for anyone who wants the other one.
     """
     with db(resolve_part(request, part)) as conn:
+        check_category(conn, category)
         return sorted(leaderboard_rows(conn, category), key=lambda r: r["rank"])
 
 
@@ -1216,6 +1317,7 @@ def v1_leaderboard(request: Request, category: str | None = None,
 def v1_problems(request: Request, category: str | None = None,
                 part: str | None = None):
     with db(resolve_part(request, part)) as conn:
+        check_category(conn, category)
         return problem_rows(conn, category)
 
 
@@ -1291,6 +1393,7 @@ def api_leaderboard(request: Request, category: str | None = None,
                     part: str | None = None):
     # Same ordering as /api/v1/leaderboard, for the same reason.
     with db(resolve_part(request, part)) as conn:
+        check_category(conn, category)
         return sorted(leaderboard_rows(conn, category), key=lambda r: r["rank"])
 
 
@@ -1298,6 +1401,7 @@ def api_leaderboard(request: Request, category: str | None = None,
 def api_problems(request: Request, category: str | None = None,
                  part: str | None = None):
     with db(resolve_part(request, part)) as conn:
+        check_category(conn, category)
         return problem_rows(conn, category)
 
 
@@ -1361,14 +1465,17 @@ TOC_RUN_ALL = [
     {"id": "transcript", "label": "Transcript"},
     {"id": "others", "label": "Everyone else here"},
 ]
+# Reading order, which is now also the order a reader asks the questions in:
+# what the kernel does, the code that defines it, the workloads and their two
+# bounds, who has run it, and then the evidence. Inputs, outputs and axes used
+# to be three sections BELOW the eleven-column bounds table; they are one
+# section above it now, which is why they are no longer three entries here.
 TOC_PROBLEM = [
-    {"id": "bounds", "label": "Scoring bounds"},
+    {"id": "what", "label": "What it computes"},
+    {"id": "workloads", "label": "Workloads & bounds"},
+    {"id": "reference", "label": "Reference implementation"},
     {"id": "submissions", "label": "Submissions"},
     {"id": "results", "label": "Per-workload results"},
-    {"id": "axes", "label": "Axes"},
-    {"id": "inputs", "label": "Inputs"},
-    {"id": "outputs", "label": "Outputs"},
-    {"id": "reference", "label": "Reference implementation"},
 ]
 
 
@@ -1399,13 +1506,19 @@ def page(request: Request, name: str, part: str, **ctx) -> HTMLResponse:
 def index(request: Request, category: str | None = None, part: str | None = None):
     active = resolve_part(request, part)
     with db(active) as conn:
+        check_category(conn, category)
         board = leaderboard_rows(conn, category)
+        # What the rows are divided by, in the scope the chips have selected.
+        # Passed to the template so every label on the page quotes the same
+        # denominator the table used -- see `scoreable_totals()`.
+        scope = scoreable_totals(conn, category)
         mismatch = part_mismatches(conn)
         cats = rows(conn, """SELECT category, COUNT(*) AS n,
                                     SUM(CASE WHEN deferred=1 THEN 1 ELSE 0 END) AS deferred
                                FROM problem GROUP BY category ORDER BY category""")
     return page(request, "index.html", active, board=board, categories=cats,
-                category=category, nav="board", part_mismatch=mismatch)
+                category=category, scope=scope, nav="board",
+                part_mismatch=mismatch)
 
 
 @app.get("/problems", response_class=HTMLResponse)
@@ -1413,6 +1526,7 @@ def problems(request: Request, category: str | None = None, q: str | None = None
              part: str | None = None):
     active = resolve_part(request, part)
     with db(active) as conn:
+        check_category(conn, category)
         items = problem_rows(conn, category)
         cats = rows(conn, "SELECT DISTINCT category FROM problem ORDER BY category")
     if q:
@@ -1430,7 +1544,11 @@ def problem(request: Request, key: str, part: str | None = None):
     active = resolve_part(request, part)
     with db(active) as conn:
         d = problem_detail(conn, key)
-    return page(request, "problem.html", active, toc=TOC_PROBLEM, **d)
+    # On the summary of a collapsed section, so a reader can see how much is
+    # behind it before deciding to open it.
+    n_results = sum(len(w["results"]) for w in d["workloads"])
+    return page(request, "problem.html", active, toc=TOC_PROBLEM,
+                n_results=n_results, **d)
 
 
 @app.get("/submissions/{slug}", response_class=HTMLResponse)

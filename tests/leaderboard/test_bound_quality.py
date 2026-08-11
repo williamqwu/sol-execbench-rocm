@@ -68,7 +68,10 @@ def test_every_scoreable_workload_on_the_board_is_marked(client):
     checked = 0
     for key in sorted(keys)[:12]:
         page = client.get(f"/problems/{key}").text
-        for cell in re.findall(r"<td class=\"r mono\">([\d.]+)×(.*?)</td>",
+        # `[^>]*` for the cell's other attributes: the headroom cell carries a
+        # `data-sort` now that the workload table is sortable, and matching the
+        # tag literally made this test pass by finding nothing.
+        for cell in re.findall(r"<td class=\"r mono\"[^>]*>([\d.]+)×(.*?)</td>",
                                page, re.S):
             headroom, rest = float(cell[0]), cell[1]
             checked += 1

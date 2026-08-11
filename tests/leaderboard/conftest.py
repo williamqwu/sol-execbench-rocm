@@ -205,6 +205,16 @@ META = {
     # artifacts -- which have nothing to do with it.
     "input_signature": json.dumps({}),
     "input_extra_roots": json.dumps([]),
+    # NVIDIA's published B200 figures are an optional overlay: the board
+    # renders the columns only where `b200_matched` is non-zero, so the
+    # fixture sets it and gives every workload a pair of values below. A
+    # fixture without them would exercise only the absent path, which is the
+    # path where the column cannot be wrong.
+    "b200_matched": "6",
+    "b200_site": "https://research.nvidia.com/benchmarks/sol-execbench/",
+    "b200_fetched_utc": "2026-08-11T00:00:00+00:00",
+    "workloads_total_all": "8",
+    "workloads_with_axes": "8",
 }
 
 
@@ -240,15 +250,19 @@ def build_fixture_db(path: Path, part: str = "MI350X") -> Path:
             """INSERT INTO workload (problem_key, uuid, axes_json, t_sol_ms,
                                      t_sol_cycles, t_sol_source, sol_bottleneck,
                                      t_b_ms, t_b_variant, tol_atol, tol_rtol,
-                                     scoreable, bound_quality, bound_headroom)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                                     scoreable, bound_quality, bound_headroom,
+                                     b200_baseline_ms, b200_sol_ms)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (key, uuid, json.dumps({"n": 1024}), t_sol,
              int(t_sol * 1.3e6) if t_sol else None, "solar_fused", "memory",
              t_b, "v1_eager" if t_b else None, 1e-3, 1e-3, scoreable,
              # Through ingest's own function, not a literal. A derived column
              # hand-filled here would agree with the template and disagree with
              # the board, which is the one combination no test can catch.
-             *_ingest_bound_quality(t_sol, t_b)))
+             *_ingest_bound_quality(t_sol, t_b),
+             # Another part's numbers, deliberately unlike this part's so a
+             # template that renders one in the other's column is visible.
+             (t_b * 0.5) if t_b else None, (t_sol * 0.5) if t_sol else None))
     ids = {}
     for s in SUBMISSIONS:
         cols = ["slug", "name", "kind", "model", "created_utc", "board_visible",

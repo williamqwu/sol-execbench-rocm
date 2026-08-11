@@ -4,61 +4,102 @@
 <h1>Speed&#8209;of&#8209;Light leaderboard</h1>
 <p class="lede">
   Every kernel is scored against a physical bound, not against another kernel.
-  <code>S(T<sub>k</sub>) = 1 / (1 + (T<sub>k</sub> &minus; T<sub>SOL</sub>) / (T<sub>b</sub> &minus; T<sub>SOL</sub>))</code>
-  &mdash; <b>0.5</b> at the optimized&#8209;PyTorch anchor T<sub>b</sub>, <b>1.0</b> at the
-  roofline T<sub>SOL</sub>. Bounds are derived on this AMD part; none are carried over from NVIDIA silicon.
+  Bounds are derived on this AMD part; none are carried over from NVIDIA
+  silicon.
 </p>
+{% include "_score_formula.html" %}
+
+{# The active category's own row, so the cards and every denominator below can
+   quote the scope on screen instead of the whole benchmark. `none` when no
+   chip is selected, which is the unfiltered board and the manifest's figures. #}
+{% set cat_row = (categories | selectattr('category', 'equalto', category) | first) if category else none %}
 
 <div class="cards">
-  <div class="card"><div class="num">{{ meta.scoreable_problems }}<span class="of">/{{ meta.total_problems }}</span></div><div class="lbl">problems scoreable</div></div>
-  <div class="card"><div class="num">{{ meta.scoreable_workloads }}</div><div class="lbl">workload instances</div></div>
+  <div class="card"><div class="num">{{ scope.problems if cat_row else meta.scoreable_problems }}<span class="of">/{{ cat_row.n if cat_row else meta.total_problems }}</span></div><div class="lbl">problems scoreable{% if category %} in {{ category }}{% endif %}</div></div>
+  <div class="card"><div class="num">{{ '{:,}'.format(scope.workloads|int) }}</div><div class="lbl">workload instances{% if category %} in {{ category }}{% endif %}</div></div>
   <div class="card"><div class="num">{{ meta.part or '&mdash;' }}</div><div class="lbl">measured on</div></div>
   <div class="card"><div class="num">{{ meta.f_lock_mhz }}<span class="of">MHz</span></div><div class="lbl">locked clock (achieved)</div></div>
   <div class="card"><div class="num">{{ meta.methodology }}</div><div class="lbl">timing methodology</div></div>
 </div>
 
-{# part_url() on every one of these. The cookie hides the bug in ordinary
-   browsing, but a category chip that drops `?part=` hands a reader on an
-   explicitly pinned listing a link to the default dataset -- and that is what
-   gets shared, opened in a second tab, or fetched by a cookie-less client. #}
-<div class="filters">
-  <a class="chip {% if not category %}on{% endif %}" href="{{ part_url('/') }}">all categories</a>
-  {% for c in categories %}
-    <a class="chip {% if category == c.category %}on{% endif %}"
-       href="{{ part_url('/', category=c.category) }}">{{ c.category }}
-       <span class="chip-n">{{ c.n - c.deferred }}</span></a>
-  {% endfor %}
-</div>
-
-{# One score, two scopes, and a switch -- not two score columns. Printing both
-   at once was the confusion this replaces: two four-decimal numbers under
-   adjacent headings, ranked by the right-hand one and read as the left. The
-   switch makes the denominator a state of the table, so whatever is on screen
-   there is exactly one score and its scope is named above it. #}
-<div class="scopebar" data-scope="attempted">
-  <div class="scopeswitch" role="group" aria-label="Score denominator">
-    <button type="button" class="scope-opt on" data-scope="attempted"
-            aria-pressed="true"
-            title="Divide by the workloads this submission was actually run on. A workload it attempted and failed still counts as zero; only ones it never saw leave the denominator.">what it ran</button>
-    <button type="button" class="scope-opt" data-scope="full"
-            aria-pressed="false"
-            title="Divide by all {{ meta.scoreable_workloads }} scoreable workloads. A workload never attempted counts as zero exactly like one that failed.">whole benchmark</button>
+{# TWO filters, one row, and deliberately not one control.
+ #
+ # They were stacked as separate blocks and read as a sequence -- pick a
+ # category, then pick a scope -- when in fact they compose freely and both
+ # move the same number: the category chooses WHICH workloads are counted, the
+ # switch chooses WHAT THE SUM IS DIVIDED BY. Side by side with a colour each
+ # (blue for the set, red for the denominator) they read as two axes of one
+ # question, and the labels say which axis is which rather than leaving it to
+ # be inferred from the wording of the options.
+ #
+ # part_url() on every category link. The cookie hides the bug in ordinary
+ # browsing, but a chip that drops `?part=` hands a reader on an explicitly
+ # pinned listing a link to the default dataset -- and that is what gets
+ # shared, opened in a second tab, or fetched by a cookie-less client. #}
+<div class="filterbar">
+  <div class="fgroup fg-cat" role="group"
+       aria-label="Category — which problems are counted"
+       title="Narrows the board to one category. Every score, denominator and coverage bar below is then over that category alone.">
+    <span class="fg-label">category</span>
+    <div class="fg-opts">
+      <a class="chip {% if not category %}on{% endif %}" href="{{ part_url('/') }}"
+         {% if not category %}aria-current="true"{% endif %}>all</a>
+      {% for c in categories %}
+        <a class="chip {% if category == c.category %}on{% endif %}"
+           href="{{ part_url('/', category=c.category) }}"
+           {% if category == c.category %}aria-current="true"{% endif %}>{{ c.category }}
+           <span class="chip-n">{{ c.n - c.deferred }}</span></a>
+      {% endfor %}
+    </div>
   </div>
-  <p class="sub scope-note" data-scope-note="attempted">
-    Scores divide by the <b>{{ '{:,}'.format(meta.scoreable_workloads|int) }}-workload
-    benchmark minus whatever a row never attempted</b>. Failures still count as
-    zero. <b>This is not a ranking of submissions against each other</b> &mdash;
-    a row that ran 59 workloads and one that ran 3,717 are being asked different
-    questions, and the narrower one is easier. Read the coverage column with it,
-    every time.
-  </p>
-  <p class="sub scope-note" data-scope-note="full">
-    Scores divide by all <b>{{ '{:,}'.format(meta.scoreable_workloads|int) }}</b>
-    scoreable workloads. A workload that was never attempted counts as zero
-    exactly like one that failed, so a <span class="star">*</span>&nbsp;<b>Partial</b>
-    row's number is a floor and not a measurement of what it can do. This is the
-    scope in which the rows are comparable.
-  </p>
+
+  {# One score, two scopes, and a switch -- not two score columns. Printing both
+     at once was the confusion this replaces: two four-decimal numbers under
+     adjacent headings, ranked by the right-hand one and read as the left. The
+     switch makes the denominator a state of the table, so whatever is on screen
+     there is exactly one score and its scope is named above it.
+
+     `display:contents` in the stylesheet, so this div groups the switch and its
+     two notes for the script and the CSS without becoming a box in the row:
+     the switch sits beside the category chips and the note wraps to its own
+     full-width line underneath. #}
+  <div class="scopebar" data-scope="attempted">
+    <div class="fgroup fg-scope" role="group" aria-label="Score denominator"
+         title="Chooses what each submission's summed score is divided by. It changes no measurement — only the question the number answers.">
+      <span class="fg-label">divide by</span>
+      <div class="scopeswitch">
+        <button type="button" class="scope-opt on" data-scope="attempted"
+                aria-pressed="true"
+                title="Divide by the workloads this submission was actually run on. A workload it attempted and failed still counts as zero; only ones it never saw leave the denominator.">what it ran</button>
+        <button type="button" class="scope-opt" data-scope="full"
+                aria-pressed="false"
+                title="Divide by all {{ '{:,}'.format(scope.workloads|int) }} scoreable workloads{% if category %} in {{ category }}{% endif %}. A workload never attempted counts as zero exactly like one that failed.">{% if category %}all of {{ category }}{% else %}whole benchmark{% endif %}</button>
+      </div>
+    </div>
+    {# Every figure in both notes is `scope`, not `meta`: the rows honour the
+       category chip and these sentences state the denominator those rows were
+       divided by. Quoting the manifest's whole-benchmark count here told a
+       reader of `/?category=L1` that the column was over 3,717 workloads when
+       it was over 1,480. #}
+    <p class="sub scope-note" data-scope-note="attempted">
+      Scores divide by the <b>{{ '{:,}'.format(scope.workloads|int) }}-workload
+      {% if category %}{{ category }} subset{% else %}benchmark{% endif %} minus
+      whatever a row never attempted</b>. Failures still count as zero.
+      <b>This is not a ranking of submissions against each other</b> &mdash;
+      a row that ran a handful of these workloads and one that ran all
+      {{ '{:,}'.format(scope.workloads|int) }} are being asked different
+      questions, and the narrower one is easier. Read the coverage column with
+      it, every time.
+    </p>
+    <p class="sub scope-note" data-scope-note="full">
+      Scores divide by all <b>{{ '{:,}'.format(scope.workloads|int) }}</b>
+      scoreable workloads{% if category %} in <b>{{ category }}</b>{% endif %}. A
+      workload that was never attempted counts as zero
+      exactly like one that failed, so a <span class="star">*</span>&nbsp;<b>Partial</b>
+      row's number is a floor and not a measurement of what it can do. This is the
+      scope in which the rows are comparable.
+    </p>
+  </div>
 </div>
 
 <p class="covkey" style="margin:16px 0 4px">
@@ -78,17 +119,20 @@
       <th class="r" title="Rank under the scope selected above. Sort by this column to restore that order.">#</th>
       <th>submission</th>
       <th>kind</th>
-      {# meta.scoreable_workloads, not the literal 3717 this tooltip carried.
-         The denominator is the manifest's, and v1.1 restoring the 15 deferred
-         NVFP4 problems moves it -- at which point a hardcoded 3717 would state
-         the wrong denominator for the headline number, in the one place a
-         reader goes to find out what the denominator is. #}
+      {# No number in this tooltip, deliberately. It carried a literal 3717
+         once, which v1.1 restoring the 15 deferred NVFP4 problems would have
+         made wrong; then `meta.scoreable_workloads`, which the category chip
+         makes wrong. The denominator is stated once, by the switch and its
+         note, from `scope` -- and this heading points at it. #}
       <th class="r" title="Sum of per-workload scores, divided by the scope selected above.">score</th>
       {# One bar, not a coverage column and a problems column. Coverage does NOT
          follow the score switch: what a submission was run on is a fact about
          the submission, and only the denominator the score is divided by
          changes. Showing two coverage figures implied otherwise. #}
-      <th class="nosort cov-h" title="All {{ meta.scoreable_problems }} scoreable problems, left to right: swept clean, partly passed, attempted and nothing passed, rejected as a reward hack, never attempted.">coverage &mdash; all {{ meta.scoreable_problems }} problems</th>
+      {# `scope.problems`, not the manifest's count: the bars are drawn over
+         `s.problems_total`, which the category chip narrows. The header used to
+         say "all 220 problems" above bars of 94. #}
+      <th class="nosort cov-h" title="All {{ scope.problems }} scoreable problems{% if category %} in {{ category }}{% endif %}, left to right: swept clean, partly passed, attempted and nothing passed, rejected as a reward hack, never attempted.">coverage &mdash; all {{ scope.problems }}{% if category %} {{ category }}{% endif %} problems</th>
     </tr>
   </thead>
   <tbody>

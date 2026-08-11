@@ -29,6 +29,7 @@ so the leaderboard cannot drift from the scoring the harness applies.
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import importlib.util
 import json
@@ -47,6 +48,11 @@ import inputs  # noqa: E402
 from sol_execbench.sol_score import sol_score  # noqa: E402
 
 DATASET = ROOT / "data" / "SOL-ExecBench" / "benchmark"
+# NVIDIA's published B200 figures, if they have been fetched. Optional: absent
+# is the normal state of a fresh clone and the board simply renders no B200
+# column. Never a source for anything but a displayed number -- see
+# scripts/fetch_nvidia_b200_reference.py.
+NVIDIA_B200 = ROOT / "reference" / "nvidia-b200" / "published.json"
 # The board publishes v1.2. v1 and v1.1 are frozen and unchanged, and every
 # score published against either stays valid against it -- but v1.1 corrected
 # 1,048 bounds (STATE.md D35 and D18) and v1.2 corrected 81 more (D37), and a
@@ -351,6 +357,138 @@ def ingest_meta(conn, manifest: dict, part: str,
                      [(k, None if v is None else str(v)) for k, v in rows.items()])
 
 
+_EXPR_OPS = {
+    ast.Add: lambda a, b: a + b, ast.Sub: lambda a, b: a - b,
+    ast.Mult: lambda a, b: a * b, ast.FloorDiv: lambda a, b: a // b,
+    ast.Div: lambda a, b: a / b, ast.Mod: lambda a, b: a % b,
+    ast.Pow: lambda a, b: a ** b,
+}
+
+
+def eval_axis_expr(expr: str, known: dict):
+    """Evaluate a dataset `expr` axis, e.g. `num_heads // num_kv_heads`.
+
+    An AST walk over a whitelist, not `eval`. The 123 distinct expressions in
+    the dataset are arithmetic over other axes and nothing else, and this is a
+    web app: the day one of them is not, the right answer is to render nothing
+    rather than to run it. Anything unsupported, unknown or undividable returns
+    None, which renders as an axis the page simply does not print.
+    """
+    def walk(n):
+        if isinstance(n, ast.Expression):
+            return walk(n.body)
+        if isinstance(n, ast.Constant) and isinstance(n.value, (int, float)):
+            return n.value
+        if isinstance(n, ast.Name):
+            return known.get(n.id)
+        if isinstance(n, ast.UnaryOp) and isinstance(n.op, ast.USub):
+            v = walk(n.operand)
+            return None if v is None else -v
+        if isinstance(n, ast.BinOp) and type(n.op) in _EXPR_OPS:
+            a, b = walk(n.left), walk(n.right)
+            if a is None or b is None:
+                return None
+            try:
+                return _EXPR_OPS[type(n.op)](a, b)
+            except (ZeroDivisionError, TypeError, ValueError, OverflowError):
+                return None
+        return None
+    try:
+        return walk(ast.parse(expr, mode="eval"))
+    except SyntaxError:
+        return None
+
+
+def workload_axes(category: str, name: str,
+                  declared: dict | None = None) -> dict[str, dict]:
+    """`uuid -> {"i": position, "axes": every axis this workload has}`.
+
+    Two things the page could not say before this read the dataset:
+
+    * The manifest carries no axes at all -- it is a scoring artifact, and a
+      workload's parameters are not part of a bound. So every `axes_json` in
+      the database was `{}` and the axes column rendered empty on all 3,957
+      rows: the one column that says what a workload *is*.
+    * `workload.jsonl` carries only the axes that VARY. Upstream's own page
+      shows all of them, and it is right to: `head_dim=128` is part of the
+      shape whether or not it moves. The const values come from
+      `definition.json` and the `expr` ones are computed from the rest, so a
+      row here lists the same seven parameters upstream lists for the same
+      workload rather than the three that happen to differ.
+
+    `i` is the workload's position in `workload.jsonl`, 1-based. It is the
+    dataset's own ordering and -- checked across all 235 problems -- the order
+    upstream returns its workloads in, which is what makes "#4" here and "#4"
+    there the same workload. The manifest sorts by uuid instead, so without
+    this the two listings could only be lined up by matching axes by eye.
+
+    Missing dataset (it is gitignored and does not travel with the repo) is not
+    an error: the board loses the column, the way it always has.
+    """
+    f = DATASET / category / name / "workload.jsonl"
+    if not f.is_file():
+        return {}
+    declared = declared or {}
+    const = {k: v.get("value") for k, v in declared.items()
+             if v.get("type") == "const" and v.get("value") is not None}
+    exprs = {k: v.get("expression") for k, v in declared.items()
+             if v.get("type") == "expr" and v.get("expression")}
+
+    out: dict[str, dict] = {}
+    for i, line in enumerate(
+            (l for l in f.read_text().splitlines() if l.strip()), 1):
+        r = json.loads(line)
+        axes = {**const, **(r.get("axes") or {})}
+        # Two passes: an expr may name another expr. Two is enough for the
+        # dataset as it stands and terminates whatever it holds.
+        for _ in range(2):
+            for k, e in exprs.items():
+                if axes.get(k) is None:
+                    v = eval_axis_expr(e, axes)
+                    if v is not None:
+                        axes[k] = v
+        # `var` is kept apart from the merged set, and the B200 match uses it
+        # rather than `axes`. Upstream's own workload records carry the const
+        # axes but only SOME of the expr ones, so an exact-set probe with our
+        # merged dict fails on 375 workloads that do correspond -- it is our
+        # extra computed axis that does not match, not the workload.
+        out[r["uuid"]] = {"i": i, "axes": axes, "var": r.get("axes") or {}}
+    return out
+
+
+def b200_by_axes(published: dict, key: str) -> dict[str, dict]:
+    """NVIDIA's per-workload figures for one problem, keyed by canonical axes.
+
+    Their records carry every axis including the constants; ours carry only
+    what varies. So the lookup is built the other way round -- one entry per
+    NVIDIA workload, under the axes it has -- and `b200_for()` probes it with
+    our subset. A key that would answer for more than one workload is dropped
+    rather than resolved: on three problems (both ragged-prefill kernels and
+    L1__016, whose workloads all declare no axes at all) several workloads
+    share the same axes, and there is no honest way to say which of NVIDIA's
+    numbers belongs to which of ours. Those render blank.
+    """
+    k = published.get(key)
+    if not k:
+        return {}
+    seen: dict[str, list[dict]] = {}
+    for w in k.get("workloads") or []:
+        seen.setdefault(json.dumps(w.get("axes") or {}, sort_keys=True),
+                        []).append(w)
+    return {a: v[0] for a, v in seen.items() if len(v) == 1}
+
+
+def b200_for(index: dict[str, dict], axes: dict) -> tuple[float | None, float | None]:
+    """(baseline_ms, sol_ms) for the ONE NVIDIA workload matching *axes*."""
+    if not axes:
+        return (None, None)
+    hits = [w for a, w in index.items()
+            if all(str(json.loads(a).get(k)) == str(v) for k, v in axes.items())]
+    if len(hits) != 1:
+        return (None, None)
+    return (hits[0].get("baseline_latency_ms"), hits[0].get("sol_ms"))
+
+
 def ingest_problems(conn, manifest: dict) -> None:
     # `deferred.json` keys its entries under "problems", as a dict. An earlier
     # version of this read `d.get("deferred", ...)`, which is absent, so every
@@ -374,10 +512,17 @@ def ingest_problems(conn, manifest: dict) -> None:
             "manifest defers problems that carry no entry in deferred.json: "
             f"{sorted(deferred_set - set(deferred_info))}")
 
+    published = {}
+    if NVIDIA_B200.is_file():
+        published = json.loads(NVIDIA_B200.read_text()).get("kernels") or {}
+
+    n_axes = n_b200 = 0
     for key, p in manifest["problems"].items():
         category, name = key.split("__", 1)
         defn_path = DATASET / category / name / "definition.json"
         defn = json.loads(defn_path.read_text()) if defn_path.exists() else {}
+        axes_by_uuid = workload_axes(category, name, defn.get("axes"))
+        b200_index = b200_by_axes(published, key)
 
         wls = p.get("workloads", {})
         heads = [w["t_b_ms"] / w["t_sol_ms"] for w in wls.values()
@@ -401,21 +546,51 @@ def ingest_problems(conn, manifest: dict) -> None:
 
         for uuid, w in wls.items():
             tol = w.get("tolerance") or {}
+            # The manifest has no axes; the dataset does. Manifest first only
+            # so that a future manifest which grows the field wins over a
+            # dataset that may not be checked out.
+            from_dataset = axes_by_uuid.get(uuid) or {}
+            axes = w.get("axes") or from_dataset.get("axes") or {}
+            n_axes += 1 if axes else 0
+            b200_baseline, b200_sol = b200_for(b200_index,
+                                               from_dataset.get("var") or {})
+            n_b200 += 1 if b200_sol is not None else 0
             conn.execute(
                 """INSERT OR REPLACE INTO workload
                    (problem_key,uuid,axes_json,t_sol_cycles,t_sol_ms,t_sol_source,
                     t_sol_cycles_solar,t_sol_cycles_traffic,sol_bottleneck,
                     t_b_ms,t_b_variant,tol_atol,tol_rtol,tol_ratio,
-                    tol_derivation,scoreable,bound_quality,bound_headroom)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (key, uuid, json.dumps(w.get("axes") or {}),
+                    tol_derivation,scoreable,bound_quality,bound_headroom,
+                    b200_baseline_ms,b200_sol_ms,dataset_index)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (key, uuid, json.dumps(axes),
                  w.get("t_sol_cycles"), w.get("t_sol_ms"), w.get("t_sol_source"),
                  w.get("t_sol_cycles_solar"), w.get("t_sol_cycles_traffic"),
                  w.get("sol_bottleneck"), w.get("t_b_ms"), w.get("t_b_variant"),
                  tol.get("max_atol"), tol.get("max_rtol"),
                  tol.get("required_matched_ratio"), tol.get("_derivation"),
                  1 if w.get("scoreable") else 0,
-                 *bound_quality(w.get("t_sol_ms"), w.get("t_b_ms"))))
+                 *bound_quality(w.get("t_sol_ms"), w.get("t_b_ms")),
+                 b200_baseline, b200_sol, from_dataset.get("i")))
+
+    # Counted and stated, not silently partial. The B200 overlay covers all but
+    # 42 workloads and the axes column all but 16; a reader who sees a blank
+    # cell should be able to find out here whether it is a gap in the source or
+    # a match this refused to guess at.
+    total = sum(len(p.get("workloads", {})) for p in manifest["problems"].values())
+    conn.executemany("INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)", [
+        ("workloads_with_axes", str(n_axes)),
+        ("workloads_total_all", str(total)),
+        ("b200_matched", str(n_b200)),
+    ])
+    if published:
+        meta_src = json.loads(NVIDIA_B200.read_text())
+        conn.executemany("INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)", [
+            ("b200_site", meta_src.get("site")),
+            ("b200_fetched_utc", meta_src.get("fetched_utc")),
+        ])
+    print(f"  workloads: {total}, with axes {n_axes}, "
+          f"with a B200 figure {n_b200}", file=sys.stderr)
 
 
 def bounds(manifest: dict) -> dict:

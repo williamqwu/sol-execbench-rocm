@@ -16,6 +16,18 @@
      5.68:1. One value for both themes, because the fill is white-on-red in
      both and a token that changes would be two ratios to keep true. */
   --accent-fill:#cc1520;
+  /* The category filter's colour, and the reason there is a second one at all:
+     the board carries TWO independent filters -- which problems are counted,
+     and what the sum is divided by -- and they sit side by side in one row.
+     Given the same accent they read as one segmented control with five options
+     on the left and two on the right, which is the misreading the row was
+     meant to remove. Blue is the only hue on this site not already carrying a
+     result meaning (green beat, amber under, red failed, purple reward hack),
+     so it can mark a control without being read as an outcome.
+     White on #1a56b8 measures 6.65:1, so the filled chip clears AA at 13px in
+     both themes -- one value for both, like --accent-fill and for the same
+     reason. */
+  --cat-fill:#1a56b8;
   /* The sticky header's full height, border included. Read by the
      section nav's sticky offset and by every anchor's scroll-margin.
      Overridden at the phone breakpoint, where the header wraps. */
@@ -29,6 +41,11 @@ html[data-theme="dark"]{
   --link:#8ab4f8;
   --accent2:#67d3a0; --warn:#f0b429; --bad:#e5534b; --ok:#67d3a0;
   --flag:#b98ae0;                         /* reward hack, see .cs-flagged */
+  /* Label ink for the two filter groups. NOT the fills above: --cat-fill on
+     this panel is 2.6:1, which is a 10.5px label nobody can read. These are
+     the same two hues lifted until they clear AA on --panel (8.3:1 and
+     6.3:1); the fills stay as they are, because there the text is white. */
+  --cat-ink:#8ab4f8; --accent-ink:#ff6b70;
   --row-hover:#171c25;
   --shadow:0 1px 2px rgba(0,0,0,.4);
   --bar-bg:#232935;
@@ -62,6 +79,7 @@ html[data-theme="light"]{
   --link:#1a56b8;
   --accent2:#0f8a5f; --warn:#a86400; --bad:#c62f26; --ok:#0f8a5f;
   --flag:#7b3fa0;                         /* reward hack, see .cs-flagged */
+  --cat-ink:#1a56b8; --accent-ink:#cc1520;   /* 6.65:1 and 5.68:1 on white */
   --row-hover:#f0f3f8;
   --shadow:0 1px 2px rgba(16,24,40,.06);
   --bar-bg:#e2e6ec;
@@ -108,12 +126,19 @@ header .wrap{display:flex;align-items:center;gap:20px;height:58px}
 .brand{font-weight:700;font-size:17px;color:var(--fg);letter-spacing:-.2px;
   display:inline-flex;align-items:center;gap:8px}
 .brand:hover{text-decoration:none}
-/* The wordmark is ONE flex item. `gap:8px` above is meant to separate the bolt
+/* The wordmark is ONE flex item. `gap:8px` above is meant to separate the mark
    from the name; leaving the name as a bare text node plus a <span> for the
    suffix made it apply between them too, opening a gap mid-word. */
 .brand .word{white-space:nowrap}
 .brand .amd{color:var(--accent)}
-.brand .spark{font-size:15px;filter:saturate(1.2)}
+/* The logomark. Two paths, both stroked, and neither of them a font glyph:
+   the emoji this replaced rendered as a different picture on every OS and as a
+   colour bitmap next to monochrome type. The bound is the accent; the bars are
+   currentColor, so the mark follows the theme with the wordmark instead of
+   sitting on it as a fixed-colour sticker. */
+.brand .mark{flex:none;display:block}
+.brand .m-sol{stroke:var(--accent)}
+.brand .m-bars{stroke:currentColor;opacity:.85}
 .part-pill{font-family:var(--mono);font-size:11px;letter-spacing:.3px;
   border:1px solid var(--line2);color:var(--dim);border-radius:99px;
   padding:2px 9px;cursor:help;white-space:nowrap}
@@ -250,14 +275,47 @@ h3{font-size:14px;margin:24px 0 10px;color:var(--dim);text-transform:uppercase;
 .chip{border:1px solid var(--line);background:var(--panel);color:var(--dim);
   padding:5px 12px;border-radius:99px;font-size:13px}
 .chip:hover{color:var(--fg);border-color:var(--line2);text-decoration:none}
-.chip.on{border-color:var(--accent);color:var(--fg);background:var(--panel2)}
+/* Filled, in the CATEGORY colour, not outlined in the brand red. Outlined-red
+   was the same treatment the score-scope switch gives its active segment, and
+   with the two controls now on one line that made five chips and two buttons
+   look like one seven-option control. A chip selects the set of problems; the
+   switch selects the denominator. Different question, different colour. */
+.chip.on{border-color:var(--cat-fill);background:var(--cat-fill);color:#fff}
+.chip.on:hover{color:#fff;border-color:var(--cat-fill)}
+.chip.on .chip-n{color:#fff;opacity:.8}
 .chip-n{color:var(--dim);margin-left:5px;font-size:11px}
+
 .filters input[type=search]{background:var(--panel);border:1px solid var(--line);
   color:var(--fg);border-radius:8px;padding:6px 11px;font-size:13px;min-width:240px}
 .filters input[type=search]:focus{outline:none;border-color:var(--dim)}
 .filters button{background:var(--panel);border:1px solid var(--line);color:var(--fg);
   border-radius:8px;padding:6px 13px;font-size:13px;cursor:pointer}
 .filters button:hover{border-color:var(--dim)}
+/* --------------------------------------------------- the two board filters */
+/* One row, two groups, one colour each. The board's number depends on both --
+   the category picks WHICH workloads are summed, the switch picks WHAT the sum
+   is divided by -- and stacked as two blocks they read as a sequence of steps
+   rather than as two axes that compose. Each group states its own name, so
+   neither has to be inferred from the wording of its options. */
+.filterbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;
+  margin:22px 0 4px}
+.fgroup{--fg-accent:var(--line2);       /* a group with no modifier still draws */
+  display:inline-flex;align-items:center;gap:10px;padding:5px 12px 5px 10px;
+  border:1px solid var(--line);border-left:3px solid var(--fg-accent);
+  border-radius:9px;background:var(--panel)}
+.fg-label{font:10.5px/1 var(--mono);letter-spacing:.7px;text-transform:uppercase;
+  color:var(--fg-accent);white-space:nowrap;cursor:help}
+.fg-opts{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.fg-cat{--fg-accent:var(--cat-ink)}
+.fg-scope{--fg-accent:var(--accent-ink)}
+/* The scope group is a wrapper for the script and for the note-visibility
+   rules, NOT a box: `contents` lets the switch sit in the row beside the chips
+   while its explanation wraps to a full-width line of its own underneath.
+   Where `display:contents` is unsupported the group falls back to a block
+   below the chips, which is exactly the layout this replaced. */
+.scopebar{display:contents}
+.filterbar .scope-note{flex:0 0 100%}
+
 
 /* ------------------------------------------------------- score-scope switch */
 /* A segmented control, squared off to match the part switch in the header --
@@ -266,11 +324,10 @@ h3{font-size:14px;margin:24px 0 10px;color:var(--dim);text-transform:uppercase;
    The active segment is a filled slab rather than a tint, because the thing it
    is announcing is the denominator of every number below it: too quiet and the
    reader takes the default as "the score" and never learns there is another. */
-.scopebar{margin:22px 0 4px}
 .scopeswitch{display:inline-flex;border:1px solid var(--line2);border-radius:8px;
   overflow:hidden}
 .scopeswitch .scope-opt{background:transparent;border:none;cursor:pointer;
-  color:var(--dim);font:12.5px/1 var(--sans);padding:8px 15px;
+  color:var(--dim);font:12.5px/1 var(--sans);padding:6px 13px;
   border-right:1px solid var(--line2);white-space:nowrap}
 .scopeswitch .scope-opt:last-child{border-right:none}
 .scopeswitch .scope-opt:hover{background:var(--panel2);color:var(--fg)}
@@ -278,7 +335,7 @@ h3{font-size:14px;margin:24px 0 10px;color:var(--dim);text-transform:uppercase;
 .scopeswitch .scope-opt:focus-visible{outline:2px solid var(--link);outline-offset:-2px}
 /* Both notes are in the DOM so the switch needs no round trip, and so the page
    still says what its default denominator is with JS off. */
-.scope-note{max-width:88ch;margin:10px 0 0;display:none}
+.scope-note{max-width:88ch;margin:2px 0 0;display:none}
 .scopebar[data-scope="attempted"] [data-scope-note="attempted"],
 .scopebar[data-scope="full"] [data-scope-note="full"]{display:block}
 .scopebar:not([data-scope]) [data-scope-note="attempted"]{display:block}
@@ -348,6 +405,36 @@ h3{font-size:14px;margin:24px 0 10px;color:var(--dim);text-transform:uppercase;
 .covkey .k-failed::before{background:var(--bad)}
 .covkey .k-flagged::before{background:var(--flag)}
 .covkey .k-none::before{background:var(--bar-bg);border:1px solid var(--line2)}
+
+/* -------------------------------------------------------------- formulae */
+/* The score, set as an equation. `<code>S = 1 / (1 + (T_k - T_SOL) / (T_b -
+   T_SOL))</code>` is correct and unreadable: two divisions written as slashes,
+   nested, in 12px monospace, on the one line the whole board is derived from.
+   Stacked fractions, in flexbox -- no MathJax, no build step, no font to
+   fetch, and it reflows on a phone because the key wraps rather than the
+   fraction shrinking. */
+.eq{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:15px;line-height:1.25;
+  background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);padding:16px 20px;margin:16px 0 10px;
+  box-shadow:var(--shadow);overflow-x:auto}
+.eq .eq-lhs{font-weight:600}
+.eq .eq-op{color:var(--dim)}
+/* A fraction is a two-row column with a rule between: numerator, border,
+   denominator. Nested one level, which is what makes the shape readable at a
+   glance -- the inner ratio is visibly INSIDE the outer denominator. */
+.eq .frac{display:inline-flex;flex-direction:column;align-items:center;
+  justify-content:center}
+.eq .fr-n{padding:0 9px 4px}
+.eq .fr-d{padding:4px 9px 0;border-top:1px solid var(--fg2);
+  display:inline-flex;align-items:center;gap:7px}
+.eq sub{font-size:.7em}
+/* What each symbol is, beside the equation rather than in a paragraph under
+   it: the two anchors ARE the definition of the scale, and a reader who has
+   to scroll to find out what T_b is has been given an equation and no key. */
+.eq .eq-key{display:flex;flex-direction:column;gap:3px;margin-left:auto;
+  font-family:var(--sans);font-size:12px;color:var(--dim);line-height:1.5}
+.eq .eq-key b{color:var(--fg2);font-family:var(--mono);font-weight:600}
 
 /* ---------------------------------------------------------------- tables */
 table{border-collapse:collapse;width:100%;font-size:14px}
@@ -529,6 +616,80 @@ html[data-theme="light"] .tag-memory{border-color:#2d5bbf;color:#2d5bbf}
   white-space:nowrap}
 
 .wl-details,.tbl-details{margin:10px 0 4px}
+
+/* ------------------------------------------------- table controls */
+/* One bar above a table: a filter, the count it leaves, and any switches that
+   change which columns the table has. The count is not decoration -- a filter
+   with no count leaves a short table and no way to tell whether it is short
+   because of the filter or because that is all there is. */
+.tablebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0 8px}
+.tablebar .tfilter{background:var(--panel);border:1px solid var(--line);
+  color:var(--fg);border-radius:8px;padding:6px 11px;font-size:13px;min-width:260px}
+.tablebar .tfilter:focus{outline:none;border-color:var(--dim)}
+.tablebar .tcount{color:var(--dim);font-size:12px;font-family:var(--mono)}
+.colsw{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;
+  color:var(--fg2);border:1px solid var(--line);border-radius:8px;
+  padding:5px 11px;cursor:pointer;background:var(--panel);margin-left:8px}
+.colsw:hover{border-color:var(--line2);color:var(--fg)}
+.colsw input{accent-color:var(--accent-fill);margin:0}
+.colsw .sub{font-size:11px}
+
+/* Optional columns. The class HIDES, and it is added by static/problem.js --
+   so a reader with no script gets every column the server rendered rather than
+   a table with data missing and no control to bring it back. */
+table.wl.no-b200 .c-b200{display:none}
+table.wl.no-deriv .c-deriv{display:none}
+/* Two tinted bands, so a reader can see at a glance which columns are the
+   board's own measurements and which are not. Green for another vendor's
+   numbers, red for the derivation of our own -- the tints are washes behind a
+   whole column, deliberately far weaker than the solid ok/bad fills that carry
+   a RESULT elsewhere on the site, and each band's caption repeats the colour so
+   the pairing is stated and not just implied. */
+html[data-theme="dark"]{--band-b200:rgba(103,211,160,.10); --band-b200-line:#3d9a70;
+  --band-deriv:rgba(229,83,75,.10); --band-deriv-line:#a8443e}
+html[data-theme="light"]{--band-b200:rgba(15,138,95,.09); --band-b200-line:#7fc9ac;
+  --band-deriv:rgba(198,47,38,.07); --band-deriv-line:#e39b95}
+.c-b200{background:var(--band-b200)}
+.c-deriv{background:var(--band-deriv)}
+/* `th` carries its own background (the sticky-header rule sets one), so the
+   band has to be re-stated or the header sits over its own column uncoloured. */
+.board th.c-b200,th.c-b200{background:var(--band-b200)}
+.board th.c-deriv,th.c-deriv{background:var(--band-deriv)}
+.colnote{max-width:96ch;padding:10px 13px;border-radius:0 8px 8px 0;margin:0 0 10px}
+.note-b200{background:var(--band-b200);border-left:3px solid var(--band-b200-line)}
+.note-deriv{background:var(--band-deriv);border-left:3px solid var(--band-deriv-line)}
+/* The switch that turns a band on wears the band's colour, so the control and
+   the columns it reveals are visibly the same thing. */
+.colsw:has(#sw-b200:checked){background:var(--band-b200)}
+.colsw:has(#sw-deriv:checked){background:var(--band-deriv)}
+
+/* The dataset's own workload number. Quiet -- it is an index, not a
+   measurement -- but present, because it is the only identifier this page
+   shares with upstream's listing of the same problem. */
+td.dim-n{color:var(--dim)}
+/* Const and expr axes are the shape; var axes are what makes the row
+   different. Both are printed, the way upstream prints them, and the weight
+   says which is which. */
+.ax-const,.ax-expr{color:var(--dim);opacity:.85}
+.ax-expr{font-style:italic}
+
+/* One problem's coverage, in the board's own five-state bar. */
+.cov-mini{white-space:nowrap;min-width:120px}
+.cov-mini .covbar{width:96px;height:8px;display:inline-flex;vertical-align:middle}
+.cov-mini .cov-n{display:block;margin-top:3px;font-family:var(--mono);font-size:12px}
+
+/* The reference pane, clamped. `static/problem.js` adds `on` and the button;
+   with no script the whole listing renders, which is the right way for a
+   truncation to fail. */
+.srcclamp{position:relative}
+.srcclamp.on{max-height:var(--clamp-h,520px);overflow:hidden}
+.srcclamp.on::after{content:"";position:absolute;left:0;right:0;bottom:0;
+  height:70px;pointer-events:none;
+  background:linear-gradient(to bottom,transparent,var(--panel2))}
+.srcmore{background:var(--panel);border:1px solid var(--line);color:var(--fg2);
+  border-radius:8px;font:12.5px/1 var(--sans);padding:7px 13px;cursor:pointer;
+  margin:8px 0 0}
+.srcmore:hover{border-color:var(--dim);color:var(--fg)}
 
 /* A disclosure that reads as something to press.
    Both of these used to be a grey line of 13px text with a native triangle,
@@ -792,6 +953,12 @@ time.localtime.localized{border-bottom:1px dotted var(--line2);cursor:help}
   .filters input[type=search]{font-size:16px;min-width:0;width:100%}
   .filters{gap:6px}
   .chip,.filters button{min-height:38px;display:inline-flex;align-items:center}
+  /* The two groups stack, each full width, label above its options. Side by
+     side they would each get half of 390px, which is four chips on four lines
+     next to a two-segment switch nobody can hit. */
+  .filterbar{gap:8px}
+  .fgroup{width:100%;flex-direction:column;align-items:stretch;gap:7px;
+    padding:8px 10px}
   .scopeswitch{width:100%}
   .scopeswitch .scope-opt{flex:1 1 0;min-height:44px;padding:8px 10px;
     white-space:normal}

@@ -2,6 +2,22 @@
 {% block title %}{{ problem.key }} &middot; SOL-ExecBench-ROCm{% endblock %}
 {% block content %}
 
+{#
+  Reading order, and why it is this one.
+
+  The page used to open with eleven columns of bound derivation -- T_SOL in
+  cycles, which of two derivations won, the bottleneck, which PyTorch variant
+  set T_b, the tolerances -- before it had said what the kernel does. Every one
+  of those is a real fact and none of them is the first question. A reader
+  arrives asking "what is this problem, and what is it being scored between".
+
+  So: what it computes, the reference that defines it, then one workload table
+  whose default columns are the two bounds and the parameters that separate the
+  rows. The derivation columns are still here, one click away, on the same rows
+  -- moving them to a second table would mean reading two tables to answer one
+  question.
+#}
+
 <div class="crumb"><a href="{{ part_url('/problems') }}">Problems</a> /
   <a href="{{ part_url('/problems', category=problem.category) }}">{{ problem.category }}</a> /
   {{ problem.name }}</div>
@@ -48,148 +64,16 @@
   <div class="card"><div class="num" title="Every run with a result on this problem, including runs that are off the ranking — the table below. The `submissions` column on the Problems listing counts only ranked runs that passed at least one workload, so it can be lower.">{{ submissions|length }}</div><div class="lbl">submissions</div></div>
 </div>
 
-<h2 id="bounds">Scoring bounds, per workload</h2>
-<p class="sub">
-  T<sub>SOL</sub> is computed in <i>cycles</i> (architectural, so it is invariant to the clock)
-  and converted to milliseconds at F<sub>LOCK</sub> = {{ meta.f_lock_mhz }} MHz.
-  Two derivations are computed independently and combined with <code>max</code>;
-  <code>t_sol_source</code> records which one bound each workload, and any candidate
-  that came out <i>faster</i> than the measured T<sub>b</sub> was rejected rather than used.
-</p>
-<p class="sub">
-  <b>Headroom is marked, because the board cannot check it.</b> The one invariant
-  enforced on a bound is that nothing may beat it &mdash; which catches a
-  T<sub>SOL</sub> that is too <i>large</i> and is blind to one that is too small.
-  A weak lower bound breaks no rule, so nothing reports it. Where
-  T<sub>b</sub>/T<sub>SOL</sub> runs into the hundreds the roofline is far enough
-  away that S is really a comparison against PyTorch; below 2× the range is
-  narrow enough that run-to-run variance is a material share of the score.
-  Neither is a defect in the number beside it, and neither changes a score
-  &mdash; they say how much the score is worth.
-</p>
-<div class="scroll">
-<table class="grid">
-  <thead>
-    <tr>
-      <th>workload</th><th>axes</th>
-      <th class="r">T<sub>SOL</sub> (cyc)</th>
-      <th class="r">T<sub>SOL</sub> (ms)</th>
-      <th>bound source</th><th>bottleneck</th>
-      <th class="r">T<sub>b</sub> (ms)</th><th>T<sub>b</sub> variant</th>
-      <th class="r">headroom</th>
-      <th class="r">atol</th><th class="r">rtol</th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for w in workloads %}
-    <tr class="{% if not w.scoreable %}dim{% endif %}">
-      <td class="mono sm">{{ w.uuid[:8] }}</td>
-      <td class="sm">{% for k,v in w.axes.items() %}<span class="ax">{{ k }}={{ v }}</span>{% endfor %}</td>
-      <td class="r mono">{{ '{:,}'.format(w.t_sol_cycles) if w.t_sol_cycles else '&mdash;'|safe }}</td>
-      <td class="r mono">{{ '%.5f'|format(w.t_sol_ms) if w.t_sol_ms else '&mdash;'|safe }}</td>
-      <td class="sm">{{ w.t_sol_source or '—' }}</td>
-      <td class="sm">{% if w.sol_bottleneck %}<span class="tag tag-{{ w.sol_bottleneck }}">{{ w.sol_bottleneck }}</span>{% endif %}</td>
-      <td class="r mono">{{ '%.5f'|format(w.t_b_ms) if w.t_b_ms else '&mdash;'|safe }}</td>
-      <td class="sm">{{ w.t_b_variant or '—' }}</td>
-      {# The number and the word it earns, in one cell. A reader who does not
-         already know that 19,000x means the arithmetic term went unmodelled
-         gets nothing from the number alone. #}
-      <td class="r mono">{{ '%.1f'|format(w.headroom) + '×' if w.headroom else '—' }}
-        {% if w.bound_quality and w.bound_quality != 'ok' %}<span
-          class="bq bq-{{ w.bound_quality }}"
-          title="{{ {'vacuous': 'T_b is over 1000x T_SOL: the bound is a valid lower bound and carries essentially no roofline content. S here is close to T_b/(T_b+T_k), a PyTorch comparison.',
-                     'loose':   'T_b is 100-1000x T_SOL. S is dominated by the T_b comparison rather than by distance from the roofline.',
-                     'narrow':  'T_b is under 2x T_SOL. The scoring range is narrow enough that run-to-run variance is a material share of the score.'}[w.bound_quality] }}">{{ w.bound_quality }}</span>{% endif %}</td>
-      <td class="r mono sm">{{ '%.2e'|format(w.tol_atol) if w.tol_atol else '&mdash;'|safe }}</td>
-      <td class="r mono sm">{{ '%.2e'|format(w.tol_rtol) if w.tol_rtol else '&mdash;'|safe }}</td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
-</div>
-{% if workloads and workloads[0].tol_derivation %}
-<p class="sub">Tolerance derivation: {{ workloads[0].tol_derivation }}.</p>
-{% endif %}
-
-<h2 id="submissions">Submissions on this problem</h2>
-{% if submissions %}
-<div class="scroll">
-<table class="grid sortable">
-  <thead><tr><th>submission</th><th>kind</th><th class="r">workloads passed</th>
-             <th class="r">mean score</th><th class="r">best latency (ms)</th><th class="r">flagged</th>
-             <th class="nosort"></th></tr></thead>
-  <tbody>
-  {% for s in submissions %}
-    <tr>
-      <td><a href="{{ part_url('/submissions/' ~ s.slug) }}">{{ s.name }}</a>
-          {% if s.provider %}<span class="provider">{{ s.provider }}</span>{% endif %}
-          {# Off the RANKING, not off the record: its timings are real
-             measurements and are listed here. Saying so stops a reader
-             inferring a rank from a table that never ranked it, and the reason
-             travels with the flag -- an exclusion nobody can audit is
-             indistinguishable from data that went missing. #}
-          {%- if not s.board_visible %} <span class="flag"
-            title="{{ s.exclusion_reason or 'No reason was recorded, which is itself a defect.' }}">off the ranking</span>{% endif %}</td>
-      <td><span class="tag tag-{{ s.kind }}">{{ s.kind.replace('_',' ') }}</span></td>
-      <td class="r" data-sort="{{ s.passed }}">{{ s.passed }}<span class="sub">/{{ problem.n_scoreable }}</span></td>
-      {# The count this was divided by. A passing workload that beat T_SOL has
-         no score, so it is not in the average, so the denominator is per-row
-         and two rows under one heading are not the same statistic. #}
-      <td class="r big" data-sort="{{ s.mean_score if s.mean_score is not none else '' }}">{{ '%.4f'|format(s.mean_score) if s.mean_score else '&mdash;'|safe }}
-        {%- if s.mean_score %}<span class="sub den{% if s.scored < s.passed %} den-short{% endif %}"
-          {%- if s.scored < s.passed %} title="{{ s.passed - s.scored }} of this run's {{ s.passed }} passing workloads beat T_SOL here. The bound is invalid on those, so no score exists and they are not in this average -- it is over {{ s.scored }}, not {{ s.passed }}."{% endif %}>over {{ s.scored }}{% if s.scored < s.passed %} of {{ s.passed }}{% endif %}</span>{% endif %}</td>
-      <td class="r mono">{{ '%.5f'|format(s.best_latency) if s.best_latency else '&mdash;'|safe }}</td>
-      <td class="r" data-sort="{{ s.flagged or 0 }}">{% if s.flagged %}<span class="flag">{{ s.flagged }}</span>{% else %}&mdash;{% endif %}</td>
-      <td class="sm"><a href="{{ part_url('/submissions/' ~ s.slug ~ '/problems/' ~ problem.key) }}">this run &rarr;</a></td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
-</div>
-{% else %}
-<p class="sub">No submissions recorded for this problem yet.</p>
-{% endif %}
-
-<h2 id="results">Per-workload results</h2>
-<div class="scroll">
-<table class="grid">
-  <thead><tr><th>workload</th><th>submission</th><th>status</th>
-             <th class="r">T<sub>k</sub> (ms)</th><th class="r">score</th><th class="sm">timed on</th></tr></thead>
-  <tbody>
-  {% for w in workloads %}{% for r in w.results %}
-    <tr>
-      <td class="mono sm">{{ w.uuid[:8] }}</td>
-      <td class="sm"><a href="{{ part_url('/submissions/' ~ r.slug ~ '/problems/' ~ problem.key) }}">{{ r.submission_name }}</a>
-          {%- if not r.board_visible %} <span class="flag"
-            title="{{ r.exclusion_reason or 'No reason was recorded, which is itself a defect.' }}">off the ranking</span>{% endif %}</td>
-      <td class="sm">{% if r.status == 'PASSED' %}<span class="ok">PASSED</span>{% else %}<span class="bad">{{ r.status }}</span>{% endif %}
-          {% if r.flagged %}<span class="flag">flagged</span>{% endif %}</td>
-      <td class="r mono">{{ '%.5f'|format(r.latency_ms) if r.latency_ms else '&mdash;'|safe }}</td>
-      <td class="r mono">{{ '%.4f'|format(r.score) if r.score is not none else '&mdash;'|safe }}</td>
-      <td class="sm sub">{{ r.note or '' }}</td>
-    </tr>
-  {% endfor %}{% endfor %}
-  </tbody>
-</table>
-</div>
-
-<h2 id="axes">Axes</h2>
-<div class="scroll">
-<table class="grid">
-  <thead><tr><th>axis</th><th>kind</th><th>value</th><th>description</th></tr></thead>
-  <tbody>
-  {% for k, v in problem.axes.items() %}
-    <tr><td class="mono">{{ k }}</td><td class="sm">{{ v.type }}</td>
-        <td class="mono sm">{{ v.value if v.value is defined else (v.expr if v.expr is defined else 'varies') }}</td>
-        <td class="sm">{{ v.description }}</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
-</div>
+{# ------------------------------------------------------------- what it is #}
+<h2 id="what">What this kernel computes</h2>
+<p class="sub">A problem is a <i>shape family</i>, not one kernel call: the
+  reference below fixes the maths, the axes fix what may vary, and each
+  workload in the table further down is one setting of those axes. A submission
+  is one implementation and is run against every workload.</p>
 
 <div class="two">
 <div>
-<h2 id="inputs">Inputs</h2>
+<h3>Inputs</h3>
 <div class="scroll">
 <table class="grid">
   <thead><tr><th>name</th><th>shape</th><th>dtype</th></tr></thead>
@@ -204,7 +88,7 @@
 </div>
 </div>
 <div>
-<h2 id="outputs">Outputs</h2>
+<h3>Outputs</h3>
 <div class="scroll">
 <table class="grid">
   <thead><tr><th>name</th><th>shape</th><th>dtype</th></tr></thead>
@@ -220,11 +104,287 @@
 </div>
 </div>
 
-<h2 id="reference">Reference implementation</h2>
-<p class="sub">This is what a submission must match numerically, and what the
-  T<sub>b</sub> variants are formulations of.</p>
-{# Leading newline: see the note on the deferred-error pane above. #}
-<pre class="code">
-{{ problem.reference }}</pre>
+<h3>Axes</h3>
+<p class="sub"><b>const</b> is fixed for every workload of this problem,
+  <b>var</b> is what the workloads sweep, and <b>expr</b> is derived from the
+  others.</p>
+<div class="scroll">
+<table class="grid">
+  <thead><tr><th>axis</th><th>kind</th><th>value</th><th>description</th></tr></thead>
+  <tbody>
+  {% for k, v in problem.axes.items() %}
+    <tr><td class="mono">{{ k }}</td><td class="sm">{{ v.type }}</td>
+        <td class="mono sm">{{ v.value if v.value is defined else (v.expr if v.expr is defined else 'varies') }}</td>
+        <td class="sm">{{ v.description }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
 
+{# ------------------------------------------------------------- workloads #}
+<h2 id="workloads">Workloads, and the two bounds each is scored between</h2>
+<p class="sub">
+  <b>Baseline T<sub>b</sub></b> is the fastest of four optimized-PyTorch
+  formulations, measured on this part &mdash; a kernel that ties it scores
+  exactly <b>0.5</b>. <b>SOL T<sub>SOL</sub></b> is the physical roofline,
+  derived on AMD and converted at F<sub>LOCK</sub> {{ meta.f_lock_mhz }} MHz
+  &mdash; a kernel that reaches it scores <b>1.0</b>, and nothing may beat it.
+  <b>Headroom</b> is the ratio between them: how much of the score is really a
+  distance from the roofline rather than a comparison with PyTorch.
+  <a href="{{ part_url('/methodology#headroom') }}">How a bound is derived
+  &rarr;</a>
+</p>
+
+<div class="tablebar">
+  <input type="search" class="tfilter" data-filter="#wl-table"
+         placeholder="filter by axis value or id" aria-label="Filter workloads">
+  <span class="tcount" data-count-for="#wl-table"></span>
+  <span class="right">
+    {% if meta.b200_matched %}
+    {# Off by default and remembered per reader, not per page: it is a
+       comparison a reader either wants everywhere or nowhere. #}
+    <label class="colsw"><input type="checkbox" id="sw-b200"> NVIDIA B200
+      <span class="sub">(reference)</span></label>
+    {% endif %}
+    <label class="colsw"><input type="checkbox" id="sw-deriv"> how the bound
+      was derived</label>
+  </span>
+</div>
+
+{# Both notes are hidden until their columns are on. A caveat about numbers
+   nobody can see is noise, and worse, a visible warning over hidden columns
+   reads as a warning about the AMD numbers beside them. #}
+{% if meta.b200_matched %}
+<p class="sub colnote note-b200" hidden>
+  <b>NVIDIA's own published B200 figures</b>, from
+  <a href="{{ meta.b200_site }}" rel="noreferrer">research.nvidia.com</a>{% if meta.b200_fetched_utc %},
+  <time class="localtime" datetime="{{ meta.b200_fetched_utc }}">{{ meta.b200_fetched_utc[:16]|replace('T',' ') }} UTC</time>{% endif %}.
+  <b>Not a comparison:</b> another part, another clock, and their SOL comes
+  from their arch constants &mdash; it never seeds or checks the AMD bound
+  beside it, and no score uses it. Blank on
+  {{ meta.workloads_total_all|int - meta.b200_matched|int }} of
+  {{ meta.workloads_total_all }} workloads whose axes match more than one of
+  theirs.
+</p>
+{% endif %}
+<p class="sub colnote note-deriv" hidden>
+  <b>How T<sub>SOL</sub> and T<sub>b</sub> were arrived at</b>, per workload.
+  <b>T<sub>SOL</sub> (cyc)</b> is the bound as it is actually derived &mdash; in
+  GPU cycles, which is architectural and so does not move with the clock; the
+  millisecond column is this divided by F<sub>LOCK</sub>.
+  <b>Bound source</b> names which of two independent derivations won: the SOLAR
+  analytic model, or declared traffic over the roofline. They are combined with
+  <code>max</code>, and any candidate that came out faster than the measured
+  T<sub>b</sub> was rejected rather than used.
+  <b>Bottleneck</b> is which side of the roofline the workload sits on,
+  bandwidth or arithmetic.
+  <b>T<sub>b</sub> variant</b> is which of the four PyTorch formulations was
+  fastest here and therefore set the anchor.
+  <b>atol</b> and <b>rtol</b> are not performance at all: they are the numeric
+  tolerance a submission's output must match the reference within, re-derived
+  on AMD from run-to-run error rather than carried over.
+</p>
+
+<div class="scroll">
+<table class="grid sortable wl" id="wl-table">
+  <thead>
+    <tr>
+      <th class="r" title="Position in the dataset's own workload list — the same ordering upstream numbers these workloads in, so #4 here is #4 there. The manifest sorts by uuid instead, which lines up with nothing.">#</th>
+      <th title="The workload's uuid, shortened. It is what the per-workload results table below joins on.">id</th>
+      <th title="Every axis of this workload, not only the ones that vary: the ones declared const in the dataset are dimmed, and expr axes are computed from the others. head_dim=128 is part of the shape whether or not it moves.">parameters</th>
+      <th class="r" title="Baseline: the fastest of four optimized-PyTorch formulations of the reference, measured on this part. A submission that matches it scores exactly 0.5.">T<sub>b</sub> baseline (ms)</th>
+      <th class="r" title="Speed of light: the physical roofline for this workload, derived on AMD and converted at this part's F_LOCK. A submission that reaches it scores 1.0; nothing may beat it, and a measurement that does invalidates the bound rather than the measurement.">T<sub>SOL</sub> (ms)</th>
+      <th class="r c-b200" title="NVIDIA's published baseline for this workload on B200. Reference only — a different part at a different clock, not a comparison and not part of any score.">B200 baseline (ms)</th>
+      <th class="r c-b200" title="NVIDIA's published Speed-of-Light for this workload on B200, from NVIDIA's own arch constants. Reference only; it is never used to derive or check the AMD bound beside it.">B200 SOL (ms)</th>
+      <th class="r" title="T_b / T_SOL — the width of the scoring range. Large means the roofline is far away and S is mostly a PyTorch comparison; under 2x means run-to-run variance is a material share of the score.">headroom</th>
+      <th class="r c-deriv" title="T_SOL in GPU cycles. This is the derived quantity: it is architectural, so it does not change with the clock. The millisecond column is this divided by F_LOCK.">T<sub>SOL</sub> (cyc)</th>
+      <th class="c-deriv" title="Which of two independently computed derivations produced the bound. They are combined with max, and a candidate that came out faster than the measured T_b was rejected rather than used.">bound source</th>
+      <th class="c-deriv" title="Which side of the roofline this workload sits on: memory-bandwidth bound, or matrix/vector-compute bound.">bottleneck</th>
+      <th class="c-deriv" title="Which of the four PyTorch formulations was fastest here, and therefore set T_b.">T<sub>b</sub> variant</th>
+      <th class="r c-deriv" title="Absolute tolerance a submission's output must match the reference within. Derived on AMD from run-to-run error, not carried over from NVIDIA's tolerances.">atol</th>
+      <th class="r c-deriv" title="Relative tolerance a submission's output must match the reference within.">rtol</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for w in workloads %}
+    <tr class="{% if not w.scoreable %}dim{% endif %}">
+      <td class="r mono sm dim-n">{{ w.dataset_index or loop.index }}</td>
+      <td class="mono sm">{{ w.uuid[:8] }}</td>
+      {# Declaration order, from the definition, so the chips read in the same
+         order upstream lists them -- and each chip is dimmed or not by what
+         the dataset says it is, which is the difference between "this is the
+         shape" and "this is what makes this row different". #}
+      <td class="sm">{% for k in problem.axes if k in w.axes %}<span
+          class="ax ax-{{ problem.axes[k].type }}">{{ k }}={{ w.axes[k] }}</span>{% endfor %}{%
+        for k, v in w.axes.items() if k not in problem.axes %}<span class="ax">{{ k }}={{ v }}</span>{% endfor %}{%
+        if not w.axes %}<span class="sub" title="This problem's workloads declare no axes in the dataset, so there is nothing to print here — not a value that failed to load.">none declared</span>{% endif %}</td>
+      <td class="r mono">{{ w.t_b_ms|ms }}</td>
+      <td class="r mono">{{ w.t_sol_ms|ms }}</td>
+      <td class="r mono c-b200">{{ w.b200_baseline_ms|ms }}</td>
+      <td class="r mono c-b200">{{ w.b200_sol_ms|ms }}</td>
+      {# The number and the word it earns, in one cell. A reader who does not
+         already know that 19,000x means the arithmetic term went unmodelled
+         gets nothing from the number alone. #}
+      <td class="r mono" data-sort="{{ w.headroom or '' }}">{{ '%.1f'|format(w.headroom) + '×' if w.headroom else '—' }}
+        {% if w.bound_quality and w.bound_quality != 'ok' %}<span
+          class="bq bq-{{ w.bound_quality }}"
+          title="{{ {'vacuous': 'T_b is over 1000x T_SOL: the bound is a valid lower bound and carries essentially no roofline content. S here is close to T_b/(T_b+T_k), a PyTorch comparison.',
+                     'loose':   'T_b is 100-1000x T_SOL. S is dominated by the T_b comparison rather than by distance from the roofline.',
+                     'narrow':  'T_b is under 2x T_SOL. The scoring range is narrow enough that run-to-run variance is a material share of the score.'}[w.bound_quality] }}">{{ w.bound_quality }}</span>{% endif %}</td>
+      <td class="r mono c-deriv">{{ '{:,}'.format(w.t_sol_cycles) if w.t_sol_cycles else '&mdash;'|safe }}</td>
+      <td class="sm c-deriv">{{ w.t_sol_source or '—' }}</td>
+      <td class="sm c-deriv">{% if w.sol_bottleneck %}<span class="tag tag-{{ w.sol_bottleneck }}">{{ w.sol_bottleneck }}</span>{% endif %}</td>
+      <td class="sm c-deriv">{{ w.t_b_variant or '—' }}</td>
+      <td class="r mono sm c-deriv">{{ '%.2e'|format(w.tol_atol) if w.tol_atol else '&mdash;'|safe }}</td>
+      <td class="r mono sm c-deriv">{{ '%.2e'|format(w.tol_rtol) if w.tol_rtol else '&mdash;'|safe }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if workloads and workloads[0].tol_derivation %}
+<p class="sub">Tolerance derivation: {{ workloads[0].tol_derivation }}.</p>
+{% endif %}
+
+{# ------------------------------------------------------- the reference #}
+{# After the workloads, not before them. It is the definition of the problem
+   and the longest thing on the page -- some of these run to two hundred lines
+   -- so a reader who wants the numbers should not have to scroll a listing to
+   reach them, and a reader who wants the code knows where it is. Clamped to 25
+   lines with a button; the clamp is applied by static/problem.js, so with no
+   script the whole source renders rather than a truncated one nothing can
+   expand. #}
+<h2 id="reference">Reference implementation</h2>
+<p class="sub">What a submission must match numerically, and what the four
+  T<sub>b</sub> variants are formulations of.</p>
+{# No `.codewrap` here: highlight.js inserts one of its own around the pane and
+   hangs the copy button on it. A hand-written wrapper nests two of them and
+   the button ends up positioned against the inner one.
+   Leading newline: a parser drops a single LF right after <pre>, so give it
+   one of ours to drop instead of the content's. #}
+<div class="srcclamp" data-lines="25">
+<pre class="code" data-lang="python">
+{{ problem.reference }}</pre>
+</div>
+
+
+{# ----------------------------------------------------------- submissions #}
+<h2 id="submissions">Submissions on this problem</h2>
+{% if submissions %}
+<div class="scroll">
+<table class="grid sortable">
+  <thead><tr><th>submission</th><th>kind</th><th class="r">workloads passed</th>
+             <th class="r">mean score</th><th class="r">best latency (ms)</th>
+             <th class="r" title="Workloads where this run produced the right answer by a route the rules exclude — cached, precomputed or otherwise not doing the work. Scored zero.">reward hacks</th>
+             </tr></thead>
+  <tbody>
+  {% for s in submissions %}
+    <tr>
+      {# The name links to THIS run ON THIS PROBLEM, not to the run's own
+         overview page. A reader on a problem page clicking a submission is
+         asking "what did that one do here", and the old link answered a
+         question nobody asked -- then the row ended with a second link, to the
+         page they actually wanted. One destination, on the name. #}
+      <td><a href="{{ part_url('/submissions/' ~ s.slug ~ '/problems/' ~ problem.key) }}">{{ s.name }}</a>
+          {% if s.provider %}<span class="provider">{{ s.provider }}</span>{% endif %}
+          {# Off the RANKING, not off the record: its timings are real
+             measurements and are listed here. Saying so stops a reader
+             inferring a rank from a table that never ranked it, and the reason
+             travels with the flag -- an exclusion nobody can audit is
+             indistinguishable from data that went missing. #}
+          {%- if not s.board_visible %} <span class="flag"
+            title="{{ s.exclusion_reason or 'No reason was recorded, which is itself a defect.' }}">off the ranking</span>{% endif %}</td>
+      <td><span class="tag tag-{{ s.kind }}">{{ s.kind.replace('_',' ') }}</span></td>
+      {# The same five-state bar the board's front page draws, at one problem's
+         scale: passed, attempted and failed, refused as a reward hack, never
+         attempted. A bare "7/7" cannot distinguish a run that failed three
+         workloads from one that was never given them, and on this page that is
+         the difference the reader is usually here for. #}
+      <td class="r cov-mini" data-sort="{{ s.passed }}">
+        {%- set total = problem.n_scoreable or 1 -%}
+        {%- set failed = (s.attempted or 0) - (s.passed or 0) - (s.flagged or 0) -%}
+        <span class="covbar" role="img"
+              aria-label="{{ s.passed }} passed, {{ [failed, 0]|max }} failed, {{ s.flagged or 0 }} reward hacks, {{ total - (s.attempted or 0) }} never attempted, of {{ total }}">
+          {%- for seg, n in [('clean', s.passed or 0), ('failed', [failed, 0]|max),
+                             ('flagged', s.flagged or 0),
+                             ('none', total - (s.attempted or 0))] %}
+            {%- if n > 0 %}<span class="cs cs-{{ seg }}" style="width:{{ 100 * n / total }}%"></span>{% endif -%}
+          {% endfor -%}
+        </span>
+        <span class="cov-n">{{ s.passed }}<span class="sub">/{{ problem.n_scoreable }}</span></span>
+      </td>
+      {# The count this was divided by. A passing workload that beat T_SOL has
+         no score, so it is not in the average, so the denominator is per-row
+         and two rows under one heading are not the same statistic. #}
+      <td class="r big" data-sort="{{ s.mean_score if s.mean_score is not none else '' }}">{{ '%.4f'|format(s.mean_score) if s.mean_score else '&mdash;'|safe }}
+        {%- if s.mean_score %}<span class="sub den{% if s.scored < s.passed %} den-short{% endif %}"
+          {%- if s.scored < s.passed %} title="{{ s.passed - s.scored }} of this run's {{ s.passed }} passing workloads beat T_SOL here. The bound is invalid on those, so no score exists and they are not in this average -- it is over {{ s.scored }}, not {{ s.passed }}."{% endif %}>over {{ s.scored }}{% if s.scored < s.passed %} of {{ s.passed }}{% endif %}</span>{% endif %}</td>
+      <td class="r mono">{{ s.best_latency|ms }}</td>
+      <td class="r" data-sort="{{ s.flagged or 0 }}">{% if s.flagged %}<span class="flag">{{ s.flagged }}</span>{% else %}&mdash;{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="sub">No submissions recorded for this problem yet.</p>
+{% endif %}
+
+{# ------------------------------------------------------- per-workload #}
+{# Collapsed. This is one row per (workload x submission) -- up to 288 of them
+   on the paged-decode problems -- and it is the evidence behind the tables
+   above rather than something to read on arrival. The heading and the anchor
+   stay outside the <details>, so the section nav still lands on it and the
+   browser's find-in-page still has a target; opening is one click. #}
+<h2 id="results">Per-workload results</h2>
+<details class="wl-details">
+  <summary class="disclose">Every workload &times; every submission
+    &mdash; {{ n_results }} row{{ 's' if n_results != 1 }}</summary>
+<div class="tablebar">
+  <input type="search" class="tfilter" data-filter="#res-table"
+         placeholder="filter by workload id, submission or status"
+         aria-label="Filter results">
+  <span class="tcount" data-count-for="#res-table"></span>
+</div>
+<div class="scroll">
+<table class="grid sortable" id="res-table">
+  <thead><tr><th title="The workload's position in the dataset's list, and its uuid.">workload</th>
+             <th title="Only the axes that differ between this problem's workloads. The full parameter set is in the table above.">parameters</th>
+             <th>submission</th><th>status</th>
+             <th class="r" title="The submission's measured time on this workload.">T<sub>k</sub> (ms)</th>
+             <th class="r">score</th><th class="sm">timed on</th></tr></thead>
+  <tbody>
+  {% for w in workloads %}{% for r in w.results %}
+    <tr>
+      <td class="mono sm" data-sort="{{ '%04d'|format(w.dataset_index or 0) }}">#{{ w.dataset_index or loop.index }}
+        <span class="sub">{{ w.uuid[:8] }}</span></td>
+      {# Only the axes that MOVE across this problem. The table above prints
+         every one of them, the way upstream does; here the same seven chips
+         would repeat on up to 288 rows and bury the one or two that differ. #}
+      <td class="sm">{% for k in varying_axes if k in w.axes %}<span class="ax">{{ k }}={{ w.axes[k] }}</span>{% endfor %}</td>
+      <td class="sm"><a href="{{ part_url('/submissions/' ~ r.slug ~ '/problems/' ~ problem.key) }}">{{ r.submission_name }}</a>
+          {%- if not r.board_visible %} <span class="flag"
+            title="{{ r.exclusion_reason or 'No reason was recorded, which is itself a defect.' }}">off the ranking</span>{% endif %}</td>
+      {# The raw enum was the label: a reader met REWARD_HACK and
+         INCORRECT_NUMERICAL with no key anywhere on the page. `status_label`
+         is one mapping in app.py, so every page says the same words for the
+         same enum, and the enum itself stays in the tooltip -- it is what the
+         API returns and what the artifacts hold. #}
+      <td class="sm" data-sort="{{ r.status }}">{% if r.status == 'PASSED' %}<span class="ok">passed</span>{% else %}<span
+          class="bad" title="{{ r.status }}">{{ r.status|status_label }}</span>{% endif %}
+          {%- if r.flagged and r.status != 'REWARD_HACK' %} <span class="flag">reward hacking</span>{% endif %}</td>
+      <td class="r mono">{{ r.latency_ms|ms }}</td>
+      <td class="r mono">{{ '%.4f'|format(r.score) if r.score is not none else '&mdash;'|safe }}</td>
+      <td class="sm sub">{{ r.note or '' }}</td>
+    </tr>
+  {% endfor %}{% endfor %}
+  </tbody>
+</table>
+</div>
+</details>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ asset('/static/problem.js') }}" defer></script>
 {% endblock %}

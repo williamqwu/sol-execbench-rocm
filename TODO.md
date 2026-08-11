@@ -138,6 +138,33 @@ score. **Not done:** deriving an arithmetic term for the worst cases, and
 deciding whether a problem whose bound cannot be modelled belongs in the scored
 set at all. The second is a scope decision and needs the maintainer.
 
+**A second, independent smell test now exists, and it is nearly free.**
+`reference/nvidia-b200/published.json` holds NVIDIA's own per-workload SOL for
+all 235 problems, fetched from their public site
+(`scripts/fetch_nvidia_b200_reference.py`) and matched to 3,915 of our 3,957
+workloads by axes. It is **not** a bound and may not become one — different
+part, different arch constants, prime directive 2 — but the *ratio* is a
+tightness signal of the kind this section says nothing has:
+
+```
+B200 SOL / AMD T_SOL, 3,675 scoreable matched workloads
+  under 0.5x     1147     AMD bound the larger    (mostly ok/narrow)
+  0.5x - 2x      2139  }  58% agree within 2x, which is what two parts of
+                       }  this class should look like
+  2x - 10x        243     mostly loose
+  10x - 100x      134     70 vacuous, 62 loose, 2 marked ok
+  over 100x        12     all 12 already marked vacuous
+```
+
+The tail lands almost exactly on what `bound_quality` already marks, which is
+the reassuring result. The exception is worth a look: **two workloads of
+`L2__007_multimodal_rotary_embedding_attention`** (`batch_size` 32 and 64 at
+`seq_len` 256) are marked `ok` while our T_SOL is 11.7× and 13.8× *below*
+NVIDIA's for the same shape. Both come from the `declared_traffic` tier, which
+is the D18/D42 tier. Not diagnosed, not corrected, and not a reason to change a
+bound on its own — a cross-part ratio is evidence to go and look, never a
+derivation.
+
 **`bound_quality` lives in the leaderboard, not the manifest.** It was derived
 at ingest because a manifest rebuild was unsafe at the time (a scorer was
 reading the file). Promoting it to a manifest field is a v1.3 item — until then
