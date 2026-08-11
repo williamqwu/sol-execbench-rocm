@@ -277,6 +277,14 @@ not the per-problem layout, so fetching is two steps — see the README's *Runni
 it*. `scripts/materialize_dataset.py` is the exact inverse of the dataset's own
 converter and round-trip-verifies all 235 problems.
 
+**The leaderboard no longer needs it.** `reference/dataset-meta.json` (tracked,
+2.2 MB, written by `scripts/export_dataset_meta.py`) holds the descriptive
+subset — descriptions, references, inputs, outputs, axes, per-workload axes and
+order — so a board built from a bare clone is byte-identical to one built with
+the dataset. The dataset still wins wherever it is present, and
+`export_dataset_meta.py --check` fails if the tracked copy has drifted. Running
+the benchmark still needs the real `data/`; only describing it does not.
+
 The census is confirmed against the files, not taken from the paper:
 **L1 94, L2 82, Quant 33, FlashInfer-Bench 26**.
 

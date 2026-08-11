@@ -76,17 +76,24 @@
        land the reader on the other dataset -- and the URL is the shareable,
        durable form of the choice.
 
-       `/api/docs` is the ONE deliberate exception on this whole site, and it is
-       left bare on purpose rather than overlooked: it is the OpenAPI schema
-       browser, it renders no measurement, and Swagger UI does not read the
-       parameter -- so part_url() there would attach a query string that nothing
-       consumes and imply the docs are per-part. The part-scoped thing is each
-       `/api/v1` request, which carries `?part=` of its own. #}
+       NO "API" ENTRY, DELIBERATELY. The JSON API is untouched -- `/api/v1/...`
+       and the OpenAPI schema at `/api/docs` all still serve, and `models.py`
+       still declares a response model per route. What is gone is the link in
+       this bar. Two reasons, and neither is that the API is unimportant:
+
+       * Nothing consumes it locally today, so the entry advertises a surface
+         with no reader.
+       * `/api/docs` is Swagger UI. It pulls its own bundle, expands the whole
+         schema, and on the small public host that is the heaviest page on the
+         site by a wide margin -- reachable from every page, by every crawler.
+
+       Set `SOLBENCH_API_NAV=1` to put it back; nothing else changes with it.
+       See leaderboard/README.md, "The JSON API is not linked". #}
     <nav>
       <a href="{{ part_url('/') }}" {% if nav == 'board' %}class="on"{% endif %}>Leaderboard</a>
       <a href="{{ part_url('/problems') }}" {% if nav == 'problems' %}class="on"{% endif %}>Problems</a>
       <a href="{{ part_url('/methodology') }}" {% if nav == 'methodology' %}class="on"{% endif %}>Methodology</a>
-      <a href="/api/docs">API</a>
+      {% if api_nav %}<a href="/api/docs">API</a>{% endif %}
     </nav>
     <button id="theme-toggle" class="theme-toggle" type="button"
             aria-label="Toggle light and dark theme" title="Toggle theme">
@@ -247,12 +254,30 @@ document.querySelectorAll("time.localtime").forEach(function(t){
 
 /* Scroll spy for the section nav. Pure enhancement: the links are ordinary
    fragment links and work with this off -- all it adds is which one you are
-   reading. IntersectionObserver rather than a scroll handler so it costs
-   nothing while idle; the bottom margin is -70% so a section counts as current
-   once its heading reaches the upper third, not when it first peeks in. */
+   reading.
+
+   WHICH QUESTION IT ASKS. "Which heading have I last scrolled past" -- a
+   position. It used to ask "which heading is inside a band 59px below the top
+   and 70% of the way down" -- an event -- and mark the last one that was. Those
+   two agree only while a section is short enough that its heading is still in
+   the band when the next one enters it. Every section taller than ~30% of the
+   viewport has an interval in the middle where NO heading is in the band, the
+   answer is "none", and the nav has no way to render "none": every entry loses
+   its highlight until the next heading arrives. On /methodology's "Known-wrong
+   bounds" that is most of the section.
+
+   The old code's own comment described the position rule; the code implemented
+   the event rule (`seen[id] = e.isIntersecting`). A derived state read off a
+   transient is the general shape of this bug, and it is worth recognising: the
+   observer tells you when something CHANGED, and what was wanted is what is
+   TRUE now.
+
+   So: geometry, on every scroll, coalesced into a frame. Ten
+   getBoundingClientRect calls per frame while scrolling is not a cost worth
+   trading correctness for, and `passive` keeps it off the scrolling path. */
 (function(){
   var nav = document.querySelector(".sidenav");
-  if(!nav || !("IntersectionObserver" in window)) return;
+  if(!nav) return;
   var links = {}, targets = [];
   nav.querySelectorAll("a[href^='#']").forEach(function(a){
     var el = document.getElementById(decodeURIComponent(a.hash.slice(1)));
@@ -260,23 +285,37 @@ document.querySelectorAll("time.localtime").forEach(function(t){
     links[el.id] = a; targets.push(el);
   });
   if(!targets.length) return;
-  var seen = {};
   var mark = function(){
-    /* The last section whose heading is at or above the line, so scrolling
-       through a short section between two long ones does not leave the nav
-       pointing at neither. */
-    var cur = null;
-    targets.forEach(function(el){ if(seen[el.id]) cur = el.id; });
+    /* The line is the bottom of the sticky header plus a little -- the same
+       offset `scroll-margin-top` uses, so a heading jumped to by a fragment
+       link is exactly at the line and counts as current. Read from --headh
+       rather than hardcoded, because the header wraps to two rows on a phone
+       and 59 stops being true there. */
+    var h = parseFloat(getComputedStyle(document.documentElement)
+                       .getPropertyValue("--headh")) || 59;
+    var line = h + 16;
+    /* The FIRST section is current until the second one is passed: before any
+       heading has reached the line the reader is reading the first one, and
+       marking nothing there is the same blank state this rewrite exists to
+       remove. */
+    var cur = targets[0].id;
+    targets.forEach(function(el){
+      if(el.getBoundingClientRect().top <= line) cur = el.id;
+    });
     for(var k in links) links[k].classList.toggle("on", k === cur);
   };
-  var io = new IntersectionObserver(function(entries){
-    entries.forEach(function(e){ seen[e.target.id] = e.isIntersecting; });
-    mark();
-  /* -59px at the top is the sticky header: a heading hidden behind it is not
-     the section being read, and without this the nav advances one entry early
-     on every jump. */
-  }, {rootMargin: "-59px 0px -70% 0px"});
-  targets.forEach(function(el){ io.observe(el); });
+  var queued = false;
+  var onScroll = function(){
+    if(queued) return;
+    queued = true;
+    requestAnimationFrame(function(){ queued = false; mark(); });
+  };
+  addEventListener("scroll", onScroll, {passive:true});
+  addEventListener("resize", onScroll);
+  /* Also after images/fonts settle: a heading's position at DOMContentLoaded
+     is not where it ends up. */
+  addEventListener("load", mark);
+  mark();
 })();
 
 document.getElementById("theme-toggle").addEventListener("click", function(){

@@ -148,7 +148,7 @@
          placeholder="filter by axis value or id" aria-label="Filter workloads">
   <span class="tcount" data-count-for="#wl-table"></span>
   <span class="right">
-    {% if meta.b200_matched %}
+    {% if meta.b200_matched|int %}
     {# Off by default and remembered per reader, not per page: it is a
        comparison a reader either wants everywhere or nowhere. #}
     <label class="colsw"><input type="checkbox" id="sw-b200"> NVIDIA B200
@@ -162,7 +162,7 @@
 {# Both notes are hidden until their columns are on. A caveat about numbers
    nobody can see is noise, and worse, a visible warning over hidden columns
    reads as a warning about the AMD numbers beside them. #}
-{% if meta.b200_matched %}
+{% if meta.b200_matched|int %}
 <p class="sub colnote note-b200" hidden>
   <b>NVIDIA's own published B200 figures</b>, from
   <a href="{{ meta.b200_site }}" rel="noreferrer">research.nvidia.com</a>{% if meta.b200_fetched_utc %},

@@ -151,6 +151,14 @@ def asset(path: str) -> str:
 
 templates.env.globals["asset"] = asset
 
+# Whether the header links the OpenAPI browser. Off by default: the API itself
+# is untouched and every `/api/v1` route still serves, but nothing consumes it
+# locally and `/api/docs` is Swagger UI -- its own bundle, the whole schema
+# expanded -- which on the small public host is the heaviest page on the site
+# and is reachable from every other page by every crawler. Documented in
+# leaderboard/README.md; set SOLBENCH_API_NAV=1 to link it again.
+templates.env.globals["api_nav"] = os.environ.get("SOLBENCH_API_NAV") == "1"
+
 
 # --------------------------------------------------------------------------
 # parts — which dataset a request is about
@@ -1693,9 +1701,17 @@ def methodology(request: Request, part: str | None = None):
             """SELECT key, n_workloads, median_headroom FROM problem
                WHERE median_headroom IS NOT NULL
                ORDER BY median_headroom DESC LIMIT 8""")]
+    # The known-wrong-bounds section renders only when there ARE some, so its
+    # nav entry has to be conditional too -- the same rule the run page's
+    # transcript entry follows. Latent until now for the wrong reason: the
+    # template guarded on `meta.problems_with_invalid_bound`, which is the JSON
+    # STRING "[]" when the list is empty, and a non-empty string is truthy. Two
+    # bugs cancelling: an always-true guard under an always-present nav entry.
+    toc = [e for e in TOC_METHODOLOGY
+           if e["id"] != "bad-bounds" or invalid_bound_info]
     return page(request, "methodology.html", active, bound_sources=bounds,
                 deferred=deferred, excluded=excluded, nav="methodology",
-                toc=TOC_METHODOLOGY, invalid_bound_info=invalid_bound_info,
+                toc=toc, invalid_bound_info=invalid_bound_info,
                 headroom=headroom, loosest=loosest,
                 flagged=flagged, flagged_by=flagged_by)
 

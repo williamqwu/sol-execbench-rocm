@@ -28,26 +28,50 @@ That last row is the load-bearing one. Adding fastapi to
 this repo was measured under, which prime directive 6 forbids. The web app
 never touches a GPU, so it has no business in that image.
 
-## Deploying it: the dataset does not travel with the repo
+## Deploying it: what the board needs, and where it comes from
 
-`data/` is gitignored (README, *Running it*), so a host that clones the repo
-and runs `ingest.py` builds a board with **every measured number and no problem
-definitions**: no description, no reference implementation, no inputs, outputs
-or axes, no per-workload parameters and no dataset numbering. Nothing is wrong
-with the scores — they come from the manifest and the run artifacts — but five
-sections of every problem page are empty.
+`data/` is gitignored, so a host that clones the repo has no dataset — and the
+dataset is where a *problem* is described. Without it the board carries every
+measured number and no description, reference implementation, input, output,
+axis, workload parameter or workload numbering: five empty sections on 235
+pages, for a build-environment reason no reader can see (STATE.md D49).
 
-The board detects this (`meta.dataset_problems == 0`) and says so in a banner
-at the top of every page, rather than leaving five different blanks to be
-interpreted. The fix on the deploy host, once, into a directory that survives
-redeploys:
+So the descriptive subset is **tracked**:
+
+| file | tracked? | what it is |
+|---|---|---|
+| `data/SOL-ExecBench/benchmark/` | no | the dataset, 7.5 MB, rebuilt by `scripts/materialize_dataset.py` |
+| `reference/dataset-meta.json` | **yes**, 2.2 MB | descriptions, references, inputs, outputs, axes, per-workload axes and order — copied verbatim from the above by `scripts/export_dataset_meta.py` |
+| `reference/nvidia-b200/published.json` | **yes**, 1.1 MB | NVIDIA's published B200 figures, display only |
+| `artifacts/**` | yes | every measured number |
+
+`ingest.py` reads the dataset when it is there and falls back to the export
+when it is not, so a machine holding the real thing can never be served a
+tracked copy that has gone stale. A board built with **no `data/` at all** is
+byte-identical to one built with it, verified field by field:
 
 ```bash
-python scripts/materialize_dataset.py --parquet-dir <hf download>/data \
-       --out data/SOL-ExecBench/benchmark
-python scripts/fetch_flashinfer_traces.py     # only needed to RUN problems
-leaderboard/.venv/bin/python leaderboard/ingest.py
+python scripts/export_dataset_meta.py --check   # export still matches the dataset
 ```
+
+If a deploy still shows the banner, neither source was present — check that
+`reference/dataset-meta.json` came down with the clone.
+
+## The JSON API is not linked
+
+`/api/v1/...` is unchanged and every route still serves, with a declared
+response model each (the endpoint table is under *API* below). What is gone is
+the **API** entry in the header nav. Nothing consumes the API locally today,
+and `/api/docs` is Swagger UI — its own bundle, the whole schema expanded —
+which on the small public host is the heaviest page on the site and was
+reachable from every page by every crawler.
+
+```bash
+SOLBENCH_API_NAV=1 leaderboard/run.sh     # link it again
+```
+
+Nothing else changes with the flag. If the API is ever retired, that should be
+a decision taken on its own and not inferred from the absence of a link.
 
 ## The B200 overlay
 
@@ -233,7 +257,8 @@ theme-specific override — `style.css` is the only place either palette lives.
 | `GET /api/submissions/{slug}` | one submission, broken down per problem |
 | `GET /healthz` | liveness, part, and whether the database has gone stale |
 
-Interactive docs at `/api/docs`.
+Interactive docs at `/api/docs` — served, but deliberately not linked from the
+header; see *The JSON API is not linked* above.
 
 ## Note on SQLite
 

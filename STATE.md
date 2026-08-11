@@ -2572,4 +2572,40 @@ Produced: D49 — a board built from a fresh clone has NO dataset (`data/` is
           database built before the key existed raises no alarm.
 Verified: 201 passed, 1 skipped (+8: test_dataset_absent.py, which strips the
           fixture board the way a fresh clone is stripped).
+
+D49 closed, and the rest of the remote/local diff, same session:
+Produced: reference/dataset-meta.json — 2.2 MB, tracked, written by
+          scripts/export_dataset_meta.py: descriptions, references, inputs,
+          outputs, axes and per-workload axes/order, copied verbatim from the
+          dataset. Descriptive only; no timing, bound, tolerance or score, and
+          a test asserts the key set. `ingest.py` reads `data/` first and falls
+          back to it, so a machine with the dataset can never be served a
+          stale copy; `--check` re-derives and compares byte for byte.
+          PROVEN: a board built with DATASET pointed at an empty directory is
+          IDENTICAL to the real one on every dataset-derived column —
+          description, reference, axes, inputs, outputs, dataset_index and both
+          B200 columns, 235 problems and 3,957 workloads.
+          Two more found by diffing solbench.matrixforge.org against local:
+          `{% if meta.b200_matched %}` on the STRING "0" is truthy, so the
+          remote rendered the B200 switch over columns that were all blank; and
+          `{% if meta.problems_with_invalid_bound %}` on the string "[]" is
+          truthy too — an always-true guard under an always-present nav entry,
+          two bugs cancelling. Both now go through `|int` / the parsed list,
+          and the methodology's nav entry is filtered like the run page's
+          transcript entry.
+          Section-nav highlight vanished mid-section on /methodology's longest
+          section: the spy asked "which heading is inside a band 59px to 30%
+          down" (an event) where the question is "which heading did I last
+          pass" (a position). Any section taller than the band has an interval
+          where the answer is "none" and the nav renders nothing. Its own
+          comment described the position rule; the code implemented the event
+          rule. Rewritten as geometry on a rAF-coalesced passive scroll
+          listener. Fixes /methodology, /problems/<key> and the run page.
+          The API entry is off the header nav (SOLBENCH_API_NAV=1 restores it).
+          The API itself is untouched: /api/v1, /api/docs and /openapi.json all
+          serve, and a test asserts they still do. Reason is load, not policy —
+          Swagger UI was the heaviest page on the public host, linked from
+          every page.
+Verified: 213 passed, 1 skipped (+12: test_dataset_meta.py,
+          test_api_surface.py).
 ```

@@ -53,6 +53,11 @@ DATASET = ROOT / "data" / "SOL-ExecBench" / "benchmark"
 # column. Never a source for anything but a displayed number -- see
 # scripts/fetch_nvidia_b200_reference.py.
 NVIDIA_B200 = ROOT / "reference" / "nvidia-b200" / "published.json"
+# The dataset's descriptive metadata, tracked. `data/` is gitignored and does
+# not travel with the repo, so without this a board built from a clone renders
+# every measured number and describes no problem at all (STATE.md D49). Written
+# by scripts/export_dataset_meta.py; read only where `data/` is absent.
+DATASET_META = ROOT / "reference" / "dataset-meta.json"
 # The board publishes v1.2. v1 and v1.1 are frozen and unchanged, and every
 # score published against either stays valid against it -- but v1.1 corrected
 # 1,048 bounds (STATE.md D35 and D18) and v1.2 corrected 81 more (D37), and a
@@ -399,11 +404,24 @@ def eval_axis_expr(expr: str, known: dict):
         return None
 
 
-def workload_axes(category: str, name: str,
-                  declared: dict | None = None) -> dict[str, dict]:
-    """`uuid -> {"i": position, "axes": every axis this workload has}`.
+def read_workloads(category: str, name: str) -> list[tuple[str, dict]]:
+    """`[(uuid, the axes that vary)]` in file order, from the dataset."""
+    f = DATASET / category / name / "workload.jsonl"
+    if not f.is_file():
+        return []
+    out = []
+    for line in f.read_text().splitlines():
+        if line.strip():
+            r = json.loads(line)
+            out.append((r["uuid"], r.get("axes") or {}))
+    return out
 
-    Two things the page could not say before this read the dataset:
+
+def merge_axes(declared: dict | None,
+               pairs: list[tuple[str, dict]]) -> dict[str, dict]:
+    """`uuid -> {"i": position, "axes": every axis, "var": the ones that vary}`.
+
+    Two things the page could not say before this existed:
 
     * The manifest carries no axes at all -- it is a scoring artifact, and a
       workload's parameters are not part of a bound. So every `axes_json` in
@@ -411,23 +429,23 @@ def workload_axes(category: str, name: str,
       rows: the one column that says what a workload *is*.
     * `workload.jsonl` carries only the axes that VARY. Upstream's own page
       shows all of them, and it is right to: `head_dim=128` is part of the
-      shape whether or not it moves. The const values come from
-      `definition.json` and the `expr` ones are computed from the rest, so a
+      shape whether or not it moves. The const values come from the
+      definition's `axes` and the `expr` ones are computed from the rest, so a
       row here lists the same seven parameters upstream lists for the same
       workload rather than the three that happen to differ.
 
-    `i` is the workload's position in `workload.jsonl`, 1-based. It is the
-    dataset's own ordering and -- checked across all 235 problems -- the order
-    upstream returns its workloads in, which is what makes "#4" here and "#4"
-    there the same workload. The manifest sorts by uuid instead, so without
-    this the two listings could only be lined up by matching axes by eye.
+    `i` is the workload's 1-based position in the dataset's own list. Checked
+    across all 235 problems, that is also the order upstream returns its
+    workloads in, which is what makes "#4" here and "#4" there the same
+    workload. The manifest sorts by uuid instead, so without this the two
+    listings could only be lined up by matching axes by eye.
 
-    Missing dataset (it is gitignored and does not travel with the repo) is not
-    an error: the board loses the column, the way it always has.
+    `var` is kept apart from the merged set because the B200 match uses it.
+    Upstream's own workload records carry the const axes but only SOME of the
+    expr ones, so an exact-set probe with the merged dict fails on 375
+    workloads that do correspond -- it is our extra computed axis that does not
+    match, not the workload.
     """
-    f = DATASET / category / name / "workload.jsonl"
-    if not f.is_file():
-        return {}
     declared = declared or {}
     const = {k: v.get("value") for k, v in declared.items()
              if v.get("type") == "const" and v.get("value") is not None}
@@ -435,10 +453,8 @@ def workload_axes(category: str, name: str,
              if v.get("type") == "expr" and v.get("expression")}
 
     out: dict[str, dict] = {}
-    for i, line in enumerate(
-            (l for l in f.read_text().splitlines() if l.strip()), 1):
-        r = json.loads(line)
-        axes = {**const, **(r.get("axes") or {})}
+    for i, (uuid, var) in enumerate(pairs, 1):
+        axes = {**const, **var}
         # Two passes: an expr may name another expr. Two is enough for the
         # dataset as it stands and terminates whatever it holds.
         for _ in range(2):
@@ -447,13 +463,45 @@ def workload_axes(category: str, name: str,
                     v = eval_axis_expr(e, axes)
                     if v is not None:
                         axes[k] = v
-        # `var` is kept apart from the merged set, and the B200 match uses it
-        # rather than `axes`. Upstream's own workload records carry the const
-        # axes but only SOME of the expr ones, so an exact-set probe with our
-        # merged dict fails on 375 workloads that do correspond -- it is our
-        # extra computed axis that does not match, not the workload.
-        out[r["uuid"]] = {"i": i, "axes": axes, "var": r.get("axes") or {}}
+        out[uuid] = {"i": i, "axes": axes, "var": var}
     return out
+
+
+def dataset_meta() -> dict:
+    """The tracked descriptive export, or `{}`.
+
+    `reference/dataset-meta.json` is the fallback for a machine that has no
+    `data/` -- which is every deploy built from a clone, since the dataset is
+    gitignored. It carries descriptions, references, inputs, outputs, axes and
+    per-workload axes, and nothing measured. See
+    scripts/export_dataset_meta.py.
+    """
+    if not DATASET_META.is_file():
+        return {}
+    return json.loads(DATASET_META.read_text()).get("problems") or {}
+
+
+def problem_source(key: str, exported: dict) -> tuple[dict, list, str]:
+    """`(definition, [(uuid, var axes)], where it came from)` for one problem.
+
+    The real dataset wins whenever it is present, and the export is consulted
+    only where it is not: a machine holding the dataset must never be served a
+    tracked copy of it that has quietly gone stale. `--check` on the export
+    script is the other half of that guarantee.
+    """
+    category, name = key.split("__", 1)
+    defn_path = DATASET / category / name / "definition.json"
+    if defn_path.is_file():
+        return (json.loads(defn_path.read_text()),
+                read_workloads(category, name), "dataset")
+    p = exported.get(key)
+    if p:
+        return ({k: p.get(k) for k in
+                 ("name", "description", "hf_id", "axes", "inputs", "outputs",
+                  "reference")},
+                [(w["uuid"], w.get("axes") or {}) for w in p.get("workloads", [])],
+                "export")
+    return ({}, [], "")
 
 
 def b200_by_axes(published: dict, key: str) -> dict[str, dict]:
@@ -516,13 +564,15 @@ def ingest_problems(conn, manifest: dict) -> None:
     if NVIDIA_B200.is_file():
         published = json.loads(NVIDIA_B200.read_text()).get("kernels") or {}
 
+    exported = dataset_meta()
     n_axes = n_b200 = n_defn = 0
+    sources: dict[str, int] = {}
     for key, p in manifest["problems"].items():
         category, name = key.split("__", 1)
-        defn_path = DATASET / category / name / "definition.json"
-        defn = json.loads(defn_path.read_text()) if defn_path.exists() else {}
+        defn, wl_pairs, src = problem_source(key, exported)
+        sources[src] = sources.get(src, 0) + 1
         n_defn += 1 if defn else 0
-        axes_by_uuid = workload_axes(category, name, defn.get("axes"))
+        axes_by_uuid = merge_axes(defn.get("axes"), wl_pairs)
         b200_index = b200_by_axes(published, key)
 
         wls = p.get("workloads", {})
@@ -594,6 +644,10 @@ def ingest_problems(conn, manifest: dict) -> None:
         # which is a sentence about the dataset that was not true. The board
         # reads this and says which it is.
         ("dataset_problems", str(n_defn)),
+        # Which of the two supplied them, so the footer can say. "export" is
+        # the normal state of a deploy and is not a defect; "" is the state
+        # that loses five sections of every problem page.
+        ("dataset_source", max(sources, key=sources.get) if sources else ""),
     ])
     if published:
         meta_src = json.loads(NVIDIA_B200.read_text())
@@ -604,11 +658,12 @@ def ingest_problems(conn, manifest: dict) -> None:
     print(f"  workloads: {total}, with axes {n_axes}, "
           f"with a B200 figure {n_b200}", file=sys.stderr)
     if not n_defn:
-        print(f"  WARNING: no problem definitions found under {DATASET}.\n"
-              f"  The dataset is gitignored and does not travel with the repo, "
-              f"so this board will carry no description, reference source, "
-              f"inputs, outputs, axes or workload parameters. Fix with:\n"
-              f"    python scripts/materialize_dataset.py\n"
+        print(f"  WARNING: no problem definitions, from {DATASET} or from "
+              f"{DATASET_META.name}.\n"
+              f"  This board will carry no description, reference source, "
+              f"inputs, outputs, axes or workload parameters. Fix with either\n"
+              f"    python scripts/materialize_dataset.py     (the dataset)\n"
+              f"    git checkout reference/dataset-meta.json  (the export)\n"
               f"  then rebuild. Every measured number is unaffected.",
               file=sys.stderr)
     elif n_defn < len(manifest["problems"]):
