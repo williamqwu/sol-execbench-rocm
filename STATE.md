@@ -2608,4 +2608,26 @@ Produced: reference/dataset-meta.json — 2.2 MB, tracked, written by
           every page.
 Verified: 213 passed, 1 skipped (+12: test_dataset_meta.py,
           test_api_surface.py).
+
+Storage decision, taken with the maintainer, same session:
+Decided: git carries what is needed to READ and AUDIT a number; the
+         measurement host carries what is needed to REPRODUCE one. Transcripts
+         stay out (78 MB for two runs, and their provenance records carry
+         gateway hostnames and key prefixes); trajectory, kernels, retimed,
+         scored, manifests and the dataset export stay in. Table and reasons
+         in leaderboard/README.md, rule in CLAUDE.md §7.
+Measured: the pack is 36 MB, of which trajectory is 17.7 MB (71%). Cost is per
+         AGENT ITERATION, not per problem: 7.7 KB raw / 1.3 KB packed for the
+         eval json (378 B x n_workloads plus a 577 B provenance stamp repeated
+         in every file) and 3.5 KB / 1.0 KB for the kernel snapshot, so
+         ~2.3 KB packed each. gpt56-220 ran 27.3 iterations/problem (p90 36,
+         max 50) for 14.2 MB; glm-sweep-2 ran 7.2 (p90 15) for 3.4 MB. A
+         220-problem run therefore costs ~1.0 MB fixed + 2.3 KB x iterations:
+         4.5 MB frugal, 15 MB typical, 26 MB chatty. Ten more typical runs
+         would put the pack near 190 MB, and history is append-only.
+Produced: the run page's transcript section is unconditional now, with an empty
+         state that distinguishes "the harness recorded none" from "this board
+         does not carry them". Every deploy is the second case, and the section
+         used to vanish, stating neither.
+Verified: 216 passed, 1 skipped.
 ```

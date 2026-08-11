@@ -1633,13 +1633,12 @@ def run(request: Request, slug: str, key: str, part: str | None = None):
     # is the dataset being viewed, which is what `part_url()` reads off the
     # context to build links. The run's own goes under `run_part`.
     d["run_part"] = d.pop("part")
-    # `run.html` renders the transcript heading inside `{% if transcript %}`
-    # and every other heading unconditionally, so the nav drops exactly that
-    # one and nothing else. test_sidenav.py holds both directions of this on
-    # the run page: no entry without a heading, no heading without an entry.
-    toc = [s for s in TOC_RUN_ALL
-           if s["id"] != "transcript" or d.get("transcript")]
-    return page(request, "run.html", active, toc=toc,
+    # Every heading on the run page now renders unconditionally, the transcript
+    # one included: "no transcript was recorded" and "this board does not carry
+    # the transcripts" are different facts, and a section that disappears
+    # states neither. Transcripts are not tracked in git, so the second case is
+    # the normal state of any deploy. test_sidenav.py holds both directions.
+    return page(request, "run.html", active, toc=TOC_RUN_ALL,
                 chart=trajectory_chart(d["trajectory"]), **d)
 
 

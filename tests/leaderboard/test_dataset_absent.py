@@ -105,3 +105,34 @@ def test_a_board_that_predates_the_key_raises_no_alarm(board, app_mod):
 
 def test_the_banner_is_absent_when_the_dataset_is_there(client):
     assert "built without the benchmark dataset" not in client.get("/").text
+
+
+# --------------------------------------------------------------------------
+# transcripts: the same class of absence, decided the other way
+# --------------------------------------------------------------------------
+# They are NOT tracked in git -- 78 MB for two runs, and their provenance
+# records carry gateway hostnames and key prefixes -- so every deploy indexes
+# none of them. That is a deliberate storage decision, not a defect, and the
+# page has to say which of the two absences it is looking at rather than
+# dropping the section.
+
+def test_the_transcript_section_is_always_there(client):
+    """It used to render only when a transcript existed, so a board with none
+    -- which is every deploy -- looked like a run that recorded none."""
+    body = client.get("/submissions/agent-alpha/problems/L1__001_alpha").text
+    assert '<h2 id="transcript">' in body
+
+
+def test_the_empty_transcript_says_which_absence_it_is(client):
+    body = client.get("/submissions/agent-alpha/problems/L1__001_alpha").text
+    after = body.split('<h2 id="transcript">', 1)[1].split("<h2", 1)[0]
+    assert "No transcript is indexed" in after
+    assert "not tracked in git" in after
+
+
+def test_the_nav_still_matches_the_headings(client):
+    """The entry is unconditional now because the heading is. test_sidenav
+    checks this globally; this pins the pair that just changed."""
+    body = client.get("/submissions/agent-alpha/problems/L1__001_alpha").text
+    nav = body.split("</aside>", 1)[0]
+    assert 'href="#transcript"' in nav

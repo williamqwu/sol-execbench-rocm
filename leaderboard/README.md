@@ -36,14 +36,59 @@ measured number and no description, reference implementation, input, output,
 axis, workload parameter or workload numbering: five empty sections on 235
 pages, for a build-environment reason no reader can see (STATE.md D49).
 
-So the descriptive subset is **tracked**:
+So the descriptive subset is **tracked**. The rule the whole split follows:
 
-| file | tracked? | what it is |
-|---|---|---|
-| `data/SOL-ExecBench/benchmark/` | no | the dataset, 7.5 MB, rebuilt by `scripts/materialize_dataset.py` |
-| `reference/dataset-meta.json` | **yes**, 2.2 MB | descriptions, references, inputs, outputs, axes, per-workload axes and order — copied verbatim from the above by `scripts/export_dataset_meta.py` |
-| `reference/nvidia-b200/published.json` | **yes**, 1.1 MB | NVIDIA's published B200 figures, display only |
-| `artifacts/**` | yes | every measured number |
+> **git carries what is needed to READ and AUDIT a number. The measurement host
+> carries what is needed to REPRODUCE one.**
+
+| | tracked? | size | why |
+|---|---|---|---|
+| `artifacts/09` manifests, `artifacts/0*` bounds, tolerances, sweeps | yes | 2.9 MB packed | every number on the board is derived from these |
+| `artifacts/10/*/scored.json`, `retimed/`, `kernels/` | yes | 1.5 MB packed | the result, the timing behind it, and the kernel that produced it |
+| `artifacts/10/*/trajectory/` | yes | 17.7 MB packed | the run page's chart, and how a kernel got to its final form. **71% of the repo** — see *How fast trajectory grows* below |
+| `reference/dataset-meta.json` | **yes** | 0.5 MB packed | what a problem IS. Without it a deploy describes nothing |
+| `reference/nvidia-b200/published.json` | yes | 0.3 MB packed | display-only overlay |
+| `artifacts/10/*/transcripts/` | **no** | 78 MB raw | the largest artifact per run, and its provenance records carry gateway hostnames and key prefixes. Reproducing a run needs it; reading a number does not |
+| `data/SOL-ExecBench/` | no | 47 MB | regenerable, and no longer needed by the board |
+| `artifacts/golden/` | no | 143 GB | regenerable float64 CPU output |
+| `leaderboard/db/*.db`, `queue.db`, `sources.json`, `.tokens` | no | — | derived, machine-local, or secret |
+
+A run page whose transcript is not on the host says so, rather than dropping
+the section: "the harness recorded none" and "this board does not carry them"
+are different facts and a missing section states neither.
+
+### How fast trajectory grows
+
+Measured over the two runs in the repo, per **iteration** (one agent attempt on
+one problem — an `eval-*.json` plus the `kernel-*.py` snapshot it scored):
+
+```
+eval json      7.7 KB raw   ->  1.3 KB packed    (378 B x n_workloads, + a 577 B provenance stamp)
+kernel .py     3.5 KB raw   ->  1.0 KB packed
+                              = 2.3 KB packed per iteration
+```
+
+The driver is **iterations, not problems**, and the two runs differ 4x in it:
+
+| run | problems | iterations | per problem (p50 / p90 / max) | packed |
+|---|---|---|---|---|
+| `glm-sweep-2` | 219 | 1,574 | 5 / 15 / 44 | 3.4 MB |
+| `gpt56-220` | 220 | 6,016 | 27 / 36 / 50 | 14.2 MB |
+
+So a full 220-problem run costs roughly
+
+```
+packed MB  ~=  1.0 (scored + retimed + kernels + cost)  +  0.0023 x iterations
+           ~=  4.5 MB   at  7 iterations/problem
+              15   MB   at 27
+              26   MB   at 50
+```
+
+The pack is 36 MB today. Ten more runs of the `gpt56-220` shape put it near
+190 MB, and git history is append-only — deleting a run later does not shrink
+anyone's clone. If that becomes the constraint, the lever is iterations kept,
+not runs kept: sampling the trajectory (first, last, and every k-th eval) is a
+decision about evidence and belongs in `agent_score.py`, not in `.gitignore`.
 
 `ingest.py` reads the dataset when it is there and falls back to the export
 when it is not, so a machine holding the real thing can never be served a

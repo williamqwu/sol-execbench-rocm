@@ -668,8 +668,14 @@
 <p class="sub">{{ depth_note or 'No per-problem cost was recorded for this run.' }}</p>
 {% endif %}
 
-{% if transcript %}
+{# The heading is unconditional and the empty state is written out, because
+   the two ways to have no transcript are different facts and a missing section
+   states neither. Transcripts are NOT tracked in git -- 78 MB for two runs, and
+   their provenance records carry gateway hostnames and key prefixes -- so a
+   board built from a clone indexes none of them, and hiding the section there
+   reads as "this run had no transcript". #}
 <h2 id="transcript">Transcript</h2>
+{% if transcript %}
 <p class="sub">
   {{ '{:,}'.format(transcript.n_lines) }} records &middot;
   {{ '{:,}'.format(transcript.n_turns) }} assistant turns &middot;
@@ -680,6 +686,15 @@
 <p class="sub">Served from disk, not from the database. It carries gateway
   hostnames and key prefixes in its provenance records &mdash; internal viewers
   only.</p>
+{% else %}
+<p class="sub"><b>No transcript is indexed on this board for this run.</b>
+  Either the harness recorded none &mdash; which is a property of the run, and
+  its <i>What it cost</i> section above says what else it did not record &mdash;
+  or this board was built somewhere the transcripts are not. They are
+  deliberately not tracked in git: they are the largest artifact per run by a
+  wide margin, and their provenance records carry gateway hostnames and key
+  prefixes, so they stay on the measurement host under
+  <code>artifacts/10/&lt;run&gt;/transcripts/</code>.</p>
 {% endif %}
 
 <h2 id="others">Everyone else on this problem</h2>

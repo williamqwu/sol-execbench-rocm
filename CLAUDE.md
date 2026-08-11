@@ -248,6 +248,15 @@ it is listed there.
 
 - Artifacts → `artifacts/<task-id>/`, always with a provenance header.
 - Never commit measurements to `src/`. Code and data stay separate.
+- **What goes in git**: *git carries what is needed to READ and AUDIT a number;
+  the measurement host carries what is needed to REPRODUCE one.* So manifests,
+  bounds, `scored.json`, `retimed/`, `kernels/`, `trajectory/` and
+  `reference/dataset-meta.json` are tracked; `transcripts/` (78 MB for two
+  runs, and its provenance records carry gateway hostnames and key prefixes),
+  `data/` and `artifacts/golden/` are not. The full table and the growth model
+  are in `leaderboard/README.md`. Trajectory is 71% of the pack and costs
+  ~2.3 KB packed per agent iteration — roughly 15 MB for a 220-problem run at
+  27 iterations a problem.
 - Long sweeps: `nohup` + log to `artifacts/<task>/logs/`, and make them
   **resumable** — assume the session dies mid-sweep, because it will.
 - Python: repo code targets 3.12 to match upstream's `requires-python`.
