@@ -1,0 +1,104 @@
+{
+  "purpose": "Adversarial verification of the L2__009 torch.compile-divergence claim, lens = alternative cause (SDPA backend switch, dtype promotion, TF32/reduced-precision, in-place mutation, genuine miscompile).",
+  "utc": "2026-08-11T18:20Z",
+  "gpu": "HIP_VISIBLE_DEVICES=4, AMD Instinct MI350X, gfx950",
+  "torch": "2.9.1+rocm7.2.0.git7e1940d4",
+  "hip": "7.2.26015-fc0010cf6a",
+  "problem": "L2/009_decoder_layer_with_residual_connections",
+  "workload": "3de37835-4d55-5720-b5d4-993e4b89f98b (batch_size=8, seq_len=128)",
+  "note": "numerics only, no timings; co-tenant GPU",
+
+  "headline_reproduction": {
+    "cmd": "scripts/diag_compile_divergence.py --mode default --uuid 3de37835-... --limit 1",
+    "tol_atol": 1.3745168938812721e-07,
+    "tol_rtol": 1.1920928955078125e-07,
+    "eager_vs_eager_max_abs": 0.0,
+    "compiled_vs_eager_max_abs": 5.781650543212891e-06,
+    "matched_ratio": 0.41581106185913086,
+    "verdict": "FAIL"
+  },
+
+  "what_actually_compiles": {
+    "graphs_compiled_fresh_cache": 5,
+    "graph_break_site": "<reference>:187  `if expert_mask[expert_idx].sum() > 0`  (data-dependent)",
+    "compiled_fragments": [
+      "rms_norm  -> triton_red_fused_add_mean_mul_pow_rsqrt_0 / triton_per_fused_... (3 shape specialisations)",
+      "apply_rotary_pos_emb -> triton_poi_fused_add_cat_mul_neg_slice_unsqueeze_{0,1}",
+      "repeat_kv -> triton_poi_fused_clone_expand_unsqueeze_0"
+    ],
+    "extern_kernels_calls_in_generated_code": 0,
+    "scaled_dot_product_attention_occurrences": 0,
+    "consequence": "projections, both attention matmuls, both softmaxes, topk and the whole 128-expert MoE loop run EAGER; they are not in any compiled graph."
+  },
+
+  "hybrid_isolation_compile_only_named_helpers_rest_eager": {
+    "[]": {"max_abs": 0.0, "matched_ratio": 1.0},
+    "[rms_norm]": {"max_abs": 5.245208740234375e-06, "matched_ratio": 0.43056583404541016},
+    "[apply_rotary_pos_emb]": {"max_abs": 2.6226043701171875e-06, "matched_ratio": 0.616300106048584},
+    "[repeat_kv]": {"max_abs": 0.0, "matched_ratio": 1.0},
+    "[rms_norm,apply_rotary_pos_emb,repeat_kv]": {"max_abs": 5.781650543212891e-06, "matched_ratio": 0.41581106185913086},
+    "finding": "the 3-helper hybrid matches the full torch.compile run to the last decimal, so 100% of the divergence lives in those fragments."
+  },
+
+  "alternatives_tested": {
+    "tf32_or_reduced_precision_fp32_matmul": {
+      "verdict": "REFUTED",
+      "allow_tf32": false,
+      "fp32_precision": "none",
+      "pytorch_warning": "TensorFloat32 tensor cores for float32 matrix multiplication available but not enabled",
+      "mm_512x2048x512_median_rel_err_vs_fp64": {"eager": 6.668e-07, "compiled": 6.668e-07},
+      "mm_eager_vs_compiled_bitdiff": "0 / 262144"
+    },
+    "sdpa_backend_switch_or_fuse_attention_rewrite": {"verdict": "REFUTED", "evidence": "0 hits for scaled_dot_product/flash_attention/efficient_attention in the fresh-cache output_code dump; attention never enters a compiled graph"},
+    "different_gemm_backend": {"verdict": "REFUTED", "evidence": "no extern_kernels.mm/bmm/addmm in any of the 5 generated files"},
+    "dtype_promotion_or_demotion": {"verdict": "REFUTED", "evidence": "all fragment placeholders and nodes are f32; no cast nodes in the graph fragments"},
+    "in_place_mutation_index_add_ordering": {"verdict": "REFUTED", "evidence": "MoE loop is behind the line-187 graph break and runs eager; hybrid isolation accounts for the whole divergence without it"},
+    "topk_expert_selection_flip": {"verdict": "NOT IMPLICATED", "evidence": "topk runs eager"},
+    "genuine_inductor_miscompile": {"verdict": "REFUTED", "evidence": "see fp64 goldens below; the compiled fragments are as accurate or more accurate than eager"}
+  },
+
+  "surrogate_test_no_compiler_involved": {
+    "description": "pure-eager reference, only the FIRST rms_norm's mean re-associated as an 8-way chunked sum (mathematically identical)",
+    "vs_plain_eager": {"max_abs": 5.662441253662109e-06, "matched_ratio": 0.510737419128418, "bitdiff": "1859416 / 2097152"},
+    "variance_bitdiff": "356 / 1024",
+    "finding": "reduction re-association alone, with no compiler, reproduces the failure signature"
+  },
+
+  "mechanism_A_reduction_reassociation": {
+    "pow2_compiled_vs_eager_bitdiff": "0 / 2097152",
+    "mean_compiled_vs_eager_bitdiff": "351 / 1024",
+    "mean_max_abs": 2.3842e-07,
+    "rms_norm1_output_compiled_vs_eager": {"max_abs": 2.86102294921875e-06, "matched_ratio": 0.9983706474304199},
+    "rms_norm1_vs_fp64_golden": {
+      "eager_RMS": 5.321476e-08, "compiled_RMS": 5.493494e-08,
+      "eager_max": 1.589e-06, "compiled_max": 1.272e-06,
+      "elements_closer": {"eager": 207839, "compiled": 172041, "tied": 1717272, "n": 2097152}
+    }
+  },
+
+  "mechanism_B_fma_contraction_NOT_IN_CLAIM": {
+    "op": "apply_rotary_pos_emb, a purely pointwise kernel with no reduction anywhere",
+    "compiled_vs_eager_q": {"bitdiff": "518586 / 4194304", "max_abs": 9.5367e-07},
+    "eager_is_bitwise_equal_to_naive_3_rounding_form": true,
+    "vs_fp64_golden_RMS": {"eager": 5.190109e-08, "compiled": 4.802461e-08, "addcmul_control": 5.190109e-08},
+    "vs_fp64_max_abs": {"eager": 9.0978e-07, "compiled": 9.0815e-07},
+    "elements_closer_to_fp64": {"eager": 120633, "compiled": 397952, "tied": 3675719},
+    "generated_triton_source": "tmp2 = tmp0 * tmp1 ; tmp20 = tmp18 * tmp19 ; tmp21 = tmp2 + tmp20",
+    "finding": "compiled is decisively MORE accurate (3.3:1 element win), the signature of one fewer rounding, i.e. LLVM contracting mul+add into v_fma_f32. This op alone fails the workload (mr 0.6163) and contains no reduction."
+  },
+
+  "mechanism_B_of_the_claim_recompile_limit": {
+    "verdict": "CONFIRMED directly",
+    "test": "torch.compile(rms_norm, dynamic=False) called once per each of the 16 workloads' (batch_size, seq_len) shapes",
+    "observed_warning": "W torch/_dynamo/convert_frame.py:1358 [0/8] torch._dynamo hit config.recompile_limit (8) / function: 'rms_norm'",
+    "unique_graphs_after_each_shape": [1,2,3,4,5,6,7,8,8,8,8,8,8,8,8,8],
+    "finding": "shapes 9-16 are never compiled",
+    "caveat": "the follow-up bit-identity check in that script was invalidated by an intervening torch._dynamo.reset(); the unique_graphs freeze and the warning are the valid evidence"
+  },
+
+  "files": [
+    "artifacts/11/compile-diag/verifier-alt/repro.3de37835.default.json",
+    "artifacts/11/compile-diag/verifier-alt/outputcode.3de37835.log",
+    "artifacts/11/compile-diag/verifier-alt/fresh.3de37835.log"
+  ]
+}

@@ -1,0 +1,259 @@
+{
+  "problem": "L1__067_flash_attention_gqa_ultralong",
+  "mode": "default",
+  "compile_budget_note": "Run in two batches of 5 uuids so torch._dynamo never exceeds config.recompile_limit (8) and every workload is genuinely compiled.",
+  "torch": "2.9.1+rocm7.2.0.git7e1940d4",
+  "finding": "These are exactly the 10 workloads that artifacts/06/candidates records as PASSING under v2_compile and v3_compile_max_autotune. They pass there only because dynamo hit config.recompile_limit (8) after the first 8 distinct shapes and silently fell back to eager. Compiled for real, all 10 FAIL. 18/18 fail.",
+  "rows": [
+    {
+      "uuid": "c7675a60-c8b2-501e-9945-5925f4375752",
+      "axes": {
+        "batch_size": 64,
+        "seq_len": 128
+      },
+      "out_dtypes": [
+        "torch.float32"
+      ],
+      "tol_atol": 3.379535814536631e-08,
+      "tol_rtol": 1.1920928955078125e-07,
+      "eager_vs_eager": {
+        "max_abs": 0.0,
+        "max_rel": 0.0,
+        "matched_ratio": 1.0,
+        "exceeds": false
+      },
+      "compiled_vs_eager": {
+        "max_abs": 1.9073486328125e-06,
+        "max_rel": 4.2338080406188965,
+        "matched_ratio": 0.3846797049045563,
+        "exceeds": true
+      },
+      "verdict": "FAIL"
+    },
+    {
+      "uuid": "2f79cb75-4aa3-5212-8ac9-70e68272fb88",
+      "axes": {
+        "batch_size": 1,
+        "seq_len": 997
+      },
+      "out_dtypes": [
+        "torch.float32"
+      ],
+      "tol_atol": 1.4984805186533353e-08,
+      "tol_rtol": 1.1920928955078125e-07,
+      "eager_vs_eager": {
+        "max_abs": 0.0,
+        "max_rel": 0.0,
+        "matched_ratio": 1.0,
+        "exceeds": false
+      },
+      "compiled_vs_eager": {
+        "max_abs": 1.3709068298339844e-06,
+        "max_rel": 3.7234890460968018,
+        "matched_ratio": 0.3216267454707874,
+        "exceeds": true
+      },
+      "verdict": "FAIL"
+    },
+    {
+      "uuid": "a5a2bb36-40ee-5907-9e7f-7df25c9540db",
+      "axes": {
+        "batch_size": 2,
+        "seq_len": 256
+      },
+      "out_dtypes": [
+        "torch.float32"
+      ],
+      "tol_atol": 2.600829704642865e-08,
+      "tol_rtol": 1.1920928955078125e-07,
+      "eager_vs_eager": {
+        "max_abs": 0.0,
+        "max_rel": 0.0,
+        "matched_ratio": 1.0,
+        "exceeds": false
+      },
+      "compiled_vs_eager": {
+        "max_abs": 1.3113021850585938e-06,
+        "max_rel": 1.8969656229019165,
+        "matched_ratio": 0.3707265853881836,
+        "exceeds": true
+      },
+      "verdict": "FAIL"
+    },
+    {
+      "uuid": "0f791df3-1dab-575b-bf68-06e65eac17b7",
+      "axes": {
+        "batch_size": 1,
+        "seq_len": 128
+      },
+      "out_dtypes": [
+        "torch.float32"
+      ],
+      "tol_atol": 3.4299323025586465e-08,
+      "tol_rtol": 1.1920928955078125e-07,
+      "eager_vs_eager": {
+        "max_abs": 0.0,
+        "max_rel": 0.0,
+        "matched_ratio": 1.0,
+        "exceeds": false
+      },
+      "compiled_vs_eager": {
+        "max_abs": 1.1920928955078125e-06,
+        "max_rel": 2.878973960876465,
+        "matched_ratio": 0.41226768493652344,
+        "exceeds": true
+      },
+      "verdict": "FAIL"
+    },
+    {
+      "uuid": "f306d582-9240-5abc-a8cc-befeb3beea9d",
+      "axes": {
+        "batch_size": 1,
+        "seq_len": 256
+      },
+      "out_dtypes": [
+        "torch.float32"
+      ],
+      "tol_atol": 2.6332655711101223e-08,
+      "tol_rtol": 1.1920928955078125e-07,
+      "eager_vs_eager": {
+        "max_abs": 0.0,
+        "max_rel": 0.0,
+        "matched_ratio": 1.0,
+        "exceeds": false
+      },
+      "compiled_vs_eager": {
+        "max_abs": 1.3113021850585938e-06,
+        "max_rel": 1.8969656229019165,
+        "matched_ratio": 0.37375450134277344,
+        "exceeds": true
+      },
+      "verdict": "FAIL"
+    },
+    {
+      "uuid": "446da798-bfa0-5820-94b1-74f5247d7c30",
+      "axes": {
+        "batch_size": 16,
+        "seq_len": 256
+      },
+      "out_dtypes": [
+        "torch.float32"
+      ],
+      "tol_atol": 2.6005360484977465e-08,
+      "tol_rtol": 1.1920928955078125e-07,
+      "eager_vs_eager": {
+        "max_abs": 0.0,
+        "max_rel": 0.0,
+        "matched_ratio": 1.0,
+        "exceeds": false
+      },
+      "compiled_vs_eager": {
+        "max_abs": 1.7881393432617188e-06,
+        "max_rel": 6.873246192932129,
+        "matched_ratio": 0.3649338483810425,
+        "exceeds": true
+      },
+      "verdict": "FAIL"
+    },
+    {
+      "uuid": "ff83acdc-d68b-54f9-8490-970f03f3f258",
+      "axes": {
+        "batch_size": 2,
+        "seq_len": 2048
+      },
+      "out_dtypes": [
+        "torch.float32"
+      ],
+      "tol_atol": 1.117237516100593e-08,
+      "tol_rtol": 1.1920928955078125e-07,
+      "eager_vs_eager": {
+        "max_abs": 0.0,
+        "max_rel": 0.0,
+        "matched_ratio": 1.0,
+        "exceeds": false
+      },
+      "compiled_vs_eager": {
+        "max_abs": 1.7881393432617188e-06,
+        "max_rel": 5.349248886108398,
+        "matched_ratio": 0.319993257522583,
+        "exceeds": true
+      },
+      "verdict": "FAIL"
+    },
+    {
+      "uuid": "257eed20-b860-5c10-9a12-3040192e00c9",
+      "axes": {
+        "batch_size": 1,
+        "seq_len": 131
+      },
+      "out_dtypes": [
+        "torch.float32"
+      ],
+      "tol_atol": 3.400185770327232e-08,
+      "tol_rtol": 1.1920928955078125e-07,
+      "eager_vs_eager": {
+        "max_abs": 0.0,
+        "max_rel": 0.0,
+        "matched_ratio": 1.0,
+        "exceeds": false
+      },
+      "compiled_vs_eager": {
+        "max_abs": 1.1920928955078125e-06,
+        "max_rel": 3.28684139251709,
+        "matched_ratio": 0.4811955808683206,
+        "exceeds": true
+      },
+      "verdict": "FAIL"
+    },
+    {
+      "uuid": "cf8891db-2d54-5d8b-8c4d-dbdd0e9c6e87",
+      "axes": {
+        "batch_size": 2,
+        "seq_len": 8192
+      },
+      "out_dtypes": [
+        "torch.float32"
+      ],
+      "tol_atol": 6.287297159189092e-09,
+      "tol_rtol": 1.1920928955078125e-07,
+      "eager_vs_eager": {
+        "max_abs": 0.0,
+        "max_rel": 0.0,
+        "matched_ratio": 1.0,
+        "exceeds": false
+      },
+      "compiled_vs_eager": {
+        "max_abs": 1.5497207641601562e-06,
+        "max_rel": 4.652133464813232,
+        "matched_ratio": 0.26820701360702515,
+        "exceeds": true
+      },
+      "verdict": "FAIL"
+    },
+    {
+      "uuid": "4bf49906-80fd-5f1b-a16b-e33f7a56633f",
+      "axes": {
+        "batch_size": 1,
+        "seq_len": 16384
+      },
+      "out_dtypes": [
+        "torch.float32"
+      ],
+      "tol_atol": 4.7059703615878646e-09,
+      "tol_rtol": 1.1920928955078125e-07,
+      "eager_vs_eager": {
+        "max_abs": 0.0,
+        "max_rel": 0.0,
+        "matched_ratio": 1.0,
+        "exceeds": false
+      },
+      "compiled_vs_eager": {
+        "max_abs": 1.3113021850585938e-06,
+        "max_rel": 7.044086933135986,
+        "matched_ratio": 0.24904948472976685,
+        "exceeds": true
+      },
+      "verdict": "FAIL"
+    }
+  ]
+}

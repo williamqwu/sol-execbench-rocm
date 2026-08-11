@@ -1,0 +1,567 @@
+{
+  "problem": "L2__058_mamba2_selective_scan",
+  "uuid": "4c88b9e7-bf31-5344-9ca7-10eb7e3242e4",
+  "axes": {
+    "batch_size": 1,
+    "seq_len": 512
+  },
+  "torch": "2.9.1+rocm7.2.0.git7e1940d4",
+  "note": "instrumented reference; every intermediate is a graph output",
+  "stages": [
+    {
+      "max_abs": 0.0,
+      "ref_absmax": 6.0,
+      "rel_to_scale": 0.0,
+      "n_differing": 0,
+      "numel": 19005440,
+      "frac_differing": 0.0,
+      "dtype": "torch.bfloat16",
+      "shape": [
+        1,
+        512,
+        37120
+      ],
+      "stage": "01_projected"
+    },
+    {
+      "max_abs": 0.0,
+      "ref_absmax": 5.25,
+      "rel_to_scale": 0.0,
+      "n_differing": 0,
+      "numel": 8388608,
+      "frac_differing": 0.0,
+      "dtype": "torch.bfloat16",
+      "shape": [
+        1,
+        512,
+        16384
+      ],
+      "stage": "02_gate"
+    },
+    {
+      "max_abs": 0.0,
+      "ref_absmax": 6.0,
+      "rel_to_scale": 0.0,
+      "n_differing": 0,
+      "numel": 10485760,
+      "frac_differing": 0.0,
+      "dtype": "torch.bfloat16",
+      "shape": [
+        1,
+        512,
+        20480
+      ],
+      "stage": "03_hBC_slice"
+    },
+    {
+      "max_abs": 0.0,
+      "ref_absmax": 4.53125,
+      "rel_to_scale": 0.0,
+      "n_differing": 0,
+      "numel": 131072,
+      "frac_differing": 0.0,
+      "dtype": "torch.bfloat16",
+      "shape": [
+        1,
+        512,
+        256
+      ],
+      "stage": "04_dt_raw"
+    },
+    {
+      "max_abs": 0.0,
+      "ref_absmax": 10.25,
+      "rel_to_scale": 0.0,
+      "n_differing": 0,
+      "numel": 10485760,
+      "frac_differing": 0.0,
+      "dtype": "torch.bfloat16",
+      "shape": [
+        1,
+        20480,
+        512
+      ],
+      "stage": "05_conv_out"
+    },
+    {
+      "max_abs": 0.03125,
+      "ref_absmax": 10.25,
+      "rel_to_scale": 0.003048780487804878,
+      "n_differing": 2761578,
+      "numel": 10485760,
+      "frac_differing": 0.2633646011352539,
+      "dtype": "torch.bfloat16",
+      "shape": [
+        1,
+        512,
+        20480
+      ],
+      "stage": "06_conv_silu"
+    },
+    {
+      "max_abs": 0.03125,
+      "ref_absmax": 6.5625,
+      "rel_to_scale": 0.004761904761904762,
+      "n_differing": 21883,
+      "numel": 131072,
+      "frac_differing": 0.16695404052734375,
+      "dtype": "torch.bfloat16",
+      "shape": [
+        1,
+        512,
+        256
+      ],
+      "stage": "07_dt_softplus_clamp"
+    },
+    {
+      "max_abs": 0.03125,
+      "ref_absmax": 10.25,
+      "rel_to_scale": 0.003048780487804878,
+      "n_differing": 2208351,
+      "numel": 8388608,
+      "frac_differing": 0.2632559537887573,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        512,
+        256,
+        64
+      ],
+      "stage": "08_x_f32"
+    },
+    {
+      "max_abs": 0.03125,
+      "ref_absmax": 7.625,
+      "rel_to_scale": 0.004098360655737705,
+      "n_differing": 8852064,
+      "numel": 33554432,
+      "frac_differing": 0.2638120651245117,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        512,
+        256,
+        256
+      ],
+      "stage": "09_B_f32"
+    },
+    {
+      "max_abs": 0.03125,
+      "ref_absmax": 8.3125,
+      "rel_to_scale": 0.0037593984962406013,
+      "n_differing": 8851200,
+      "numel": 33554432,
+      "frac_differing": 0.26378631591796875,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        512,
+        256,
+        256
+      ],
+      "stage": "10_C_f32"
+    },
+    {
+      "max_abs": 0.09130859375,
+      "ref_absmax": 23.203125,
+      "rel_to_scale": 0.003935185185185185,
+      "n_differing": 2208351,
+      "numel": 8388608,
+      "frac_differing": 0.2632559537887573,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        512,
+        256,
+        64
+      ],
+      "stage": "11_D_residual"
+    },
+    {
+      "max_abs": 0.318359375,
+      "ref_absmax": 27.1455078125,
+      "rel_to_scale": 0.01172788430406159,
+      "n_differing": 3238272,
+      "numel": 8388608,
+      "frac_differing": 0.3860321044921875,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        512,
+        256,
+        64
+      ],
+      "stage": "12_x_times_dt"
+    },
+    {
+      "max_abs": 0.010489583015441895,
+      "ref_absmax": 1.822025179862976,
+      "rel_to_scale": 0.005757101016699865,
+      "n_differing": 131069,
+      "numel": 131072,
+      "frac_differing": 0.9999771118164062,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        512,
+        256
+      ],
+      "stage": "13_A"
+    },
+    {
+      "max_abs": 0.061431884765625,
+      "ref_absmax": 123.4145278930664,
+      "rel_to_scale": 0.0004977686647949031,
+      "n_differing": 131062,
+      "numel": 131072,
+      "frac_differing": 0.9999237060546875,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        256,
+        4,
+        128
+      ],
+      "stage": "14_A_cumsum"
+    },
+    {
+      "max_abs": 0.06134796142578125,
+      "ref_absmax": 122.639404296875,
+      "rel_to_scale": 0.0005002304257551296,
+      "n_differing": 8322419,
+      "numel": 16777216,
+      "frac_differing": 0.49605482816696167,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        256,
+        4,
+        128,
+        128
+      ],
+      "stage": "15_segsum_A"
+    },
+    {
+      "max_abs": 0.002717524766921997,
+      "ref_absmax": 1.0,
+      "rel_to_scale": 0.002717524766921997,
+      "n_differing": 8319984,
+      "numel": 16777216,
+      "frac_differing": 0.4959096908569336,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        256,
+        4,
+        128,
+        128
+      ],
+      "stage": "16_L"
+    },
+    {
+      "max_abs": 0.303436279296875,
+      "ref_absmax": 107.4096450805664,
+      "rel_to_scale": 0.0028250375380094767,
+      "n_differing": 16776864,
+      "numel": 16777216,
+      "frac_differing": 0.9999790191650391,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        4,
+        128,
+        128,
+        256
+      ],
+      "stage": "17_G"
+    },
+    {
+      "max_abs": 0.28851318359375,
+      "ref_absmax": 102.64620208740234,
+      "rel_to_scale": 0.00281075361510291,
+      "n_differing": 8452461,
+      "numel": 16777216,
+      "frac_differing": 0.503805935382843,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        4,
+        128,
+        128,
+        256
+      ],
+      "stage": "18_M"
+    },
+    {
+      "max_abs": 24.26953125,
+      "ref_absmax": 19043.1328125,
+      "rel_to_scale": 0.001274450558579803,
+      "n_differing": 8388361,
+      "numel": 8388608,
+      "frac_differing": 0.999970555305481,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        4,
+        128,
+        256,
+        64
+      ],
+      "stage": "19_Y_diag"
+    },
+    {
+      "max_abs": 0.0014974474906921387,
+      "ref_absmax": 1.0,
+      "rel_to_scale": 0.0014974474906921387,
+      "n_differing": 129868,
+      "numel": 131072,
+      "frac_differing": 0.990814208984375,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        256,
+        4,
+        128
+      ],
+      "stage": "20_decay_states"
+    },
+    {
+      "max_abs": 0.03125,
+      "ref_absmax": 7.317379951477051,
+      "rel_to_scale": 0.00427065427888462,
+      "n_differing": 33283944,
+      "numel": 33554432,
+      "frac_differing": 0.9919388294219971,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        4,
+        128,
+        256,
+        256
+      ],
+      "stage": "21_B_decay"
+    },
+    {
+      "max_abs": 1.103485107421875,
+      "ref_absmax": 860.7523193359375,
+      "rel_to_scale": 0.0012820007366035372,
+      "n_differing": 16776888,
+      "numel": 16777216,
+      "frac_differing": 0.9999804496765137,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        4,
+        256,
+        64,
+        256
+      ],
+      "stage": "22_states"
+    },
+    {
+      "max_abs": 0.000283658504486084,
+      "ref_absmax": 1.0,
+      "rel_to_scale": 0.000283658504486084,
+      "n_differing": 2472,
+      "numel": 6400,
+      "frac_differing": 0.38625,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        256,
+        5,
+        5
+      ],
+      "stage": "23_decay_chunk"
+    },
+    {
+      "max_abs": 1.094696044921875,
+      "ref_absmax": 972.8242797851562,
+      "rel_to_scale": 0.0011252762371058765,
+      "n_differing": 16776851,
+      "numel": 20971520,
+      "frac_differing": 0.7999825954437256,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        256,
+        5,
+        64,
+        256
+      ],
+      "stage": "24_new_states"
+    },
+    {
+      "max_abs": 0.001425027847290039,
+      "ref_absmax": 0.9997984170913696,
+      "rel_to_scale": 0.0014253151664670104,
+      "n_differing": 130897,
+      "numel": 131072,
+      "frac_differing": 0.9986648559570312,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        256,
+        4,
+        128
+      ],
+      "stage": "25_state_decay_out"
+    },
+    {
+      "max_abs": 22.8359375,
+      "ref_absmax": 19980.216796875,
+      "rel_to_scale": 0.0011429274132586814,
+      "n_differing": 6284596,
+      "numel": 8388608,
+      "frac_differing": 0.7491822242736816,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        4,
+        128,
+        256,
+        64
+      ],
+      "stage": "26_Y_off"
+    },
+    {
+      "max_abs": 36.544921875,
+      "ref_absmax": 26070.06640625,
+      "rel_to_scale": 0.0014017962710765775,
+      "n_differing": 8388361,
+      "numel": 8388608,
+      "frac_differing": 0.999970555305481,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        4,
+        128,
+        256,
+        64
+      ],
+      "stage": "27_y_diag_plus_off"
+    },
+    {
+      "max_abs": 36.544921875,
+      "ref_absmax": 26072.34375,
+      "rel_to_scale": 0.0014016738282303447,
+      "n_differing": 8388340,
+      "numel": 8388608,
+      "frac_differing": 0.9999680519104004,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        512,
+        256,
+        64
+      ],
+      "stage": "28_y_plus_Dres"
+    },
+    {
+      "max_abs": 128.0,
+      "ref_absmax": 26112.0,
+      "rel_to_scale": 0.004901960784313725,
+      "n_differing": 2359950,
+      "numel": 8388608,
+      "frac_differing": 0.2813279628753662,
+      "dtype": "torch.bfloat16",
+      "shape": [
+        1,
+        512,
+        16384
+      ],
+      "stage": "29_y_bf16"
+    },
+    {
+      "max_abs": 5718.875,
+      "ref_absmax": 2722487.0,
+      "rel_to_scale": 0.0021006069083158154,
+      "n_differing": 4096,
+      "numel": 4096,
+      "frac_differing": 1.0,
+      "dtype": "torch.float32",
+      "shape": [
+        1,
+        512,
+        8,
+        1
+      ],
+      "stage": "30_variance"
+    },
+    {
+      "max_abs": 0.125,
+      "ref_absmax": 20.875,
+      "rel_to_scale": 0.005988023952095809,
+      "n_differing": 2499769,
+      "numel": 8388608,
+      "frac_differing": 0.2979956865310669,
+      "dtype": "torch.bfloat16",
+      "shape": [
+        1,
+        512,
+        16384
+      ],
+      "stage": "31_y_normed"
+    },
+    {
+      "max_abs": 0.125,
+      "ref_absmax": 20.875,
+      "rel_to_scale": 0.005988023952095809,
+      "n_differing": 2499769,
+      "numel": 8388608,
+      "frac_differing": 0.2979956865310669,
+      "dtype": "torch.bfloat16",
+      "shape": [
+        1,
+        512,
+        16384
+      ],
+      "stage": "32_y_normed_w"
+    },
+    {
+      "max_abs": 0.25,
+      "ref_absmax": 36.5,
+      "rel_to_scale": 0.00684931506849315,
+      "n_differing": 4515444,
+      "numel": 8388608,
+      "frac_differing": 0.5382828712463379,
+      "dtype": "torch.bfloat16",
+      "shape": [
+        1,
+        512,
+        16384
+      ],
+      "stage": "33_y_gated"
+    },
+    {
+      "max_abs": 0.015625,
+      "ref_absmax": 3.5625,
+      "rel_to_scale": 0.0043859649122807015,
+      "n_differing": 2733159,
+      "numel": 4194304,
+      "frac_differing": 0.6516358852386475,
+      "dtype": "torch.bfloat16",
+      "shape": [
+        1,
+        512,
+        8192
+      ],
+      "stage": "34_output"
+    }
+  ],
+  "final_output_max_abs": {
+    "max_abs": 0.015625,
+    "ref_absmax": 3.5625,
+    "rel_to_scale": 0.0043859649122807015,
+    "n_differing": 2733159,
+    "numel": 4194304,
+    "frac_differing": 0.6516358852386475,
+    "dtype": "torch.bfloat16",
+    "shape": [
+      1,
+      512,
+      8192
+    ]
+  }
+}

@@ -1,0 +1,408 @@
+<title>torch.compile fails 71 problems: a tolerance defect, not a compiler defect</title>
+<style>
+:root{
+  --paper:#eaeff1; --surface:#fbfcfd; --sunk:#e2e9ec;
+  --ink:#111a1d; --ink-soft:#33474e; --muted:#5b6f76; --faint:#8ba0a7;
+  --rule:#c8d5d9; --rule-soft:#dbe4e7;
+  --accent:#0c6a74; --accent-soft:#d3e7e9;
+  --fail:#a82a19; --fail-soft:#f5dcd8;
+  --pass:#2a6642; --warn:#7f5900;
+  --shadow:0 1px 2px rgba(17,26,29,.06), 0 8px 24px -16px rgba(17,26,29,.28);
+  --measure:69ch;
+  --f-display:"Iowan Old Style","Source Serif 4","Charter",Palatino,Georgia,serif;
+  --f-body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --f-mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0d1417; --surface:#141d21; --sunk:#0a1013;
+  --ink:#e4ecee; --ink-soft:#bdcdd1; --muted:#8ba0a6; --faint:#647a80;
+  --rule:#26343a; --rule-soft:#1c282d;
+  --accent:#54bec8; --accent-soft:#153037;
+  --fail:#ef8375; --fail-soft:#331915;
+  --pass:#74c294; --warn:#d7a833;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}}
+:root[data-theme="dark"]{
+  --paper:#0d1417; --surface:#141d21; --sunk:#0a1013;
+  --ink:#e4ecee; --ink-soft:#bdcdd1; --muted:#8ba0a6; --faint:#647a80;
+  --rule:#26343a; --rule-soft:#1c282d;
+  --accent:#54bec8; --accent-soft:#153037;
+  --fail:#ef8375; --fail-soft:#331915;
+  --pass:#74c294; --warn:#d7a833;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--f-body); font-size:16.5px; line-height:1.62;
+  font-variant-numeric:tabular-nums;
+}
+.wrap{max-width:min(var(--measure),calc(100vw - 3rem)); margin:0 auto; padding:0 0 6rem}
+
+/* ---- masthead: a data strip, not a hero ---- */
+.mast{border-bottom:1px solid var(--rule); background:var(--surface); margin-bottom:3.5rem}
+.mast-in{max-width:min(78ch,calc(100vw - 3rem)); margin:0 auto; padding:3rem 0 2.25rem;
+  display:flex; flex-direction:column; gap:1.25rem}
+.eyebrow{font-family:var(--f-mono); font-size:.7rem; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--accent); display:flex; flex-wrap:wrap; gap:.9rem}
+.eyebrow span{color:var(--faint)}
+h1{font-family:var(--f-display); font-weight:600; font-size:clamp(1.85rem,4.6vw,2.9rem);
+  line-height:1.14; letter-spacing:-.015em; margin:0; text-wrap:balance}
+h1 em{font-style:normal; color:var(--accent)}
+.dek{margin:0; font-size:1.09rem; color:var(--ink-soft); max-width:62ch; text-wrap:pretty}
+
+.facts{display:grid; grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));
+  gap:1px; background:var(--rule-soft); border:1px solid var(--rule-soft);
+  border-radius:3px; overflow:hidden; margin-top:.5rem}
+.fact{background:var(--surface); padding:.8rem .95rem}
+.fact b{display:block; font-family:var(--f-mono); font-size:1.32rem; font-weight:600;
+  letter-spacing:-.02em; line-height:1.2}
+.fact small{display:block; color:var(--muted); font-size:.755rem; line-height:1.35; margin-top:.25rem}
+.fact.f-bad b{color:var(--fail)} .fact.f-ok b{color:var(--pass)} .fact.f-warn b{color:var(--warn)}
+
+/* ---- the tolerance-gap strip: the finding in one graphic ---- */
+.strip{margin:0 0 3.25rem; padding:1.5rem 1.4rem 1.25rem; background:var(--surface);
+  border:1px solid var(--rule); border-radius:4px; box-shadow:var(--shadow)}
+.strip h3{margin:0 0 .3rem; font-family:var(--f-body); font-size:.83rem; font-weight:650;
+  letter-spacing:.03em; text-transform:uppercase; color:var(--ink)}
+.strip .legend{margin:0 0 1.15rem; font-size:.83rem; color:var(--muted); max-width:58ch}
+.gap-row{display:grid; grid-template-columns:minmax(7.5rem,auto) 1fr 3.4rem;
+  align-items:center; gap:.85rem; padding:.42rem 0; border-top:1px solid var(--rule-soft)}
+.gap-row:first-of-type{border-top:0}
+.gap-key{display:block; font-family:var(--f-mono); font-size:.815rem; font-weight:600}
+.gap-what{display:block; font-size:.715rem; color:var(--faint)}
+.gap-track{position:relative; height:1.45rem; background:var(--sunk); border-radius:2px;
+  display:flex; align-items:center}
+.gap-track::before{content:""; position:absolute; left:0; top:-.1rem; bottom:-.1rem; width:2px;
+  background:var(--accent)}
+.gap-fill{height:100%; border-radius:2px;
+  background:linear-gradient(90deg,var(--accent-soft),var(--fail-soft));
+  border-right:2px solid var(--fail)}
+.gap-mult{position:absolute; left:.55rem; font-family:var(--f-mono); font-size:.76rem;
+  font-weight:600; color:var(--ink-soft)}
+.gap-mr{font-family:var(--f-mono); font-size:.8rem; text-align:right; color:var(--fail)}
+.gap-mr.is-near{color:var(--warn)}
+.strip .foot{margin:.9rem 0 0; font-size:.755rem; color:var(--faint); line-height:1.5}
+
+/* ---- contents ---- */
+.toc{margin:0 0 3.5rem; padding:1.25rem 1.4rem; background:var(--surface);
+  border:1px solid var(--rule); border-radius:4px}
+.toc h3{margin:0 0 .7rem; font-size:.72rem; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--muted); font-weight:650; font-family:var(--f-mono)}
+.toc ol{margin:0; padding:0; list-style:none; display:grid; gap:.28rem}
+.toc a{display:flex; gap:.7rem; text-decoration:none; color:var(--ink-soft); font-size:.92rem;
+  padding:.14rem .2rem; border-radius:2px}
+.toc a span{font-family:var(--f-mono); color:var(--accent); font-size:.8rem; min-width:1.1rem}
+.toc a:hover{background:var(--accent-soft); color:var(--ink)}
+
+/* ---- prose ---- */
+h2{font-family:var(--f-display); font-size:1.62rem; font-weight:600; line-height:1.2;
+  letter-spacing:-.012em; margin:3.6rem 0 1.1rem; padding-top:1.5rem;
+  border-top:2px solid var(--rule); display:flex; gap:.85rem; align-items:baseline;
+  text-wrap:balance; scroll-margin-top:1.5rem}
+.secnum{font-family:var(--f-mono); font-size:.85rem; font-weight:600; color:var(--accent);
+  letter-spacing:.02em}
+h3{font-family:var(--f-display); font-size:1.19rem; font-weight:600; line-height:1.3;
+  margin:2.5rem 0 .7rem; letter-spacing:-.008em; text-wrap:balance; scroll-margin-top:1.5rem}
+h4{font-size:.95rem; font-weight:650; margin:1.8rem 0 .5rem; color:var(--ink-soft)}
+p{margin:0 0 1.05rem; text-wrap:pretty}
+.standfirst{color:var(--muted); font-size:.93rem; line-height:1.6; border-left:2px solid var(--rule);
+  padding-left:1rem; margin-bottom:2rem}
+.standfirst em{font-style:normal}
+strong{font-weight:650; color:var(--ink)}
+em{font-style:italic}
+ul,ol{margin:0 0 1.15rem; padding-left:1.3rem; display:grid; gap:.42rem}
+li{padding-left:.15rem}
+li::marker{color:var(--faint)}
+hr{border:0; height:1px; background:var(--rule-soft); margin:2.5rem 0}
+blockquote{margin:1.4rem 0; padding:.9rem 1.1rem; background:var(--surface);
+  border-left:3px solid var(--warn); border-radius:0 3px 3px 0; font-size:.94rem;
+  color:var(--ink-soft)}
+blockquote p{margin:0}
+a{color:var(--accent); text-decoration-thickness:1px; text-underline-offset:2px}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:2px}
+
+code{font-family:var(--f-mono); font-size:.855em; background:var(--sunk);
+  padding:.1em .34em; border-radius:2px; color:var(--ink-soft);
+  overflow-wrap:break-word}
+strong code{color:var(--ink); font-weight:600}
+
+/* ---- breakout: tables and code run wider than the measure ---- */
+.scroll{overflow-x:auto; margin:1.5rem 0;
+  width:min(84ch,calc(100vw - 3rem));
+  margin-left:calc(min(0px, (var(--measure) - min(84ch,100vw - 3rem)) / 2));
+  -webkit-overflow-scrolling:touch}
+pre.code{margin:0; padding:1rem 1.15rem; background:var(--surface);
+  border:1px solid var(--rule); border-left:3px solid var(--accent); border-radius:0 3px 3px 0;
+  font-family:var(--f-mono); font-size:.795rem; line-height:1.62; color:var(--ink-soft)}
+pre.code code{background:none; padding:0; font-size:inherit; color:inherit}
+table{border-collapse:collapse; width:100%; font-size:.815rem; font-family:var(--f-mono);
+  background:var(--surface); border:1px solid var(--rule)}
+thead th{text-align:left; font-weight:650; color:var(--ink); background:var(--sunk);
+  padding:.55rem .7rem; border-bottom:1px solid var(--rule); white-space:nowrap;
+  font-size:.755rem; letter-spacing:.02em}
+td{padding:.48rem .7rem; border-top:1px solid var(--rule-soft); vertical-align:top;
+  color:var(--ink-soft)}
+tbody tr:hover td{background:var(--accent-soft)}
+td code,th code{background:none; padding:0; font-size:1em}
+td strong{color:var(--ink)}
+
+footer{margin-top:4rem; padding-top:1.4rem; border-top:1px solid var(--rule);
+  font-size:.78rem; color:var(--faint); line-height:1.6}
+
+@media (max-width:640px){
+  body{font-size:16px}
+  .mast-in{padding:2.25rem 0 1.75rem}
+  .gap-row{grid-template-columns:1fr 3.2rem; row-gap:.3rem}
+  .gap-track{grid-column:1/-1}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<header class="mast">
+  <div class="mast-in">
+    <div class="eyebrow">
+      SOL-ExecBench-ROCm <span>&middot;</span> MI350X / gfx950 <span>&middot;</span>
+      ROCm 7.2.0 <span>&middot;</span> torch 2.9.1 <span>&middot;</span> 2026-08-11
+    </div>
+    <h1>The gate asks a kernel to reproduce eager&rsquo;s rounding.
+      <em>torch.compile cannot, and should not.</em></h1>
+    <p class="dek">Why <code>torch.compile</code> and <code>max-autotune</code> fail ~70 problems on
+      the leaderboard &mdash; traced from the tolerance derivation through five problems reproduced
+      on GPU, adjudicated against float64 goldens, and checked by fifteen adversarial verifiers.</p>
+    <div class="facts">
+      <div class="fact f-bad"><b>523</b><small>workloads rejected<br>INCORRECT_NUMERICAL</small></div>
+      <div class="fact f-bad"><b>71</b><small>problems, v2_compile<br>L1 24 &middot; L2 41 &middot; Quant 6</small></div>
+      <div class="fact f-warn"><b>96.3%</b><small>of tolerances are<br>pure epsilon floor</small></div>
+      <div class="fact f-warn"><b>2061</b><small>workloads never<br>actually compiled</small></div>
+      <div class="fact f-ok"><b>5 of 6</b><small>cases where compiled<br>beats eager vs float64</small></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section class="strip">
+  <h3>How far past the bound, and by how much</h3>
+  <p class="legend">The teal line is the workload&rsquo;s own tolerance. The bar runs to the measured
+    compiled-vs-eager divergence, on a log scale. The right column is <code>matched_ratio</code>
+    against the required <strong>0.990</strong>.</p>
+  
+        <div class="gap-row">
+          <div class="gap-id"><span class="gap-key">L2__009</span>
+            <span class="gap-what">decoder layer &middot; fp32</span></div>
+          <div class="gap-track" role="img"
+               aria-label="L2__009: measured divergence 5.80e-06 is 42 times the tolerance 1.38e-07">
+            <div class="gap-fill" style="width:91.8%"></div>
+            <span class="gap-mult">42&times;</span>
+          </div>
+          <div class="gap-mr ">0.415</div>
+        </div>
+        <div class="gap-row">
+          <div class="gap-id"><span class="gap-key">L1__067</span>
+            <span class="gap-what">GQA attention &middot; fp32</span></div>
+          <div class="gap-track" role="img"
+               aria-label="L1__067: measured divergence 2.03e-06 is 59 times the tolerance 3.45e-08">
+            <div class="gap-fill" style="width:100.0%"></div>
+            <span class="gap-mult">59&times;</span>
+          </div>
+          <div class="gap-mr ">0.249</div>
+        </div>
+        <div class="gap-row">
+          <div class="gap-id"><span class="gap-key">Quant__004</span>
+            <span class="gap-what">fp8 MoE expert &middot; bf16</span></div>
+          <div class="gap-track" role="img"
+               aria-label="Quant__004: measured divergence 2.03e-01 is 42 times the tolerance 4.85e-03">
+            <div class="gap-fill" style="width:91.6%"></div>
+            <span class="gap-mult">42&times;</span>
+          </div>
+          <div class="gap-mr ">0.734</div>
+        </div>
+        <div class="gap-row">
+          <div class="gap-id"><span class="gap-key">L1__062</span>
+            <span class="gap-what">KV-cache rope bwd &middot; bf16</span></div>
+          <div class="gap-track" role="img"
+               aria-label="L1__062: measured divergence 1.25e-01 is 15 times the tolerance 8.26e-03">
+            <div class="gap-fill" style="width:66.7%"></div>
+            <span class="gap-mult">15&times;</span>
+          </div>
+          <div class="gap-mr is-near">0.977</div>
+        </div>
+        <div class="gap-row">
+          <div class="gap-id"><span class="gap-key">L2__058</span>
+            <span class="gap-what">mamba2 scan &middot; bf16</span></div>
+          <div class="gap-track" role="img"
+               aria-label="L2__058: measured divergence 2.34e-02 is 5 times the tolerance 4.67e-03">
+            <div class="gap-fill" style="width:39.6%"></div>
+            <span class="gap-mult">5&times;</span>
+          </div>
+          <div class="gap-mr is-near">0.985</div>
+        </div>
+  <p class="foot">Worst workload of each problem, measured on GPUs 4&ndash;7 in the
+    <code>solbench</code> container. Eager&ndash;vs&ndash;eager on every one of these is exactly
+    <code>0.000e+00</code>, which is what floors the tolerance at one ULP in the first place.</p>
+</section>
+
+<nav class="toc">
+  <h3>Contents</h3>
+  <ol><li><a href="#1-the-answer-in-five-sentences"><span>1</span>The answer in five sentences</a></li><li><a href="#2-the-mechanism-end-to-end"><span>2</span>The mechanism, end to end</a></li><li><a href="#3-why-these-70-and-not-the-other-150"><span>3</span>Why these ~70 and not the other ~150</a></li><li><a href="#4-the-five-examples"><span>4</span>The five examples</a></li><li><a href="#5-benchmark-defect-or-a-real-torch-compile-failure"><span>5</span>Benchmark defect, or a real torch.compile failure?</a></li><li><a href="#6-what-it-means-for-scoring"><span>6</span>What it means for scoring</a></li><li><a href="#7-options"><span>7</span>Options</a></li><li><a href="#8-what-is-still-unknown"><span>8</span>What is still unknown</a></li></ol>
+</nav>
+
+<h1 id="why-torch-compile-fails-70-problems-on-sol-execbench-rocm-mi350x">Why <code>torch.compile</code> fails ~70 problems on SOL-ExecBench-ROCm (MI350X)</h1>
+<p class="standfirst"><em>Analysis of <code>artifacts/06</code>, <code>artifacts/05</code>, <code>artifacts/09/manifest-v1.2.json</code> and five GPU deep-dives with adversarial verification. Every number below was measured; where a verifier corrected the deep-dive that produced it, the corrected value is the one quoted and the disagreement is named.</em></p>
+<hr>
+<h2 id="1-the-answer-in-five-sentences"><span class="secnum">1</span><span>The answer in five sentences</span></h2>
+<p>Task 05 derives each workload&#x27;s tolerance from the <em>run-to-run spread of the eager reference run twice in one process</em>, which is <strong>exactly 0.0 on 3581 of 3717 scoreable workloads (96.3%)</strong>, so the shipped tolerance is almost always pure dtype-epsilon floor — <code>atol = eps(dtype)·RMS|y|</code>, <code>rtol = eps(dtype)</code> — i.e. a demand that a submission reproduce eager&#x27;s own rounding to about one ULP on 99% of elements. <code>torch.compile</code> cannot meet that, not because it is wrong but because Inductor legally re-associates reductions, contracts multiply-adds into FMAs, and elides intermediate dtype roundings, each of which moves the last bit or two of a large fraction of elements: on the failing problems the measured compiled-vs-eager divergence is 1–40 ULP where the bound is ~1 ULP, and <code>matched_ratio</code> collapses to 0.25–0.99 against a required 0.99. The failure population is <strong>523 <code>INCORRECT_NUMERICAL</code> workloads over 71 problems for <code>v2_compile</code></strong> (L1 24, L2 41, Quant 6) and 571 over 80 for <code>v3_compile_max_autotune</code>; <strong>70 problems lost both compile anchors</strong>, covering <strong>1115 of 3717 scoreable workloads (30.0%)</strong>. Against a float64 golden the compiled result is <strong>not</strong> the less accurate one on 5 of the 6 problems where anyone actually adjudicated it — on <code>L1__062</code> the compiled output is <em>bit-identical to the correctly-rounded fp64 answer</em> while eager is not, and on <code>L1__067</code> the eager reference itself scores <code>matched_ratio = 0.089854</code> against truth under its own tolerance — so on the measured cases the gate is grading <em>agreement with eager</em>, not correctness. Separately and independently, <strong><code>torch._dynamo.config.recompile_limit</code> is 8</strong>, so on the 225 of 235 problems with ≥9 distinct shapes the 9th-and-later workloads (2061 of 3957) silently ran eager under a <code>torch.compile</code> label: 522 of the 523 failures sit in the compiled prefix, and <strong>626 of the 3717 published anchors are stamped <code>v2/v3</code> but were never compiled</strong>.</p>
+<hr>
+<h2 id="2-the-mechanism-end-to-end"><span class="secnum">2</span><span>The mechanism, end to end</span></h2>
+<h3 id="2-1-how-the-tolerance-is-derived">2.1 How the tolerance is derived</h3>
+<p><code>scripts/runners/calibrate_tolerance.py</code> runs the <em>same</em> reference twice, on the <em>same</em> inputs, in the <em>same</em> process, for 10 seeds, and takes the largest disagreement:</p>
+<div class="scroll"><pre class="code" data-lang="python"><code>for seed in range(a.seeds):
+    torch.manual_seed(seed); inputs = prepare_inputs(...)
+    out_a = run(*inputs); torch.cuda.empty_cache(); out_b = run(*inputs)
+    max_abs = max(max_abs, _max_abs(out_a, out_b))
+...
+atol = max(max_abs * a.margin, eps[&quot;atol&quot;])          # line 191
+&quot;max_rtol&quot;: max(max_rel * a.margin, eps[&quot;rtol&quot;])     # line 249</code></pre></div>
+<p>and the floor (<code>_dtype_floor</code>, lines 288–357) is</p>
+<div class="scroll"><pre class="code" data-lang="python"><code>eps   = float(torch.finfo(dtype).eps)     # TypeError -&gt; {&quot;atol&quot;:0.0,&quot;rtol&quot;:0.0} for int/bool
+scale = sqrt(sum(y**2)/n)                 # RMS|y|
+return {&quot;atol&quot;: eps * scale, &quot;rtol&quot;: eps}</code></pre></div>
+<p><code>required_matched_ratio = 0.99</code> on all 3717 workloads. The comparison rule (<code>src/sol_execbench/core/bench/correctness.py:127-141</code>) is elementwise <code>|x−y| ≤ atol + rtol·|y|</code> with <code>matched_ratio ≥ 0.99</code>; it is <strong>not</strong> a max-error test, and <code>max_error_cap</code> is null on the problems examined.</p>
+<h3 id="2-2-why-that-becomes-a-bit-identity-requirement">2.2 Why that becomes a bit-identity requirement</h3>
+<p><strong>Measured, corpus-wide:</strong> run-to-run <code>max_abs == 0.0</code> <strong>exactly</strong> on <strong>3581 / 3717 = 96.34%</strong> of workloads (nonzero: n=136, min 1.490e-08, median 3.906e-03, max 6.226e+05). For that 96.3% the calibration measured nothing, so the shipped tolerance is <em>100% floor</em>: 3502 of 3717 sit at their own dtype&#x27;s epsilon.</p>
+<p>At an element of magnitude ≈ RMS the floored bound is <code>eps·RMS + eps·|y| ≈ 2·eps·RMS</code> — about one ULP of the output dtype. The floor is per-<em>output-dtype</em>, so what &quot;one ULP&quot; costs varies by 65 536×:</p>
+<div class="scroll"><table><thead><tr><th>floor dtype</th><th>workloads</th><th>rtol</th><th>median atol</th></tr></thead><tbody><tr><td>bfloat16</td><td>2030</td><td>7.8125e-03</td><td>7.805e-03</td></tr><tr><td>float32</td><td>1291</td><td><strong>1.1921e-07</strong></td><td>1.680e-07</td></tr><tr><td>float16</td><td>320</td><td>9.766e-04</td><td>3.563e-02</td></tr><tr><td>int64 / int32 / bool</td><td>48 / 16 / 12</td><td><strong>0.0</strong></td><td><strong>0.0</strong></td></tr></tbody></table></div>
+<p><code>rtol</code> is <em>exactly</em> <code>torch.finfo(float32).eps</code> on <strong>1224 of 3717 (32.9%)</strong> workloads. Integer/bool outputs get <code>atol = rtol = 0</code> — literal bit-identity of index tensors — because <code>torch.finfo</code> raises <code>TypeError</code> and the <code>except</code> path returns zeros. That zero is then applied to the problem&#x27;s <em>float</em> outputs too.</p>
+<h3 id="2-3-what-torch-compile-actually-does-to-the-bits">2.3 What torch.compile actually does to the bits</h3>
+<p>Four distinct Inductor behaviours were isolated, each proved causally rather than argued:</p>
+<ol><li><strong>Reduction re-association.</strong> <code>L2__009</code>: Inductor emits <code>triton_red_fused_add_mean_mul_pow_rsqrt_0</code>, a looped <code>[XBLOCK, R0_BLOCK]</code> fp32 accumulator over 2048 elements + a tree reduce; ATen&#x27;s <code>mean.dim</code> uses a different block factor. Both accumulate in fp32. Measured: <code>x.pow(2)</code> <strong>bit-identical (0 / 2,097,152 differ)</strong>; <code>x.pow(2).mean(-1)</code> differs on <strong>351 / 1024</strong> rows by 2.384e-07.</li><li><strong>FMA contraction.</strong> <code>L1__067</code> / <code>L2__009</code>&#x27;s rope: <code>(x*cos) + (rot*sin)</code> is emitted with the same association, but the AMDGPU backend contracts the first multiply-add into one <code>v_fma_f32</code>. Bit-exact attribution: of the 141,089 differing elements, <strong>100.00%</strong> bit-equal <code>fma(x, cos, fp32(rot*sin))</code>; the other association matches only 22.93%. Eager bit-equals the two-roundings model on 1,048,576 / 1,048,576.</li><li><strong>Elided intermediate dtype rounding</strong> (<code>codegen_upcast_to_fp32</code>). <code>L1__062</code>: eager materialises <code>grad_key_states_rotated * cos_expanded</code> as bf16; the fused kernel keeps it fp32 and rounds once. Causal proof: <code>torch._inductor.config.emulate_precision_casts = True</code> restores <strong>bit-identity with eager on all six outputs (0.000e+00 everywhere)</strong>. Same for <code>L2__058</code> (<code>TORCHINDUCTOR_EMULATE_PRECISION_CASTS=1</code> → <code>mr=1.000000 PASS</code>) and <code>Quant__004</code> (<code>codegen_upcast_to_fp32=False</code> → <code>n_diff 0/3,670,016</code>).</li><li><strong>GEMM template swap — max-autotune only.</strong> Under <code>max-autotune-no-cudagraphs</code>, <code>L1__067</code>&#x27;s attention bmms stop being <code>extern_kernels.bmm</code> (hipBLASLt, bit-identical to eager) and become <code>triton_tem_fused_bmm_0</code>: qk matmul max_abs <strong>1.5259e-05 on 74.93% of elements</strong>, versus <strong>0.000e+00</strong> under default. <code>ALLOW_TF32=False</code>, <code>ACC_TYPE=&#x27;tl.float32&#x27;</code> — a tiling/accumulation-order change, not a precision change. This is why v3 fails 571 workloads to v2&#x27;s 523.</li></ol>
+<h3 id="2-4-tolerance-vs-divergence-in-orders-of-magnitude">2.4 Tolerance vs divergence, in orders of magnitude</h3>
+<div class="scroll"><table><thead><tr><th>problem</th><th>floor</th><th>atol</th><th>measured compiled-vs-eager</th><th>ratio</th><th>matched_ratio</th></tr></thead><tbody><tr><td><code>L2__009</code></td><td>fp32</td><td>1.223e-07 … 1.375e-07</td><td>2.0e-06 … 5.8e-06 (8–40 ULP)</td><td>~15–45×</td><td>0.415–0.806</td></tr><tr><td><code>L1__067</code></td><td>fp32</td><td>4.706e-09 … 3.446e-08</td><td>1.19e-06 … 2.03e-06</td><td>35–405×</td><td>0.249–0.481</td></tr><tr><td><code>Quant__004</code></td><td>bf16</td><td>4.61e-03 … 4.85e-03</td><td>1.31e-01 … 2.03e-01</td><td>28–43×</td><td>0.734–0.743</td></tr><tr><td><code>L2__058</code></td><td>bf16</td><td>4.645e-03 … 4.666e-03</td><td>1.56e-02 … 2.34e-02</td><td>3–5×</td><td>0.985–0.989</td></tr><tr><td><code>L1__062</code></td><td>bf16</td><td>7.81e-03 … 8.26e-03</td><td>3.13e-02 … 1.25e-01</td><td>4–16×</td><td>0.977–0.996</td></tr></tbody></table></div>
+<p>The tolerance multiple needed to pass is small and problem-specific: <strong>k=8</strong> for <code>L2__009</code> and <code>Quant__004</code>, <strong>k=2</strong> for <code>L2__058</code> and <code>L2__078</code>, <strong>k=∞ (never)</strong> for <code>L2__049</code> where the tolerance is literally 0.</p>
+<h3 id="2-5-the-self-consistency-check-that-never-fired">2.5 The self-consistency check that never fired</h3>
+<p><code>calibrate_tolerance.py</code> runs both executions <strong>in one process on one GPU back to back</strong>, which holds hipBLASLt/MIOpen algorithm selection roughly constant. Across processes it does not:</p>
+<blockquote><code>L2__051_..._hyena_complete_forward_block</code>: all 16 workloads measured <code>run_to_run max_abs = 0.000e+00</code>, so all 16 got <code>atol ≈ 1.198e-07</code>. <strong><code>v1_eager</code> — the unmodified reference (<code>variants.py: def _eager(src): return src</code>) — then fails 10 of those 16 workloads with <code>INCORRECT_NUMERICAL</code> in <code>artifacts/06/candidates</code>.</strong></blockquote>
+<p>The reference fails its own tolerance. Nothing in task 05 checks that a derived tolerance is achievable by a correct implementation; the guard rail runs one way only (&quot;never loosen a tolerance to make a kernel pass&quot;).</p>
+<p>The float64 golden that <em>could</em> have caught this is computed, recorded and discarded: <code>entry[&quot;vs_golden&quot;]</code> is written at lines 226–241, and the tolerance at line 248 reads only the run-to-run loop. Worse, it is unusable as recorded — <code>gen_golden.py:98-99</code> does <code>torch.manual_seed(0); prepare_inputs(..., device=&quot;cpu&quot;)</code> while <code>calibrate_tolerance.py:162-163</code> does the same at <code>device=&quot;cuda:0&quot;</code>, so the two consume <strong>different random draws</strong>. Measured on <code>L1__067</code>: seed-0 CPU vs seed-0 CUDA <code>hidden_states</code> differ by 7.096e+00. Consequently <strong>2302 of 2331 recorded goldens (98.8%) exceed the derived atol</strong> and mean nothing.</p>
+<h3 id="2-6-the-other-half-of-the-story-recompile-limit-8">2.6 The other half of the story: <code>recompile_limit = 8</code></h3>
+<p><code>reference/tb-candidates/variants.py:63</code> builds <strong>one</strong> module-level compiled callable per problem and reuses it for every workload:</p>
+<div class="scroll"><pre class="code" data-lang="python"><code>_solb_compiled = _solb_torch.compile(_solb_ref_run, mode={mode_arg}, dynamic=False)</code></pre></div>
+<p><code>torch._dynamo.config.recompile_limit</code> prints as <strong>8</strong> in the container (<code>fail_on_recompile_limit_hit = False</code>). After the 8th guard configuration dynamo logs <code>torch._dynamo hit config.recompile_limit (8)</code> and <strong>silently runs the frame eagerly</strong>. Measured consequences:</p>
+<ul><li><strong>225 of 235</strong> problems have ≥9 distinct shape signatures; <strong>2061 of 3957</strong> workloads sit at or after the 9th.</li><li><strong>522 of the 523</strong> v2 failures are inside the compiled prefix; the sole exception is <code>L2__018_cu_seqlens_variable_length_vision_attention</code> at index 12, whose <code>total_seq_len=4096</code> duplicates index 0 (a guard hit) and which additionally graph-breaks on data-dependent control flow at <code>reference.py:109</code>.</li><li>Pre-cliff fail rate <strong>522 / 1776 = 29.4%</strong>; post-cliff <strong>1 / 1941 = 0.05%</strong>.</li><li>Re-run one workload per process, the &quot;passes&quot; are not passes: <code>L2__009</code> 8/8 fail, <code>Quant__004</code> 8/8 fail, <code>L2__058</code> 8/8 fail, <code>L1__067</code> 10/10 fail. <strong>All five deep-dive problems fail 100% of their workloads when actually compiled.</strong></li><li><strong>626 of 3717 published anchors</strong> in <code>artifacts/06/authoritative</code> are labelled <code>v2_compile</code>/<code>v3_compile_max_autotune</code> and sit past the cliff — an eager latency wearing a compile label. Confirmation: on the 538 post-cliff workloads of the anchor-less problems that carry a recorded compile latency, <code>T_b / compile</code> is p50 <strong>1.000</strong>, p90 1.008, max 1.163.</li></ul>
+<p><strong>Note on the brief&#x27;s premise for §6:</strong> <code>time_tb_candidates.py:121-123</code> records <code>latency_ms_by_workload</code> <strong>only for <code>status == PASSED</code></strong>. There is no recorded latency for a numerically-rejected workload. The DB rows that appear to be &quot;FAILED with a latency&quot; are the D28 inversion (§2.7).</p>
+<h3 id="2-7-do-not-use-leaderboard-solbench-db-for-any-of-this">2.7 Do not use <code>leaderboard/solbench.db</code> for any of this</h3>
+<div class="scroll"><pre class="code" data-lang=""><code>db submission 2 FAILED rows: 585
+artifacts/06 v2_compile FAILED: 523  PASSED: 3171
+db FAILED that artifacts call FAILED: 0
+db FAILED that artifacts call PASSED: 585
+artifact failures with no db row at all: 523</code></pre></div>
+<p>Every one of the 585 carries a non-null <code>latency_ms</code> (<code>sum(latency_ms is null) = 0</code>), which today&#x27;s <code>ingest.py</code> cannot produce. <code>db_built_utc = 2026-08-06</code>; TODO.md records the D28 fix as landing <strong>2026-08-07</strong>. The lead&#x27;s framing — &quot;585 FAILED spanning 69 problems&quot; — describes the D28 artefact and names the <em>passing</em> workloads. Ground truth is <code>artifacts/06/candidates</code>. (The coincidence is real but unrelated: 69 is also the size of <code>v2 ∩ v3</code> numerical-failure problems.)</p>
+<hr>
+<h2 id="3-why-these-70-and-not-the-other-150"><span class="secnum">3</span><span>Why these ~70 and not the other ~150</span></h2>
+<h3 id="3-1-the-population-exactly">3.1 The population, exactly</h3>
+<div class="scroll"><table><thead><tr><th>variant</th><th>INCORRECT_NUMERICAL</th><th>problems</th><th>other</th></tr></thead><tbody><tr><td><code>v1_eager</code></td><td>10</td><td>1 (<code>L2__051</code>)</td><td>240 INVALID_REFERENCE (15 NVFP4)</td></tr><tr><td><code>v2_compile</code></td><td><strong>523</strong></td><td><strong>71</strong> (L1 24, L2 41, Quant 6)</td><td>240 INVALID_REFERENCE</td></tr><tr><td><code>v3_compile_max_autotune</code></td><td><strong>571</strong></td><td><strong>80</strong></td><td>10 RUNTIME_ERROR + 240 INVALID_REFERENCE</td></tr><tr><td><code>v4_contiguous</code></td><td>29</td><td>2</td><td>240 INVALID_REFERENCE</td></tr><tr><td><code>v5_compile_contiguous</code></td><td>0</td><td>—</td><td><strong>3717 RUNTIME_ERROR</strong> (excluded from the board)</td></tr></tbody></table></div>
+<p><code>v2 ∩ v3</code> numerical = <strong>69</strong> problems; union = 82. <strong>70 problems</strong> carry no compile variant at all in <code>artifacts/06/authoritative</code>, the directory <code>build_manifest.py --t-b</code> reads. The 240 <code>INVALID_REFERENCE</code> are the deferred NVFP4 set and must never be pooled with the compile failures.</p>
+<h3 id="3-2-the-discriminator-and-how-good-it-is">3.2 The discriminator, and how good it is</h3>
+<p>Measured on the pre-cliff population (the 1776 workloads torch.compile actually compiled):</p>
+<div class="scroll"><table><thead><tr><th>discriminator</th><th>yes: F/P</th><th>fail rate</th><th>no: F/P</th><th>fail rate</th><th>precision</th><th>recall</th><th>accuracy</th><th>OR</th></tr></thead><tbody><tr><td><code>rtol == fp32 eps</code></td><td>339 / 283</td><td><strong>54.5%</strong></td><td>183 / 971</td><td>15.9%</td><td>0.545</td><td>0.649</td><td>0.738</td><td><strong>6.36</strong></td></tr><tr><td>output floor <code>float32</code></td><td>339 / 317</td><td>51.7%</td><td>183 / 937</td><td>16.3%</td><td>0.517</td><td>0.649</td><td>0.718</td><td>5.48</td></tr><tr><td><code>atol == 0</code> (int/bool)</td><td>11 / 29</td><td>27.5%</td><td>511 / 1225</td><td>29.4%</td><td>—</td><td>0.021</td><td>—</td><td>0.91</td></tr></tbody></table></div>
+<p>Fail rate by tolerance-floor dtype, pre-cliff:</p>
+<div class="scroll"><table><thead><tr><th>floor</th><th>n</th><th>failed</th><th>rate</th></tr></thead><tbody><tr><td>float32</td><td>656</td><td>339</td><td><strong>51.7%</strong></td></tr><tr><td>int64</td><td>24</td><td>11</td><td>45.8%</td></tr><tr><td>bfloat16</td><td>988</td><td>172</td><td>17.4%</td></tr><tr><td>float16</td><td>92</td><td>0</td><td><strong>0.0%</strong></td></tr><tr><td>int32 / bool</td><td>8 / 8</td><td>0 / 0</td><td>0.0%</td></tr></tbody></table></div>
+<p>Problem level (220 scoreable problems): float32 <strong>44 / 81 = 54.3%</strong>, bfloat16 25 / 122 = 20.5%, int64 2 / 3, float16 0 / 12.</p>
+<p><strong>So the best single-feature classifier is &quot;the tolerance floored at fp32 epsilon&quot;, and it is a 6.4× odds shift with 73.8% accuracy — useful, and not sufficient.</strong> It explains 339 of 523 failures (64.8%); both off-diagonal cells are large.</p>
+<h3 id="3-3-the-exceptions-named-and-the-correction-that-matters">3.3 The exceptions, named — and the correction that matters</h3>
+<p><strong>Cell B — fp32-floored yet passes all 16 workloads: 37 problems, 592 workloads.</strong> This is the deep-dives&#x27; &quot;the tolerance forbids any reordering&quot; claim, refuted by measurement:</p>
+<ul><li><code>L1__088_rotary_position_embedding_application</code> computes literally <code>query*cos + rotate_half(query)*sin</code> — the same expression <code>L1__067</code> fails on, same fp32, same FMA contraction. Measured on all 8 pre-cliff workloads: <strong><code>c/e = 4.768e-07</code>, identical to <code>L1__067</code>&#x27;s first-divergence figure — and <code>matched_ratio = 1.000000</code>, all PASS</strong>, at <code>atol = 1.191e-07</code>.</li><li><code>L1__078_group_norm_fusion</code> / <code>07da4dac</code>: atol 1.695e-07, <strong>413,789 / 1,310,720 elements bitwise different</strong>, max_abs 1.907e-06, <code>mr = 0.996527</code> → PASS.</li><li><code>L1__054</code>: 328,986 / 2,097,152 differ, mr 0.999680 → PASS. <code>L2__051</code>: 341,604 / 1,048,576 differ, mr 0.998967 → PASS (while its <em>eager</em> variant fails 10/16 in a fresh process).</li></ul>
+<p><strong>Cell C — not fp32-floored yet fails: 27 problems, 184 workloads</strong>, almost all bf16 at <code>rtol = 7.8125e-03</code>, including <code>L2__015</code> (atol 184–320) and <code>L2__056</code> (atol 0.18–1.39) where a 1-ULP story cannot apply.</p>
+<p><strong>Cell D — zero tolerance.</strong> <code>L2__049_group_limited_topk_routing</code> and <code>Quant__011_fp8_moe_gate_routing</code> return an int64 index tensor first, so <code>_dtype_floor</code> returns <code>{&quot;atol&quot;:0.0,&quot;rtol&quot;:0.0}</code> and that zero is applied to the fp32 output as well. Measured <code>L2__049 / d6d0eb83</code>: <code>topk_idx</code> <strong>bit-identical (0 / 16,384 — no routing flip)</strong>, <code>topk_weight</code> off by exactly one fp32 ULP (1.1920929e-07) on 4,488 / 16,384, <code>mr = 0.726074</code>, <strong><code>min_k_to_pass = None</code> searched to 2^20</strong>. 11 workloads. Upstream gives <code>L2__049</code> atol 0.56–0.84 / rtol 0.01 / ratio 0.98.</p>
+<p><strong>Cell E — threshold noise.</strong> Both of <code>L2__015</code>&#x27;s recorded failures <strong>pass</strong> on isolated re-run: mr 0.990831 and 0.990732 against 0.99 required (max_abs 512.0 = one bf16 ULP at ref absmax 116,224). One verifier also measured <code>L2__015 / ee0f7e21</code> eager-vs-eager <code>= 6.400e+01</code>, contradicting the &quot;the reference is deterministic&quot; premise for that problem.</p>
+<h3 id="3-4-the-discriminator-i-would-actually-state">3.4 The discriminator I would actually state</h3>
+<p>The deep-dives&#x27; headline (&quot;the tolerance is one ULP, therefore any reordering fails&quot;) is <strong>refuted</strong> by cell B and by these direct counterexamples:</p>
+<ul><li><code>L2__005_swiglu_mlp_backward</code> — same SwiGLU op, same bf16 floor, eager bit-deterministic — diverges by <code>max_rel = 1.065</code> (<strong>106% relative on the worst element</strong>) and gets <code>mr = 1.000000</code> PASS on 4/4 workloads.</li><li><code>L2__059_decoder_layer_full_block</code> — bf16, <code>F.silu</code>, 11 Inductor kernels, 0 graph breaks — diverges by 3.9062e-02 on <strong>62.2%</strong> of elements, <em>2.5× larger than <code>L2__058</code>&#x27;s failing divergence</em>, and passes at <code>mr = 0.994533</code>, 0/16 failures.</li></ul>
+<p>The mechanism is ubiquitous; the <em>verdict</em> is decided by the <strong>fraction of elements pushed past <code>atol + rtol·|y|</code> against the 1% budget</strong>. Because <code>rtol·|y| ≥ ulp(y)</code> by construction, a genuine one-ULP difference always passes. What fails is error landed on <strong>sub-RMS elements</strong>, where the RMS-scaled <code>atol</code> floor is many ULP too small for that element&#x27;s own magnitude. Measured on <code>L2__058</code>: over all output elements median <code>|d| / ulp(ref) = 1.000</code>, p99 = 50; the failing 1.27% have median <code>|ref| = 9.326e-02 = 0.157 × RMS</code> and median <code>|d| = 6.348e-03 = 12 ULP of their own value</code>. That is why fp32 (floor 1.2e-07, deep reductions, heavy near-zero mass after a projection) fails at 52% and bf16 (floor 7.8e-03) at 17%, and why fp16 — floor 9.8e-04, mostly shallow elementwise problems — fails at 0%.</p>
+<p>And a fourth reason some problems pass that has nothing to do with numerics: <strong>Inductor compiled nothing.</strong> <code>L1__044_moe_expert_computation</code> (bf16, <code>F.silu</code>) passes with <code>c/e = 0.000e+00</code> because <code>generated_kernel_count = 0, graph_breaks = 1</code>; <code>L2__010</code> likewise (4 kernels, 2 graph breaks, <code>c/e = 0.000e+00</code>).</p>
+<hr>
+<h2 id="4-the-five-examples"><span class="secnum">4</span><span>The five examples</span></h2>
+<h3 id="4-1-l2-009-decoder-layer-with-residual-connections-the-pure-fp32-floor-case">4.1 <code>L2__009_decoder_layer_with_residual_connections</code> — the pure fp32-floor case</h3>
+<p><strong>Computes:</strong> a full decoder layer, fp32 end to end — 4× RMSNorm, 8+ <code>F.linear</code>, two attention matmuls, two softmaxes, top-8 MoE routing over 128 experts with <code>index_add_</code>.</p>
+<p><strong>Numbers:</strong> <code>atol</code> 1.223e-07 … 1.375e-07 (<code>= fp32eps × RMS|y|</code>), <code>rtol</code> 1.1920929e-07 exactly. Eager-vs-eager <code>0.000e+00</code> on all 16. Compiled-vs-eager 2.0e-06 … 5.8e-06 (8–40 ULP), <code>matched_ratio</code> 0.415–0.806. <strong>16/16 fail</strong> when each is compiled in its own process (the recorded 8 &quot;passes&quot; are dynamo fallbacks; isolated, they give mr 0.424–0.590). Tolerance multiple needed: <strong>k=8</strong> (mr 0.994260); k=4 still fails at 0.922.</p>
+<p class="standfirst"><strong>Where it diverges:</strong> the first op, <code>rms_norm(...)</code> at <code>reference.py:71</code>. <code>x.pow(2)</code> bit-identical (0 / 2,097,152); <code>.mean(-1)</code> differs on 351 / 1024 rows. A verifier&#x27;s decisive extra test: monkeypatching <em>only</em> the first <code>rms_norm</code> to return the Inductor tensor and running the remaining ~20 ops in eager gives max_abs 5.722e-06 / mr 0.479438 → FAIL. <strong>One reduction is sufficient.</strong></p>
+<p><strong>fp64 verdict — a coin flip.</strong> RMS error vs a float64 CPU golden: eager <strong>1.2443518e-06</strong>, compiled <strong>1.2442062e-06</strong> (compiled better by 0.012%); max_abs eager 1.164e-05 vs compiled 1.020e-05; <strong>970,753 elements closer under eager, 970,569 under compiled, 155,830 tied (50.005% / 49.995%)</strong>. For scale: the reference&#x27;s own RMS error is 9.05 ULP while the tolerance demands ~1.</p>
+<p><strong>Two corrections the deep-dive did not make.</strong> (a) There are <strong>two independently sufficient sites</strong>, not one: compiling <em>only</em> <code>apply_rotary_pos_emb</code> — purely pointwise, no reduction anywhere — fails on its own (max_abs 2.622604e-06, mr 0.616300), by FMA contraction, and against fp64 that fragment is <strong>decisively better</strong> than eager (RMS 4.802e-08 vs 5.190e-08; 397,952 elements closer vs 120,633). (b) <strong>The &quot;20-op chain&quot; is not compiled.</strong> With a fresh Inductor cache <code>torch.compile(run)</code> produces only 5 tiny graphs (three shape-specialisations of <code>rms_norm</code>, one <code>apply_rotary_pos_emb</code>, one <code>repeat_kv</code>), zero <code>extern_kernels.*</code>; every linear, both attention matmuls, both softmaxes, <code>topk</code> and the whole MoE loop run <strong>eager</strong>, because of a data-dependent graph break at <code>reference.py:187</code>. Compiling only those three helpers reproduces the full run to the last decimal (5.781650543212891e-06 / 0.41581106185913086). The deep-dive&#x27;s prefix-localisation table therefore measures a <em>different program</em> from the one the board scores; its conclusion survives, its per-stage attribution does not.</p>
+<h3 id="4-2-l1-062-kv-cache-update-with-rope-backward-the-atypical-tail-case">4.2 <code>L1__062_kv_cache_update_with_rope_backward</code> — the atypical tail case</h3>
+<p><strong>Computes:</strong> the backward of a RoPE&#x27;d KV-cache update: a gather, a bf16 elementwise multiply, an 8-term reduction over kv-heads, and two clone+scatter-zero cache grads.</p>
+<p><strong>Numbers:</strong> bf16 floor, <code>atol</code> 7.81e-03 … 8.26e-03, <code>rtol</code> 7.8125e-03 — <strong>a thousand times looser than the <code>L2__009</code> case, and it still fails</strong>. Eager-vs-eager 0.000e+00 on all 16. <strong>1 of 16 fails</strong> (<code>6c293638</code>, batch 1, new_seq 1, max_seq 256): <code>mr = 0.976562</code>, 3 bad elements of a <strong>128-element</strong> <code>grad_cos</code>. Over 10 seeds that same workload fails on <strong>1 of 10</strong>; the sibling 512-element workload drew 5 bad on seed 1 (mr 0.990234) — one element from failing.</p>
+<p><strong>Where it diverges:</strong> ops 1 and 2 are bit-exact; the divergence is born simultaneously at <code>grad_k1_total</code> and <code>grad_cos</code>, both consumers of an elided bf16 intermediate. Proved bit-exactly (<code>eager == bf16-rounded model: True</code>; <code>compiled == fp32-throughout model: True</code>) and then <strong>causally</strong>: <code>emulate_precision_casts=True</code> restores bit-identity on all six outputs. <code>index_put_</code> / functionalisation is cleanly exonerated — <code>grad_value_states</code>, <code>grad_key_cache_input</code>, <code>grad_value_cache_input</code> are all 0 differing. Amplifier: catastrophic cancellation, condition number 42.7 at the worst index (eight terms summing to 0.1186 with <code>sum|t| = 5.0656</code>).</p>
+<p><strong>fp64 verdict — compiled is strictly better, and this is the sharpest single result in the whole investigation.</strong> grad_cos RMS 4.7270e-03 (compiled) vs 6.8427e-03 (eager); grad_sin 4.6575e-03 vs 5.7942e-03; grad_key_states 2.4671e-03 vs 3.3696e-03. At the three elements that trip the harness, compiled is 20–350× closer (idx 9: golden 0.1186237335, compiled 0.11865234, eager 0.12890625). And when the fp64 golden is passed through the reference&#x27;s own final <code>.to(torch.bfloat16)</code>, <strong>the compiled output is bit-identical to it on all six tensors while eager is not</strong> — compiled is the correctly-rounded bf16 answer and eager is the wrong one.</p>
+<p><strong>Generalisation refuted.</strong> <code>L1__062</code> is the <strong>only problem in the corpus with exactly one failing workload</strong>; its 1/16 = 0.0625 is the minimum of the distribution. Median failure fraction over the 71 problems is 0.50; 55 of 71 fail ≥ half their workloads; 17 fail 100%. The &quot;128-element output, Poisson noise on the 1% budget&quot; story explains this problem and nothing else. Minor: the deep-dive&#x27;s &quot;T_b for all 16 is v4_contiguous&quot; is wrong — <code>winner_by_workload</code> is v1_eager on 11 and v4 on 5; the looseness on <code>9aa4bf2f</code> is 0.156700 / 0.029040 = <strong>5.396×</strong>, not 5.30×.</p>
+<h3 id="4-3-quant-004-fp8-moe-expert-linear-distinct-mechanism-a-downstream-quantizer-as-amplifier">4.3 <code>Quant__004_fp8_moe_expert_linear</code> — <strong>distinct mechanism: a downstream quantizer as amplifier</strong></h3>
+<p><strong>Computes:</strong> an fp8 (e4m3, BlockWise1x128) MoE expert MLP — quantize hidden and gate_up, fp32 GEMM, <code>gated = F.silu(gate) * up</code> in <strong>bf16 and unquantized</strong>, requantize <em>that</em> to fp8, second GEMM, bf16 output.</p>
+<p><strong>Numbers:</strong> the &quot;fp8 problems get loose tolerances&quot; premise is false — <code>rtol = 7.8125e-03</code> is exactly bf16 eps (the floor) and <code>atol = 7.8125e-03 × RMS|y| = 4.75e-03</code>, because the <em>output</em> is bf16 and the tolerance keys off the output dtype, not the internal quantization. Eager-vs-eager 0.000e+00 on all 16. <strong>16/16 fail</strong> when actually compiled: max_abs 1.31e-01 … 2.03e-01 (<strong>28–43× atol</strong>), <code>mr</code> 0.734–0.743.</p>
+<p><strong>Where it diverges and why it is different.</strong> Every fp8 quantize, dequantize and both fp32 GEMMs of the first projection are bit-identical (<code>extern_kernels.mm</code>, <code>ALLOW_TF32=False</code>; isolated GEMM 0 / 4,194,304 differing; isolated fp8 codes 0 / 3,670,016). The divergence is elided bf16 rounding — but <strong>not at one site</strong>: barrier experiments show four (gemm1 cast, silu intermediate, the <code>silu*up</code> store, gemm2 cast). Restoring only the silu rounding leaves mr at 0.798480 (still FAIL); three of four are needed to pass; <code>codegen_upcast_to_fp32 = False</code> gives <code>n_diff 0/3,670,016, mr = 1.000000</code>. The deep-dive&#x27;s quoted kernel <code>triton_poi_fused_mul_silu_0</code> does not exist in the real graph (<code>grep -c</code> = 0); the real one is <code>triton_red_fused__to_copy_abs_amax_clamp_div_mul_silu_split_unsqueeze_view_4</code>, and its 18-row stage table is invalidated by materialisation (returning an intermediate forces the very rounding being probed — in the real graph <code>gate_up_output</code> is never bf16; <code>buf5</code> is fp32).</p>
+<p><strong>The amplifier — this is the callout.</strong> A 1-bf16-ULP (2^-7) perturbation straddles fp8 e4m3 rounding boundaries: <strong>2.93–3.12% of activation codes flip by exactly one code, and one e4m3 ULP is 2^-3 = 12.5% relative.</strong> Same GEMM with the activation quantizer removed: output gap mean 1.102e-03 and 4.36% of elements over atol; with it, <strong>4.832e-03 and 32.88%</strong> — the requantizer multiplies the mean error <strong>4.38×</strong> and the over-tolerance fraction <strong>7.5×</strong>. That is why this problem misses by 30–40× atol where an otherwise-identical SwiGLU (<code>L2__005</code>, max_rel 1.065) passes at <code>mr = 1.000000</code>. All six failing Quant problems (004, 011, 012, 013, 016, 017) quantize an intermediate.</p>
+<p><strong>fp64 verdict — compiled is better:</strong> mean_abs 6.871507e-03 (compiled) vs 7.446866e-03 (eager), ratio <strong>0.9227</strong>; compiled also wins on max_abs and rms. Compiled closer on 46.93% of elements, eager on 41.67%, tied 11.40%.</p>
+<p><strong>The counter-case that must go on the record.</strong> <code>L1__074_fused_gated_mlp_silu</code> — the same SwiGLU pattern in <strong>pure fp32</strong>, no bf16 anywhere, so this mechanism cannot apply. Its <code>F.linear</code> is bit-identical (0 / 16,777,216); 100% of the divergence is <code>up*(gate*sigmoid(gate))</code> — 671,517 / 8,388,608 elements, max_abs 1.907e-06 — <code>tl.sigmoid</code> vs <code>aten::sigmoid</code>. Against fp64: eager RMS 8.601942e-07, compiled 8.602856e-07, <strong>ratio 1.0000933 — compiled is very slightly worse</strong>, and eager is closer on more elements (35.92% vs 35.84%).</p>
+<h3 id="4-4-l2-058-mamba2-selective-scan-distinct-mechanism-a-long-recurrence-that-does-not-amplify">4.4 <code>L2__058_mamba2_selective_scan</code> — <strong>distinct mechanism: a long recurrence that does <em>not</em> amplify</strong></h3>
+<p><strong>Computes:</strong> Mamba-2 chunked selective scan — in-proj, depthwise conv1d, SiLU, softplus dt, segment-sum/cumsum, four einsums, inter-chunk recurrence over 32 chunks at seq 4096, RMS gate, out-proj. bf16 in/out with fp32 internals.</p>
+<p class="standfirst"><strong>Numbers:</strong> bf16 floor, <code>atol</code> 4.645e-03 … 4.666e-03, <code>rtol</code> 7.8125e-03. Eager-vs-eager 0.000e+00; <code>artifacts/05</code> records <code>run_to_run {max_abs: 0.0, max_rel: 0.0}, deterministic: true</code> on all 16. <strong>16/16 fail</strong> when compiled, <code>mr</code> <strong>0.9854–0.9889 against a required 0.99</strong> — a 1.3-point miss, not a blow-up. <strong>k=2 clears it.</strong></p>
+<p><strong>Where it diverges:</strong> first at <code>(conv_out * sigmoid(conv_out))</code> — <code>01_projected</code> (matmul) and <code>05_conv_out</code> (conv1d) are <strong>0.000e+00</strong>, and at stage 06 <code>eager == bf16-intermediate SiLU</code> and <code>compiled == fp32-intermediate SiLU</code>, both bit-exact, differing by 3.125e-02 (one bf16 ULP <strong>in the binade [4,8)</strong> — the deep-dive said [8,16), which is wrong by one) on 26.34% of elements.</p>
+<p><strong>The scan does not amplify — this was tested and falsified.</strong> Along 32 chunks at seq 4096, the inter-chunk recurrence error relative to scale goes 1.419e-03 (chunk 1) → 9.047e-04 (4) → 4.587e-04 (16) → <strong>6.142e-04 (32)</strong>: an amplification factor of ~0.43×, i.e. it <em>decays</em>. Reductions average independent per-element perturbations down; the bf16 casts push it back to ~1 ULP. Anyone reaching for &quot;recurrences accumulate error&quot; as the explanation should stop.</p>
+<p><strong>Correction on attribution.</strong> The first divergence is not the dominant one. Emulating the fp32-intermediate policy one site at a time (mr vs the compiled output; baseline 0.987285): conv SiLU only → 0.989835; softplus only → 0.987597 (nothing); <strong>the final gate/norm SiLU chain only → 0.995301</strong>; all three → 0.997181. The tail contributes ~3× the conv SiLU. And the fullest hand emulation reaches mr 0.990262 — which would <strong>pass</strong> — while the true compiled sits at 0.987285, so ~0.3 points are unattributed by the stage story. <strong>Cite the config control, not the stage table:</strong> <code>TORCHINDUCTOR_EMULATE_PRECISION_CASTS=1</code> → <code>mr = 1.000000 PASS</code>, 99.8168% bit-identity.</p>
+<p><strong>fp64 verdict — compiled is better, and eager fails its own gate.</strong> Workload <code>4c88b9e7</code>: eager vs golden RMS 2.7785e-03, compiled <strong>2.1146e-03</strong> (eager 31% worse); <code>c924af2c</code> reproduces at ratio 1.314 to two decimals. Compiled strictly closer on 41.73% of elements, eager on 24.26%, tied 34.01%. <strong>Eager&#x27;s matched_ratio against the golden, under this workload&#x27;s own tolerance, is 0.986859 — below the 0.99 it enforces on others.</strong> Compiled scores 0.998504.</p>
+<p>Two Inductor differences that exist here and are <em>benign</em>, worth naming so nobody rediscovers them as contradictions: fp32 transcendentals differ from ATen (exp 53.3% bit-exact, sigmoid 78.0%, softplus 62.3%, rsqrt 89.1%, up to 11 fp32 ULP) and the fp32 cumsum uses a different order (16.8% bit-exact) — injected end-to-end they give mr 1.0 / 99.77% and 99.90% bit-exact.</p>
+<h3 id="4-5-l1-067-flash-attention-gqa-ultralong-the-fp32-attention-case-and-the-max-autotune-third-mechanism">4.5 <code>L1__067_flash_attention_gqa_ultralong</code> — the fp32 attention case, and the max-autotune third mechanism</h3>
+<p><strong>Computes:</strong> GQA attention, fp32 throughout, seq 128 → 16384: QKV projections, RoPE, <code>repeat_kv</code>, QK matmul + scaling, 2-D causal mask, softmax, attn·V, out-proj.</p>
+<p><strong>Numbers:</strong> fp32 floor; <strong><code>atol</code> shrinks with sequence length — 3.446e-08 at s=128 down to 4.706e-09 at s=16384 — because it is <code>eps × RMS|y|</code></strong> and the output RMS falls as attention averages over more positions. Eager-vs-eager 0.000e+00 on all 18. <strong>18/18 fail</strong> when compiled (the recorded 10 passes are the post-cliff fallbacks; re-run in batches of five they give <code>c/e</code> 1.19e-06 … 1.91e-06, <code>mr</code> 0.249–0.481).</p>
+<p><strong>Where it diverges:</strong> <code>reference.py:41</code>, the RoPE line — 4.7684e-07 on 13.46% of elements, already <strong>13.8× atol</strong> at the first site. Growth: 9.54e-07 after the QK matmul (~2×, contracting 128 perturbed terms), <em>shrinks</em> to 2.38e-07 after softmax, then <strong>2.03e-06 / 94.15% of elements after the out-proj</strong> (4096-term contraction). All three F.linear and both bmms are <code>0.0000e+00</code> under default. <strong>SDPA is falsified</strong>: zero <code>scaled_dot_product</code> / <code>_flash_attention</code> symbols in the output code; the <code>fuse_attention</code> pattern cannot fire because the mask is 2-D while query is 4-D.</p>
+<p><strong>fp64 verdict — a tie, and the reference is nowhere near its own tolerance.</strong> RMS ratio compiled/eager <strong>0.9995</strong> (<code>b0c05812</code>) and 0.9997 (<code>fd115ea8</code>); <strong>max_abs identical to all seven digits (8.094737e-06)</strong>; elementwise 47.16% / 5.85% / 46.99%. <strong>Eager&#x27;s matched_ratio against the golden under this workload&#x27;s own tolerance is 0.089854</strong> — the reference misses its own gate by 11×. Median error vs truth is 26.6 ULP for both, against a tolerance demanding ~1.</p>
+<p class="standfirst"><strong>Three corrections.</strong></p>
+<ol><li><strong>Max-autotune is a different mechanism.</strong> Under <code>max-autotune-no-cudagraphs</code> the extern bmm is replaced by <code>triton_tem_fused_bmm_0</code> and the matmuls are <strong>not</strong> bit-identical: qk raw max_abs <strong>1.5259e-05 on 74.93% of elements</strong>, qk×scaling 1.4305e-06, attn·V 2.3842e-07, versus 0.000e+00 for all three under default. Winner <code>triton_bmm_4 ... BLOCK_K=64, matrix_instr_nonkdim=16, ACC_TYPE=&#x27;tl.float32&#x27;, ALLOW_TF32=False</code>. So v3&#x27;s extra 48 failures are partly a GEMM-implementation swap, not the fp32 story.</li><li><strong>The exact divergence figures are not reproducible across compile sessions.</strong> Same uuid, same bitwise-identical inputs, default mode, three Inductor cache states: 2.0265579e-06 / mr 0.386650, 1.9073486e-06 / 0.386724, 1.5497208e-06 / 0.412093. The verdict never moves, but default-vs-max-autotune column differences of that size are inside compile-session noise and must not be attributed to the mode.</li><li><strong>The failure is over-determined.</strong> With <code>cos=1, sin=0</code> — making the RoPE line arithmetically inert under any association or contraction, with the compiled graph otherwise unchanged — the end-to-end divergence is still 9.5367e-07 on <strong>92.27%</strong> of elements, ~28× atol. Killing the FMA contraction would not make this problem pass; softmax alone fails the gate.</li></ol>
+<hr>
+<h2 id="5-benchmark-defect-or-a-real-torch-compile-failure"><span class="secnum">5</span><span>Benchmark defect, or a real torch.compile failure?</span></h2>
+<p class="standfirst"><strong>On every case where anyone actually adjudicated it against a float64 golden, eager is not the more accurate implementation. On five of six, it is the less accurate one.</strong></p>
+<div class="scroll"><table><thead><tr><th>problem</th><th>eager vs fp64</th><th>compiled vs fp64</th><th>verdict</th></tr></thead><tbody><tr><td><code>L2__009</code></td><td>RMS 1.2443518e-06</td><td>RMS 1.2442062e-06</td><td>tie (970,753 / 970,569 / 155,830 tied)</td></tr><tr><td><code>L1__062</code></td><td>grad_cos RMS 6.8427e-03</td><td><strong>4.7270e-03</strong></td><td>compiled better; <strong>bit-identical to the correctly-rounded bf16 golden</strong></td></tr><tr><td><code>Quant__004</code></td><td>mean_abs 7.446866e-03</td><td><strong>6.871507e-03</strong> (0.9227×)</td><td>compiled better</td></tr><tr><td><code>L2__058</code></td><td>RMS 2.7785e-03</td><td><strong>2.1146e-03</strong> (0.761×)</td><td>compiled better</td></tr><tr><td><code>L1__067</code></td><td>RMS 6.123068e-07</td><td><strong>6.120029e-07</strong> (0.9995×)</td><td>tie</td></tr><tr><td><code>L1__074</code> (control)</td><td>RMS 8.601942e-07</td><td>8.602856e-07 (1.0000933×)</td><td><strong>eager marginally better</strong></td></tr></tbody></table></div>
+<p>And the reference fails its own gate against truth wherever that was checked: <code>L1__067</code> eager <code>matched_ratio = 0.089854</code> (required 0.99), <code>L2__058</code> eager 0.986859, and — with no golden involved at all — <code>v1_eager</code> re-run in a fresh process fails <strong>10 of 16</strong> workloads of <code>L2__051</code> under the tolerance task 05 derived for it.</p>
+<p><strong>Conclusion, stated plainly: on the measured cases the benchmark is grading agreement-with-eager, not correctness.</strong> The gate as shipped asks a submission to reproduce a particular kernel schedule&#x27;s <em>rounding sequence</em>, including its errors, on 99% of elements. A numerically better implementation is scored <code>INCORRECT_NUMERICAL</code> for being better. That is a defect in the tolerance derivation, not a defect in <code>torch.compile</code>.</p>
+<p>Three honest qualifications, because this conclusion is load-bearing:</p>
+<ol><li><strong>Coverage is thin.</strong> fp64 goldens were computed for ~10 workloads across 6 problems, out of 523 failing workloads. The direction is consistent and the mechanisms (removing a rounding, contracting an FMA) predict it, but it is 2% of the population and one control already came out the other way.</li><li><strong>Not all failures are rounding.</strong> <code>L2__049</code> / <code>Quant__011</code> have a <em>zero</em> tolerance from an <code>except TypeError</code> path — no accuracy argument applies, and no multiplicative widening can ever fix them (11 workloads). <code>L2__015</code>&#x27;s recorded failures do not reproduce (threshold noise). Under max-autotune, <code>L1__067</code>&#x27;s GEMM template swap is a genuine implementation change. Four distinct mechanisms, minimum.</li><li><strong>The other reading is coherent.</strong> If the reference source <em>is</em> the specification — &quot;PyTorch eager semantics, as written&quot; — then eager is correct by definition and compiled deviates. Under that reading the benchmark is measuring rounding-sequence fidelity rather than correctness, and no optimizing compiler can pass it. Pick one; the current artifacts do not say which was intended, and <code>tasks/05</code> never asked.</li></ol>
+<hr>
+<h2 id="6-what-it-means-for-scoring"><span class="secnum">6</span><span>What it means for scoring</span></h2>
+<p><code>S(T_k) = 1 / (1 + (T_k − T_SOL) / (T_b − T_SOL))</code>, and <code>T_b</code> is the fastest of <code>{v1_eager, v2_compile, v3_compile_max_autotune, v4_contiguous}</code> that passes <strong>every workload of the problem</strong> (<code>time_tb_candidates.py:148</code>: <code>if not r.get(&quot;ok&quot;) or not r.get(&quot;all_passed&quot;): continue</code>). One failing workload disqualifies a variant on <em>all</em> of that problem&#x27;s workloads.</p>
+<p><strong>Exposure.</strong> 70 problems have no compile variant in <code>artifacts/06/authoritative</code> → <strong>1115 of 3717 scoreable workloads (30.0%)</strong> are anchored to eager-class PyTorch only (<code>t_b_variant</code>: 605 <code>v1_eager</code>, 510 <code>v4_contiguous</code>). Corpus-wide, compile wins the anchor on 44.2% of workloads where it is eligible, so this is not a marginal variant.</p>
+<p><strong>Correcting the brief:</strong> <code>artifacts/06</code> records a latency <strong>only for workloads that passed</strong> (<code>time_tb_candidates.py:121-123</code>). There is no recorded compiled time for a numerically-rejected workload. What <em>can</em> be read off is the compile time on workloads a disqualified variant <strong>passed</strong> — i.e. times that were real measurements of a variant the harness then rejected problem-wide.</p>
+<p><strong>Measured inflation.</strong> On the 70 anchor-less problems, 577 of 1115 workloads carry such a latency. Splitting them by the recompile cliff (identical under both definitions — the 9th distinct shape, and raw index &lt; 8):</p>
+<div class="scroll"><table><thead><tr><th>population</th><th>n</th><th><code>T_b / compile</code> p50</th><th>p90</th><th>max</th><th>frac &gt; 1.5</th></tr></thead><tbody><tr><td>pre-cliff — genuinely compiled</td><td><strong>39</strong></td><td><strong>2.023</strong></td><td>5.318</td><td><strong>6.288</strong></td><td>0.615</td></tr><tr><td>post-cliff — dynamo eager fallback</td><td>538</td><td>1.000</td><td>1.008</td><td>1.163</td><td>0.000</td></tr></tbody></table></div>
+<p>The 538 confirm the fallback (they <em>are</em> eager times). The 39 are the honest measurement: <strong>the published anchor is a median 2.02× and up to 6.29× slower than a real compiled time that was measured and then thrown away.</strong> By problem (max ratio): <code>L1__061</code> 6.27×, <code>L1__062</code> 5.75×, <code>L1__094</code> 5.12×, <code>L1__014</code> 3.69×, <code>L2__054</code> 3.37×, <code>L2__040</code> 3.30×, <code>L2__007</code> 1.96×, <code>L2__015</code> 1.46×, then eight below 1.2×.</p>
+<p><strong>Score effect at the anchor.</strong> For those 39 workloads, an agent that exactly ties the published <code>T_b</code> scores 0.5 by construction; under the corrected anchor it would score <strong>median 0.312, p25 0.181, min 0.113</strong> — a median <strong>0.188 points of pure inflation at S = 0.5</strong>, and none of the corrected anchors falls below T_SOL.</p>
+<p><strong>Extrapolation to the other 1076.</strong> Not measured — on those workloads compile never both compiled <em>and</em> passed. Two bracketing estimates: the anchor tightening compile delivers on problems where it <em>was</em> eligible, pre-cliff, is p50 <strong>1.243×</strong> (p90 4.629×, max 14.918×, n=1208); the tightening measured on the 39 is <strong>2.023×</strong>. Applying each uniformly to all 1115:</p>
+<div class="scroll"><table><thead><tr><th>tightening</th><th>S at the published anchor becomes</th><th>workloads whose corrected T_b would fall <strong>below T_SOL</strong></th></tr></thead><tbody><tr><td>1.243×</td><td>p50 0.439, mean 0.402</td><td>57 / 1115</td></tr><tr><td>2.023×</td><td>p50 0.318, mean 0.282</td><td><strong>272 / 1115 (24%)</strong></td></tr><tr><td>4.629×</td><td>p50 0.157, mean 0.142</td><td>458 / 1115</td></tr></tbody></table></div>
+<p>That last column is a second finding: on a quarter of these workloads a compiled-PyTorch anchor would sit <strong>under the published T_SOL</strong>, which means the bound there is not a lower bound. That overlaps D39/D42 and should be treated as further evidence for them.</p>
+<p><strong>Effect on real published scores</strong> (re-scoring the actual agent submissions in <code>leaderboard/solbench.db</code>, holding each submission&#x27;s measured latency fixed and moving only <code>T_b</code> on the 70 problems; workloads whose corrected anchor falls below T_SOL are dropped from both means):</p>
+<div class="scroll"><table><thead><tr><th>submission</th><th>n scored</th><th>on the 70</th><th>mean S now</th><th>@1.243×</th><th>@2.023×</th></tr></thead><tbody><tr><td>1 — PyTorch eager</td><td>3644 / 3429</td><td>1058 / 843</td><td>0.4541 / 0.4513</td><td>0.4257 (<strong>−0.0285</strong>)</td><td>0.3977 (<strong>−0.0537</strong>)</td></tr><tr><td>5 — agent (largest run)</td><td>373 / 362</td><td>103 / 92</td><td>0.6589 / 0.6641</td><td>0.6330 (−0.0259)</td><td>0.6059 (<strong>−0.0582</strong>)</td></tr><tr><td>6 — agent</td><td>74</td><td>17</td><td>0.7757</td><td>0.7719 (−0.0038)</td><td>0.7608 (−0.0149)</td></tr><tr><td>7 — agent</td><td>59 / 53</td><td>27 / 21</td><td>0.7011 / 0.7176</td><td>0.6677 (−0.0334)</td><td>0.6689 (−0.0487)</td></tr></tbody></table></div>
+<p>Restricted to the affected problems alone, submission 5&#x27;s mean S there is <strong>0.546 → 0.423 → 0.274</strong>. Against a published benchmark score of 0.6341 whose entire re-timing debate turned on ±0.001 (STATE.md, the 8-wide/serial revert), <strong>a −0.026 to −0.058 systematic inflation is 25–60× that margin.</strong></p>
+<p><strong>Plus a labelling defect that inflates nothing but measures nothing either:</strong> 626 of 3717 published anchors are stamped <code>v2_compile</code>/<code>v3_compile_max_autotune</code> and sit past the recompile cliff. Their <code>T_b</code> is an eager latency with a compile label, and the true compiled time on those 2061 workloads has never been measured, in either direction.</p>
+<hr>
+<h2 id="7-options"><span class="secnum">7</span><span>Options</span></h2>
+<p>Prime directive 7 applies to every one of these: none may be improvised. Whatever is chosen goes into <code>STATE.md</code> first, with the reasoning, and produces <strong>manifest v1.3</strong> — the frozen v1 and the served v1.2 are not edited.</p>
+<p class="standfirst"><strong>A. Fix <code>recompile_limit</code> and re-run task 06. Cost: low. Ambiguity: none.</strong> Set <code>torch._dynamo.config.recompile_limit = 64</code> (or build one compiled callable per workload) in <code>reference/tb-candidates/variants.py</code>, re-run the candidate sweep 8-way and the authoritative re-time on GPU 0. This is an unambiguous bug, not a methodology change — the harness intended to time <code>torch.compile</code> and timed eager on 2061 workloads. <em>Consequence to expect:</em> the failure count goes <strong>up</strong>, not down: all three index-8 workloads tested in fresh processes (<code>Quant__004/0278bef5</code>, <code>L1__074/0c1b78fe</code> mr 0.917327, <code>L1__022/678705cd</code> mr 0.691406) failed. Cost: ~5.5 h serial on GPU 0 at the measured 1.5 min/problem, plus the sharded sweep on GPUs 1–7. <strong>Do this first and separately from anything else, so its effect is legible.</strong></p>
+<p><strong>B. Calibrate the tolerance against reformulation, not reseeding.</strong> Derive <code>max_atol</code>/<code>max_rtol</code> from the spread across the <em>four T_b formulations</em> (eager, contiguous, compile, max-autotune) plus seeds and processes — the perturbation class the harness is actually exposed to — rather than the same kernel schedule twice in one process. <em>Pro:</em> directly targets the defect; a tolerance the reference&#x27;s own legal reformulations cannot meet is prima facie wrong. <em>Con:</em> it is exactly the &quot;loosen a tolerance so a kernel passes&quot; move <code>tasks/05</code> forbids, unless it is paired with a ceiling. <em>Pair it with:</em> a hard rule that the derived tolerance may never exceed some fraction (say 1/4) of the reference&#x27;s own measured distance from a float64 golden — which turns &quot;loosen&quot; into &quot;loosen only into the slack the reference already has&quot;, and is checkable. On <code>L2__009</code> that ceiling would be ~2.3 ULP against a needed k=8, so it would <em>not</em> let everything through — good, that is the point. <em>Re-measure:</em> all of task 05 (GPU, 235 problems × workloads × 4 variants × seeds), then task 06, then manifest v1.3, then re-ingest and re-score every submission (raw latencies unchanged; only S moves).</p>
+<p><strong>C. Score against a float64 golden instead of eager.</strong> <em>Pro:</em> it is the only formulation under which &quot;correct&quot; means correct, and it would end the whole class of dispute. <em>Con:</em> the golden infrastructure is currently unusable — the CPU/CUDA RNG mismatch means 2302 of 2331 recorded goldens are comparisons of two different problems, several problems raise on fp64 promotion (<code>L2__058</code> needs 6 <code>.float()</code> → <code>.to(float64)</code> edits and is arguably then not the reference), and <code>artifacts/golden/_report.json</code> already skips the largest workloads on an element cap. <em>Cost:</em> highest of any option, and it changes what the benchmark <em>is</em>.</p>
+<p><strong>D. Fix the three narrow tolerance bugs regardless of A–C.</strong> (i) <code>_dtype_floor</code>&#x27;s <code>except TypeError</code> path must not apply <code>atol=rtol=0</code> to a problem&#x27;s <em>float</em> outputs; derive per-output tolerances. 76 workloads, ≥11 failures, and <code>L2__049</code> is unpassable by construction today. (ii) <code>gen_golden.py</code> must generate inputs on the same device as <code>calibrate_tolerance.py</code>. (iii) Record cross-process, not just in-process, run-to-run spread; <code>L2__051</code> is the ready-made reproducer (10/16 eager failures at an in-process-derived tolerance). All three are cheap and none is a methodology change in the directive-7 sense — they are defects with respect to what task 05 already says it does.</p>
+<p><strong>E. Loosen <code>required_matched_ratio</code>.</strong> Upstream used 0.98 on all 1299 L2 workloads and task 05 tightened it to 0.99 — a 2× reduction in permitted out-of-bound elements, on the category with the most failures. Reverting to 0.98 would recover the knife-edge cases (<code>L2__058</code> at 0.9854–0.9889, <code>L2__015</code> at 0.9905) and nothing else: <code>L2__009</code> sits at 0.42. <em>Cheap, and it addresses maybe 10% of the population.</em> It is a legitimate v1.3 item but not a fix.</p>
+<p><strong>F. Accept and document.</strong> Publish the anchor as &quot;fastest <em>numerically eager-equivalent</em> PyTorch formulation&quot;, state that 30% of workloads have a softened anchor, and put the per-problem flag on the board next to <code>bound_quality</code>. <em>Pro:</em> costs nothing, breaks no comparability, and is honest. <em>Con:</em> it leaves a measured −0.026 to −0.058 mean-S inflation in every published number, and the leaderboard&#x27;s own claim — that S=0.5 is &quot;optimized PyTorch&quot; — becomes false on 70 problems.</p>
+<p><strong>What I would do: A, then D, then B, with F as the interim.</strong> A is a plain bug with a plain fix and must not be bundled with anything else, because it moves the failure count in the opposite direction from B and the two effects would be inseparable afterwards. D is three small correctness fixes that are defensible under the existing task-05 spec. B is the real fix and the only one that makes <code>T_b</code> mean what the board says it means, but it costs a full task-05 + task-06 re-measurement and a new manifest, so it should be entered deliberately with the ceiling rule written down <em>before</em> the sweep starts, not chosen after seeing which tolerances it produces. Until B lands, ship F: mark the 70 problems on the board and in the manifest as <code>anchor_class: eager_only</code>, so a reader can see which scores rest on a soft anchor. Do not touch a tolerance to make a variant pass in the meantime.</p>
+<hr>
+<h2 id="8-what-is-still-unknown"><span class="secnum">8</span><span>What is still unknown</span></h2>
+<ul><li><strong>The true compiled latency on 1076 of the 1115 anchor-less workloads.</strong> Compile never both compiled <em>and</em> passed there, so the T_b inflation on 96% of the affected population is an extrapolation (1.243×–2.023×), not a measurement. Option A produces the missing data as a side effect.</li><li><strong>torch.compile has never been exercised on 2061 of 3957 workloads.</strong> The failure count of 523 is a floor. Three index-8 probes all failed; that is 3, not 2061.</li><li><strong>fp64 adjudication covers ~10 workloads of 523.</strong> The &quot;compiled is not less accurate&quot; conclusion is measured on 6 problems, one of which (<code>L1__074</code>) came out the other way by 0.009%. There is no distributional claim here and I will not make one.</li><li><strong>Whether the fp8-requantizer amplifier explains the other five failing Quant problems.</strong> All six quantize an intermediate and all six use the SwiGLU shape, which is a strong prior. It was measured on <code>Quant__004</code> only.</li><li><strong><code>L2__015</code> is unresolved.</strong> Its two recorded failures pass on isolated re-run (mr 0.990831 / 0.990732), and one verifier measured eager-vs-eager <code>= 6.400e+01</code> on <code>ee0f7e21</code> — which contradicts the recorded <code>run_to_run max_abs = 0.0</code> for that problem and, if real, means part of the failing population is nondeterminism the calibration did not see. That single measurement has not been reproduced.</li><li><strong>The max-autotune GEMM-template mechanism</strong> was measured on one problem (<code>L1__067</code>). It plausibly accounts for much of v3&#x27;s extra 48 failing workloads; nobody has checked.</li><li><strong>Compile-session reproducibility.</strong> The same workload with a fresh Inductor cache gives divergences differing by 30% (2.03e-06 / 1.91e-06 / 1.55e-06). Autotuning on a co-tenanted GPU is the obvious suspect. No verdict changed in any observed instance, but it means small differences between recorded runs are not evidence of anything.</li><li><strong>Whether raising <code>recompile_limit</code> changes any <em>published</em> <code>T_b</code>.</strong> 626 anchors are mislabelled compile-but-eager; their times would move once compile really runs, in the tightening direction. Unquantified.</li><li><strong>The 272 workloads (24% of the affected set) whose corrected anchor would fall below T_SOL.</strong> Either the tightening estimate is too aggressive there, or those bounds are wrong. This intersects D39 (827 workloads at &gt;100× headroom, bound never checked for tightness) and D42, and deserves its own look before B is designed.</li><li><strong>D20 remains unexplained</strong> and two upstream variance tests remain skipped behind it; nothing here touched it.</li></ul>
+<p class="standfirst"><em>Everything numeric above is reproducible from <code>artifacts/06/candidates</code>, <code>artifacts/06/authoritative</code>, <code>artifacts/05/workloads</code>, <code>artifacts/09/manifest-v1.2.json</code>, <code>leaderboard/solbench.db</code>, the census script at <code>/home/qinwu/dev/solbench-dev/main/artifacts/11/compile-diag/tolerance_census.py</code>, and the ~100 GPU artifacts under <code>/home/qinwu/dev/solbench-dev/main/artifacts/11/compile-diag/</code>. No repo file outside <code>artifacts/11/compile-diag/</code> was modified; <code>leaderboard/solbench.db</code> was read only.</em></p>
+
+<footer>
+  Generated from <code>artifacts/11/compile-diag/REPORT.md</code> by
+  <code>build_page.py</code>. Underlying measurements and scripts are in
+  <code>artifacts/11/compile-diag/</code>; nothing outside that directory was modified and
+  <code>leaderboard/solbench.db</code> was read only. No number on this page was estimated
+  unless it says so.
+</footer>
+
+</main>

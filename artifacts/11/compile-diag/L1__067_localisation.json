@@ -1,0 +1,114 @@
+{
+  "problem": "L1__067_flash_attention_gqa_ultralong",
+  "gpu": "HIP_VISIBLE_DEVICES=4 (MI350X, gbt350-odcdh1-a08-1)",
+  "torch": "2.9.1+rocm7.2.0.git7e1940d4",
+  "utc_approx": "2026-08-11T18:0x",
+  "note": "Numerics diagnostics only. No timing here; nothing scores against this.",
+
+  "hypothesis_tested_and_FALSIFIED": {
+    "claim": "Inductor selects a different SDPA backend (flash / mem-efficient / math) than eager.",
+    "evidence": "Generated code for the attention stage calls extern_kernels.bmm twice (reinterpret_tensor + bmm), exactly as eager's torch.matmul lowers. No scaled_dot_product_attention, no _flash_attention_forward anywhere in the output code. Both matmuls are BIT-IDENTICAL to eager (max_abs 0.0000e+00) when given identical inputs. The sfdp pattern matcher does not fire (the 2-D causal mask does not match query.dim())."
+  },
+
+  "stagewise_divergence_uuid_b0c05812": {
+    "axes": {"batch_size": 2, "seq_len": 128},
+    "method": "reference rewritten to return every intermediate; whole function compiled once; eager vs compiled, identical inputs (verified bitwise equal)",
+    "stages": [
+      {"stage": "01_q_proj (F.linear)",  "max_abs": 0.0,        "frac_diff": 0.0},
+      {"stage": "02_k_proj",             "max_abs": 0.0,        "frac_diff": 0.0},
+      {"stage": "03_v_proj",             "max_abs": 0.0,        "frac_diff": 0.0},
+      {"stage": "04_q_rope  FIRST DIVERGENCE", "max_abs": 4.7684e-07, "max_rel": 4.4506e-03, "frac_diff": 0.1346},
+      {"stage": "05_k_rope",             "max_abs": 4.7684e-07, "frac_diff": 0.1353},
+      {"stage": "06_k_repeat",           "max_abs": 4.7684e-07, "frac_diff": 0.1353},
+      {"stage": "07_v_repeat",           "max_abs": 0.0,        "frac_diff": 0.0},
+      {"stage": "08_qk_scaled",          "max_abs": 9.5367e-07, "frac_diff": 0.5713},
+      {"stage": "09_masked",             "max_abs": 7.1526e-07, "frac_diff": 0.2881},
+      {"stage": "10_softmax",            "max_abs": 2.3842e-07, "max_rel": 1.3283e-06, "frac_diff": 0.3600},
+      {"stage": "11_attn_v",             "max_abs": 8.3447e-07, "frac_diff": 0.8022},
+      {"stage": "12_reshape",            "max_abs": 8.3447e-07, "frac_diff": 0.8022},
+      {"stage": "13_out_proj FINAL",     "max_abs": 2.0266e-06, "max_rel": 2.3766e+00, "frac_diff": 0.9415}
+    ]
+  },
+
+  "stage_isolation_identical_inputs": {
+    "proj(q) F.linear":            {"max_abs": 0.0},
+    "rope(q)":                     {"max_abs": 4.7684e-07, "frac_diff": 0.1346},
+    "rope(k)":                     {"max_abs": 4.7684e-07, "frac_diff": 0.1353},
+    "qk_matmul raw":               {"max_abs": 0.0},
+    "qk_matmul * scaling":         {"max_abs": 0.0},
+    "mask + softmax":              {"max_abs": 1.7881e-07, "frac_diff": 0.2971},
+    "softmax alone":               {"max_abs": 8.9407e-08, "frac_diff": 0.6021},
+    "av_matmul":                   {"max_abs": 0.0},
+    "out_proj F.linear":           {"max_abs": 0.0}
+  },
+
+  "mechanism_1_rope_fma_contraction": {
+    "triton_kernel": "triton_poi_fused_add_cat_mul_neg_slice_unsqueeze_0",
+    "triton_source_arithmetic": "tmp2 = tmp0*tmp1 ; tmp20 = tmp18*tmp19 ; tmp21 = tmp2 + tmp20  (algebraically identical to eager, same association)",
+    "bit_match_on_the_141089_elements_that_differ": {
+      "compiled == fma(x, cos, fp32(rot*sin))": 1.0,
+      "compiled == fma(rot, sin, fp32(x*cos))": 0.2293,
+      "compiled == round_fp32(fp64 exact expression)": 0.6265
+    },
+    "overall_bit_equal_rate_fma_x_cos_model": 0.864939,
+    "residual_533_of_1048576_elements": "compiled == eager but != the fp64 emulation of the fma; attributable to double rounding in the fp64 emulation, not to a different instruction",
+    "conclusion": "the AMDGPU backend contracted the FIRST multiply of (x*cos) + (rot*sin) into a single v_fma_f32, removing one rounding. Eager runs three separate ATen kernels (mul, mul, add) and rounds twice.",
+    "ulp_distance_on_differing_elements": {"max": 63001, "mean": 3.5379, "frac_exactly_1_ulp": 0.8392},
+    "at_the_max_abs_diff_element": {
+      "eager": -4.333912849, "compiled": -4.333912373, "fp64_exact": -4.333912373,
+      "comment": "the COMPILED value is the correct one; eager is 4.77e-07 wrong there"
+    }
+  },
+
+  "mechanism_2_softmax_reduction": {
+    "triton_kernel": "triton_per_fused__softmax_add_exp_full_mul_prepare_softmax_online_sub_triu_view_1",
+    "online_softmax_toggle_test_on_a_synthetic_64x128x128": {
+      "inductor.online_softmax=True":  {"max_abs": 2.9802e-07, "frac_diff": 0.8250},
+      "inductor.online_softmax=False": {"max_abs": 2.9802e-07, "frac_diff": 0.8250},
+      "verdict": "online softmax is NOT the cause; disabling it changes nothing"
+    },
+    "decomposition": {
+      "amax(-1)":   {"max_abs": 0.0,        "frac_diff": 0.0},
+      "exp(x-max)": {"max_abs": 5.9605e-08, "frac_diff": 0.8226},
+      "sum(exp)":   {"max_abs": 9.5367e-07, "frac_diff": 0.4489},
+      "div":        {"max_abs": 0.0,        "frac_diff": 0.0}
+    },
+    "conclusion": "Triton's exp (__ocml_expf) differs from ATen's by up to 1 ulp on 82% of elements, and Triton's block tree-reduction sums exp in a different order than ATen's. Both are ordinary rounding differences; neither is an algorithm change."
+  },
+
+  "float64_cpu_golden": {
+    "method": "inputs generated on GPU, moved to CPU, cast to float64, reference re-run in float64 (softmax dtype=float64)",
+    "b0c05812_bs2_s128": {
+      "eager_vs_golden":    {"max_abs": 8.094737e-06, "mean_abs": 4.400212e-07, "rms": 6.123068e-07},
+      "compiled_vs_golden": {"max_abs": 8.094737e-06, "mean_abs": 4.398561e-07, "rms": 6.120029e-07},
+      "compiled_vs_eager":  {"max_abs": 2.026558e-06, "rms": 1.323933e-07},
+      "rms_ratio_compiled_over_eager": 0.9995,
+      "elementwise": {"compiled_closer": 0.4716, "tie": 0.0585, "eager_closer": 0.4699},
+      "matched_ratio_vs_golden_under_workload_tol": {"eager": 0.089854, "compiled": 0.089911},
+      "err_over_ulp_vs_golden": {"eager_p50": 26.572, "eager_p99": 1596.112, "compiled_p50": 26.574, "compiled_p99": 1603.083}
+    },
+    "fd115ea8_bs1_s512": {
+      "eager_vs_golden":    {"max_abs": 8.094737e-06, "mean_abs": 2.499681e-07, "rms": 3.696440e-07},
+      "compiled_vs_golden": {"max_abs": 8.094737e-06, "mean_abs": 2.499702e-07, "rms": 3.695474e-07},
+      "compiled_vs_eager":  {"max_abs": 1.549721e-06, "rms": 8.643927e-08},
+      "rms_ratio_compiled_over_eager": 0.9997,
+      "elementwise": {"compiled_closer": 0.4771, "tie": 0.0455, "eager_closer": 0.4774},
+      "matched_ratio_vs_golden_under_workload_tol": {"eager": 0.092709, "compiled": 0.092753},
+      "err_over_ulp_vs_golden": {"eager_p50": 27.872, "compiled_p50": 27.877}
+    },
+    "verdict": "compiled is NOT less accurate than eager. RMS is marginally better, max_abs identical, elementwise a coin flip. Both sit ~27 ulp from the truth while the tolerance demands ~1 ulp."
+  },
+
+  "side_finding_stored_golden_is_unusable": {
+    "recorded_in": "artifacts/05/L1__067_flash_attention_gqa_ultralong.json -> per_workload[0].vs_golden",
+    "recorded_value": {"max_abs": 5.824054557195802, "max_rel": 823593.2538587884, "mode": "float64"},
+    "measured_here": 8.094737e-06,
+    "cause": "scripts/gen_golden.py does torch.manual_seed(0); prepare_inputs(..., device='cpu'); scripts/runners/calibrate_tolerance.py does torch.manual_seed(0); prepare_inputs(..., device='cuda:0'). CPU and CUDA RNG streams differ, so the two runs consume entirely different random inputs.",
+    "measured_input_divergence_seed0_cpu_vs_seed0_cuda": {
+      "hidden_states": 7.096322, "cos": 1.999928, "sin": 1.999907,
+      "q_proj_weight": 0.1206638, "k_proj_weight": 0.1232850,
+      "v_proj_weight": 0.1100080, "o_proj_weight": 0.1228204
+    },
+    "consequence": "the recorded vs_golden for this problem compares outputs of two different random draws. It is not evidence of anything. Any problem whose inputs are type=random is affected."
+  }
+}
