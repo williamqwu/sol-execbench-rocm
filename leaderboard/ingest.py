@@ -516,11 +516,12 @@ def ingest_problems(conn, manifest: dict) -> None:
     if NVIDIA_B200.is_file():
         published = json.loads(NVIDIA_B200.read_text()).get("kernels") or {}
 
-    n_axes = n_b200 = 0
+    n_axes = n_b200 = n_defn = 0
     for key, p in manifest["problems"].items():
         category, name = key.split("__", 1)
         defn_path = DATASET / category / name / "definition.json"
         defn = json.loads(defn_path.read_text()) if defn_path.exists() else {}
+        n_defn += 1 if defn else 0
         axes_by_uuid = workload_axes(category, name, defn.get("axes"))
         b200_index = b200_by_axes(published, key)
 
@@ -582,6 +583,17 @@ def ingest_problems(conn, manifest: dict) -> None:
         ("workloads_with_axes", str(n_axes)),
         ("workloads_total_all", str(total)),
         ("b200_matched", str(n_b200)),
+        # How many problem definitions the dataset supplied. `data/` is
+        # gitignored and does NOT travel with the repo, so a deploy that
+        # rebuilds from a fresh clone gets zero of them -- and every field that
+        # comes from the dataset (description, reference source, inputs,
+        # outputs, axes, workload parameters, workload numbering) is then
+        # simply absent. That failure was silent and looked like a bug in the
+        # board: 235 problems listed with the literal "None" as their
+        # description, and every workload's parameters reading "none declared",
+        # which is a sentence about the dataset that was not true. The board
+        # reads this and says which it is.
+        ("dataset_problems", str(n_defn)),
     ])
     if published:
         meta_src = json.loads(NVIDIA_B200.read_text())
@@ -591,6 +603,18 @@ def ingest_problems(conn, manifest: dict) -> None:
         ])
     print(f"  workloads: {total}, with axes {n_axes}, "
           f"with a B200 figure {n_b200}", file=sys.stderr)
+    if not n_defn:
+        print(f"  WARNING: no problem definitions found under {DATASET}.\n"
+              f"  The dataset is gitignored and does not travel with the repo, "
+              f"so this board will carry no description, reference source, "
+              f"inputs, outputs, axes or workload parameters. Fix with:\n"
+              f"    python scripts/materialize_dataset.py\n"
+              f"  then rebuild. Every measured number is unaffected.",
+              file=sys.stderr)
+    elif n_defn < len(manifest["problems"]):
+        print(f"  WARNING: {len(manifest['problems']) - n_defn} of "
+              f"{len(manifest['problems'])} problem definitions are missing "
+              f"from {DATASET}", file=sys.stderr)
 
 
 def bounds(manifest: dict) -> dict:

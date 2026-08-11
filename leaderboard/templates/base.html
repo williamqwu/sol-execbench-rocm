@@ -113,6 +113,34 @@
 </div>
 {% endif %}
 
+{# Built from a clone with no dataset. `data/` is gitignored and does not
+   travel with the repo (README, "Running it"), so a deploy that clones and
+   runs `ingest.py` gets every MEASURED number -- they come from the manifest
+   and the run artifacts -- and none of the problem definitions. The board then
+   lists 235 problems with no description, no reference implementation, no
+   inputs, no outputs and no workload parameters.
+
+   It has to be said once, loudly, at the top: every one of those absences
+   looks like a different small bug where it appears, and a reader has no way
+   to tell "the dataset is not here" from "this problem has no axes". Stated
+   only when the count is a real zero -- a database built before this key
+   existed renders nothing rather than a false alarm. #}
+{% if meta.dataset_problems is defined and meta.dataset_problems|int == 0 %}
+<div class="wrap">
+  <div class="banner warn">
+    <b>This board was built without the benchmark dataset.</b>
+    Every measured number here is unaffected &mdash; scores, T<sub>SOL</sub>,
+    T<sub>b</sub> and coverage all come from the manifest and the run
+    artifacts. What is missing is everything that describes a
+    <i>problem</i>: its description, its reference implementation, its inputs,
+    outputs and axes, and each workload's parameters and dataset numbering.
+    <code>data/</code> is gitignored and does not travel with the repo; fetch it
+    with <code>python scripts/materialize_dataset.py</code> and re-run
+    <code>leaderboard/ingest.py</code>.
+  </div>
+</div>
+{% endif %}
+
 {# Runs that sit in this part's database but were measured on another one.
    Here rather than on one page, because whichever view surfaces the list, the
    consequence is the same everywhere: the bounds on screen are this part's and

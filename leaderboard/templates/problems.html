@@ -48,7 +48,7 @@
   {% for p in problems %}
     <tr class="{% if p.deferred %}dim{% endif %}">
       <td><a class="mono" href="{{ part_url('/problems/' ~ p.key) }}">{{ p.name }}</a>
-          <div class="sub trunc">{{ p.description }}</div>
+          {% if p.description %}<div class="sub trunc">{{ p.description }}</div>{% endif %}
           {% if p.deferred %}
           <span class="why"><b>Not scoreable:</b>
             {{ p.deferred_mechanism or 'deferred — see the ledger.' }}

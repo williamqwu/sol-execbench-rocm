@@ -28,6 +28,27 @@ That last row is the load-bearing one. Adding fastapi to
 this repo was measured under, which prime directive 6 forbids. The web app
 never touches a GPU, so it has no business in that image.
 
+## Deploying it: the dataset does not travel with the repo
+
+`data/` is gitignored (README, *Running it*), so a host that clones the repo
+and runs `ingest.py` builds a board with **every measured number and no problem
+definitions**: no description, no reference implementation, no inputs, outputs
+or axes, no per-workload parameters and no dataset numbering. Nothing is wrong
+with the scores — they come from the manifest and the run artifacts — but five
+sections of every problem page are empty.
+
+The board detects this (`meta.dataset_problems == 0`) and says so in a banner
+at the top of every page, rather than leaving five different blanks to be
+interpreted. The fix on the deploy host, once, into a directory that survives
+redeploys:
+
+```bash
+python scripts/materialize_dataset.py --parquet-dir <hf download>/data \
+       --out data/SOL-ExecBench/benchmark
+python scripts/fetch_flashinfer_traces.py     # only needed to RUN problems
+leaderboard/.venv/bin/python leaderboard/ingest.py
+```
+
 ## The B200 overlay
 
 Every problem page can show, beside our T_b and T_SOL, **NVIDIA's own published

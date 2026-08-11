@@ -2553,4 +2553,23 @@ Produced: D47 — a workload's parameters were only the axes that VARY (3 of 7 o
           five-state coverage bar, which distinguishes failed from never given.
 Verified: 193 passed, 1 skipped (+8: test_score_formula.py). 261 reachable
           pages crawled, no non-200.
+
+Found on the public deployment (solbench.matrixforge.org), same session:
+Produced: D49 — a board built from a fresh clone has NO dataset (`data/` is
+          gitignored) and therefore no problem definitions. Every measured
+          number is fine; description, reference source, inputs, outputs, axes,
+          workload parameters and dataset numbering are all absent. It failed
+          silently and differently in five places: 235 listing rows printing
+          the literal string "None", empty header-only tables, an empty
+          reference pane, "none declared" against every workload — a sentence
+          about the dataset that was false — and a `#` column falling back to a
+          loop counter over uuid-sorted rows, which looks exactly like a
+          dataset position and is a different workload.
+          `ingest.py` now counts definitions found (`meta.dataset_problems`)
+          and warns loudly at zero; the board carries one banner naming the
+          cause, the fix and the fact that no measurement is affected; and each
+          of the five sites states absence rather than inventing a value. A
+          database built before the key existed raises no alarm.
+Verified: 201 passed, 1 skipped (+8: test_dataset_absent.py, which strips the
+          fixture board the way a fresh clone is stripped).
 ```

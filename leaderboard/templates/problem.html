@@ -43,7 +43,10 @@
        &middot; <a href="{{ part_url('/methodology#deferred') }}">all {{ meta.total_problems|int - meta.scoreable_problems|int }} deferrals</a></p>
   </div>
 {% endif %}
-<p class="lede">{{ problem.description }}</p>
+{# `{{ problem.description }}` on a None prints the four characters "None".
+   Jinja's undefined is blank; a Python None is not, and the description comes
+   from a dataset file that may not be there. #}
+{% if problem.description %}<p class="lede">{{ problem.description }}</p>{% endif %}
 {% if problem.hf_id %}<p class="sub">model of origin: <code>{{ problem.hf_id }}</code></p>{% endif %}
 
 <div class="cards">
@@ -71,6 +74,11 @@
   workload in the table further down is one setting of those axes. A submission
   is one implementation and is run against every workload.</p>
 
+{% if not problem.inputs and not problem.outputs and not problem.axes %}
+<p class="sub">The dataset was not present when this board was built, so this
+  problem's inputs, outputs, axes and reference implementation are not
+  available here. See the banner at the top of the page.</p>
+{% endif %}
 <div class="two">
 <div>
 <h3>Inputs</h3>
@@ -208,7 +216,11 @@
   <tbody>
   {% for w in workloads %}
     <tr class="{% if not w.scoreable %}dim{% endif %}">
-      <td class="r mono sm dim-n">{{ w.dataset_index or loop.index }}</td>
+      {# No fallback numbering. The point of this column is that it is the
+         DATASET's position, shared with upstream's listing; a loop counter
+         over uuid-sorted rows would look exactly like one and be a different
+         workload. Absent when the dataset was not there to say. #}
+      <td class="r mono sm dim-n">{{ w.dataset_index or '—' }}</td>
       <td class="mono sm">{{ w.uuid[:8] }}</td>
       {# Declaration order, from the definition, so the chips read in the same
          order upstream lists them -- and each chip is dimmed or not by what
@@ -217,7 +229,9 @@
       <td class="sm">{% for k in problem.axes if k in w.axes %}<span
           class="ax ax-{{ problem.axes[k].type }}">{{ k }}={{ w.axes[k] }}</span>{% endfor %}{%
         for k, v in w.axes.items() if k not in problem.axes %}<span class="ax">{{ k }}={{ v }}</span>{% endfor %}{%
-        if not w.axes %}<span class="sub" title="This problem's workloads declare no axes in the dataset, so there is nothing to print here — not a value that failed to load.">none declared</span>{% endif %}</td>
+        if not w.axes %}{% if meta.dataset_problems is defined and meta.dataset_problems|int == 0 %}<span
+          class="sub" title="The dataset was not present when this board was built, so no workload parameters were read. This is not a workload without parameters.">not available</span>{% else %}<span
+          class="sub" title="This problem's workloads declare no axes in the dataset, so there is nothing to print here — not a value that failed to load.">none declared</span>{% endif %}{% endif %}</td>
       <td class="r mono">{{ w.t_b_ms|ms }}</td>
       <td class="r mono">{{ w.t_sol_ms|ms }}</td>
       <td class="r mono c-b200">{{ w.b200_baseline_ms|ms }}</td>
@@ -262,10 +276,15 @@
    the button ends up positioned against the inner one.
    Leading newline: a parser drops a single LF right after <pre>, so give it
    one of ours to drop instead of the content's. #}
+{% if problem.reference %}
 <div class="srcclamp" data-lines="25">
 <pre class="code" data-lang="python">
 {{ problem.reference }}</pre>
 </div>
+{% else %}
+<p class="sub">Not available: this board was built without the dataset, which
+  is where the reference implementation lives.</p>
+{% endif %}
 
 
 {# ----------------------------------------------------------- submissions #}
@@ -356,8 +375,8 @@
   <tbody>
   {% for w in workloads %}{% for r in w.results %}
     <tr>
-      <td class="mono sm" data-sort="{{ '%04d'|format(w.dataset_index or 0) }}">#{{ w.dataset_index or loop.index }}
-        <span class="sub">{{ w.uuid[:8] }}</span></td>
+      <td class="mono sm" data-sort="{{ '%04d'|format(w.dataset_index or 0) }}">{% if w.dataset_index %}#{{ w.dataset_index }}
+        <span class="sub">{{ w.uuid[:8] }}</span>{% else %}{{ w.uuid[:8] }}{% endif %}</td>
       {# Only the axes that MOVE across this problem. The table above prints
          every one of them, the way upstream does; here the same seven chips
          would repeat on up to 288 rows and bury the one or two that differ. #}
