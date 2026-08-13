@@ -1,11 +1,34 @@
 # SPDX-License-Identifier: Apache-2.0
 """Evaluate T_SOL at the clock a measurement actually ran at.
 
-This node cannot pin a GPU clock. `--setperfdeterminism` is a no-op on the cards
-that hold a steady frequency and applies a 0.80-0.85 scale error on the cards that
-respond to it (docs/methodology.md §3, "That question, asked on a second MI355X
-node"), so no setting makes every timing happen
-at one known frequency. Left unlocked the cards are far better behaved -- 0.7% drift
+The **MI355X** node this was written for cannot usefully pin a GPU clock.
+`--setperfdeterminism` is accepted by every card and read back as
+`perf_determinism`, and then 15 of 16 per-card measurements land at 0.795-0.864x
+of what was asked while drawing 734-999 W of a 1400 W cap; the one measurement
+that reached its setpoint drew 1272 W. So the failure is the card not raising
+its power state, after which the clock it can hold follows -- it is not clock
+control refusing a number, and it is not a property of particular cards
+(docs/methodology.md §3, "That question, asked on a second MI355X node").
+
+  An earlier version of this docstring said the setpoint was a *no-op on the
+  cards that hold a steady frequency*. Its author withdrew that in PR #2: the
+  reading came from `rocm-smi -d <torch index>`, and rocm-smi orders devices by
+  PCI bus while torch does not, so the request landed on a neighbour while the
+  measured card was left at its own boost clock. Correctly addressed, those
+  cards track a request to within 0.4%. The retraction is kept visible here
+  rather than edited away, because this file is the reason someone will go
+  looking, and because it is the third finding this repo has lost to that
+  ordering (STATE.md D11, D20's clock alignment, and this).
+
+**None of that is true of MI350X**, and the difference is the same mechanism
+seen from the other side: STATE.md D55 measured locked vs unlocked vs
+cap-raised-to-2200 over twelve loads on `gbt350-odcdh1-a08-1` and found them
+indistinguishable, because a 1000 W part is already sitting at the conservative
+operating point the MI355X SMU drops *into*. On MI350X the lock is inert; on
+MI355X it costs 20% of the clock. One part is not a guide to the other, which
+is why the policy is per-part and not a repo-wide constant.
+
+Left unlocked the MI355X cards are far better behaved -- 0.7% drift
 over 8 minutes, 1.0% sensitivity to what the neighbours are doing -- but the clock
 then depends on the *kernel*: a dense GEMM saturates the 1400 W package budget and
 is pushed down to ~1730 MHz, while a memory-bound kernel needs only ~1170 W and

@@ -780,9 +780,26 @@ Not a deferral — these problems *are* in the manifest and *do* produce scores.
 The scores are not usable, and saying so here is the only thing that stops them
 being read as ordinary results.
 
-A `T_SOL` is a lower bound: nothing can beat it. Three have been beaten, by
+A `T_SOL` is a lower bound: nothing can beat it. Some have been beaten, by
 correct kernels, on real hardware. That is not a kernel being exceptional; it
 is proof the bound is wrong.
+
+> **This section describes manifest v1 and is kept for that reason — v1 is
+> frozen and goes on reporting what v1 shipped.** The board serves **v1.2**,
+> where the count is **five**, and none of the three named below is among them:
+> `FlashInfer-Bench__019` and `L1__035` were corrected in v1.1, `L1__005` in
+> v1.2. The live list, with its mechanisms, is `TODO.md`; the derivations are in
+> `docs/findings.md`. As of v1.2 the five are `L1__018` (min T_k/T_SOL 0.312),
+> `L2__045` (0.357), `L1__042` (0.839), `L1__057` (0.871) and `L2__073` (0.992),
+> and **three of the five are one defect** — the declared-traffic tier below,
+> which was fixed for two paged problems rather than at the tier, leaving 328
+> workloads across 38 problems still resting on it.
+>
+> The count has risen every time a stronger optimizer covered more of the
+> benchmark — 3, then 10, then 12, then 13, then back to 5 as corrections
+> landed and up again as coverage grew. That is the finding, not an accident:
+> a bound is only shown to be wrong by a kernel that beats it, so the number of
+> *known* bad bounds tracks how hard anything has tried.
 
 | problem | beaten by | found by |
 |---|---|---|

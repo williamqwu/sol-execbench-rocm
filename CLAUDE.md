@@ -83,14 +83,38 @@ benchmark's validity, and the damage is not visible in the output.
 ## 3. How to work
 
 ```
-1. Read STATE.md            -> what was done, and what it measured
-2. Read TODO.md             -> every known gap, as a defect list
+1. Read STATE.md            -> what is true NOW, and an index of everything else
+2. Read TODO.md             -> every known gap for MI350X, as a defect list
 3. Read PLAN.md             -> which of those to do next, in order, and what
                                "fixed" would mean for each
 4. Execute the work
 5. Run the acceptance check -> paste real output
 6. Update STATE.md          -> status, artifacts produced, anything surprising
 ```
+
+**Where the history went.** `STATE.md` used to be 3,593 lines because it was a
+journal doing a reference book's job. The findings now live in
+**`docs/findings.md`**, organised by topic — the clock, the bounds, the timer,
+tolerances, the leaderboard, the infrastructure failures — with a numeric index
+at the end. `STATE.md` is the 349-line front page and links into it.
+
+Read `docs/findings.md` when you need to know *why* something is the way it is,
+or when a code comment cites a **D-number**. Those numbers are **stable
+identifiers** — 29 of them are cited from 168 places in the code, so they are
+never renumbered or reused. A comment saying `STATE.md D35` means finding D35,
+which is now in `docs/findings.md`; the index at the bottom of that file maps
+every number to its section.
+
+The other documents, and who each is for:
+
+| File | For | Holds |
+|---|---|---|
+| `STATE.md` | the next session | where the port stands, the node, the blockers, the index |
+| `TODO.md` | whoever fixes something | MI350X owed work, ordered by how wrong the number is |
+| `docs/findings.md` | anyone asking "why" | every settled finding, by topic, with the D anchors |
+| `docs/TODO-MI355X.md` | bring-up on the other part | what unlocked changes, and the ordered sequence |
+| `docs/methodology.md` | a reader judging the numbers | how a measurement is taken and what it means |
+| `tasks/NN-*.md` | acceptance | what each task had to prove |
 
 All ten `tasks/NN-*.md` are `done`; they remain the specification of what each
 acceptance check means, and `verify_artifacts.py --task NN` still runs. Exactly
