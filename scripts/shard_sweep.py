@@ -114,6 +114,20 @@ def _run_on(problem: Path, gpu: int, runner: Path, out_dir: Path,
             {"problem": problem.name, "correctness_passed": False,
              "error": r.stderr.strip()[-4000:], "gpu": gpu}, indent=2))
         return problem, False, "error"
+    # `run_guarded` catches the runner's exception, writes it into the artifact
+    # and exits 0 -- deliberately, so one bad problem does not kill a sweep. But
+    # that made the exit status the wrong thing to count: a sweep launched
+    # outside the measurement container wrote 235 artifacts each holding
+    # `ModuleNotFoundError` and this line reported "235 ok, 0 failed". A run
+    # that crashed everywhere looked exactly like a run that worked, which is
+    # the omission CLAUDE.md 0 warns about. Count what the artifact says.
+    if out_file.exists():
+        try:
+            payload = json.loads(out_file.read_text())
+        except (OSError, json.JSONDecodeError):
+            return problem, False, "unreadable"
+        if payload.get("ok") is False:
+            return problem, False, "error"
     return problem, True, "ok"
 
 

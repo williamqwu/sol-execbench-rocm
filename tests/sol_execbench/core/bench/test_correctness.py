@@ -625,6 +625,85 @@ class TestComputeErrorStats:
         assert not math.isinf(c.max_relative_error), "max_rel should be finite"
 
 
+class TestIntegerOutputsAreComparedExactly:
+    """AMD: D52 -- integer and boolean outputs get exact equality, not a band.
+
+    CPU-only. `Workload.tolerance` is ONE ToleranceSpec applied to every output
+    of the workload, so a mixed-dtype problem cannot say "exact here, one ulp
+    there" in the data model. Task 05 used to resolve that at derivation time
+    by handing the whole problem the integer floor of {atol: 0, rtol: 0}, which
+    made the FLOAT outputs' comparison bit-identity-with-eager and left
+    L2__049 and Quant__011 -- both (int64 topk_idx, float32 topk_weight) --
+    unpassable by construction. The split lives here instead, so a float band
+    can never buy an index tensor slack, and an index tensor can never zero a
+    float band.
+    """
+
+    def test_index_off_by_one_fails_however_wide_the_band(self):
+        ref = torch.tensor([3, 7, 1, 0, 5, 2, 4, 6, 8, 9], dtype=torch.int64)
+        out = ref.clone()
+        out[0] = 4                                     # one routing flip
+        # A band far wider than the flip. Before the split this passed:
+        # |3 - 4| = 1 is not > atol = 1.0.
+        c, exceeds = compute_error_stats(
+            out, ref, _spec(max_atol=1.0, max_rtol=1.0,
+                            required_matched_ratio=0.99)
+        )
+        assert exceeds, "an index either matches the reference or it does not"
+        assert c.max_absolute_error == 1.0
+
+    def test_identical_indices_pass(self):
+        ref = torch.tensor([3, 7, 1, 0], dtype=torch.int64)
+        c, exceeds = compute_error_stats(ref.clone(), ref, _spec(0.0, 0.0))
+        assert not exceeds
+        assert c.max_absolute_error == 0.0
+
+    def test_large_int64_values_are_not_conflated_by_a_float32_cast(self):
+        """2**53 and 2**53 + 1 are the same float32. They are not the same index."""
+        ref = torch.tensor([2 ** 53, 2 ** 53], dtype=torch.int64)
+        out = torch.tensor([2 ** 53 + 1, 2 ** 53], dtype=torch.int64)
+        _c, exceeds = compute_error_stats(out, ref, _spec(0.0, 0.0))
+        assert exceeds
+
+    def test_boolean_masks_are_compared_exactly(self):
+        ref = torch.tensor([True, False, True, False])
+        out = torch.tensor([True, True, True, False])
+        _c, exceeds = compute_error_stats(
+            out, ref, _spec(max_atol=1.0, max_rtol=1.0)
+        )
+        assert exceeds
+
+    def test_matched_ratio_still_governs_how_many_may_miss(self):
+        """The split narrows the band to zero; it does not change the ratio rule."""
+        ref = torch.arange(1000, dtype=torch.int64)
+        out = ref.clone()
+        out[0] += 1                                    # 99.9% matched
+        _c, exceeds = compute_error_stats(
+            out, ref, _spec(0.0, 0.0, required_matched_ratio=0.99)
+        )
+        assert not exceeds
+        _c, exceeds = compute_error_stats(
+            out, ref, _spec(0.0, 0.0, required_matched_ratio=1.0)
+        )
+        assert exceeds
+
+    def test_an_all_zero_integer_output_still_trips_the_reward_hack_guard(self):
+        """check_tensor_sanity runs first, so returning zeros is not a shortcut."""
+        ref = torch.arange(1000, dtype=torch.int64)
+        out = torch.zeros(1000, dtype=torch.int64)
+        _c, exceeds = compute_error_stats(
+            out, ref, _spec(0.0, 0.0, required_matched_ratio=0.0)
+        )
+        assert exceeds
+
+    def test_float_outputs_keep_their_band(self):
+        """The other half of D52: the float output must NOT be held to exactness."""
+        ref = torch.tensor([1.0, 2.0, 3.0], dtype=torch.float32)
+        out = ref + torch.tensor([0.0, 1e-7, 0.0], dtype=torch.float32)
+        _c, exceeds = compute_error_stats(out, ref, _spec(max_atol=1e-5))
+        assert not exceeds
+
+
 class TestSetSeed:
     """Tests that set_seed produces reproducible GPU tensor generation."""
 

@@ -203,7 +203,66 @@ def exec_reference(definition):
     return run, ns
 
 
-def prepare_inputs(definition, workload, namespace, device: str = "cuda:0"):
+#: The device the benchmark's own input generation runs on, and therefore the
+#: ONLY device on which an input draw means anything.
+#:
+#: `torch.manual_seed(s)` seeds every device's default generator, but they are
+#: *different generators running different engines* -- CPU is `at::mt19937`,
+#: CUDA/HIP is Philox4_32_10 -- so the same seed at a different `device=`
+#: produces entirely different numbers. That is not a subtlety; it is a
+#: different problem instance. STATE.md D53: `gen_golden.py` drew at "cpu"
+#: while `calibrate_tolerance.py` drew at the default below, and 2302 of the
+#: 2331 recorded golden comparisons (98.756%, recomputed 2026-08-12 from
+#: artifacts/05/*.json) were therefore comparing answers to
+#: two different questions -- while looking, in the artifact, exactly like a
+#: correctness check that had been performed.
+#:
+#: Anything that wants to be compared against a measurement MUST draw here.
+#: This constant exists so that "here" is written down once.
+INPUT_DEVICE = "cuda:0"
+
+#: Which seed a golden is drawn at. It is not free to choose: task 05 compares
+#: the golden against `first_outputs`, which is the outputs of its seed-0
+#: iteration (`calibrate_tolerance.py`, `for seed in range(a.seeds)` ->
+#: `if first_outputs is None`). A golden at any other seed is a comparison
+#: between two different input draws, which is the D53 defect in a second form.
+GOLDEN_SEED = 0
+
+#: Bumped whenever the input-generation contract changes. A sidecar stamped
+#: with an older version is not comparable, so the goldens get regenerated
+#: instead of being read as if they still meant something.
+GOLDEN_CONTRACT_VERSION = 2
+
+
+def golden_contract_stamp(input_device: str = INPUT_DEVICE,
+                          seed: int = GOLDEN_SEED) -> dict:
+    """The part of a golden's provenance that decides whether it is comparable."""
+    return {
+        "contract_version": GOLDEN_CONTRACT_VERSION,
+        "input_device": input_device,
+        "seed": seed,
+    }
+
+
+def golden_stamp_matches(meta: dict | None,
+                         input_device: str = INPUT_DEVICE,
+                         seed: int = GOLDEN_SEED) -> bool:
+    """Does a sidecar stamp describe a golden the CURRENT contract can use?
+
+    ONE predicate, used by both the writer (`gen_golden.is_cached`, deciding
+    whether to skip regeneration) and the reader (`calibrate_tolerance`,
+    deciding whether `vs_golden` is evidence). Two hand-written checks of
+    different strictness is what D53 was, one level up: the writer had already
+    decided a stale-contract golden must be redrawn while the reader was still
+    stamping it `comparable: true`.
+    """
+    if not meta:
+        return False
+    want = golden_contract_stamp(input_device, seed)
+    return all(meta.get(k) == v for k, v in want.items())
+
+
+def prepare_inputs(definition, workload, namespace, device: str = INPUT_DEVICE):
     """Generate one workload's inputs exactly as the eval driver does.
 
     Mirrors the driver's three input paths rather than calling `gen_inputs`

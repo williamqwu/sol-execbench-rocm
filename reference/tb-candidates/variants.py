@@ -55,11 +55,28 @@ def _compile(mode: str | None) -> Callable[[str], str]:
             + _CAPTURE
             + f'''
 import torch as _solb_torch
+import torch._dynamo.config as _solb_dynamo_cfg
 
-# `dynamic=False` because the harness sweeps many shapes per problem and we
-# want each shape's specialized kernel, which is what an optimizing engineer
-# would ship. Compilation happens on the first warmup call and is therefore
-# outside the timed region.
+# STATE.md D50. `dynamic=False` asks for one specialized kernel per shape, and
+# the harness sweeps up to 47 shapes through ONE module-level compiled
+# callable. Dynamo's default `recompile_limit` is 8: past the eighth distinct
+# shape it logs a message and SILENTLY RUNS THE FRAME EAGERLY. 225 of 235
+# problems have >=9 distinct shapes, so 2061 of 3957 workloads were never
+# compiled at all -- they were timed eager and labelled compile, and the
+# numerical failures the board reports for the compile variants are a floor
+# rather than a count.
+#
+# Two changes, and the second matters more than the first: raise the limit far
+# past any problem's shape count, and make exhausting it RAISE. A variant that
+# cannot compile is a legitimate result the runner records; a variant that
+# quietly stops compiling and keeps reporting times is not detectable
+# downstream by anything.
+_solb_dynamo_cfg.recompile_limit = 256
+_solb_dynamo_cfg.accumulated_recompile_limit = 4096
+_solb_dynamo_cfg.fail_on_recompile_limit_hit = True
+
+# Compilation happens on the first call for each shape and is therefore
+# outside the timed region (the harness warms up before it times).
 _solb_compiled = _solb_torch.compile(_solb_ref_run, mode={mode_arg}, dynamic=False)
 
 
