@@ -66,7 +66,7 @@
       <a class="part-opt{% if p.active %} on{% endif %}{% if not p.available %} empty{% endif %}"
          href="{{ p.url }}"{% if p.active %} aria-current="true"{% endif %}>
         <span class="p-name">{{ p.name }}</span>
-        <span class="p-n">{% if p.n_results is not none %}{{ '{:,}'.format(p.n_results) }} results{% else %}not measured{% endif %}</span>
+        <span class="p-n">{% if p.n_results is not none %}{{ p.n_results|n }} results{% else %}not measured{% endif %}</span>
       </a>
       {% endfor %}
     </div>
@@ -359,7 +359,16 @@ document.querySelectorAll("table.sortable th").forEach(function(th){
     var val = function(tr){
       var c = tr.children[idx];
       if(!c) return null;
-      var t = (c.getAttribute("data-sort") || c.innerText || "").trim();
+      /* A PRESENT data-sort wins even when it is empty. `sortv` emits ""
+         for a value that is not there, and that is a statement -- "sort me
+         last" -- not an absence to fall back from. `||` treated it as an
+         absence and read innerText instead, which happened to work only
+         because those cells usually render the em-dash the next line maps to
+         null; where they do not (run.html's trajectory "at" column says "not
+         recorded") parseFloat gave NaN and the row sorted as a string among
+         numbers, neither first nor last. */
+      var ds = c.getAttribute("data-sort");
+      var t = (ds === null ? (c.innerText || "") : ds).trim();
       if(t === "" || t === "—" || t === "-") return null;
       var n = parseFloat(t.replace(/[,%$×x*]/g,""));
       return isNaN(n) ? t.toLowerCase() : n;

@@ -109,9 +109,13 @@
       "workload " + d.i + (d.uuid ? " · " + d.uuid.slice(0, 8) : ""),
       [["axes", d.axes],
        ["status", d.state],
-       ["T_SOL", d.tsol ? d.tsol + " ms" : null],
-       ["T_b", d.tb ? d.tb + " ms" : null],
-       ["T_k", d.tk ? d.tk + " ms" : null],
+       /* The unit travels WITH the value now. `dur_text` renders a
+          millisecond figure on a ns/us/ms/s ladder, so a hardcoded " ms" here
+          would relabel a 377 us cell as milliseconds -- the one kind of wrong
+          that no reader could catch from the page. */
+       ["T_SOL", d.tsol],
+       ["T_b", d.tb],
+       ["T_k", d.tk],
        ["vs T_b", d.speedup, d.beat === "1" ? "ok" : ""],
        ["S", d.s, d.beat === "1" ? "ok" : ""]],
       d.foot || null);
@@ -173,7 +177,8 @@
   function pointTip(p) {
     var d = p.dataset;
     return rowsHTML(
-      "eval " + d.eval + (d.at ? " · +" + d.at + " min" : ""),
+      /* `data-at` carries its own unit (mins_text), so no suffix here. */
+      "eval " + d.eval + (d.at ? " · " + d.at : ""),
       [["when", d.local || d.utc],
        ["mean S", d.s],
        /* The sign class comes from the server, which decided it from the

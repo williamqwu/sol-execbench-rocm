@@ -58,9 +58,14 @@
       </td>
       <td class="sm">{{ p.category }}</td>
       <td class="r" data-sort="{{ p.n_scoreable }}">{{ p.n_scoreable }}<span class="sub">/{{ p.n_workloads }}</span></td>
-      <td class="r mono">{% if p.median_headroom %}{{ '%.1f'|format(p.median_headroom) }}&times;{% else %}&mdash;{% endif %}</td>
-      <td class="r mono">{% if p.best_score %}{{ '%.3f'|format(p.best_score) }}{% else %}&mdash;{% endif %}</td>
-      <td class="r">{% if p.deferred %}&mdash;{% else %}{{ p.n_submissions }}{% endif %}</td>
+      {# `data-sort` because `ratio` renders "115k×", and the sorter's
+         parseFloat fallback would read that as 1.15e2 -- a wrong number, not a
+         NaN. `sortv` also keeps the digits the 3-s.f. cell drops. #}
+      <td class="r mono" data-sort="{{ p.median_headroom|sortv }}">{{ p.median_headroom|ratio }}</td>
+      <td class="r mono" data-sort="{{ p.best_score|sortv }}">{{ p.best_score|score }}</td>
+      {# A deferred problem cannot have submissions -- "not applicable", which
+         is a different statement from a count of zero, so it keeps its dash. #}
+      <td class="r" data-sort="{{ '' if p.deferred else p.n_submissions }}">{% if p.deferred %}{{ na('deferred — no submission can score here') }}{% else %}{{ p.n_submissions|n }}{% endif %}</td>
       <td>{% if p.deferred %}<span class="tag tag-deferred">deferred</span>{% endif %}</td>
     </tr>
   {% endfor %}

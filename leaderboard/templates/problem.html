@@ -51,8 +51,8 @@
 
 <div class="cards">
   <div class="card"><div class="num">{{ problem.n_scoreable }}<span class="of">/{{ problem.n_workloads }}</span></div><div class="lbl">scoreable workloads</div></div>
-  <div class="card"><div class="num">{% if problem.median_headroom %}{{ '%.1f'|format(problem.median_headroom) }}&times;{% else %}&mdash;{% endif %}</div><div class="lbl">median headroom T<sub>b</sub>/T<sub>SOL</sub></div></div>
-  <div class="card"><div class="num">{% if problem.best_score %}{{ '%.3f'|format(problem.best_score) }}{% else %}&mdash;{% endif %}</div>
+  <div class="card"><div class="num">{{ problem.median_headroom|ratio }}</div><div class="lbl">median headroom T<sub>b</sub>/T<sub>SOL</sub></div></div>
+  <div class="card"><div class="num">{{ problem.best_score|score }}</div>
     {# problem_detail()'s best_score joins board_visible=1, so this is the
        maximum over the RANKED runs only. Saying "every run recorded" here was
        wrong in the direction that matters: the table immediately below lists
@@ -220,7 +220,7 @@
          DATASET's position, shared with upstream's listing; a loop counter
          over uuid-sorted rows would look exactly like one and be a different
          workload. Absent when the dataset was not there to say. #}
-      <td class="r mono sm dim-n">{{ w.dataset_index or '—' }}</td>
+      <td class="r mono sm dim-n">{% if w.dataset_index is not none %}{{ w.dataset_index }}{% else %}{{ missing }}{% endif %}</td>
       <td class="mono sm">{{ w.uuid[:8] }}</td>
       {# Declaration order, from the definition, so the chips read in the same
          order upstream lists them -- and each chip is dimmed or not by what
@@ -232,25 +232,35 @@
         if not w.axes %}{% if meta.dataset_problems is defined and meta.dataset_problems|int == 0 %}<span
           class="sub" title="The dataset was not present when this board was built, so no workload parameters were read. This is not a workload without parameters.">not available</span>{% else %}<span
           class="sub" title="This problem's workloads declare no axes in the dataset, so there is nothing to print here — not a value that failed to load.">none declared</span>{% endif %}{% endif %}</td>
-      <td class="r mono">{{ w.t_b_ms|ms }}</td>
-      <td class="r mono">{{ w.t_sol_ms|ms }}</td>
-      <td class="r mono c-b200">{{ w.b200_baseline_ms|ms }}</td>
-      <td class="r mono c-b200">{{ w.b200_sol_ms|ms }}</td>
+      {# `data-sort` on every laddered cell, and it is not optional: the
+         sorter's fallback is parseFloat over the rendered text with
+         /[,%$×x*]/g stripped, which turns "377 µs" into 377 and ranks it above
+         "1.23 ms". That is a WRONG number, not a NaN, so the column would look
+         perfectly sorted. It also keeps the digits the 3-s.f. cell dropped.
+         tests/leaderboard/test_number_format.py is the gate. #}
+      <td class="r mono" data-sort="{{ w.t_b_ms|sortv }}">{{ w.t_b_ms|dur }}</td>
+      <td class="r mono" data-sort="{{ w.t_sol_ms|sortv }}">{{ w.t_sol_ms|dur }}</td>
+      <td class="r mono c-b200" data-sort="{{ w.b200_baseline_ms|sortv }}">{{ w.b200_baseline_ms|dur }}</td>
+      <td class="r mono c-b200" data-sort="{{ w.b200_sol_ms|sortv }}">{{ w.b200_sol_ms|dur }}</td>
       {# The number and the word it earns, in one cell. A reader who does not
          already know that 19,000x means the arithmetic term went unmodelled
          gets nothing from the number alone. #}
-      <td class="r mono" data-sort="{{ w.headroom or '' }}">{{ '%.1f'|format(w.headroom) + '×' if w.headroom else '—' }}
+      <td class="r mono" data-sort="{{ w.headroom|sortv }}">{{ w.headroom|ratio }}
         {% if w.bound_quality and w.bound_quality != 'ok' %}<span
           class="bq bq-{{ w.bound_quality }}"
           title="{{ {'vacuous': 'T_b is over 1000x T_SOL: the bound is a valid lower bound and carries essentially no roofline content. S here is close to T_b/(T_b+T_k), a PyTorch comparison.',
                      'loose':   'T_b is 100-1000x T_SOL. S is dominated by the T_b comparison rather than by distance from the roofline.',
                      'narrow':  'T_b is under 2x T_SOL. The scoring range is narrow enough that run-to-run variance is a material share of the score.'}[w.bound_quality] }}">{{ w.bound_quality }}</span>{% endif %}</td>
-      <td class="r mono c-deriv">{{ '{:,}'.format(w.t_sol_cycles) if w.t_sol_cycles else '&mdash;'|safe }}</td>
-      <td class="sm c-deriv">{{ w.t_sol_source or '—' }}</td>
+      <td class="r mono c-deriv" data-sort="{{ w.t_sol_cycles|sortv }}">{{ w.t_sol_cycles|cycles }}</td>
+      <td class="sm c-deriv">{{ w.t_sol_source or missing }}</td>
       <td class="sm c-deriv">{% if w.sol_bottleneck %}<span class="tag tag-{{ w.sol_bottleneck }}">{{ w.sol_bottleneck }}</span>{% endif %}</td>
-      <td class="sm c-deriv">{{ w.t_b_variant or '—' }}</td>
-      <td class="r mono sm c-deriv">{{ '%.2e'|format(w.tol_atol) if w.tol_atol else '&mdash;'|safe }}</td>
-      <td class="r mono sm c-deriv">{{ '%.2e'|format(w.tol_rtol) if w.tol_rtol else '&mdash;'|safe }}</td>
+      <td class="sm c-deriv">{{ w.t_b_variant or missing }}</td>
+      {# `is none`, not truthiness. 76 workloads across 5 problems record
+         atol = rtol = 0.0 -- an EXACT match is required -- and `if w.tol_atol`
+         printed every one of them as an em-dash, i.e. "nothing was recorded".
+         A measured fact shown as a missing one. #}
+      <td class="r mono sm c-deriv" data-sort="{{ w.tol_atol|sortv }}">{{ w.tol_atol|sci }}</td>
+      <td class="r mono sm c-deriv" data-sort="{{ w.tol_rtol|sortv }}">{{ w.tol_rtol|sci }}</td>
     </tr>
   {% endfor %}
   </tbody>
@@ -335,11 +345,17 @@
       {# The count this was divided by. A passing workload that beat T_SOL has
          no score, so it is not in the average, so the denominator is per-row
          and two rows under one heading are not the same statistic. #}
-      <td class="r big" data-sort="{{ s.mean_score if s.mean_score is not none else '' }}">{{ '%.4f'|format(s.mean_score) if s.mean_score else '&mdash;'|safe }}
-        {%- if s.mean_score %}<span class="sub den{% if s.scored < s.passed %} den-short{% endif %}"
+      {# `is not none` on both the value and its denominator note. A run whose
+         every scored workload came in at S = 0.0 is a measurement; truthiness
+         printed it as "no score recorded". #}
+      <td class="r big" data-sort="{{ s.mean_score|sortv }}">{{ s.mean_score|score }}
+        {%- if s.mean_score is not none %}<span class="sub den{% if s.scored < s.passed %} den-short{% endif %}"
           {%- if s.scored < s.passed %} title="{{ s.passed - s.scored }} of this run's {{ s.passed }} passing workloads beat T_SOL here. The bound is invalid on those, so no score exists and they are not in this average -- it is over {{ s.scored }}, not {{ s.passed }}."{% endif %}>over {{ s.scored }}{% if s.scored < s.passed %} of {{ s.passed }}{% endif %}</span>{% endif %}</td>
-      <td class="r mono">{{ s.best_latency|ms }}</td>
-      <td class="r" data-sort="{{ s.flagged or 0 }}">{% if s.flagged %}<span class="flag">{{ s.flagged }}</span>{% else %}&mdash;{% endif %}</td>
+      <td class="r mono" data-sort="{{ s.best_latency|sortv }}">{{ s.best_latency|dur }}</td>
+      {# A zero here is a measured zero -- the anti-reward-hack check ran on
+         this run and rejected nothing -- so it prints as `0`, dimmed, rather
+         than as the em-dash that means "not recorded". #}
+      <td class="r" data-sort="{{ s.flagged or 0 }}">{% if s.flagged %}<span class="flag">{{ s.flagged|n }}</span>{% else %}<span class="q-zero" title="nothing this run produced here was rejected as a reward hack">0</span>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
@@ -392,8 +408,8 @@
       <td class="sm" data-sort="{{ r.status }}">{% if r.status == 'PASSED' %}<span class="ok">passed</span>{% else %}<span
           class="bad" title="{{ r.status }}">{{ r.status|status_label }}</span>{% endif %}
           {%- if r.flagged and r.status != 'REWARD_HACK' %} <span class="flag">reward hacking</span>{% endif %}</td>
-      <td class="r mono">{{ r.latency_ms|ms }}</td>
-      <td class="r mono">{{ '%.4f'|format(r.score) if r.score is not none else '&mdash;'|safe }}</td>
+      <td class="r mono" data-sort="{{ r.latency_ms|sortv }}">{{ r.latency_ms|dur }}</td>
+      <td class="r mono" data-sort="{{ r.score|sortv }}">{{ r.score|score }}</td>
       <td class="sm sub">{{ r.note or '' }}</td>
     </tr>
   {% endfor %}{% endfor %}

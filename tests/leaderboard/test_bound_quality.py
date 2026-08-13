@@ -68,16 +68,60 @@ def test_every_scoreable_workload_on_the_board_is_marked(client):
     checked = 0
     for key in sorted(keys)[:12]:
         page = client.get(f"/problems/{key}").text
-        # `[^>]*` for the cell's other attributes: the headroom cell carries a
-        # `data-sort` now that the workload table is sortable, and matching the
-        # tag literally made this test pass by finding nothing.
-        for cell in re.findall(r"<td class=\"r mono\"[^>]*>([\d.]+)×(.*?)</td>",
-                               page, re.S):
-            headroom, rest = float(cell[0]), cell[1]
+        # Matched on `data-sort`, not on the rendered text. The headroom column
+        # goes through the `ratio` helper now, which renders three significant
+        # figures and a k/M suffix -- `115005.0` prints as `115k×`, and a test
+        # that read the band off the printed string would compare 115 against a
+        # 100x threshold and pass for the wrong reason. `data-sort` is the raw
+        # float, which is what `bound_quality` banded on.
+        for m in re.finditer(r'<td class="r mono" data-sort="([^"]*)">(.*?)</td>',
+                             page, re.S):
+            raw, rest = m.group(1), m.group(2)
+            # ANY of the three ×-units, not just the bare one. `ratio` promotes
+            # to `k×` at 1e3 and `M×` at 1e6, so matching only `×` excluded
+            # every cell at or above 1000x headroom -- which is to say the
+            # whole `vacuous` band, the band this file exists for (D39). The
+            # skip was silent: `assert checked` stayed non-zero on the ×
+            # cells, so the test kept passing with its reach cut off.
+            if not re.search(r'<span class="qu">[kM]?×</span>', rest):
+                continue        # a duration cell, not the headroom cell
+            headroom = float(raw)
             checked += 1
             if headroom >= 100 or headroom < 2:
                 assert "bq bq-" in rest, (key, headroom, "unmarked")
     assert checked, "no headroom cells found on any problem page"
+
+
+def test_the_vacuous_band_is_marked_on_the_real_board(real_client, real_conn):
+    """The fixture cannot reach this band; only the real board can.
+
+    Every fixture headroom cell is 1.50-2.00x and renders with the bare `×`
+    unit, so a cell-matcher that saw only `×` looked healthy while being blind
+    to everything `ratio` promotes to `k×` or `M×` -- which is exactly the
+    vacuous band (>= 1000x) this file was written for. This test picks the
+    problem holding the largest `bound_headroom` on the board and requires the
+    promoted cells to be found AND marked, so the blindness cannot come back.
+    """
+    key, worst = real_conn.execute(
+        "SELECT problem_key, MAX(bound_headroom) FROM workload "
+        "WHERE bound_headroom IS NOT NULL "
+        "GROUP BY problem_key ORDER BY 2 DESC LIMIT 1").fetchone()
+    assert worst >= 1000, (
+        "no workload on this board is in the vacuous band; if D39 was fixed, "
+        "retire this test deliberately rather than letting it go vacuous")
+    page = real_client.get(f"/problems/{key}").text
+    promoted = 0
+    for m in re.finditer(r'<td class="r mono" data-sort="([^"]*)">(.*?)</td>',
+                         page, re.S):
+        raw, rest = m.group(1), m.group(2)
+        if not re.search(r'<span class="qu">[kM]×</span>', rest):
+            continue
+        promoted += 1
+        assert float(raw) >= 1000
+        assert "bq bq-vacuous" in rest, (key, raw, "promoted but unmarked")
+    assert promoted, (
+        f"{key} holds a {worst:.0f}x bound and no k×/M× cell was seen; the "
+        "matcher has lost the band again")
 
 
 def test_the_marking_is_not_shown_for_the_ordinary_case(client):

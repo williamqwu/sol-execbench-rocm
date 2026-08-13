@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import sqlite3
 import sys
@@ -54,6 +55,7 @@ from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from jinja2 import pass_context
+from markupsafe import Markup, escape
 
 from models import (Health, LeaderboardRow, PartInfo, ProblemDetail,
                     ProblemSummary, RunDetail, Stats, SubmissionDetail)
@@ -102,25 +104,455 @@ templates.env.filters["status_label"] = (
     lambda s: STATUS_LABELS.get(s, (s or "").replace("_", " ").lower()))
 
 
-def fmt_ms(v) -> str:
-    """A millisecond figure, without printing a real number as zero.
+# --------------------------------------------------------------------------
+# numbers — one helper per KIND, never per site
+# --------------------------------------------------------------------------
+#
+# Every number on this site used to be formatted where it was printed. That
+# produced five renderings of one ratio (`%.1f×`, `%.3f×`, `%.2f×`, `%.3f×`,
+# `{:,.0f}×`) across four pages, and — worse — a FIXED NUMBER OF DECIMALS on
+# quantities that span decades. `'%.5f'` is 10 significant figures at
+# `17060.61719 ms` and 1 at `0.00010 ms`, in the same column. Constant
+# *relative* precision is what a timing has; constant absolute precision is
+# what a format string gives, and that mismatch is the defect.
+#
+# So the invariant every helper below enforces is: **constant significant
+# figures, and an explicit magnitude marker on every cell**. Scientific
+# notation is one way to meet it; a unit ladder is the other, and it is the
+# readable one wherever the quantity has a unit. Which one applies is decided
+# by the KIND of number, never by the page:
+#
+#   * unit-scaled where there is a unit ladder  -> `dur`, `bytes_h`, `mins`
+#   * a k/M suffix where it is a bare multiple  -> `ratio`
+#   * true scientific where there is neither
+#     and the span is enormous                  -> `sci`  (tolerances, 16 decades)
+#   * plain fixed decimals where the quantity
+#     is bounded and has a landmark             -> `score`, `delta`, `pct`,
+#                                                  `usd`, `n`, `cycles`
+#
+# `5.00e-01` would destroy the one landmark the score column exists to show
+# (T_b is S = 0.5 exactly), and `1.11e+00` would destroy "this problem is
+# already at the roofline". Hence the split.
+#
+# Two rules that are load-bearing rather than stylistic:
+#
+# 1. **Every helper tests `v is None`, never truthiness.** `if w.tol_atol` is
+#    why 76 real workloads across 5 problems whose tolerance is exactly 0.0 —
+#    an exact match is required — rendered as "not recorded". A measured fact
+#    displayed as a missing one is the failure mode this whole module exists
+#    to stop.
+# 2. **Any helper that can emit a non-numeric character tags its wrapper
+#    `q-needs-sort`**, and the cell must then carry `data-sort`. base.html's
+#    sorter falls back to `parseFloat(text.replace(/[,%$×x*]/g,""))`, which
+#    turns "1.23k×" into 1.23 and "377 µs" into 377 — a plausible WRONG
+#    number, not a NaN, so a mis-sorted column looks perfectly fine.
+#    `tests/leaderboard/test_number_format.py` is the gate; the convention is
+#    not the guarantee.
 
-    Every timing column was `%.5f`, which is right for the range most of them
-    live in and wrong at the bottom of it: `FlashInfer-Bench__001`'s T_SOL is
-    2.3e-6 ms — three GPU cycles, itself a symptom (D39) — and it rendered as
-    `0.00000`. A bound displayed as zero is not a small bound, it reads as no
-    bound at all, and it is the rows with the most questionable bounds that hit
-    it. Below 1e-4 ms the number switches to scientific rather than losing its
-    digits; `parseFloat` still sorts it, so the column order is unaffected.
+#: THE em-dash. Every one in value position anywhere on the site comes from
+#: this character, through `MISSING` or through `na()` — no template spells it
+#: again, as an entity or as a literal. Three spellings used to compete
+#: (`'&mdash;'|safe`, `else '—'`, and a bare inline entity), and the check in
+#: front of them was usually truthiness.
+#:
+#: The dash has exactly one meaning: *there is no value here*. Why there is
+#: none is the title's job, not the glyph's. A measured zero is NOT this — it
+#: renders as `0`, dimmed, with a title saying so.
+EM_DASH = "—"
+MISSING = Markup(f'<span class="q-na" title="not recorded">{EM_DASH}</span>')
+MISSING_TEXT = EM_DASH
+
+
+def na(reason: str) -> Markup:
+    """The dash, for a value that is absent for a stated reason other than
+    "not recorded" — a deferred problem cannot have a submission count, and
+    saying "not recorded" there would be wrong."""
+    return Markup(f'<span class="q-na" title="{escape(reason)}">{EM_DASH}</span>')
+
+# The micro sign is U+00B5 (MICRO SIGN), never U+03BC (GREEK SMALL LETTER MU).
+# They render nearly identically and would silently split any grep or test
+# that matches on one of them.
+MICRO = "µ"
+
+_DUR_LADDER = ((1e3, "s"), (1.0, "ms"), (1e-3, MICRO + "s"), (1e-6, "ns"))
+_RATIO_LADDER = ((1e6, "M×"), (1e3, "k×"), (1.0, "×"))
+_BYTE_LADDER = ((1e9, "GB"), (1e6, "MB"), (1e3, "kB"), (1.0, "B"))
+
+
+def _sig3(m: float) -> str:
+    """Three significant figures, never scientific.
+
+    The cut points are the rounded ones, so 99.96 comes out `100` rather than
+    `100.0`: choosing the spec from the unrounded magnitude is how a "3 s.f."
+    formatter quietly prints four.
+    """
+    a = abs(m)
+    if a >= 99.95:
+        return f"{m:.0f}"
+    if a >= 9.995:
+        return f"{m:.1f}"
+    if a >= 0.9995:
+        return f"{m:.2f}"
+    return f"{m:.3f}"
+
+
+def _sci3(m: float) -> str:
+    """Three significant figures, scientific. Only the ends of a ladder use it.
+
+    The exponent is chosen from the ROUNDED mantissa, for the same reason
+    `_sig3`'s cut points are: 9.996e2 taken naively prints `10.00e+02`, four
+    digits and the wrong decade.
+    """
+    e = math.floor(math.log10(abs(m)))
+    if abs(m) / 10 ** e >= 9.995:
+        e += 1
+    return f"{m / 10 ** e:.2f}e{e:+03d}"
+
+
+def _laddered(v: float, ladder) -> tuple[str, str]:
+    """(mantissa, unit) on *ladder*, promoting a rung when rounding hits 1000.
+
+    Without the promotion, 999.7 ms renders `1000 ms` — a mantissa outside the
+    band the ladder promises, and the one case where the unit stripe would lie
+    about which decade the cell is in.
+
+    A ladder has two ends, and at each one there is no rung to move to. Both
+    are OUTSIDE the measured span of this board — no value in
+    `leaderboard/db/solbench-MI350X.db` reaches either — but a formatter that
+    re-creates the defect it was written to remove, for inputs it merely does
+    not happen to see, has not removed it:
+
+    * below the last rung, `_sig3` rounds to `0.000`, which is the "a real
+      bound displayed as zero" failure moved down twelve decades rather than
+      eliminated;
+    * above the first rung, the `i > 0` promotion cannot fire, and `_sig3`
+      prints a four-digit mantissa (`1000M×`).
+
+    At both ends the honest render is scientific: the unit still says which
+    rung, and the exponent carries what the rung cannot.
+    """
+    a = abs(v)
+    last = len(ladder) - 1
+    for i, (scale, unit) in enumerate(ladder):
+        if a >= scale or i == last:
+            m = v / scale
+            if abs(m) >= 999.5:
+                if i == 0:
+                    return _sci3(m), unit
+                scale, unit = ladder[i - 1]
+                m = v / scale
+            elif i == last and 0 < abs(m) < 0.0005:
+                return _sci3(m), unit
+            return _sig3(m), unit
+    raise AssertionError("unreachable: the last rung always matches")
+
+
+def _q(value: str, unit: str = "", cls: str = "", title: str = "",
+       needs_sort: bool = False) -> Markup:
+    """The quantity wrapper: a fixed-width value slot and a fixed-width unit.
+
+    `.qu` gets its own slot so the units form a vertical stripe down the
+    column, which is what lets a reader see at a glance that this cell is ns
+    and the one above it is µs. That is the whole reason the design works on
+    the 131-of-235 problem pages whose T_SOL column spans more than one UNIT of
+    the ladder. A unit is three decades, so that is the stronger statement of
+    the two; counted by running `_laddered` over every `workload.t_sol_ms`.
+    """
+    classes = " ".join(c for c in ("q", cls, "q-needs-sort" if needs_sort else "") if c)
+    attrs = f' title="{escape(title)}"' if title else ""
+    unit_html = f'<span class="qu">{escape(unit)}</span>' if unit else ""
+    # `escape` on the value, not just on the unit: `mins` renders "<1", and an
+    # unescaped "<1" opens a tag.
+    return Markup(f'<span class="{classes}"{attrs}>'
+                  f'<span class="qv">{escape(value)}</span>{unit_html}</span>')
+
+
+# ---- durations ------------------------------------------------------------
+
+def dur_text(v) -> str:
+    """A millisecond figure as text, on the ns/µs/ms/s ladder.
+
+    The ladder covers the entire measured span on this board — 6e-08 ms (a
+    B200 SOL figure, 0.06 ns) to 17314.3701171875 ms (17.3 s) — with every
+    mantissa in [0.06, 999], so this kind NEVER needs scientific notation.
+    The old `fmt_ms` switched style at 1e-4 ms, which put two notations in one
+    T_SOL column wherever a problem's workloads straddled that threshold.
+
+    The smallest T_SOL on the board, 7.692307692307693e-07 ms, is exactly one
+    cycle at F_LOCK 1300 MHz. `0.769 ns` is the right thing for a reader to
+    see: a one-cycle bound is the D39 signal, and `0.00000` hid it.
+
+    Both spans measured this session against `leaderboard/db/solbench-MI350X.db`
+    (opened `mode=ro`), over every positive `workload.t_sol_ms`, `t_b_ms`,
+    `b200_baseline_ms`, `b200_sol_ms` and `result.latency_ms`: 28,112 distinct
+    values, mantissae 0.06 … 999. (31,742 is the same count taken per column
+    and summed, which double-counts a value two columns share.)
     """
     if v is None:
-        return "—"
+        return MISSING_TEXT
     if v == 0:
         return "0"
-    return f"{v:.5f}" if abs(v) >= 1e-4 else f"{v:.2e}"
+    m, unit = _laddered(float(v), _DUR_LADDER)
+    return f"{m} {unit}"
 
 
-templates.env.filters["ms"] = fmt_ms
+def dur(v) -> Markup:
+    if v is None:
+        return MISSING
+    if v == 0:
+        # Not a small time: a duration recorded as exactly zero is a defect,
+        # and it should be visible as one rather than rendered as `0.00 ns`.
+        return _q("0", "", "q-zero",
+                  "recorded as exactly zero — not a measurement")
+    m, unit = _laddered(float(v), _DUR_LADDER)
+    # A negative duration is likewise a defect. Marked, never hidden.
+    return _q(m, unit, "q-bad" if v < 0 else "", needs_sort=True)
+
+
+# ---- the score, S ---------------------------------------------------------
+
+def score_text(v) -> str:
+    """S, contract [0,1]. Fixed decimals on purpose.
+
+    A bounded quantity with a landmark: T_b is S = 0.5 exactly, and 3,758
+    cells on this board sit there by construction — `SELECT COUNT(*) FROM
+    result WHERE score = 0.5` against `leaderboard/db/solbench-MI350X.db`
+    (`mode=ro`), unchanged when joined to `submission.board_visible = 1`.
+    `5.00e-01` would be the same number and a worse page.
+    """
+    if v is None:
+        return MISSING_TEXT
+    return f"{float(v):.4f}"
+
+
+def score(v) -> Markup:
+    if v is None:
+        return MISSING
+    s = f"{float(v):.4f}"
+    if not 0.0 <= float(v) <= 1.0:
+        # 27 of 7,073 `trajectory_eval.mean_score` rows are outside the
+        # contract, the largest 32.354054. No cause has been investigated and
+        # none is asserted here. The point is only that a run page renders
+        # those in the same `.big` mono style as a board score of 0.4907,
+        # which invites a comparison between two different quantities.
+        return Markup(f'<span class="q-oor" title="outside the [0,1] contract'
+                      f' — this is the agent harness’s own figure, not a'
+                      f' board score">{s}</span>')
+    return Markup(s)
+
+
+def delta_text(v) -> str:
+    if v is None:
+        return MISSING_TEXT
+    return f"{float(v):+.4f}"
+
+
+def delta(v) -> Markup:
+    return MISSING if v is None else Markup(delta_text(v))
+
+
+# ---- bare multiples -------------------------------------------------------
+
+def ratio_text(v) -> str:
+    """A ×-multiple: headroom, speedup, geomean. 3 s.f. with a k/M suffix.
+
+    The five extremes actually on the board, each read this session from
+    `leaderboard/db/solbench-MI350X.db` (`mode=ro`): `workload.bound_headroom`
+    runs 1.1097593673588968 → `1.11×` (as close to the roofline as anything
+    gets) to 1499133.450644357 → `1.50M×`; `problem.median_headroom` tops out
+    at 115004.95628074363 → `115k×` (L2__006); `trajectory_eval.geomean_speedup`
+    runs 0.01520103232079208 → `0.015×` to 422.7051885272674 → `423×`.
+    """
+    if v is None:
+        return MISSING_TEXT
+    m, unit = _laddered(float(v), _RATIO_LADDER)
+    return f"{m}{unit}"
+
+
+def ratio(v) -> Markup:
+    if v is None:
+        return MISSING
+    m, unit = _laddered(float(v), _RATIO_LADDER)
+    return _q(m, unit, needs_sort=True)
+
+
+# ---- pure magnitudes: the tolerances --------------------------------------
+
+def sci_text(v) -> str:
+    if v is None:
+        return MISSING_TEXT
+    if v == 0:
+        return "0"
+    e = math.floor(math.log10(abs(float(v))))
+    return f"{float(v) / 10 ** e:.2f}e{e:+03d}"
+
+
+def sci(v) -> Markup:
+    """atol and rtol: no unit, no ladder, sixteen decades. Scientific is right.
+
+    `<sup>`, not Unicode superscript characters: `⁻¹¹` has a real font-fallback
+    risk in the JetBrains Mono / Menlo / Consolas stack and `<sup>` has none.
+
+    Both columns get this style because atol and rtol sit adjacent and are read
+    as a pair. Neither is narrow: over the board's nonzero tolerances, rtol runs
+    1.192e-07 … 6.667e-01, 6.75 decades.
+    """
+    if v is None:
+        return MISSING
+    if v == 0:
+        # 76 workloads across 5 problems. `if w.tol_atol` rendered every one
+        # of them as "not recorded"; the truth is that an EXACT match is
+        # required, which is a stricter statement than any number here.
+        return _q("0", "", "q-zero",
+                  "exactly zero — an exact match is required")
+    e = math.floor(math.log10(abs(float(v))))
+    m = f"{float(v) / 10 ** e:.2f}"
+    return Markup(f'<span class="q q-needs-sort"><span class="qv">{m}'
+                  f'×10<sup>{e}</sup></span></span>')
+
+
+# ---- exact integers -------------------------------------------------------
+
+def _as_int(v) -> int:
+    """Counts arrive as ints from COUNT(*) and as strings from `meta`."""
+    return v if isinstance(v, int) else int(float(v))
+
+
+def cycles_text(v) -> str:
+    """T_SOL in GPU cycles: the derived architectural quantity, exact.
+
+    Audit columns get exact values; comparison columns get 3 s.f. This one is
+    in the `c-deriv` group, it is what the millisecond column is computed
+    from, and it is F_LOCK-invariant — so `398,131,200`, not `398M`.
+    """
+    return MISSING_TEXT if v is None else f"{_as_int(v):,}"
+
+
+def cycles(v) -> Markup:
+    return MISSING if v is None else Markup(cycles_text(v))
+
+
+def n_text(v) -> str:
+    return MISSING_TEXT if v is None else f"{_as_int(v):,}"
+
+
+def n(v) -> Markup:
+    return MISSING if v is None else Markup(n_text(v))
+
+
+# ---- money, time, share, size ---------------------------------------------
+
+def usd_text(v) -> str:
+    if v is None:
+        return MISSING_TEXT
+    return f"${float(v):.2f}" if abs(float(v)) < 1000 else f"${float(v):,.0f}"
+
+
+def usd(v) -> Markup:
+    return MISSING if v is None else Markup(usd_text(v))
+
+
+def mins_text(seconds) -> str:
+    """A wall-clock span, given in SECONDS.
+
+    One implementation of what run.html did inline and eight other sites
+    approximated with `%.0f` of `/60`. `<1 min` rather than `0 min`: a session
+    that ran for forty seconds did not run for no time.
+    """
+    if seconds is None:
+        return MISSING_TEXT
+    s = float(seconds)
+    if s < 60:
+        return "<1 min"
+    m = int(round(s / 60))
+    return f"{m} min" if m < 60 else f"{m // 60} h {m % 60:02d} min"
+
+
+def mins(seconds) -> Markup:
+    if seconds is None:
+        return MISSING
+    txt = mins_text(seconds)
+    if txt.startswith("<"):
+        return _q("<1", "min", needs_sort=True)
+    head, _, unit = txt.rpartition(" ")
+    return _q(head, unit, needs_sort=True)
+
+
+def pct_text(x) -> str:
+    """A share already expressed 0–100.
+
+    `<0.1%` rather than `0.0%`: a band with one workload in it is not an empty
+    band, and rounding it to zero says it is.
+    """
+    if x is None:
+        return MISSING_TEXT
+    v = float(x)
+    if 0 < v < 0.05:
+        return "<0.1%"
+    return f"{v:.1f}%"
+
+
+def pct(x) -> Markup:
+    return MISSING if x is None else Markup(escape(pct_text(x)))
+
+
+def bytes_h_text(b) -> str:
+    if b is None:
+        return MISSING_TEXT
+    if b == 0:
+        return "0 B"
+    m, unit = _laddered(float(b), _BYTE_LADDER)
+    return f"{m} {unit}"
+
+
+def bytes_h(b) -> Markup:
+    if b is None:
+        return MISSING
+    if b == 0:
+        return _q("0", "B", "q-zero")
+    m, unit = _laddered(float(b), _BYTE_LADDER)
+    return _q(m, unit, needs_sort=True)
+
+
+def sortv(v) -> str:
+    """The raw float for `data-sort`, or "" for a value that is not there.
+
+    base.html treats a PRESENT-but-empty `data-sort` as null and sorts it last
+    in either direction, which is what a missing measurement deserves. It did
+    not until this was checked: the read was `getAttribute(...) || innerText`,
+    and an empty attribute is falsy in JS, so the cell fell through to its own
+    text. That happened to give the same answer wherever the text was the
+    em-dash, and the wrong answer in run.html's trajectory "at" column, whose
+    text is "not recorded". base.html now tests for the attribute's presence.
+    The value is NOT
+    rounded: `data-sort` is where the digits the 3-s.f. cell dropped still
+    live, alongside `/api/v1`, which is untouched and remains the authority.
+    """
+    if v is None:
+        return ""
+    return repr(float(v))
+
+
+for _name, _fn in (
+        ("dur", dur), ("dur_text", dur_text),
+        ("score", score), ("score_text", score_text),
+        ("delta", delta), ("delta_text", delta_text),
+        ("ratio", ratio), ("ratio_text", ratio_text),
+        ("sci", sci), ("sci_text", sci_text),
+        ("cycles", cycles), ("cycles_text", cycles_text),
+        ("n", n), ("n_text", n_text),
+        ("usd", usd), ("usd_text", usd_text),
+        ("mins", mins), ("mins_text", mins_text),
+        ("pct", pct), ("pct_text", pct_text),
+        ("bytes_h", bytes_h), ("bytes_h_text", bytes_h_text),
+        ("sortv", sortv)):
+    templates.env.filters[_name] = _fn
+
+# For the handful of non-numeric value positions that still need the dash --
+# `{{ meta.part or missing }}`. It used to be written `'&mdash;'` without
+# `|safe`, which autoescape renders as the literal text `&mdash;`.
+templates.env.globals["missing"] = MISSING
+templates.env.globals["na"] = na
 
 
 def asset(path: str) -> str:
@@ -1619,7 +2051,12 @@ def trajectory_chart(traj: list[dict], w: int = 720, h: int = 190) -> dict | Non
                              for i, p in enumerate(points)),
             "y_anchor": round(py(0.5), 1) if y_lo <= 0.5 <= y_hi else None,
             "x_axis": round(h - pad_b, 1), "pad_l": pad_l,
-            "x_max_min": round(x_max, 1),
+            # The axis label is FORMATTED HERE, not in the template: it is the
+            # same wall-clock span as every `mins` cell on the page and has to
+            # read the same way (`1 h 30 min`, `<1 min`), and an SVG <text>
+            # cannot take the `_q` markup that `mins` returns. `x_max` is in
+            # minutes; `mins_text` takes seconds.
+            "x_max_label": mins_text(x_max * 60),
             "y_lo": round(y_lo, 3), "y_hi": round(y_hi, 3)}
 
 
