@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# Run a command in the pinned measurement environment WITHOUT docker.
+#
+#   env/solb-native python scripts/roofline_probe.py --gpu 0 --out ...
+#   env/solb-native sol-execbench <problem_dir> --solution sol.json
+#   env/solb-native bash
+#
+# Why this exists
+# ---------------
+# `env/solb` runs everything inside `solbench:rocm7.2-torch2.9.1`. Some nodes
+# have no docker daemon at all, and on those `env/solb` cannot work. This
+# script is the same *environment contract* satisfied natively.
+#
+# It is only legitimate because the interpreter it runs under already carries
+# the pinned stack. That is not assumed -- it is ASSERTED below, and the script
+# refuses to run when the stack drifts. A silently-unpinned measurement
+# environment is exactly the failure prime directive 6 exists to prevent: every
+# baseline in this repo is relative to one torch/ROCm/triton combination, and
+# nothing downstream can detect that a number came from a different one.
+#
+# Set SOLB_ALLOW_STACK_DRIFT=1 to downgrade the refusal to a warning. Anything
+# measured that way must record the drift in STATE.md, because the assertion is
+# the only thing standing between a drifted stack and an artifact that looks
+# authoritative.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRATCH="${SOLEXBENCH_SCRATCH:-/var/tmp/solbench}"
+
+# The pin. Kept in one place so a bump is a visible edit rather than a drift.
+WANT_TORCH="2.9.1+rocm7.2.0"
+WANT_ROCM_MAJOR_MINOR="7.2"
+
+mkdir -p "${SCRATCH}" "${SCRATCH}/home" "${SCRATCH}/hf-cache"
+
+# git refuses to read a repo it does not own, which silently nulls git_sha in
+# every provenance block, and an artifact without provenance is not usable for
+# scoring (prime directive 5). Cheap and idempotent, so just always do it.
+git config --global --get-all safe.directory 2>/dev/null | grep -qxF "${ROOT}" \
+  || git config --global --add safe.directory "${ROOT}" 2>/dev/null || true
+
+export PYTHONPATH="${ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
+
+# FLASHINFER_TRACE_DIR must be the directory the workload safetensors paths are
+# relative to -- `data/flashinfer-trace/blob/...` is resolved from here, and the
+# eval driver resolves it against the STAGING directory rather than the CWD, so
+# having the blobs in the repo is not enough on its own. In `env/solb` the repo
+# is bind-mounted at /work and this is /work; natively it is the repo root.
+# Without it, 9 of the 26 FlashInfer-Bench problems fail as ordinary runtime
+# errors and 9 of 235 silently vanish.
+export FLASHINFER_TRACE_DIR="${ROOT}"
+export HF_HOME="${HF_HOME:-${SCRATCH}/hf-cache}"
+export SOLEXBENCH_SCRATCH="${SCRATCH}"
+
+# Stamped onto every artifact by scripts/provenance.py, so a number measured
+# here is distinguishable from one measured inside the container.
+export SOLEXBENCH_ENV_MODE=native
+
+# uv builds an isolated environment unless pointed at this one, and then the
+# CLI it launches has no pydantic.
+export VIRTUAL_ENV="${VIRTUAL_ENV:-/opt/venv}"
+export UV_PROJECT_ENVIRONMENT="${UV_PROJECT_ENVIRONMENT:-/opt/venv}"
+export UV_NO_SYNC=1
+
+# Upstream declares `sol-execbench = "sol_execbench.cli:cli"` as a console
+# script and its end-to-end test invokes it by name. The package is used from
+# the source tree rather than pip-installed, so provide the entry point.
+SHIMDIR="${SCRATCH}/bin"
+mkdir -p "${SHIMDIR}"
+if [ ! -x "${SHIMDIR}/sol-execbench" ]; then
+  printf '#!/bin/sh\nexec python -c "from sol_execbench.cli.main import cli; cli()" "$@"\n' \
+    > "${SHIMDIR}/sol-execbench"
+  chmod 0755 "${SHIMDIR}/sol-execbench"
+fi
+export PATH="${SHIMDIR}:${PATH}"
+
+# --- the assertion ---------------------------------------------------------
+if ! SOLB_WANT_TORCH="${WANT_TORCH}" SOLB_WANT_ROCM="${WANT_ROCM_MAJOR_MINOR}" \
+     python3 "${ROOT}/env/check_stack.py"; then
+  [ "${SOLB_ALLOW_STACK_DRIFT:-0}" = "1" ] || exit 1
+  echo "env/solb-native: proceeding under SOLB_ALLOW_STACK_DRIFT=1" >&2
+fi
+
+if [ "$#" -eq 0 ]; then
+  exec bash
+fi
+exec "$@"

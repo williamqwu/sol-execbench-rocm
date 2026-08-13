@@ -77,6 +77,27 @@ def _temp_c(smi, handle):
     return None, None
 
 
+def smi_device_index(torch_gpu: int) -> int:
+    """The index `amd-smi -g` / `rocm-smi -d` means by the torch index you have.
+
+    Both CLIs order devices by PCI bus; torch does not. On this node torch 1 is
+    device 0 to both of them, so passing a torch index straight through addresses a
+    *different physical GPU* -- and the result reads as a perfectly plausible number,
+    because the card you asked about was simply left alone.
+
+    Every per-device CLI call in this module goes through here. Two call sites did
+    not, and both were latent bugs of exactly the kind `gpu_map`'s docstring warns
+    about: the `read_clocks` fallback and the per-GPU form of
+    `set_perf_determinism`. Switching from rocm-smi to amd-smi does NOT by itself
+    fix this -- verified on this node, the two tools enumerate identically
+    (0x05, 0x15, 0x65, 0x75, 0x85, 0x95, 0xe5, 0xf5) and both differ from torch.
+    The translation is the fix; the tool choice is separate.
+    """
+    from gpu_map import torch_to_amdsmi
+
+    return torch_to_amdsmi()[torch_gpu]
+
+
 def read_clocks(gpu: int) -> dict:
     """Return {sclk_mhz, mclk_mhz, power_w, temp_c} for torch device *gpu*.
 
@@ -102,16 +123,25 @@ def read_clocks(gpu: int) -> dict:
         except Exception as e:
             return {"error": f"amdsmi: {e}", "source": "amdsmi"}
 
+    try:
+        dev = smi_device_index(gpu)
+    except Exception as e:                                  # noqa: BLE001
+        # Refusing beats guessing. Falling through with the torch index would read
+        # a DIFFERENT card and return a plausible number, which is the failure this
+        # whole module exists to prevent.
+        return {"error": f"cannot resolve torch {gpu} to a device index: {e}",
+                "source": "unresolved"}
     out = subprocess.run(
-        ["rocm-smi", "-d", str(gpu), "--showgpuclocks", "--showpower",
-         "--showtemp", "--json"],
+        ["amd-smi", "metric", "-g", str(dev), "--clock", "--power", "--temperature",
+         "--json"],
         capture_output=True, text=True)
     if out.returncode != 0:
-        return {"error": out.stderr.strip(), "source": "rocm-smi"}
+        return {"error": out.stderr.strip(), "source": "amd-smi"}
     try:
-        return {"raw": json.loads(out.stdout), "source": "rocm-smi"}
+        return {"raw": json.loads(out.stdout), "source": "amd-smi",
+                "device_index": dev}
     except json.JSONDecodeError:
-        return {"error": "unparseable rocm-smi output", "source": "rocm-smi"}
+        return {"error": "unparseable amd-smi output", "source": "amd-smi"}
 
 
 PERF_LEVEL_GLOB = "/sys/class/drm/card*/device/power_dpm_force_performance_level"
@@ -140,9 +170,11 @@ def set_perf_determinism(freq_mhz: int, gpu: int | None = None) -> bool:
     while the artifacts claim F_LOCK.
     """
     before = perf_levels()
-    cmd = ["rocm-smi", "--setperfdeterminism", str(freq_mhz)]
+    # amd-smi rather than rocm-smi: it is the supported tool, and `set -d` with no
+    # `-g` applies to every GPU, which is the form used for a node-wide lock.
+    cmd = ["amd-smi", "set", "-d", str(freq_mhz)]
     if gpu is not None:
-        cmd += ["-d", str(gpu)]
+        cmd += ["-g", str(smi_device_index(gpu))]
     out = subprocess.run(cmd, capture_output=True, text=True)
     if out.returncode != 0:
         print(f"  FAILED: {out.stderr.strip()}", file=sys.stderr)
