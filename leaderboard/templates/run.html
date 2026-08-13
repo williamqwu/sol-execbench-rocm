@@ -75,7 +75,7 @@
       <span class="t-lbl">{{ t.trial_label or 'constraint not recorded' }}</span>
       <span class="t-out">
         {%- if not t.touched %}not in this trial
-        {%- elif t.mean_score is not none %}{{ t.passed }}/{{ summary.n_scoreable }} passed &middot; mean S {{ '%.4f'|format(t.mean_score) }}
+        {%- elif t.mean_score is not none %}{{ t.passed }}/{{ summary.n_scoreable }} passed &middot; mean S {{ t.mean_score|score }}
           {%- if t.unbounded %}<span class="t-warn" title="{{ t.unbounded }} of these passing workloads ran faster than T_SOL. The bound is invalid there, so no score is defined and each contributes zero to this mean -- which is why a run that passed everything can still read low. That is a defect in the bound, not in the kernel.">&mdash; {{ t.unbounded }} bound{{ 's' if t.unbounded != 1 }} beaten, scored 0</span>{% endif %}
         {%- elif t.attempted %}{{ t.attempted }} workloads attempted, none passed
         {%- else %}kernel submitted, never measured{% endif %}
@@ -109,10 +109,7 @@
   <div class="w">
     <div class="w-k">elapsed</div>
     <div class="w-v">
-      {%- if window.elapsed_seconds is not none -%}
-        {%- set mins = (window.elapsed_seconds / 60)|round|int -%}
-        {{ '%d h %02d min'|format(mins // 60, mins % 60) if mins >= 60 else '%d min'|format(mins) }}
-      {%- else %}<span class="sub">&mdash;</span>{% endif %}
+      {{ window.elapsed_seconds|mins }}
     </div>
   </div>
   <div class="w" style="flex:1 1 320px">
@@ -144,8 +141,8 @@
   {%- set drift = (effort.wall_seconds - window.elapsed_seconds)|abs / effort.wall_seconds -%}
   {% if drift > 0.05 %}
   <p class="sub">Wall time for this problem was
-    {{ '%.0f'|format(effort.wall_seconds / 60) }} min, against
-    {{ '%.0f'|format(window.elapsed_seconds / 60) }} min between the first and
+    {{ effort.wall_seconds|mins_text }}, against
+    {{ window.elapsed_seconds|mins_text }} between the first and
     last eval. Both are shown because they measure different things: the window
     is eval-to-eval, wall time is the whole session including everything before
     the first eval and after the last.</p>
@@ -165,7 +162,7 @@
 
 <div class="cards">
   <div class="card">
-    <div class="num">{% if summary.mean_attempted is not none %}{{ '%.4f'|format(summary.mean_attempted) }}{% else %}&mdash;{% endif %}</div>
+    <div class="num">{{ summary.mean_attempted|score }}</div>
     <div class="lbl">mean S over attempts</div>
   </div>
   <div class="card">
@@ -173,11 +170,11 @@
     <div class="lbl">workloads passed</div>
   </div>
   <div class="card">
-    <div class="num">{% if summary.best is not none %}{{ '%.4f'|format(summary.best) }}{% else %}&mdash;{% endif %}</div>
+    <div class="num">{{ summary.best|score }}</div>
     <div class="lbl">best workload S</div>
   </div>
   <div class="card">
-    <div class="num">{% if summary.problem_score is not none %}{{ '%.4f'|format(summary.problem_score) }}{% else %}&mdash;{% endif %}</div>
+    <div class="num">{{ summary.problem_score|score }}</div>
     <div class="lbl" title="What this problem contributes to the benchmark score: scores summed over every scoreable workload, including the ones that failed or were never run.">contribution to benchmark</div>
   </div>
   {% if summary.n_flagged %}
@@ -195,7 +192,7 @@
   if summary.untested %}, and {{ summary.untested }} were never
   run{% endif %}.
   {% if summary.mean_passed is not none and summary.failed %}
-    Mean over passes alone is {{ '%.4f'|format(summary.mean_passed) }}; the
+    Mean over passes alone is {{ summary.mean_passed|score }}; the
     figure above counts a failed attempt as zero.
   {% endif %}
 </p>
@@ -286,14 +283,17 @@
   <button type="button" class="cell {{ cls }}" data-i="{{ loop.index }}"
           data-uuid="{{ w.uuid }}" data-row="wl-{{ loop.index }}"
           data-axes="{{ axes }}" data-state="{{ state }}"
-          {% if w.t_sol_ms %}data-tsol="{{ w.t_sol_ms|ms }}"{% endif %}
-          {% if w.t_b_ms %}data-tb="{{ w.t_b_ms|ms }}"{% endif %}
-          {% if w.latency_ms %}data-tk="{{ w.latency_ms|ms }}"{% endif %}
-          {% if w.speedup_vs_tb %}data-speedup="{{ '%.2f'|format(w.speedup_vs_tb) }}×"{% endif %}
-          {% if s is not none %}data-s="{{ '%.4f'|format(s) }}"{% endif %}
+          {# `is not none` on all four. A duration or a speedup recorded as
+             exactly zero is a defect, and dropping the attribute would hide it
+             behind the same blank the harness uses for "never measured". #}
+          {% if w.t_sol_ms is not none %}data-tsol="{{ w.t_sol_ms|dur_text }}"{% endif %}
+          {% if w.t_b_ms is not none %}data-tb="{{ w.t_b_ms|dur_text }}"{% endif %}
+          {% if w.latency_ms is not none %}data-tk="{{ w.latency_ms|dur_text }}"{% endif %}
+          {% if w.speedup_vs_tb is not none %}data-speedup="{{ w.speedup_vs_tb|ratio_text }}"{% endif %}
+          {% if s is not none %}data-s="{{ s|score_text }}"{% endif %}
           {% if s is not none and s >= 0.5 %}data-beat="1"{% endif %}
           {% if foot %}data-foot="{{ foot }}"{% endif %}
-          title="workload {{ loop.index }} of {{ workloads|length }}{% if axes %} · {{ axes }}{% endif %} · {{ state }}{% if s is not none %} · S = {{ '%.4f'|format(s) }}{% endif %}{% if w.speedup_vs_tb %} · {{ '%.2f'|format(w.speedup_vs_tb) }}× vs T_b{% endif %}"></button>
+          title="workload {{ loop.index }} of {{ workloads|length }}{% if axes %} · {{ axes }}{% endif %} · {{ state }}{% if s is not none %} · S = {{ s|score_text }}{% endif %}{% if w.speedup_vs_tb %} · {{ w.speedup_vs_tb|ratio_text }} vs T_b{% endif %}"></button>
 {%- endfor %}
 </div>
 <div class="grid-legend">
@@ -365,18 +365,21 @@
         {%- else %}<span class="bad" title="{{ w.status }}">{{ w.status|status_label }}</span>{% endif %}
         {%- if w.flagged and w.status != 'REWARD_HACK' %} <span class="flag">reward hacking</span>{% endif %}
       </td>
-      <td class="r mono">{{ w.t_sol_ms|ms }}</td>
-      <td class="r mono">{{ w.t_b_ms|ms }}</td>
-      <td class="r mono">{{ w.latency_ms|ms }}</td>
-      <td class="r mono {% if w.speedup_vs_tb and w.speedup_vs_tb >= 1 %}ok{% endif %}">{{
-        '%.2f'|format(w.speedup_vs_tb) + '×' if w.speedup_vs_tb else '—' }}</td>
-      <td class="r mono">{{ '%.4f'|format(w.score) if w.score is not none else '&mdash;'|safe }}</td>
+      {# `data-sort` on all four: the ladder and the ×-suffix both defeat the
+         sorter's parseFloat fallback silently -- "377 µs" reads as 377 and
+         would rank above "1.23 ms". #}
+      <td class="r mono" data-sort="{{ w.t_sol_ms|sortv }}">{{ w.t_sol_ms|dur }}</td>
+      <td class="r mono" data-sort="{{ w.t_b_ms|sortv }}">{{ w.t_b_ms|dur }}</td>
+      <td class="r mono" data-sort="{{ w.latency_ms|sortv }}">{{ w.latency_ms|dur }}</td>
+      <td class="r mono {% if w.speedup_vs_tb and w.speedup_vs_tb >= 1 %}ok{% endif %}"
+          data-sort="{{ w.speedup_vs_tb|sortv }}">{{ w.speedup_vs_tb|ratio }}</td>
+      <td class="r mono" data-sort="{{ w.score|sortv }}">{{ w.score|score }}</td>
       <td class="why-miss">
         {%- if w.bound_invalid %}
           <span class="flag" title="T_k came in below T_SOL, which nothing can do. The bound is wrong, so no score is stored for this workload rather than one above 1.0.">bound invalid</span>
         {%- elif w.score is not none %}
           <span class="solbar {% if w.score >= 0.5 %}beat{% else %}under{% endif %}"
-                title="S = {{ '%.4f'|format(w.score) }}">
+                title="S = {{ w.score|score_text }}">
             <span class="fill" style="width:{{ (w.score * 100)|round(1) }}%"></span>
             <span class="tick"></span>
           </span>
@@ -515,7 +518,7 @@
       <text x="{{ chart.pad_l - 6 }}" y="{{ chart.y_anchor + 4 }}" class="ax-lbl" text-anchor="end">0.5</text>
     {% endif %}
     <line x1="{{ chart.pad_l }}" y1="{{ chart.x_axis }}" x2="{{ chart.w }}" y2="{{ chart.x_axis }}" class="axis"/>
-    <text x="{{ chart.w }}" y="{{ chart.h - 6 }}" class="ax-lbl" text-anchor="end">{{ chart.x_max_min }} min</text>
+    <text x="{{ chart.w }}" y="{{ chart.h - 6 }}" class="ax-lbl" text-anchor="end">{{ chart.x_max_label }}</text>
     <path d="{{ chart.path }}" class="traj-line"/>
     {# Each mark is a group: a transparent hit shape and the visible one. A
        3.5px circle and an 8px hairline are not pointer targets, and a tooltip
@@ -535,7 +538,7 @@
       {%- set e = (trajectory|selectattr('n','equalto',m.n)|first) -%}
       <g data-eval="{{ m.n }}"
          {%- if e %}
-         {% if e.minutes_in is not none %}data-at="{{ '%.0f'|format(e.minutes_in) }}"{% endif %}
+         {% if e.minutes_in is not none %}data-at="{{ (e.minutes_in * 60)|mins_text }}"{% endif %}
          {% if e.utc %}data-utc="{{ e.utc }}"{% endif %}
          {% if e.passed is not none and e.workloads is not none %}data-passed="{{ e.passed }}/{{ e.workloads }}"{% endif %}
          {%- endif %}
@@ -548,11 +551,11 @@
     {% endfor %}
     {% for p in chart.points %}
       <g data-eval="{{ p.n }}"
-         {% if p.minutes_in is not none %}data-at="{{ '%.0f'|format(p.minutes_in) }}"{% endif %}
+         {% if p.minutes_in is not none %}data-at="{{ (p.minutes_in * 60)|mins_text }}"{% endif %}
          {% if p.utc %}data-utc="{{ p.utc }}"{% endif %}
-         data-s="{{ '%.4f'|format(p.mean_score) }}"
+         data-s="{{ p.mean_score|score_text }}"
          {%- if p.delta_vs_best is not none %}
-         data-delta="{{ '%+.4f'|format(p.delta_vs_best) }}"
+         data-delta="{{ p.delta_vs_best|delta_text }}"
          {# The colour of this delta is decided server-side, from the float, and
             shipped as a class name. The tooltip must not re-derive it from the
             printed string: see the delta_cls macro at the top of this file. #}
@@ -560,7 +563,7 @@
          {% if p.passed is not none and p.workloads is not none %}data-passed="{{ p.passed }}/{{ p.workloads }}"{% endif %}
          {% if p.kernel_lines %}data-lines="{{ p.kernel_lines }} lines"{% endif %}
          {% if p.regression %}data-note="correctness regression: fewer workloads passed than at an earlier eval"{% endif %}>
-        <title>eval {{ p.n }}{% if p.minutes_in is not none %} at +{{ '%.0f'|format(p.minutes_in) }} min{% endif %} — S = {{ '%.4f'|format(p.mean_score) }}{% if p.passed is not none and p.workloads is not none %}, {{ p.passed }}/{{ p.workloads }} passed{% endif %}</title>
+        <title>eval {{ p.n }}{% if p.minutes_in is not none %} at {{ (p.minutes_in * 60)|mins_text }}{% endif %} — S = {{ p.mean_score|score_text }}{% if p.passed is not none and p.workloads is not none %}, {{ p.passed }}/{{ p.workloads }} passed{% endif %}</title>
         <circle class="hit" cx="{{ p.x }}" cy="{{ p.y }}" r="9"/>
         <circle cx="{{ p.x }}" cy="{{ p.y }}" r="{{ 4.5 if p.regression else 3.5 }}"
                 class="pt {% if p.regression %}pt-reg{% endif %}"/>
@@ -603,21 +606,27 @@
         {# Minutes into the run stay the sort key: they are the axis the chart
            is drawn on. The wall-clock time sits underneath, in UTC and
            labelled, for the reader who is matching this against a log. #}
-        {# "not recorded", never "+0m": an eval the harness gave no offset for
-           is not an eval at minute zero. #}
-        <td class="r mono sm" data-sort="{{ e.minutes_in if e.minutes_in is not none else '' }}">{%
-          if e.minutes_in is not none %}+{{ '%.0f'|format(e.minutes_in) }}m{%
+        {# "not recorded", never a zero: an eval the harness gave no offset for
+           is not an eval at minute zero. The offset itself goes through `mins`
+           like every other span on the site, so a 45-second gap reads
+           "<1 min" rather than the old "+0m" -- `data-sort` keeps the exact
+           float, and the UTC clock time is on the line below. #}
+        <td class="r mono sm" data-sort="{{ e.minutes_in|sortv }}">{%
+          if e.minutes_in is not none %}{{ (e.minutes_in * 60)|mins }}{%
           else %}<span class="sub">not recorded</span>{% endif %}
           {%- if e.utc %}<span class="sub" style="display:block"><time class="localtime" data-fmt="time"
             datetime="{{ e.utc }}">{{ e.utc[11:16] }} UTC</time></span>{% endif %}</td>
         <td class="r" data-sort="{{ e.passed if e.passed is not none else '' }}">{%
           if e.passed is not none %}{{ e.passed }}<span class="sub">/{{ e.workloads if e.workloads is not none else '?' }}</span>{%
-          else %}<span class="sub">&mdash;</span>{% endif %}</td>
-        <td class="r mono">{{ '%.3f'|format(e.geomean_speedup) + '×' if e.geomean_speedup else '—' }}</td>
-        <td class="r mono big">{{ '%.4f'|format(e.mean_score) if e.mean_score is not none else '&mdash;'|safe }}</td>
-        <td class="r mono {{ delta_cls(e.delta_vs_best) }}">{{
-          '%+.4f'|format(e.delta_vs_best) if e.delta_vs_best is not none else '—' }}</td>
-        <td class="r mono sm">{{ e.kernel_lines ~ ' ln' if e.kernel_lines else '—' }}</td>
+          else %}{{ na('the harness recorded no pass count for this eval') }}{% endif %}</td>
+        <td class="r mono" data-sort="{{ e.geomean_speedup|sortv }}">{{ e.geomean_speedup|ratio }}</td>
+        {# A harness-side mean S is NOT a board score: 27 of 7,073 of these
+           rows fall outside the [0,1] contract, the largest 32.354054. `score`
+           marks those rather than rendering them in the same style as a
+           0.4907 that means something else. #}
+        <td class="r mono big" data-sort="{{ e.mean_score|sortv }}">{{ e.mean_score|score }}</td>
+        <td class="r mono {{ delta_cls(e.delta_vs_best) }}" data-sort="{{ e.delta_vs_best|sortv }}">{{ e.delta_vs_best|delta }}</td>
+        <td class="r mono sm" data-sort="{{ e.kernel_lines|sortv }}">{% if e.kernel_lines is not none %}{{ e.kernel_lines|n }} ln{% else %}{{ missing }}{% endif %}</td>
         <td class="sm">
           {%- if e.harness_error %}<span class="sub">harness did not run &mdash; nothing measured</span>
           {%- elif e.regression %}<span class="flag">correctness regression</span>
@@ -645,20 +654,20 @@
 <h2 id="cost">What it cost</h2>
 {% if effort %}
 <div class="cards">
-  {% if effort.cost_usd %}<div class="card"><div class="num">${{ '%.2f'|format(effort.cost_usd) }}</div><div class="lbl">API cost, this problem</div></div>{% endif %}
-  {% if effort.wall_seconds %}<div class="card"><div class="num">{{ '%.0f'|format(effort.wall_seconds/60) }}<span class="of">min</span></div><div class="lbl">wall time{% if effort.api_seconds %} ({{ '%.0f'|format(effort.api_seconds/60) }} in API){% endif %}</div></div>{% endif %}
-  {% if effort.turns %}<div class="card"><div class="num">{{ effort.turns }}</div><div class="lbl">agent turns</div></div>{% endif %}
-  {% if effort.harness_evals %}<div class="card"><div class="num">{{ effort.harness_evals }}</div><div class="lbl">harness evals</div></div>{% endif %}
+  {% if effort.cost_usd is not none %}<div class="card"><div class="num">{{ effort.cost_usd|usd }}</div><div class="lbl">API cost, this problem</div></div>{% endif %}
+  {% if effort.wall_seconds is not none %}<div class="card"><div class="num">{{ effort.wall_seconds|mins }}</div><div class="lbl">wall time{% if effort.api_seconds is not none %} ({{ effort.api_seconds|mins_text }} in API){% endif %}</div></div>{% endif %}
+  {% if effort.turns is not none %}<div class="card"><div class="num">{{ effort.turns|n }}</div><div class="lbl">agent turns</div></div>{% endif %}
+  {% if effort.harness_evals is not none %}<div class="card"><div class="num">{{ effort.harness_evals|n }}</div><div class="lbl">harness evals</div></div>{% endif %}
   {% if summary.mean_attempted and effort.cost_usd %}
-  <div class="card"><div class="num">${{ '%.0f'|format(effort.cost_usd / summary.mean_attempted) }}</div>
+  <div class="card"><div class="num">{{ (effort.cost_usd / summary.mean_attempted)|usd }}</div>
     <div class="lbl" title="Cost divided by the mean S reached. A rate, not a price: nothing here was bought at this rate.">per point of S</div></div>
   {% endif %}
 </div>
 <p class="sub">
-  Tokens: {{ '{:,}'.format(effort.input_tokens or 0) }} in &middot;
-  {{ '{:,}'.format(effort.output_tokens or 0) }} out &middot;
-  {{ '{:,}'.format(effort.cache_read_tokens or 0) }} cache read &middot;
-  {{ '{:,}'.format(effort.cache_write_tokens or 0) }} cache write.
+  Tokens: {{ (effort.input_tokens or 0)|n }} in &middot;
+  {{ (effort.output_tokens or 0)|n }} out &middot;
+  {{ (effort.cache_read_tokens or 0)|n }} cache read &middot;
+  {{ (effort.cache_write_tokens or 0)|n }} cache write.
   Agent ran on GPU {{ effort.gpu }} (exploration); the timings above are the
   re-time on GPU 0.
   {%- if effort.capped %} <b>Budget cap stopped this session.</b>{% endif %}
@@ -677,9 +686,9 @@
 <h2 id="transcript">Transcript</h2>
 {% if transcript %}
 <p class="sub">
-  {{ '{:,}'.format(transcript.n_lines) }} records &middot;
-  {{ '{:,}'.format(transcript.n_turns) }} assistant turns &middot;
-  {{ (transcript.bytes / 1048576)|round(1) }} MB &middot;
+  {{ transcript.n_lines|n }} records &middot;
+  {{ transcript.n_turns|n }} assistant turns &middot;
+  {{ transcript.bytes|bytes_h }} &middot;
   tool calls: {% for t, n in transcript.tools.items() %}<span class="ax">{{ t }} {{ n }}</span>{% endfor %}
 </p>
 <p><a class="chip" href="{{ part_url(transcript.url) }}">download the full transcript (JSONL)</a></p>
@@ -722,8 +731,8 @@
          tell that "over 38" is the normal case unless the normal case says so.
          When a bound was beaten the shortfall is named, because the cause is a
          defect in the bound and not anything this run did. #}
-      <td class="r big" data-sort="{{ s.mean_score if s.mean_score is not none else '' }}">
-        {{ '%.4f'|format(s.mean_score) if s.mean_score is not none else '&mdash;'|safe }}
+      <td class="r big" data-sort="{{ s.mean_score|sortv }}">
+        {{ s.mean_score|score }}
         {%- if s.mean_score is not none %}
         <span class="sub den{% if s.scored < s.passed %} den-short{% endif %}"
           {%- if s.scored < s.passed %} title="{{ s.passed - s.scored }} of this run's {{ s.passed }} passing workloads beat T_SOL, so the bound is invalid there and no score is defined. Those workloads are not in this average -- it is over {{ s.scored }}, not {{ s.passed }}."{% endif %}>over {{ s.scored }}{% if s.scored < s.passed %} of {{ s.passed }} &mdash; bound beaten on {{ s.passed - s.scored }}{% endif %}</span>

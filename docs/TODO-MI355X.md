@@ -1,20 +1,29 @@
-# TODO-MI355X — the runbook for an 8× MI355X node
+# TODO-MI355X — bringing the benchmark up on an 8× MI355X node, **unlocked**
 
-This is what an agent landing on an 8× MI355X node executes, in order. It is
-derived from what this repo contains, not from a plan: every script, flag,
-artifact path and acceptance command below exists today on `master`.
+This is what an agent landing on an 8× MI355X node executes, in order. Every
+script, flag, artifact path and acceptance command below exists on `master` at
+the time of writing, and every number in it is either read out of a tracked file
+here or quoted with its source. Nothing is estimated.
 
 **The port needs no work. Every number does.** MI355X and MI350X are the same
-CDNA4 die (`gfx950`), so the harness, the tolerances machinery, the shim, the
+CDNA4 die (`gfx950`), so the harness, the tolerance machinery, the shim, the
 exploit corpus and the manifest builder are all part-independent. What is not
 transferable is anything with a millisecond or a megahertz in it.
 
-**What is on `master` for MI355X today: nothing.** `artifacts/00/` and
-`artifacts/01/` are the MI350X record, `manifest-v1` is MI350X at F_LOCK 1300
-(as are v1.1 and v1.2, which the board serves), and `leaderboard/db/` holds
-`solbench-MI350X.db` only. Read §1 before you
-conclude that no MI355X measurement has ever been taken — that is true of
-`master` and false of the repo.
+**The one thing that changed since the previous version of this file: the clock
+policy.** MI355X will be measured **without a clock lock**. That decision is
+made; §1 records the evidence behind it and §10 records what it does *not*
+settle. The rest of this document exists because the repo was built on the
+assumption that a single `F_LOCK` constant describes a run, and on an unlocked
+node it does not.
+
+**And one thing has changed in source since then**, which §3.3 and §3.4 cover
+in full and which you will hit whether or not you read them:
+`ClockPreset.f_lock_mhz` no longer falls back to the requested clock, so
+`get_clock_preset("AMD Instinct MI355X").f_lock_mhz` is now **`None`**, not
+1650. Nothing on MI355X stamps a clock any more, and `build_manifest.py`
+refuses to build until you supply a measured one. That is the intended
+behaviour.
 
 ---
 
@@ -23,61 +32,612 @@ conclude that no MI355X measurement has ever been taken — that is true of
 | | why |
 |---|---|
 | `CLAUDE.md` | the eight prime directives. Directives 1, 2 and 3 are the ones this task will tempt you to break. |
-| `STATE.md` | the ledger. Everything in it below the environment table is MI350X unless it says otherwise. |
-| `TODO.md` | the open gaps. Most of them follow you to MI355X (§8). |
-| `tasks/DEPENDENCIES.md` + `tasks/NN-*.md` | the specification of each acceptance check. Note that `tasks/01`, `02` and `03` are written *for MI355X* — they were authored in session 1 on this part, and `master` then executed them on MI350X. |
+| `docs/methodology.md` §3 and §5 | §3 is PR #2's MI355X clock measurement, including two corrections its author left visible; §5 *Both terms of the roofline, not only their max* is the mechanism that replaces `F_LOCK`. |
+| `STATE.md` D55 and D61 | D55 is the MI350X mirror image of §3. D61 is a retraction, and the worked example in §8.2. |
+| `TODO.md` | the open defect list. Most of it follows you to MI355X (§9). |
+| `tasks/DEPENDENCIES.md` + `tasks/NN-*.md` | the specification of each acceptance check. `tasks/01`, `02` and `03` were authored in session 1 *on MI355X*; `master` then executed them on MI350X. |
 
 ---
 
-## 1. Before you measure anything: `origin/feat/agent-scoreboard`
+## 1. The policy: unlocked, and why
 
-An earlier session already did much of this on an MI355X node
-(`mia1-p02-g10`) and the work is **unmerged**:
+**Decided. Do not relitigate it here; §10 lists what is still open.**
 
-```bash
-git rev-list --count master..origin/feat/agent-scoreboard   # 29 as of 2026-08-06
-git show origin/feat/agent-scoreboard:STATE.md | less
+The evidence, quoted from `docs/methodology.md` §3 (*That question, asked on a
+second MI355X node*), measured on `mia1-p02-g10` with
+`scripts/gpu_parity_check.py` and `scripts/unlocked_clock_probe.py`, neither of
+which imports anything from the benchmark harness:
+
+* Unlocked, all eight cards on `perf_level=auto` under one saturating 8192³ BF16
+  GEMM: **1454–1500 TFLOPS (3.0% spread), 1725–1829 MHz, 1381–1399 W**.
+* The same run with `--setperfdeterminism 1660` on all eight: throughput spread
+  **21.0%**, six or seven cards ~320 MHz below the frequency they acknowledged,
+  at ~980 W against a 1400 W cap, with `amd-smi` reporting no violation of any
+  kind.
+* Measured three times over five days **including across a hard reboot**:
+  unlocked 3.4 / 3.0 / 3.0%, locked 21.2 / 21.0 / 21.3%.
+* Per-card, all eight, two setpoints: **15 of 16 measurements land at
+  0.795–0.864× of the setpoint while drawing 734–999 W; the single one that
+  reached its setpoint drew 1272 W.** So the failure is the card not raising its
+  power state, not clock control refusing a number.
+* Unlocked/locked, side by side: drift over 8 min sustained **0.7% / not
+  measured**; sensitivity to seven busy neighbours **1.0% / up to −15%**;
+  per-card behaviour stable run to run **yes / no**.
+
+The opposite result on the other part, quoted from `STATE.md` D55 (MI350X,
+`gbt350-odcdh1-a08-1`): across twelve loads spanning 305–900 W and 1303–1586
+MHz, locked vs unlocked vs cap-raised-to-2200 are indistinguishable. D55's four
+geomeans against the locked arm are **1.0012** (3 s holds), **0.9957**
+(locked-at-2200), **1.0005** (saturating set) and **1.0024** (60 s soak), and
+its own between-block spreads are **1.33% locked1600 / 0.92% unlocked / 0.40%
+locked2200**, plus **0.6%** on the saturating set — so no ratio clears the
+spread of the blocks it was computed from. The reason is in the telemetry, not
+the ratios: the 1600 setpoint never binds on a part already sitting at its
+power-limited operating point.
+
+**Carry D55's own caveat with the result** (`STATE.md`, D55's closing paragraph,
+"UNRESOLVED, and recorded rather than smoothed over"): `artifacts/01` has an
+unlocked GPU 0 reaching **1390 MHz at 1001 W**, and that session never got the
+card above 900 W on any load. Duration was tested and ruled out; the remaining
+explanation — that the earlier probe's loop differs from `torch.mm` in a way
+that draws the last 100 W — was not identified. So "the cap never binds" is
+true of everything measured there and **not proven in general**, which is a
+second reason not to carry the result onto this part.
+
+Two parts, one API, opposite failures. That is why the policy is **per part**
+and not a repo-wide constant, and why neither result may be carried across. The
+module docstring of `src/solexbench_rocm/t_sol_at.py` states the same thing and
+is the short version to hand a reviewer.
+
+**What unlocked costs you, stated up front.** Frequency becomes a property of
+the kernel: `artifacts/01/unlocked-clock.json` (host `mia1-p02-g10`) records a
+**27.9% spread across workload types** on that node — a dense GEMM pushed to
+~1730 MHz against the 1400 W cap, a memory-bound kernel boosting to ~2394 MHz.
+So there is no single frequency to divide a cycle count by, and §3 is about
+everything in the repo that currently assumes there is.
+
+---
+
+## 2. What is already on `master` for MI355X — and the trap it created
+
+PR #2 is merged (`697749f0`, *Merge PR #2: the MI355X clock finding, and the
+machinery to score without a lock*). Merged with it:
+
+| | what it is |
+|---|---|
+| `scripts/gpu_parity_check.py` | one fixed 8192³ BF16 GEMM on all eight cards, wall-clock throughput, plus a per-card setpoint sweep. `--n-gpus 8 --seconds 45 --setpoint 1660 --sweep-gpus … --sweep-setpoints …`, out to `artifacts/00/gpu-parity.json`. |
+| `scripts/unlocked_clock_probe.py` | varies workload, duration and neighbour load unlocked. `--gpu --n-gpus --seconds --drift-seconds`, out to `artifacts/01/unlocked-clock.json`. |
+| `scripts/burst_clock_probe.py` | per-iteration time vs burst length, which answers "was the clock the same?" without telemetry. `--gpu` (default **1**) `--mode unlocked\|locked --setpoint`. |
+| `env/solb-native`, `env/check_stack.py` | a daemonless path that *asserts* the pinned torch/HIP instead of assuming it. |
+| `src/solexbench_rocm/t_sol_at.py` + `tests/scripts/test_t_sol_at.py` | re-max both roofline terms at an arbitrary clock (§4). |
+| `scripts/sol_bounds.py` | now emits `compute_cycles`, `memory_cycles_at_f_ref`, `mac_per_cycle`, `dram_byte_per_sec` alongside the max. |
+| `scripts/clock_calibrate.py` | per-device SMI calls now go through `smi_device_index()` → `gpu_map.torch_to_amdsmi()`. |
+
+**`artifacts/00/` and `artifacts/01/` now hold two parts' files side by side,
+and nothing in the tree records which is which.** Verified by reading
+`_provenance` out of each file — and note how the part had to be recovered,
+because it is §10 item 7's defect happening here too: only
+`artifacts/01/unlocked-clock.json` carries an explicit `_provenance.part`
+(`"MI355X"`). For the other three the part is an *inference* off the torch
+device-name list at `_provenance.torch.devices[0]`, `"AMD Instinct MI355X"`.
+
+| file | host | part | stamped `f_lock_mhz` |
+|---|---|---|---|
+| `artifacts/00/gpu-parity.json` | `mia1-p02-g10` | MI355X *(inferred)* | 1650 |
+| `artifacts/01/unlocked-clock.json` | `mia1-p02-g10` | MI355X *(explicit)* | 1650 |
+| `artifacts/01/burst-clock.json` | `mia1-p02-g10` | MI355X *(inferred)* | 1650 |
+| `artifacts/01/burst-clock-locked.json` | `mia1-p02-g10` | MI355X *(inferred)* | 1650 |
+| `artifacts/00/node-report.json` | `gbt350-…` | MI350X *(inferred)* | null |
+| `artifacts/01/floor-gpu{0,1,2}.json`, `det1600-gpu{0..7}.json` | `gbt350-…` | MI350X *(inferred)* | null |
+
+Two consequences, both of which will bite during bring-up:
+
+1. `scripts/verify_artifacts.py:246` collects clock floors with
+   `(ART/"01").glob("floor-gpu*.json")` — **no part filter** — and then requires
+   `F_LOCK <= min(p5 over all matching files)`. The first MI355X `floor-gpu*.json`
+   written into `artifacts/01/` silently gates the MI350X F_LOCK against MI355X
+   floors. Move the MI350X tree aside first (§5 step 3).
+2. Those four MI355X files are stamped `f_lock_mhz: 1650`, which is the number
+   §3 is about, and which the node they were taken on did not run at.
+
+**Still not on `master`:** `origin/feat/agent-scoreboard`, 30 commits ahead of
+HEAD (`git rev-list --count HEAD..origin/feat/agent-scoreboard` → 30). It still
+carries `scripts/run_pipeline.sh`, `scripts/score_solutions.py` and
+`scripts/backfill_scores.py`, none of which exist here. Its measurements are a
+colleague's lab notebook: its `T_b` was taken while a 404-session agent sweep
+saturated the node's CPUs and `S` was retracted rather than published. Read it;
+adopt nothing from it. Decide explicitly, and record in `STATE.md`, whether you
+cherry-pick the pipeline scripts or re-implement — silently re-implementing
+`run_pipeline.sh` is the expensive option.
+
+---
+
+## 3. What "unlocked" actually breaks, file by file
+
+`F_LOCK` is not a documentation convenience. It is a divisor, a stamp, a guard,
+and a headline number on the board. Each of these is a real site, read this
+session.
+
+### 3.1 The bound divisor
+
+`scripts/sol_bounds.py:410` — `"t_sol_ms": cycles / (freq_ghz * 1e6)`, where
+`freq_ghz` comes from the required `--freq-mhz`. This is the only place T_SOL
+becomes a time. Unlocked there is no single correct value to pass here. §4 is
+the replacement; until then, whatever you pass is a *reference* clock, not a
+measurement clock, and the artifact must say so.
+
+`scripts/rebuild_manifest_v11.py` and `scripts/rebuild_manifest_v12.py` hardcode
+MI350X's clock, and **the module constant is not the only literal**:
+
+* `rebuild_manifest_v11.py:68` `F_LOCK_MHZ = 1300.0`, used at `:207` as
+  `max(F_LOCK_MHZ, measured)` — i.e. 1300 is a hard *floor* on the per-datapath
+  clock — and at `:290`.
+* `rebuild_manifest_v11.py:284` opens with a **second, bare** `f = 1300.0`
+  before the datapath override, and `:296` computes
+  `w["t_sol_ms"] = w["t_sol_cycles"] / (f * 1e3)`. Editing line 68 alone leaves
+  this in place.
+* `rebuild_manifest_v12.py:72` `F_LOCK_MHZ = 1300.0`, `:107-108` the same clamp,
+  `:186` `f = F_LOCK_MHZ`.
+
+Both read `artifacts/09/manifest-v1.1.json` and are MI350X rebuilders in
+practice, but **neither asserts a part**. Pointed at an MI355X manifest they
+produce a plausible wrong answer. Do not reuse them on MI355X; the v1.1/v1.2
+corrections must be re-derived, not replayed.
+
+### 3.2 The per-datapath divisors (D35)
+
+`artifacts/01/f_lock_by_datapath.json` (MI350X, host `gbt350-…`) answers in its
+own words: *"Every matrix-core path sits at F_LOCK -- bf16 1296, fp16 1299, fp8
+1314. The fp32 vector path sustains 1441 MHz, 10.8% above it… Every
+compute-bound fp32 bound in manifest v1 is therefore 10.8% too large in
+milliseconds."* That correction is a per-part, per-datapath measurement and
+**does not transfer**. On an unlocked node it is also the wrong shape: the datapath
+is a proxy for the clock, and unlocked you can measure the clock instead.
+
+### 3.3 The stamp
+
+`scripts/provenance.py:88-119`, `f_lock_mhz()`. It resolves from
+`SOLEXBENCH_F_LOCK_MHZ`, else from `get_clock_preset(torch.cuda.get_device_name(0))`.
+**It never consults a device.** `stamp()` writes one value per *artifact*, not
+per measurement.
+
+**This has been fixed in source, and not the way an earlier version of this
+document proposed.** The preset used to be
+
+```python
+"AMD Instinct MI355X": ClockPreset(gpu_clk_mhz=1650, dram_clk_mhz=None),
 ```
 
-`TODO.md` says 24 commits; the branch has moved since. It carries a full node
-acceptance, a re-measured F_LOCK, a re-derived T_SOL, 223 of 235 T_b candidate
-selections, an agent scoreboard, and twelve scripts that do not exist on
-`master` (`env/solb-native`, `env/check_stack.py`, `scripts/run_pipeline.sh`,
-`scripts/score_solutions.py`, `scripts/gpu_parity_check.py`,
-`scripts/burst_clock_probe.py`, `scripts/unlocked_clock_probe.py`,
-`scripts/backfill_scores.py`, and the agent-sweep drivers).
+with `f_lock_mhz` reading `achieved_gpu_clk_mhz or gpu_clk_mhz` — so an entry
+with no measured `achieved_gpu_clk_mhz` handed back the **requested** 1650 and
+labelled it achieved. `src/sol_execbench/core/bench/config/device_config.py`
+today keeps the entry and adds a flag instead:
 
-Its data is deliberately **not** on the leaderboard: its `T_b` was measured
-while a 404-session agent sweep saturated the node's CPUs, it fails the anchor
-property (13/204), and `S` was retracted rather than published (branch blocker
-B2).
+```python
+    requested_is_achieved: bool = True          # :67, the NVIDIA case
 
-Treat that branch the way you would treat a colleague's lab notebook: it tells
-you what to expect and what already went wrong, and **none of it is a
-measurement you may adopt**. In particular its findings about determinism mode
-(§3) are properties of *that node*, possibly of that node's firmware, and were
-already revised three times within the branch itself (D18 → D27 → D29 → D30).
-If you are on `mia1-p02-g10`, expect them. If you are on any other MI355X node,
-re-measure and expect nothing.
+    @property
+    def f_lock_mhz(self) -> Optional[int]:      # @property :69, def :70,
+                                                # docstring :71-88, body :89-91
+        if self.achieved_gpu_clk_mhz is not None:
+            return self.achieved_gpu_clk_mhz
+        return self.gpu_clk_mhz if self.requested_is_achieved else None
 
-Decide explicitly, and record the decision in `STATE.md`: merge the branch
-first, or start from `master` and cherry-pick. Starting from `master` and
-silently re-implementing `run_pipeline.sh` is the expensive option.
+    "AMD Instinct MI355X": ClockPreset(         # :135-137
+        gpu_clk_mhz=1650, dram_clk_mhz=None, requested_is_achieved=False
+    ),
+```
+
+So today **`get_clock_preset("AMD Instinct MI355X").f_lock_mhz` is `None`**.
+MI350X, which carries a real `achieved_gpu_clk_mhz=1300` beside its
+`gpu_clk_mhz=1600`, still returns 1300; the three NVIDIA entries take the
+`True` default and are unchanged. All four are pinned by
+`tests/sol_execbench/core/bench/config/test_clock_preset_f_lock.py`.
+
+**Keeping the entry is the point, not a compromise.** `1650` is still recorded
+as the *request*, which is the only thing it ever was, and it is still what
+gets applied: `clock_lock.py:110-112` reads `preset.gpu_clk_mhz`, not
+`f_lock_mhz` (the assignment opens on :110, names the field on :111 and closes
+on :112), so a deliberate lock still works and nobody has to rediscover the
+number.
+What is gone is the fallback that turned a request into a measurement.
+
+**Why the fallback was worth removing, from PR #2's own numbers.** Apply the
+sourced band to that 1650: at 0.795–0.864× of the setpoint the card holds
+1650 × 0.795 = 1312 MHz to 1650 × 0.864 = 1426 MHz. Stamping 1650 across that
+band overstates the clock by 1650/1426 = 1.157 to 1650/1312 = 1.258 — **16% to
+26% high**. (Do not quote a single figure for this; the per-card table in
+`docs/methodology.md` §3 is explicitly labelled a snapshot, not a taxonomy.)
+
+**And that is the undetectable direction.** A bound divided by 1650 while the
+silicon holds 1312–1426 MHz comes out **1.157–1.258× too small** — that is
+13.6% to 20.5% *below* the correct value, **not** the clock's own 16–26%. The
+two figures are different arithmetic and must not be swapped: a clock that is
+1.157–1.258× high divides the bound by that factor, so the correct bound is
+1.157–1.258× the one you get (equivalently, 1 − 0.864 = 13.6% and
+1 − 0.795 = 20.5% short). And a `T_b` measured on that same slow
+silicon is slow by the same factor, so task 03's `T_SOL <= T_b` gate
+passes *more* easily. This is exactly the shared-error case `CLAUDE.md` §6 says
+a self-consistent bound and anchor cannot detect, which is why the fix is in
+the property rather than in a comment.
+
+**What the operator must now do**, because a `None` is not free — 3.4 has the
+consequences in full, and the short version is that the manifest build refuses
+outright:
+
+1. **Measure a clock on your node and pass it as `SOLEXBENCH_F_LOCK_MHZ`.**
+   `provenance.f_lock_mhz()` checks that first, so it is the supported way to
+   build off-preset, and `build_manifest.py:252-257` names it in its own error
+   message. It must be a number you measured, in this session, on this node —
+   an env var is exactly as capable of carrying an invented measurement as a
+   table was.
+2. **Or measure the part properly and add `achieved_gpu_clk_mhz`** to the
+   MI355X entry. That is a source edit, it is legitimate, and §1 is the reason
+   it is also not sufficient: unlocked there is no single achieved clock to put
+   there — 27.9% across workload types on the one node that has been probed.
+3. **Or take §4.3's route and stop dividing by one clock at all**, which is the
+   direction the rest of this document argues for.
+
+Whichever you pick, write it into `STATE.md` before measuring (§5 step 6). A
+`null` stamp is a known, visible gap and the board already renders it (3.5);
+1650 was an invented measurement; a number from an env var nobody sourced would
+be an invented measurement with an extra step.
+
+### 3.4 The guards
+
+* `scripts/build_manifest.py` has **two** F_LOCK guards, they sit at different
+  levels, and they treat `None` in opposite ways. Getting them the wrong way
+  round is what an earlier version of this section did, so read both.
+
+  **The per-artifact comparison, `:162`,** inside `collect_t_b`:
+
+  ```python
+  measured_at = (doc.get("_provenance") or {}).get("f_lock_mhz")
+  if f_lock_mhz is not None and measured_at not in (None, f_lock_mhz):
+      foreign.append((f.name, measured_at))          # rejected
+  ```
+
+  This rejects any T_b artifact whose *stamped* clock disagrees with the
+  expected one, and **admits a stamped `None`** — deliberately, per the comment
+  at `:158-160`: a null stamp means the artifact predates F_LOCK stamping,
+  which is a different problem from being measured at the wrong clock, and
+  `check_06` requires provenance separately. That admission is about the
+  artifact's own `_provenance`, not about the F_LOCK the build resolved.
+
+  **The top-level resolution, `:243-257`,** which runs first:
+
+  ```python
+  expected_f_lock = _f_lock()
+  if expected_f_lock is None:
+      raise SystemExit("cannot resolve F_LOCK: no GPU preset and no "
+                       "SOLEXBENCH_F_LOCK_MHZ. ...")
+  ```
+
+  Its comment says why in as many words: `collect_t_b(..., None)` would admit
+  artifacts from any clock, "refusing is the only safe reading: an unknown
+  clock is not a permissive one."
+
+  **So on MI355X today the manifest build refuses outright**, because 3.3 makes
+  `provenance.f_lock_mhz()` resolve to `None` there. That is the intended
+  behaviour and it is a *feature* of the shipped state, not a hole: the failure
+  mode is a hard exit before anything is written, not a silently permissive
+  guard. The escape hatch is the one the error message names —
+  `SOLEXBENCH_F_LOCK_MHZ=<measured MHz>` — and taking it re-arms `:162` at
+  whatever number you supply, so it is only as good as that measurement.
+  What is still missing, and what §4.3 is about, is that neither guard has any
+  notion of a *per-measurement* clock; both compare one number per artifact.
+* `scripts/verify_artifacts.py` `check_01` (`:205-`) — as written it **cannot
+  pass on an unlocked node**. It requires `F_LOCK recorded in STATE.md`, then
+  `F_LOCK present in CLOCK_LOCK_PRESETS`, then
+  `STATE.md and CLOCK_LOCK_PRESETS agree on F_LOCK`, then `every GPU is at the
+  preset's determinism setpoint`. All of those presuppose a lock, and after 3.3
+  it fails at the second one *concretely* rather than in principle:
+  `f_lock_from_preset()` (`:141-159`) returns `preset.f_lock_mhz`, which is
+  `None` on MI355X, so the check reports "no preset for this device" even
+  though the entry exists. Note the split — `requested_clock_from_preset()`
+  (`:127-138`) still returns `gpu_clk_mhz`, so the setpoint check keeps
+  comparing against 1650. Amending task
+  01's acceptance check is a **methodology change** and therefore a maintainer
+  decision (prime directive 7, `CLAUDE.md` §1: *a task is complete only when its
+  acceptance check passes*). Do not quietly weaken it; §10 carries it as open.
+* `scripts/verify_artifacts.py:172` — `len(gpus) == 8`. Both target nodes are
+  8×, so it will not bite today; it is a node property sitting in a gate.
+* `scripts/verify_artifacts.py:246` — the unfiltered `floor-gpu*.json` glob, §2.
+
+### 3.5 The board
+
+`f_lock_mhz` is a headline, not an internal: `leaderboard/models.py:43`,
+`leaderboard/ingest.py:323` (copies it straight out of `_provenance`), and six
+rendered sites — `templates/index.html:21` (a stat card labelled *locked clock
+(achieved)*) and `:226`, `templates/methodology.html:30`, `:65`, `:159`,
+`templates/problem.html:138`. `templates/base.html:207` already renders a
+`null` stamp as **"not stamped"** with an explanatory tooltip, so the honest
+empty state exists — but *"locked clock (achieved)"* is the wrong label for an
+unlocked part, the methodology page's *"F_LOCK … is what the part…"* sentence
+becomes false, and `base.html:207`'s tooltip states one specific *cause* for a
+null stamp — *"the artifact was written by a process without torch"* — which is
+the MI350X cause and not the MI355X one. On MI355X the stamp is null because
+the preset resolves to `None` by design (3.3), which is a different fact about
+a different problem, and a tooltip that names the wrong reason is worse than a
+generic one. These are template edits, cheap, and they should land before the
+first MI355X board is published rather than after.
+
+`leaderboard/ingest.py:74` — `MANIFEST = ROOT/"artifacts"/"09"/"manifest-v1.2.json"`,
+a module constant with **no `--manifest` flag** (`--db --part --agent-runs
+--sources --allow-drop` are the whole CLI). To produce `db/solbench-MI355X.db`
+the MI355X manifest has to *be* that path. `--part` **asserts**, it does not
+relabel: `manifest_part()` reads the part from the manifest's own provenance and
+a disagreeing `--part` is a hard exit. Adding a `--manifest` flag **is already
+in the contract** — `leaderboard/DESIGN-v2.md` §6, *Amendment — the storage
+contract cannot be executed as written* (:369-390), names exactly two missing
+pieces: "1. A `--manifest PATH` argument, defaulting to today's constant so no
+existing invocation changes. 2. Deriving the output database name from the
+manifest's own part when `--db` is not given." So implement it to that spec
+rather than raising it as an open question. (The amendment's own citation has
+drifted: :375 quotes the constant as `manifest-v1.json  # ingest.py:50`; the
+real one is `manifest-v1.2.json` at `ingest.py:74`, as above. The flag it asks
+for is unaffected.)
+
+### 3.6 The artifact tree
+
+`scripts/build_manifest.py:216-223` defaults are all task-keyed and part-blind:
+`artifacts/09/manifest-v1.json`, `artifacts/03/t_sol.json`,
+`artifacts/06/authoritative`, `artifacts/05`, `artifacts/deferred.json`. An
+MI355X run at defaults overwrites the MI350X release record that manifest v1
+cites. §5 step 3 handles it by moving directories; a prose instruction is not a
+guard, and adding a part dimension to `artifacts/` is on the open list (§10).
 
 ---
 
-## 2. Node setup
+## 4. The mechanism that replaces F_LOCK — and exactly what is missing
 
-`data/` is gitignored and does not travel with the repo. Three steps, then a
-baseline check. All from `README.md` *Running it*, which is the maintained copy.
+### 4.1 What exists and is correct
+
+`scripts/sol_bounds.py` now keeps both roofline terms rather than only their
+max, because they scale oppositely with the clock (its own comment, and
+`docs/methodology.md` §5):
+
+* `MAC_per_cycle` is **architectural** and frequency-independent, so the compute
+  term is a fixed number of **cycles** and its *time* goes as 1/F.
+* `DRAM_byte_per_cycle` is derived as `bytes_per_sec / freq`, so the memory term
+  is a fixed **time** and its *cycle count* scales with F.
+
+So it emits `compute_cycles`, `memory_cycles_at_f_ref`, `mac_per_cycle` and
+`dram_byte_per_sec` per workload, and `src/solexbench_rocm/t_sol_at.py` provides
+`t_sol_cycles_at(w, f_mhz)`, `t_sol_ms_at(w, f_mhz)` and `bottleneck_at(w, f_mhz)`.
+`t_sol_cycles_at` reproduces `sol_bounds`' `max(1, ceil(...))` rounding
+deliberately, and `bottleneck_at` is reported rather than assumed because **the
+bottleneck can flip as F moves**. Records written before the split raise
+`MissingBoundTerms` rather than being inferred from `bottleneck`. The tests are
+CPU-only and pass here (`tests/scripts/test_t_sol_at.py`).
+
+This is the right machinery and it is part-independent. Land its use on MI350X
+too if you can — it makes the bound model explicit and testable.
+
+### 4.2 What is missing, in order of how much it blocks
+
+**(a) No existing bound record can be re-clocked.** `t_sol_at.REQUIRED_FIELDS =
+("compute_cycles", "memory_bytes", "dram_byte_per_sec")`. The tracked
+`artifacts/03/t_sol.json` predates the split and carries none of
+`compute_cycles` / `dram_byte_per_sec`, so every record raises. **This is not a
+problem for MI355X**, because you are re-running `sol_bounds.py` from scratch
+anyway and it costs no GPU (SOLAR runs on `device="meta"`). It *is* the reason
+you cannot shortcut by converting the MI350X artifact.
+
+**(b) The declared-traffic tier emits none of those fields.**
+`scripts/sol_traffic_floor.py` writes a memory-only bound with no
+`dram_byte_per_sec`, so `t_sol_at` refuses all of it. For a *pure*
+declared-traffic bound that is only cosmetically bad — a memory-only bound is
+clock-invariant in time, so the answer is "unchanged". For workloads whose bound
+is the max of both tiers it is a real gap: both tiers must be re-evaluated and
+re-maxed at the new clock, and there is no code for that. Count the affected
+workloads on *your* manifest before deciding how much it matters; the MI350X
+counts do not transfer.
+
+**(c) `build_manifest.py` does not propagate the four new fields** into the
+manifest's per-workload record. Until it does, the scorer can never see them,
+however correct `t_sol_at` is.
+
+**(d) — the one that decides whether any of this works — nothing measures a
+clock per measurement.** There is no clock field anywhere in a T_b candidate
+artifact. `provenance.f_lock_mhz()` is an env var or a table lookup (3.3), one
+value per artifact either way, and on MI355X the table half now yields nothing.
+Getting a per-measurement clock means: add a sampler inside
+`time_runnable`, choose a reduction, thread it into the T_b artifact, through
+`build_manifest`, and into the scorer. PR #2 ships the last mathematical step
+and none of that plumbing.
+
+**And the plumbing may not be buildable as specified**, which is the honest part.
+From `docs/methodology.md` §7 (*How short is the timed window?*):
+`BenchmarkConfig` defaults to `warmup_runs=10, iterations=50`, so `time_runnable`
+times 60 back-to-back executions — for most of this corpus a **1–13 ms window,
+shorter than any telemetry sampler can observe**. The finest in-loop sampler in
+this repo is `scripts/probe_stall_clock.py`, whose `--period` defaults to
+`0.001` (`:75`) and which `STATE.md` D20 records actually achieving **~860 Hz**
+inside the timing loop — about 1.16 ms a sample, so a 1–13 ms window is roughly
+**1 to 11 points**. That is the finest instrument the repo has, and eleven
+points is not a clock measurement; the conclusion is unchanged and now the
+arithmetic matches the instrument. Worse, that window is not steady
+state: per-iteration time at 60 iterations relative to a 50,000-iteration
+sustained loop is **1.217× (GEMM 4096³), 2.040× (GEMM 1024³), 1.042×
+(elementwise)** unlocked. So a clock read *during* the window is undersampled and
+a clock read *around* it is not the window's clock. Note §7 also finds the bias
+**slightly worse locked than unlocked** in all three shapes — unlocking does not
+cause this and does not fix it.
+
+### 4.3 The honest alternative, if per-measurement clock is not achievable
+
+State it in `STATE.md` as a methodology decision, with its cost, before
+measuring anything. In descending order of fidelity:
+
+1. **Lengthen the timed window until the clock is samplable.** §7 says
+   convergence needs ~10,000 iterations. This also removes the short-window
+   bias. It is explicitly declined upstream-compatibility-wise —
+   *"50 is upstream's methodology; changing it makes these numbers incomparable
+   with upstream's and requires re-timing everything"* — so it is a decision
+   about what the benchmark is for, and it makes the two changes a package
+   rather than two independent improvements.
+2. **Bracket the window.** Sample the clock immediately before and after the 60
+   iterations, record both, and *refuse* the measurement if they disagree by
+   more than a stated threshold. This does not give you the window's clock; it
+   gives you a bound on how wrong assuming one is, which is honest and cheap.
+   Record the threshold and the refusal count as first-class artifact fields.
+3. **A per-kernel reference clock, measured separately.** Time the same kernel
+   at 10,000 iterations once, off the scoring path, read the clock there, and use
+   it for that workload's bound. Defensible only if you also record that the
+   scoring window ran **1.04–2.04× off steady state, unlocked** (the same
+   `docs/methodology.md` §7 row as above: elementwise 1.042, GEMM 4096³ 1.217,
+   GEMM 1024³ 2.040 — the locked arm is a shade worse at 1.044 / 1.241 / 2.090,
+   and mixing the two arms into one range is a mistake this document used to
+   make) and therefore at a possibly different clock — i.e. it is an approximation with a stated error, not a
+   measurement.
+4. **Publish `T_b`, `T_k` and the two roofline terms, and no `S` at all.**
+   Speedups (`T_b/T_k`) survive without any clock. `S` does not, because
+   `T_SOL` is analytic and unbiased while both measurements carry the window
+   bias, so the bias does **not** divide out of `S` — §7's own conclusion is
+   that SOL efficiency is *systematically understated*. Shipping a board of
+   speedups and headroom, with `S` marked unavailable, is a legitimate v1 for
+   this part and is strictly better than shipping an `S` whose denominator is
+   invented.
+
+**Do not** pick option 5, which is the tempting one: assume the unlocked GEMM
+clock (~1730 MHz on that node) applies to everything. §1's own data says the
+spread across kernel types is 27.9%.
+
+### 4.4 One more thing nothing in the repo normalizes
+
+`S = 1/(1 + (T_k − T_SOL)/(T_b − T_SOL))` has three terms, and re-clocking
+addresses one. Unlocked, `T_b` was measured at whatever clock *its* kernel pulled
+and `T_k` at whatever clock the candidate's kernel pulls, and per
+`artifacts/01/unlocked-clock.json` those differ by up to 27.9% across kernel
+types. A candidate that turns a compute-bound kernel into a memory-bound one is
+then rewarded twice: once for the real speedup, once for boosting. Nothing in
+the repo normalizes `T_b` against `T_k`. Decide before you publish whether the
+two are re-timed back to back in one session (so the clocks are at least
+similar) or whether `S` becomes explicitly a two-clock quantity. This is the
+difference between a workable unlocked methodology and a scoreboard an agent can
+farm by lowering power draw.
+
+---
+
+## 5. Bring-up sequence
+
+Ordered. Each step names its acceptance check and what it costs. **Start GPU
+work first and do CPU work in its shadow** — the node is the scarce resource.
+
+### Step 1 — verify the stack, before anything
 
 ```bash
-# 1. Build the pinned measurement container (ROCm 7.2 / torch 2.9.1 / SOLAR).
-env/solb bash -lc 'python -c "import torch; print(torch.__version__)"'
+env/solb bash -lc 'python -c "import torch; print(torch.__version__, torch.version.hip)"'
+# no docker on the node?  Take env/solb-native, not a hand-rolled venv:
+env/solb-native python -c 'import torch; print(torch.__version__)'
+```
 
-# 2. Materialize the dataset. The Hub ships parquet, not the per-problem
-#    layout; materialize_dataset.py is the exact inverse of the dataset's own
-#    converter and round-trip-verifies all 235.
+`env/solb-native` calls `env/check_stack.py`, which exits non-zero when torch or
+HIP does not match the pinned `SOLB_WANT_TORCH` / `SOLB_WANT_ROCM` — *"a drifted
+stack does not fail loudly; it produces numbers that look exactly as
+authoritative as the pinned ones"* (prime directive 6). Check the interpreter
+version first: an earlier MI355X node ran Python 3.10 and all 33 Quant
+references import `StrEnum` (3.11+), so they fail before any submission is
+involved. The container image is py3.12.
+
+**Acceptance:** `env/solb bash -lc 'python -m pytest tests/ -q'` — expect
+**519 passed, 75 skipped** (`CLAUDE.md` §7; read a drop in *passed* as the
+regression, not a change in the skip count). **Cost:** minutes.
+
+Environment gotchas, each of which cost a session somewhere:
+
+* **Container GPU access needs the host's numeric video/render GIDs.**
+  `--group-add render` resolves against the *container's* `/etc/group` and grants
+  nothing. Symptom: `torch.cuda.device_count()` returns 8 while any real HIP
+  context raises `No HIP GPUs are available`. `env/solb` already does this; do
+  not "simplify" it.
+* **The container mounts a generated `/etc/passwd`.** Without it `torch.compile`
+  dies in `getpass.getuser()` with `uid not found`, breaking every submission
+  that compiles.
+* **`FLASHINFER_TRACE_DIR=/work` must be set** — the eval driver resolves trace
+  paths against the *staging* directory, not the CWD.
+* **Anything large goes to `/var/tmp/solbench`**, mounted at the same absolute
+  path inside and outside the container so a path in an artifact means the same
+  thing in both. `/home` is NFS. A runner told to write outside `/work` and
+  outside scratch dies before writing anything (D17).
+* **`env/solb` recreates the container when the image ID changes**, unless a
+  sweep is running inside it. If you rebuild mid-sweep, read the warning it
+  prints rather than working around it.
+* **`env/solb-root` exists only for the clock lock**, and under this policy you
+  should not need it. Note the trap it documents anyway: a stock container does
+  not *fail* to set clocks — `rocm-smi --setperfdeterminism` exits 0 having done
+  nothing, because `/sys` is read-only.
+
+### Step 2 — node parity, all eight cards, unlocked
+
+```bash
+env/solb bash -lc 'python scripts/gpu_parity_check.py --n-gpus 8 --seconds 45 \
+    --out artifacts/00/gpu-parity-<HOST>.json'
+```
+
+Do this **before** the artifact-tree move, and write it to a host-suffixed name,
+because `artifacts/00/gpu-parity.json` is already the `mia1-p02-g10` file (§2).
+Wall-clock throughput only, no harness, no telemetry dependency.
+
+**Acceptance, and it is a judgement not a gate:** unlocked spread across eight
+cards. The reference point is `mia1-p02-g10`'s **3.0–3.4%**. A materially wider
+unlocked spread means you have a different node problem — a weak card, a cooling
+imbalance — and §1's policy argument does not automatically apply to it.
+**Cost:** minutes. **Record the firmware** (`amd-smi` VBIOS/SMC/MEC/RLC/SOS,
+ROCm-SMI-LIB, amdgpu) in `STATE.md`: §1's finding is firmware-level and yours is
+not comparable to it without that.
+
+Also run, in the same sitting, because it is cheap and it is the input to every
+later decision about what a clock number means:
+
+```bash
+env/solb bash -lc 'python scripts/unlocked_clock_probe.py --gpu 1 --n-gpus 8 \
+    --out artifacts/01/unlocked-clock-<HOST>.json'
+env/solb bash -lc 'python scripts/burst_clock_probe.py --gpu 1 --mode unlocked \
+    --out artifacts/01/burst-clock-<HOST>.json'
+```
+
+`burst_clock_probe.py` defaults to `--gpu 1` and issues node-wide `rocm-smi`
+perf-level changes in its locked mode; on a node where GPU 0 is authoritative,
+that will move GPU 0's policy under a timing run. Use `--mode unlocked` and, if
+you need the locked arm, run it while nothing authoritative is in flight.
+
+### Step 3 — move the MI350X record aside
+
+```bash
+git mv artifacts/00 artifacts/00-MI350X && git mv artifacts/01 artifacts/01-MI350X
+mkdir -p artifacts/00 artifacts/01/logs
+# then move the four MI355X files identified in §2 back into the new tree
+```
+
+Do not delete: the MI350X manifest cites `artifacts/00` and `artifacts/01`, and
+`verify_artifacts.py:246`'s unfiltered `floor-gpu*.json` glob is one MI355X floor
+run away from corrupting the MI350X task-01 gate. **Acceptance:**
+`git status` shows the move, and `python scripts/verify_artifacts.py --task 00`
+against the new tree. **Cost:** minutes.
+
+### Step 4 — node acceptance
+
+```bash
+env/solb bash -lc 'bash scripts/node_acceptance.sh'
+env/solb bash -lc 'python scripts/roofline_probe.py --gpu 0 --out artifacts/00/roofline-gpu0.json'
+env/solb bash -lc 'python scripts/verify_artifacts.py --task 00'
+```
+
+Expect 8× `gfx950`, 288 GiB, **1400 W** cap and a **2400 MHz** ceiling
+(`src/solexbench_rocm/parts.py`, which is the single source of truth and already
+has a complete MI355X entry) — if the report says 1000 W / 2200 MHz you are on an
+MI350X node and this file does not apply. `roofline_probe.py` looks the spec peak
+up per part, so the achieved fraction is against MI355X's peak, not MI350X's.
+These are **default-clock reference points and not scoring ceilings**; do not
+cite them downstream. **Cost:** under an hour. **Acceptance:** task 00 gate, and
+`CLAUDE.md`'s dataset census confirmed against the files: L1 94, L2 82, Quant 33,
+FlashInfer-Bench 26.
+
+### Step 5 — dataset and traces
+
+```bash
 env/solb bash -lc '
   python -c "
 from huggingface_hub import snapshot_download
@@ -86,505 +646,532 @@ snapshot_download(\"nvidia/SOL-ExecBench\", repo_type=\"dataset\",
   python scripts/materialize_dataset.py \
       --parquet-dir /var/tmp/solbench/data-hf/data \
       --out data/SOL-ExecBench/benchmark'
-
-# 3. The external FlashInfer blobs. Without them 9 of the 26 FlashInfer
-#    problems fail at run time as ordinary runtime errors, which reads as a
-#    port defect and is not one.
 env/solb bash -lc 'python scripts/fetch_flashinfer_traces.py'
-
-# 4. Baseline.
-env/solb bash -lc 'python -m pytest tests/ -q'      # expect 519 passed, 75 skipped
 ```
 
-Environment gotchas, each of which cost a session somewhere:
+`materialize_dataset.py` is the exact inverse of the dataset's own converter and
+round-trip-verifies all 235. Without the FlashInfer blobs, 9 of the 26 FlashInfer
+problems fail at run time as ordinary runtime errors — which reads as a port
+defect and is not one. **Acceptance:** the round-trip verification, and 235
+problem directories. **Cost:** bandwidth-bound.
 
-* **Container GPU access needs the host's numeric video/render GIDs.**
-  `--group-add render` resolves against the *container's* `/etc/group` and
-  grants nothing. The symptom is that `torch.cuda.device_count()` returns 8
-  while any real HIP context raises `No HIP GPUs are available`. `env/solb`
-  already does this; do not "simplify" it.
-* **The container mounts a generated `/etc/passwd`.** Without it
-  `torch.compile` dies in `getpass.getuser()` with `uid not found`, breaking
-  every submission that compiles, not just tests.
-* **`FLASHINFER_TRACE_DIR=/work` must be set.** The eval driver resolves the
-  trace paths against the *staging* directory, not the CWD, so having the blobs
-  in the repo is not enough. `env/solb` sets it.
-* **Anything large goes to `/var/tmp/solbench`**, mounted at the same absolute
-  path inside and outside the container so a path in an artifact means the same
-  thing in both. `/home` is NFS. A path outside `/work` and outside scratch does
-  not exist inside the container, and a runner told to write there dies before
-  writing anything (D17).
-* **`env/solb` is unprivileged; `env/solb-root` is privileged and exists only
-  for the clock lock**, because `/sys` is read-only in a stock container. Note
-  the trap it documents: a stock container does not *fail* to set clocks —
-  `rocm-smi --setperfdeterminism` exits 0 having done nothing.
-* **`env/solb` recreates the container when the image ID changes**, unless a
-  sweep is running inside it. If you rebuild the image mid-sweep, read the
-  warning it prints rather than working around it.
-* **No docker on the node?** The branch hit this and built `env/solb-native`
-  plus `env/check_stack.py`, which reproduces `env/solb`'s environment contract
-  and then *asserts* the pinned stack instead of assuming it. Take that path,
-  not a hand-rolled venv. Check the interpreter version before anything else:
-  that node ran Python 3.10, and all 33 Quant references import `StrEnum`
-  (3.11+), so they fail before any submission is involved (branch blocker B1).
-  The container image is `py3.12` and does not have this problem.
+### Step 6 — **the first real decision point**
 
-Then, and this is the step that is easy to skip:
+Everything above is part-agnostic setup that cannot be got wrong in an
+undetectable way. Everything below divides by a clock.
+
+**Before task 02, you must have written into `STATE.md`:**
+
+1. Where F_LOCK comes from, given that the MI355X `ClockPreset` already
+   resolves to `None` (§3.3): a measured `SOLEXBENCH_F_LOCK_MHZ`, a measured
+   `achieved_gpu_clk_mhz` added to the preset, or neither — in which case say
+   so, and know that `build_manifest.py` will refuse at step 12 (§3.4). Do not
+   discover that at step 12.
+2. Which of §4.3's options is the clock methodology, with its cost.
+3. What task 01's acceptance check becomes on an unlocked node (§3.4), agreed
+   with the maintainer. Task 01 is a hard blocker for 03, 05 and 06, so
+   "unlocked, therefore task 01 does not apply" is not available — the tasks'
+   dependency graph does not care why the check cannot pass.
+4. Whether `verify_anchor.py`'s and `verify_artifacts.py`'s anchor gates apply
+   unchanged (§10).
+
+Reaching this point with 1–4 unwritten and starting the sweeps anyway is how a
+port ships numbers nobody can defend. It costs a day of node time to stop here;
+it costs the release not to.
+
+### Step 7 — task 02, the reference sweep
 
 ```bash
-# artifacts/00 and artifacts/01 hold the MI350X record. node_acceptance.sh
-# overwrites artifacts/00/ in place. Move it aside, do not delete it -- the
-# MI350X manifest cites it.
-git mv artifacts/00 artifacts/00-MI350X && git mv artifacts/01 artifacts/01-MI350X
-mkdir -p artifacts/00 artifacts/01/logs
-
-env/solb bash -lc 'bash scripts/node_acceptance.sh'
-env/solb bash -lc 'python scripts/roofline_probe.py --gpu 0 --out artifacts/00/roofline-gpu0.json'
-env/solb bash -lc 'python scripts/verify_artifacts.py --task 00'
-```
-
-Expect 8× `gfx950`, 288 GiB, **1400 W** cap and a **2400 MHz** ceiling — if the
-report says 1000 W / 2200 MHz you are on an MI350X node and this file does not
-apply. `roofline_probe.py` looks the spec peak up per part
-(`solexbench_rocm/parts.py`), so the achieved fraction is against 2517 TFLOPS
-@2.4 GHz, not MI350X's 2307. These are default-clock reference points and are
-**not** scoring ceilings; do not cite them downstream.
-
----
-
-## 3. Task 01 first. F_LOCK is measured, never guessed
-
-`tasks/01` is a hard blocker for 03, 05 and 06 and it is the most consequential
-measurement in the project. Nothing you measure before it is trustworthy.
-
-### The preset in the code is labelled, not trusted
-
-`CLOCK_LOCK_PRESETS` (`src/sol_execbench/core/bench/config/device_config.py`)
-contains:
-
-```python
-"AMD Instinct MI355X": ClockPreset(gpu_clk_mhz=1650, dram_clk_mhz=None),
-```
-
-That 1650 came from **session 1, on a different node, in a different session,
-with a procedure that was later shown to be wrong in fact on the other part**.
-Three specific reasons not to inherit it:
-
-1. It has **no `achieved_gpu_clk_mhz`**, so `preset.f_lock_mhz` returns the
-   *requested* 1650. Session 1's own note in that comment says it verified at
-   1648 under load, and the unmerged branch chose 1640 and then 1650-at-1660.
-   Three numbers, one field, none of them measured on your node.
-2. **`--setperfdeterminism X` does not give you X.** On MI350X it yields
-   ~0.83·X, rock-steadily (D8). Whether that ratio holds on the 1400 W part
-   **was never asked on `master`**, and the branch's answer on one MI355X node
-   was that it does *not* hold uniformly: below 1500 the ~0.83 rule appeared,
-   at 1600–1700 the request was obeyed to 0.4%, and above 1800 the part pinned
-   to the power cap. A discontinuity, not a curve. That is one node's finding
-   and is not yours until you reproduce it.
-3. Adding a preset because "it is the same architecture" is the same class of
-   error as copying a B200 constant into an AMD artifact (prime directive 2).
-   The number would look entirely plausible and nothing downstream could
-   detect it.
-
-### The sequence
-
-```bash
-# 1. Sustained floors, UNLOCKED, one GPU at a time so per-GPU variation is not
-#    confounded with cross-GPU power coupling. >=3 GPUs; the acceptance check
-#    counts floor-gpu*.json files.
-for g in 0 1 2; do
-  env/solb bash -lc "python scripts/clock_calibrate.py floor --gpu $g --minutes 15 \
-      --out artifacts/01/floor-gpu$g.json"
-done
-# and the worst case the sweeps actually run in:
-env/solb bash -lc 'python scripts/clock_calibrate.py floor --gpu 0 --minutes 15 \
-    --load-siblings --out artifacts/01/floor-gpu0-busy.json'
-
-# 2. Requested vs achieved. This is the step MI350X did not know it needed.
-#    It applies a setpoint per step, so it needs the privileged wrapper -- and
-#    it therefore writes its artifact as root into an NFS-mounted repo. Chown it
-#    back, or the next unprivileged run cannot overwrite it.
-env/solb-root rocm-smi -r                     # start from a known state
-env/solb-root python scripts/clock_calibrate.py determinism-sweep --gpu 0 \
-    --freqs 1100 1250 1350 1500 1600 1700 1800 1900 2000 2200 2400 \
-    --out artifacts/01/determinism-sweep.json
-env/solb-root rocm-smi -r                     # ... and RESET. See below.
-
-# 3. Choose F_LOCK from the ACHIEVED column, apply, verify under load.
-env/solb-root python scripts/clock_calibrate.py lock --freq-mhz <SETTING> --all-gpus
-env/solb bash -lc 'python scripts/clock_calibrate.py verify --freq-mhz <ACHIEVED> \
-    --gpu 0 --under-load'
-
-# 4. Reproducibility at F_LOCK. Gate: CV < 2%.
-env/solb bash -lc 'python scripts/clock_calibrate.py stability --gpu 0 --trials 30 \
-    --out artifacts/01/stability-gpu0.json'
-
-# 5. Sibling interference. Schedule-shaping; do not infer it (§6).
-env/solb bash -lc 'python scripts/clock_calibrate.py interference --timing-gpu 0 \
-    --load-gpus 1-7 --out artifacts/01/interference.json'
-```
-
-**Reset the setpoint after every sweep.** `determinism-sweep` applies a setpoint
-per step and never resets. On the branch's node it left 1900 MHz in place for
-eleven hours, and 143 authoritative T_b were measured at ~1860 MHz while stamped
-1640 — the stamp came from the preset table, the manifest's clock guard compared
-that stamp against the same table, and it agreed with itself (F24, branch D27).
-`verify_artifacts --task 01` now reads `MAX_CLK` back off every GPU for exactly
-this reason. **The table is not the hardware.**
-
-**Sample every GPU, not three.** MI350X's eight GPUs spanned 65 MHz at one
-setting; the branch's MI355X node spanned **326 MHz** at one setting, with six
-of eight cards at ~0.80·request while drawing 400 W below their cap. If that
-reproduces on your node, F_LOCK is a per-GPU quantity and §6 is not optional.
-
-### Then land it in three places, or the acceptance check fails
-
-1. **`CLOCK_LOCK_PRESETS`** — set `gpu_clk_mhz` to the *setting* and
-   `achieved_gpu_clk_mhz` to the *measured* clock. Two fields because on AMD
-   they differ; `f_lock_mhz` returns the achieved one. Replace the session-1
-   comment with your own measurement, the way the MI350X entry does.
-2. **`STATE.md`** — the canonical line `**F_LOCK = <n> MHz**` at the start of a
-   line. `f_lock_from_state()` takes the **first** match in the file, so edit
-   the existing marker rather than adding a second one, and keep prose about
-   the other part's clock in a non-marker form (F17, F20).
-3. **`solexbench_rocm/parts.py`** needs nothing — F_LOCK is not stored there,
-   deliberately: it separates architectural constants (shared) from part
-   constants (never shared) from measured ones (never guessed).
-
-```bash
-env/solb bash -lc 'python scripts/verify_artifacts.py --task 01'
-```
-
-If `STATE.md and CLOCK_LOCK_PRESETS agree on F_LOCK` fails, one of your two
-records is lying about the frequency the whole benchmark is calibrated at, and
-nothing downstream can tell which. If `every GPU is at the preset's determinism
-setpoint` fails, something left the node somewhere else and every artifact you
-take now will be stamped with a clock it was not measured at.
-
----
-
-## 4. What transfers from MI350X, and what does not
-
-The same discipline the MI355X → MI350X move used, in the other direction.
-"Transfers" means you may use it as-is; "confirm" means it is expected to hold
-and is cheap to check. Nothing with a millisecond or a megahertz in it is in the
-first column, and that is not caution — going the other way, F_LOCK moved 21%.
-
-| Result | Transfers? | Why |
-|---|---|---|
-| The harness port (`src/sol_execbench/`) | **Yes** | Vendor logic keys off `gfx950` / `torch.version.hip`, not the SKU |
-| `src/solexbench_rocm/activity/` and the rocprofiler shim (task 04) | **Yes** | CPU-verified, mutation-tested, and the HSA clock domain is not part-specific |
-| `--offload-arch=gfx950`, `-ffast-math`, `-lamdhip64` | **Yes** | Same ISA target, same toolchain |
-| `LLC_BYTES[gfx950] = 256 MiB` → 512 MiB flush | **Yes, confirm** | Same die, same Infinity Cache. `roofline_probe.py --llc-sweep`; the cliff should land near 256 MiB |
-| Dataset census (235: 94/82/33/26) | **Yes** | A property of the dataset |
-| AMD-derived tolerances, `artifacts/05/` | **Yes, with a caveat** | Numerics are a property of the gfx950 ISA and the torch build, not of the clock. The branch inherited them rather than re-deriving. Cheap to falsify: run task 02's reference sweep against them and see whether anything fails |
-| The exploit corpus and static source screen (task 08) | **Yes** | torch-level; re-run it, do not re-derive it |
-| `artifacts/03`'s `macs` / `memory_bytes` / `precision` per workload | **Yes — this is the big saver, see below** | The SOLAR trace is frequency-independent and the die is identical |
-| **F_LOCK, whatever value** | **NO** | §3 |
-| `T_SOL` in **ms** (`t_sol_ms`) | **NO** | Contains F_LOCK |
-| `T_SOL` in **cycles** (`t_sol_cycles`) | **NO, not in general** | See below — this one is widely misstated in this repo |
-| `T_b`, every one of them | **NO** | A wall-clock time at MI350X's F_LOCK on MI350X silicon |
-| `manifest-v1.json` | **NO** | Every `t_b` in it is at the wrong clock. It is an MI350X artifact and cannot score an MI355X measurement |
-| Floors 1335–1390, achieved 1242–1307, CV 0.0034 | **NO** | 1000 W air-cooled part |
-| Rooflines 4.53 TB/s / 1168 TFLOPS | **NO** | MI350X at default clocks, and against a different spec peak |
-| Sibling interference −0.11% | **NO — re-measure** | §6 |
-| Script fixes F1–F24 | **Yes** | Real bugs, fixed in code |
-
-### The T_SOL shortcut, stated correctly
-
-`CLAUDE.md` §6 and `gen_arch_yaml.py`'s docstring both say *"T_SOL in cycles is
-invariant to F_LOCK — compute it once, convert to milliseconds by one
-division."* **That is true only for compute-bound workloads.** The same
-docstring says, ten lines earlier, that `DRAM_byte_per_cycle` is *derived* as
-`bytes_per_sec / F`, and `sol_bounds.py` computes
-
-```python
-exact_cycles = max(macs / MAC_per_cycle,            # cycles: invariant in F
-                   memory_bytes / DRAM_byte_per_cycle)   # cycles: proportional to F
-```
-
-so a memory-bound workload's bound is invariant in **milliseconds** and scales
-with F in **cycles** — the opposite. In `artifacts/03/t_sol.json` today, 1163 of
-2998 successful workloads (39%) are `"bottleneck": "memory"`. Rescaling their
-cycle counts to MI355X's F_LOCK would inflate their bounds by the clock ratio,
-and the bottleneck can flip as F moves, so neither column is safe on its own.
-
-What *is* safely reusable is the pair of quantities the bound is computed from.
-`macs` and `memory_bytes` are recorded per workload, come out of a `device=meta`
-trace, and depend on neither the clock nor the part. So T_SOL at any F is one
-`max()` away, with `MAC_per_cycle` from `parts.py` (architectural, shared, and
-justified by reproducing *both* parts' published peak FLOPS) and
-`dram_bytes_per_sec` unchanged at 8.0e12.
-
-Two ways to spend that:
-
-* **Cheap and honest:** re-run `sol_bounds.py` with `--part MI355X --freq-mhz
-  <F_LOCK>`. It is CPU-only (`device="meta"`), runs 32-way, and needs no GPU —
-  so launch it in the shadow of the sweeps and do not think about it again.
-* **Cheaper:** recompute from the MI350X artifact arithmetically. The branch
-  already built this (`t_sol_at()`, commit `494c9a8`, which emits both roofline
-  terms instead of their max precisely because the max is not invertible).
-
-Either way, **the 51 problems SOLAR failed on MI350X will fail again** — they
-are trace failures, not clock failures — and the declared-traffic tier
-(`sol_traffic_floor.py`) covers them, at bytes/bandwidth, which *is* invariant
-in ms. It is also the tier D18 says is wrong on paged attention (§8).
-
----
-
-## 5. The order of work
-
-`tasks/DEPENDENCIES.md` is the graph. The shape that matters: **get the two long
-sweeps launched early and do everything else while they run.** The node is the
-constraint; a session that documents while eight cards idle has wasted the only
-thing that cannot be recovered.
-
-```
-00 ──> 01 ──┬─> 03 (CPU-only, no GPU)
-            ├─> 05 (long, sharded)      both need 02
-            └─> 06 (long, sharded, then serial authoritative pass)
-    └─> 02 ──┬─> 04 (re-run, not re-derive)
-             ├─> 07
-             └─> 08
-09 needs all
-```
-
-Every sweep below is resumable by construction: `shard_sweep.py` skips a problem
-whose output file already parses as JSON, so re-invoking the **exact same
-command** continues where it stopped. Do not restart with different settings —
-mixed-settings data is unusable (prime directive 7).
-
-```bash
-# --- 02: the reference sweep. All four categories; an omitted --category is
-#     the realistic way scope silently shrinks.
 env/solb bash -lc 'nohup python scripts/shard_sweep.py --task references \
     --category L1 L2 Quant FlashInfer-Bench --gpus 1-7 \
     --out artifacts/02/references/ > artifacts/02/logs/references.log 2>&1 &'
 env/solb bash -lc 'python scripts/check_coverage.py --artifacts artifacts/02/references'
 env/solb bash -lc 'python scripts/verify_artifacts.py --task 02'
-
-# --- 05: tolerances. Launch and walk away; then triage from the artifact the
-#     sweep wrote, never from scratch state while it is still running (D10).
-env/solb bash -lc 'nohup python scripts/shard_sweep.py --task tolerances \
-    --category L1 L2 Quant FlashInfer-Bench --gpus 1-7 \
-    --out artifacts/05/ -- --seeds 10 --margin 1.25 --low-memory \
-    > artifacts/05/logs/sweep.log 2>&1 &'
-env/solb bash -lc 'python scripts/apply_tolerances.py'      # -> artifacts/05/workloads/, triage.md
-env/solb bash -lc 'python scripts/check_coverage.py --artifacts artifacts/05/workloads \
-    --pattern workload.jsonl'
-env/solb bash -lc 'python scripts/verify_artifacts.py --task 05'
-
-# --- 06: T_b. Two passes, and the second one is not shardable.
-env/solb bash -lc 'nohup python scripts/shard_sweep.py --task tb-candidates \
-    --gpus 1-7 --out artifacts/06/candidates/ \
-    > artifacts/06/logs/candidates.log 2>&1 &'
-env/solb bash -lc 'python scripts/check_coverage.py --artifacts artifacts/06/candidates'
-# then, on a quiet node, one GPU, serially. --gpu sets HIP_VISIBLE_DEVICES for
-# each child itself, so do not also set it outside.
-env/solb bash -lc 'python scripts/authoritative_tb.py \
-    --candidates artifacts/06/candidates --out artifacts/06/authoritative --gpu 0'
-env/solb bash -lc 'python scripts/verify_artifacts.py --task 06'
-
-# --- 03: no GPU. Run it while 05/06 are burning the cards.
-env/solb bash -lc 'python src/solexbench_rocm/solar/gen_arch_yaml.py \
-    --part MI355X --freq-ghz <F_LOCK/1000> -o SOLAR/configs/arch/MI355X.yaml'
-env/solb bash -lc 'python scripts/sol_bounds.py --part MI355X --freq-mhz <F_LOCK> \
-    --arch-yaml SOLAR/configs/arch/MI355X.yaml --out artifacts/03/t_sol.json \
-    --jobs 32 --resume'
-env/solb bash -lc 'python scripts/sol_traffic_floor.py \
-    --arch SOLAR/configs/arch/MI355X.yaml --t-b artifacts/06/authoritative \
-    --out artifacts/03/t_sol_traffic.json'
-env/solb bash -lc 'python scripts/sol_cross_checks.py \
-    --arch SOLAR/configs/arch/MI355X.yaml --t-b artifacts/06/authoritative'
-env/solb bash -lc 'python scripts/check_coverage.py --artifacts artifacts/03/t_sol.json'
-env/solb bash -lc 'python scripts/verify_artifacts.py --task 03'
-
-# --- 04, 07, 08: re-run, do not re-derive. GPUs 1-7.
-env/solb bash -lc 'python scripts/shard_sweep.py --task methodology-compare \
-    --category L1 --gpus 1-7 --out artifacts/04/compare/'   # L1-only is deliberate
-env/solb bash -lc 'python scripts/mxfp4_spike.py --out artifacts/07/spike.json'
-env/solb bash -lc 'python -m pytest reference/exploits/ -q'
-for t in 04 07 08; do env/solb bash -lc "python scripts/verify_artifacts.py --task $t"; done
-
-# --- 09: the manifest. build_manifest refuses to build when F_LOCK cannot be
-#     resolved, and rejects T_b artifacts stamped at any other clock (F18/F21).
-env/solb bash -lc 'python scripts/build_manifest.py --out artifacts/09/manifest-v1.json'
-env/solb bash -lc 'python scripts/verify_anchor.py --sample 20'
-env/solb bash -lc 'python scripts/verify_artifacts.py --task 09 --full'
 ```
 
-`check_coverage.py` after **every** sweep, not at the end. It names every
-problem not accounted for and exits non-zero; a gap listed in
-`artifacts/deferred.json` with a reason is a decision, a gap without one is a
+**All four categories.** An omitted `--category` is the realistic way scope
+silently shrinks (`CLAUDE.md` §0). Resumable by construction: `shard_sweep.py`
+skips a problem whose output already parses as JSON, so re-invoking the *exact
+same command* continues. Never restart with different settings (prime directive
+7). **Cost:** the MI350X elapsed for this sweep was 0.6 h — a bound on the wall
+clock on a different part, not a prediction for yours. It was **not** 7-way:
+`_provenance.visible_devices` across the 235 files in `artifacts/02/references`
+spans all eight cards, GPU 0 included (0:32, 1:32, 2:29, 3:30, 4:26, 5:30,
+6:27, 7:29), which §7 reserves for authoritative timing. Run yours `--gpus 1-7`
+as written above and expect it to take longer than 0.6 h.
+
+### Step 8 — task 05, tolerances
+
+```bash
+env/solb bash -lc 'nohup python scripts/shard_sweep.py --task tolerances \
+    --category L1 L2 Quant FlashInfer-Bench --gpus 1-7 \
+    --out artifacts/05-MI355X/ -- --seeds 10 --margin 1.25 --low-memory \
+    > artifacts/05-MI355X/logs/sweep.log 2>&1 &'
+env/solb bash -lc 'python scripts/apply_tolerances.py --calibration artifacts/05-MI355X \
+    --out-workloads artifacts/05-MI355X/workloads --out-triage artifacts/05-MI355X/triage.md'
+env/solb bash -lc 'python scripts/check_coverage.py --artifacts artifacts/05-MI355X/workloads \
+    --pattern workload.jsonl'
+```
+
+Pass every path explicitly. `apply_tolerances.py` defaults input *and* output to
+`artifacts/05`, which is the MI350X tolerance set; inheriting by default value is
+the omission-shaped failure `CLAUDE.md` §0 describes. **Whether to re-derive
+tolerances at all is a live question** — see §6. **Cost:** MI350X elapsed 5.3 h,
+genuinely 7-way: `_provenance.visible_devices` over the 235 files in
+`artifacts/05` is GPUs 1–7 only (31–35 problems each), with GPU 0 untouched.
+
+### Step 9 — task 03, bounds (no GPU; run it in the shadow of 05/06)
+
+```bash
+env/solb bash -lc 'python src/solexbench_rocm/solar/gen_arch_yaml.py \
+    --part MI355X --freq-ghz <F_REF> -o SOLAR/configs/arch/MI355X.yaml'
+env/solb bash -lc 'python scripts/sol_bounds.py --part MI355X --freq-mhz <F_REF> \
+    --arch-yaml SOLAR/configs/arch/MI355X.yaml --out artifacts/03-MI355X/t_sol.json \
+    --jobs 32 --resume'
+```
+
+`gen_arch_yaml.py` requires `--part` (choices from `PARTS`) and `--freq-ghz`;
+`sol_bounds.py` requires `--part` and `--freq-mhz` and **aborts if the arch
+YAML's `freq_GHz` disagrees with `--freq-mhz`**, so the 13 SOLAR numbers cannot
+be silently reused at the wrong clock. That guard is the reason `--freq-mhz` is
+not optional even though, unlocked, it is a *reference* clock rather than a
+measurement clock. Whatever you pass, say so in the artifact and in `STATE.md`:
+the milliseconds in that file are at `F_REF`, and the fields that matter are
+`compute_cycles` / `memory_bytes` / `dram_byte_per_sec`, which `t_sol_at` will
+re-max at whatever clock you end up with.
+
+Then the traffic tier and the cross-checks:
+
+```bash
+env/solb bash -lc 'python scripts/sol_traffic_floor.py \
+    --arch SOLAR/configs/arch/MI355X.yaml --t-b artifacts/06-MI355X/authoritative \
+    --out artifacts/03-MI355X/t_sol_traffic.json'
+env/solb bash -lc 'python scripts/sol_cross_checks.py \
+    --arch SOLAR/configs/arch/MI355X.yaml --t-b artifacts/06-MI355X/authoritative'
+env/solb bash -lc 'python scripts/check_coverage.py --artifacts artifacts/03-MI355X/t_sol.json'
+```
+
+**Cost:** CPU-only, 32-way. Not estimable in advance: SOLAR's per-problem timeout
+is 900 s and the total is dominated by how many problems fail their trace rather
+than how many succeed.
+
+### Step 10 — task 06, T_b
+
+```bash
+env/solb bash -lc 'nohup python scripts/shard_sweep.py --task tb-candidates \
+    --gpus 1-7 --out artifacts/06-MI355X/candidates/ \
+    > artifacts/06-MI355X/logs/candidates.log 2>&1 &'
+env/solb bash -lc 'python scripts/check_coverage.py --artifacts artifacts/06-MI355X/candidates'
+# then, on a VERIFIED-EXCLUSIVE node, one GPU, serially:
+env/solb bash -lc 'python scripts/gpu_exclusive.py --gpu 0'      # MUST report exclusive
+env/solb bash -lc 'python scripts/authoritative_tb.py \
+    --candidates artifacts/06-MI355X/candidates --out artifacts/06-MI355X/authoritative --gpu 0'
+```
+
+`--gpu` sets `HIP_VISIBLE_DEVICES` for each child itself; do not also set it
+outside. Run `gpu_exclusive.py` **before and after** the authoritative pass, not
+just before — §8.2 is a worked example of what happens otherwise. **Cost:** MI350X
+elapsed 10.2 h for candidates — **8-way, with GPU 0 in the pool**, which §7
+forbids: the top-level `gpu` field over the 235 files in
+`artifacts/06/candidates` counts 0:31, 1:44, 2:34, 3:19, 4:24, 5:27, 6:29,
+7:27. Budget more than 10.2 h for a 7-way rerun. Then 11.4 h for the
+authoritative pass (elapsed, overlapping the candidate sweep, so not exclusive
+GPU time).
+
+### Step 11 — tasks 04, 07, 08: re-run, do not re-derive
+
+```bash
+env/solb bash -lc 'python scripts/shard_sweep.py --task methodology-compare \
+    --category L1 --gpus 1-7 --out artifacts/04-MI355X/compare/'
+env/solb bash -lc 'python scripts/mxfp4_spike.py --out artifacts/07-MI355X/spike.json'
+env/solb bash -lc 'python -m pytest reference/exploits/ -q'
+for t in 04 07 08; do env/solb bash -lc "python scripts/verify_artifacts.py --task $t"; done
+```
+
+The 15 NVFP4 Quant problems stay deferred with evidence
+(`artifacts/deferred.json`: `dataset_total 235, deferred_total 15,
+shipped_total 220`). Re-run `mxfp4_spike.py` — the software path may have moved —
+but do not quietly change the count: 220 means 220 everywhere.
+
+### Step 12 — task 09, the manifest, and the board
+
+```bash
+env/solb bash -lc 'python scripts/build_manifest.py \
+    --out artifacts/09-MI355X/manifest-v1.json \
+    --t-sol artifacts/03-MI355X/t_sol.json \
+    --t-sol-traffic artifacts/03-MI355X/t_sol_traffic.json \
+    --t-b artifacts/06-MI355X/authoritative \
+    --tolerances artifacts/05-MI355X'
+env/solb bash -lc 'python scripts/verify_anchor.py --sample 20'
+env/solb bash -lc 'python scripts/verify_artifacts.py --task 09 --full'
+# roots in leaderboard/sources.json; pass --agent-runs only to OVERRIDE it
+leaderboard/.venv/bin/python leaderboard/ingest.py --part MI355X
+leaderboard/.venv/bin/python -m pytest tests/leaderboard -q
+```
+
+Every path explicit (§3.6). **`build_manifest.py` will hard-exit on the first
+line unless `provenance.f_lock_mhz()` resolves** — on MI355X that means
+`SOLEXBENCH_F_LOCK_MHZ` is exported from a real measurement, per §3.4 and the
+decision written at step 6. Note also `ingest.py`'s fixed `MANIFEST` constant
+(§3.5) — resolve that before you get here.
+
+On `--agent-runs`, the risk has **inverted** since D24 and the old advice is
+wrong. `ingest.py:1501` gives `--sources` a default of
+`leaderboard/sources.json`, which the ingest reads whenever `--agent-runs` is
+absent, so omitting the flag no longer drops the roots listed there. What drops
+them is passing it: `--agent-runs` **overrides** `sources.json` rather than
+adding to it (`:1496-1500`, and the precedence comment at `:1512-1515`), so an
+incomplete `--agent-runs` is now the way to get D24, not the way to avoid it.
+`SOLEXBENCH_AGENT_RUNS` is additive on top of whichever won. The safe move on a
+new part is to put the roots in `sources.json` and pass no flag; the ingest
+prints every root with where it came from either way, and refuses to publish a
+board that has lost a submission unless `--allow-drop` says so.
+
+Until `db/solbench-MI355X.db` exists the part switch lands on the honest empty
+state — a first-class page saying nothing has been measured on MI355X, which
+`leaderboard/app.py` already resolves against this file as that part's runbook
+(`todo_runbook`). That rendering is correct and must not be faked.
+
+`check_coverage.py` after **every** sweep, not at the end. A gap listed in
+`artifacts/deferred.json` with a reason is a decision; a gap without one is a
 bug.
 
 ---
 
-## 6. GPU discipline
+## 6. What transfers from MI350X, and what does not
+
+"Transfers" means use it as-is. "Confirm" means it is expected to hold and is
+cheap to check. Nothing with a millisecond or a megahertz in it is in the first
+column.
+
+| Result | Transfers? | Why |
+|---|---|---|
+| The harness port (`src/sol_execbench/`) | **Yes** | Vendor logic keys off `gfx950` / `torch.version.hip`, not the SKU. `problem_packager.py` maps both parts to `gfx950`. |
+| `src/solexbench_rocm/activity/` and the rocprofiler shim (task 04) | **Yes** | CPU-verified, mutation-tested; the HSA clock domain is not part-specific |
+| `src/solexbench_rocm/parts.py` | **Yes, it is the model** | Already a complete MI355X entry, `ARCHITECTURAL`/`PART`/`MEASURED` tagged per field, and `detect_part()` raises rather than defaulting |
+| `src/solexbench_rocm/t_sol_at.py` and the split bound terms | **Yes** | Pure arithmetic, part-independent, CPU tests green |
+| `--offload-arch=gfx950`, `-ffast-math`, `-lamdhip64` | **Yes** | Same ISA target, same toolchain |
+| `LLC_BYTES[gfx950] = 256 MiB` → 512 MiB flush | **Yes, confirm** | Same die. `roofline_probe.py --llc-sweep`; the cliff should land near 256 MiB |
+| Dataset census (235: 94/82/33/26) | **Yes** | A property of the dataset |
+| The exploit corpus and static source screen (task 08) | **Yes** | torch-level; re-run it, do not re-derive it |
+| `scripts/gpu_map.py`'s PCI translation | **Yes** | Resolves live through PCI bus identity; the hostname table in its header is a comment |
+| **Any `F_LOCK`** | **NO** | §1. And 1650 was never one: it is a request, and since §3.3 the code says so — `f_lock_mhz` returns `None` for MI355X. |
+| `artifacts/01/` (MI350X floors, `det1600-*`, `f_lock_by_datapath.json`) | **NO** | Every file is a clock on a 1000 W air-cooled part |
+| `artifacts/00/` MI350X roofline and node report | **NO** | Default clocks, different spec peak, different power budget |
+| `artifacts/03/` `t_sol_ms` | **NO** | Contains a clock |
+| `artifacts/03/` `t_sol_cycles` | **NO, not in general** | See below — this is widely misstated in this repo |
+| `artifacts/03/` `macs`, `memory_bytes`, `precision` | **Yes** | `device="meta"` trace, identical die. This is the big saver |
+| `artifacts/05/` tolerances | **Yes, with a caveat — but see below** | Numerics are a property of the gfx950 ISA and the torch build, not the clock |
+| `artifacts/06/` every `T_b` | **NO** | A wall-clock time at MI350X's clock on MI350X silicon |
+| `artifacts/09/` every manifest (v1, v1.1, v1.2) | **NO** | Every `t_b` is at the wrong clock, and v1.1/v1.2's rebuilders hardcode 1300 (§3.1) |
+| `artifacts/10/`, `artifacts/11/`, `artifacts/12/` | **NO as numbers, YES as questions** | Agent runs, bound diagnostics and clock A/B on the other part |
+| `leaderboard/db/solbench-MI350X.db` | **NO** | One database per part, enforced in the filesystem |
+| Script fixes and bug fixes | **Yes** | Real bugs, fixed in code |
+
+**The tolerance caveat is bigger than it looks.** `artifacts/05` was *inherited*
+rather than re-derived once already, on the argument above. That argument is
+falsifiable cheaply — run task 02's reference sweep against the MI350X
+tolerances and see whether anything fails — and doing so is worth an hour before
+committing to a 5-hour recalibration. But note the sharper reason to re-derive
+on this part: `TODO.md` records that the tolerance derivation measures
+run-to-run spread **in-process only**, and eager PyTorch is not deterministic
+*across* processes because hipBLASLt/MIOpen algorithm selection can change. An
+unlocked node adds a second source of cross-process variation on top of that.
+Decide deliberately and write the decision down.
+
+### The T_SOL shortcut, stated correctly
+
+`CLAUDE.md` §6 and `gen_arch_yaml.py`'s docstring both say *"T_SOL in cycles is
+invariant to F_LOCK — compute it once, convert to milliseconds by one
+division."* **That is true only for compute-bound workloads.**
+`DRAM_byte_per_cycle` is *derived* as `bytes_per_sec / F`, so:
+
+```python
+exact_cycles = max(macs / MAC_per_cycle,             # cycles: invariant in F
+                   memory_bytes / DRAM_byte_per_cycle)   # cycles: proportional to F
+```
+
+A memory-bound workload's bound is invariant in **milliseconds** and scales with
+F in **cycles** — the opposite of the shortcut. In MI350X's
+`artifacts/03/t_sol.json` today, of 3739 workload records **1163 are
+`"bottleneck": "memory"`, 1835 compute, 741 with no bottleneck recorded** — so
+memory is 38.8% of the 2998 that have one. Rescaling their cycle counts to a new
+clock would inflate their bounds by the clock ratio, and the bottleneck can flip
+as F moves, so **neither column is safe on its own**. This is precisely why
+`sol_bounds.py` now emits both terms (§4.1), and it is the one place where the
+unlocked-node requirement and a pre-existing MI350X documentation defect are the
+same fix.
+
+Re-run `sol_bounds.py` (§5 step 9) rather than converting the MI350X artifact.
+It is CPU-only, runs 32-way, needs no GPU, and the MI350X artifact predates the
+split so `t_sol_at` refuses it anyway.
+
+---
+
+## 7. GPU discipline on this part
 
 **GPU 0 for authoritative timing only. Everything else on 1–7.** Pin with
 `HIP_VISIBLE_DEVICES` and record which GPU produced every timing artifact.
 
-Two things about this part specifically:
+Two things specific to MI355X:
 
-* **Whether sibling load perturbs authoritative timing is UNMEASURED on the
-  liquid-cooled part and must not be inherited.** MI350X measured −0.11% and
-  concluded that sweeps and authoritative timing may share the node. That
-  verdict is a measurement, not a rule. The branch re-measured +0.02% on its
-  MI355X node with the standard 50-iteration burst probe — and then found, under
-  a *sustained* sibling load, GPU 0 losing 15% of its clock. The probe's duty
-  cycle kept it on the fast branch. So: run `clock_calibrate.py interference`,
-  and if you then schedule sweeps beside timing runs, know that the burst probe
-  is the thing you validated.
-* **CPU contention is the resource that actually bit.** The branch's `T_b` was
-  voided not by GPU interference but by running the authoritative pass on GPU 0
-  while an agent sweep saturated 120 CPUs: `torch.compile` and Triton autotuning
-  are CPU-bound, so a compile-heavy timing run beside compile-heavy agents
-  measures the scheduler. Re-running the identical variant took 5× longer than
-  its recorded anchor. Quiet means quiet on both sides of the PCIe bus.
-
-`scripts/gpu_map.py` resolves torch indices to amdsmi/rocm-smi indices through
-PCI identity, because the orderings differ and are scrambled. Passing a torch
-index to `rocm-smi -d` sets one card and measures another — it has produced a
-completely plausible fictional clock floor at least twice in this project
-(D20, branch D29). Use it.
+* **Sibling interference must be re-measured and must not be inherited.** MI350X
+  measured **−0.11%** and concluded sweeps and authoritative timing may share the
+  node. That verdict is a measurement, not a rule. On `mia1-p02-g10`,
+  `docs/methodology.md` §3 records unlocked sensitivity to seven busy neighbours
+  at **1.0%** — but that is a different quantity measured a different way, and
+  the same section records **up to −15%** under a lock. Also note that a burst
+  probe's duty cycle can keep the card on the fast branch: whatever you validate
+  with is what you have validated.
+* **CPU contention is the resource that actually bit.** An earlier MI355X
+  session's `T_b` was voided not by GPU interference but by running the
+  authoritative pass on GPU 0 while an agent sweep saturated 120 CPUs.
+  `torch.compile` and Triton autotuning are CPU-bound, so a compile-heavy timing
+  run beside compile-heavy agents measures the scheduler. Quiet means quiet on
+  both sides of the PCIe bus.
 
 ---
 
-## 7. The leaderboard side
+## 8. The traps
 
-One database per part, because a score measured on MI350X and one measured on
-MI355X are not comparable and the safest place to enforce that is the
-filesystem — a query cannot accidentally join across two files. The contract is
-`leaderboard/DESIGN-v2.md` §6.
+### 8.1 The PCI-vs-torch device ordering scramble
 
-```bash
-leaderboard/.venv/bin/python leaderboard/ingest.py --part MI355X \
-    --agent-runs <every external run root, every single time>
-# -> leaderboard/db/solbench-MI355X.db
-```
+`rocm-smi` and `amd-smi` order devices by PCI bus. torch does not. Passing a
+torch index to `-d` sets one card and measures another, and **this repository has
+lost three findings to it**: `STATE.md` D11, D20's clock alignment, and PR #2's
+own first version of §3 — which reported the setpoint as a *no-op on two cards*
+because the request went to a neighbour while the loaded card sat at its own
+boost clock. The correction is kept visible in `docs/methodology.md` §3 and in
+`src/solexbench_rocm/t_sol_at.py`'s docstring rather than edited away.
 
-Three things to know before you run it:
+`scripts/gpu_map.py` resolves this live through PCI bus identity and stays
+correct under `HIP_VISIBLE_DEVICES`: `torch_to_amdsmi()` at `:39`,
+`amdsmi_handle(torch_index)` at `:76`, `torch_to_rocm_smi()` at `:113`.
+`scripts/clock_calibrate.py:80` (`smi_device_index`) and
+`scripts/gpu_parity_check.py:191` now route through it.
 
-* **`--part` asserts, it does not relabel.** `ingest.py` reads the part from the
-  manifest's own provenance (`_provenance.part`, else the MI* device name) and
-  names the database from it. A `--part` that disagrees is an error. So the
-  database gets written the moment there is an MI355X manifest, and not before.
-* **`ingest.py` reads a fixed manifest path** — `artifacts/09/manifest-v1.json`,
-  a module constant with no flag. To produce `solbench-MI355X.db` the MI355X
-  manifest has to *be* that file. The frozen MI350X manifest currently occupies
-  it, and the unmerged branch sidestepped this by writing
-  `manifest-MI355X-v1.json`, which `ingest.py` cannot read. Resolve it
-  deliberately — a `--manifest` flag is the obvious answer and is not in the
-  DESIGN-v2 contract, so raise it rather than inventing it.
-* **Omitting `--agent-runs` silently deletes every run kept outside the repo**
-  from the board (D24, introduced three separate times). The board still
-  renders and still looks complete.
+**Two call sites still do not**, and they are in the module that applies the lock
+during an actual run: `src/sol_execbench/core/bench/device/amd.py` builds
+`["rocm-smi", "--setperfdeterminism", str(gpu_mhz)] + ["-d", str(gpu)]` with a
+**torch** index in `lock_clocks()`, and `unlock_clocks()` does the same with
+`rocm-smi -r -d <torch index>`. Under this policy you should not be calling
+either — but if anything in your path does, it is addressing the wrong card. Fix
+it or assert it is unreachable; do not leave it ambiguous.
 
-Until that database exists, the part switch lands on the honest empty state,
-which is a first-class page that says nothing has been measured on MI355X, that
-the port itself needs no work, and links here. That is the correct rendering and
-it must not be faked.
+Also note the tool choice is *not* what fixes this: `docs/methodology.md` §3 says
+`amd-smi` and `rocm-smi` enumerate identically, and both differ from torch.
+Prefer `amd-smi` for other reasons, and translate regardless.
 
-`leaderboard/solbench.db` is a *view*. Never edit it; change the artifact and
-re-ingest.
+### 8.2 Exclusivity — a worked example of how easy it is to lose
+
+`STATE.md` **D61** is a retraction, written this month, by a session that knew
+the rule. Quoting it:
+
+> At **18:39 and 18:40 on 2026-08-12** two foreign tenants started on this node:
+> `sglang::scheduler` (pid 2617421, 194 GB resident) and
+> `ray::MegatronTrainRayActor` (pid 2638981). Both were still running at 21:00,
+> with GPUs 0-3 reading 100% utilisation.
+
+Both of that session's "solo GPU 0" re-times — 19:32 and 20:00 — postdated them,
+and `scripts/gpu_exclusive.py --gpu 0` afterwards reported
+`gpu_id 36538 is NOT exclusive -- 2 foreign process(es)`. The headline claim
+built on those two numbers (a published anchor not reproducing at 2.021×) was
+retracted, not because it is known false, but because it is **not established**.
+What D61 states about the cost, in its own words: both re-times are marked
+`CONTAMINATED`, the 2.021× "does not survive", and the re-time it owes has to
+be redone on a verified-exclusive card. D61 also records that the tenants ran
+past 21:00 and that a candidate sweep spanning 16:13–20:10 has "roughly the
+last third" suspect, so the loss is not confined to the two re-times.
+
+The rule that follows: **run `scripts/gpu_exclusive.py --gpu 0` before *and*
+after every authoritative pass, and record both outputs in the artifact.** A
+check run only at the start cannot see a tenant that arrives in the middle.
+`scripts/runners/time_tb_candidates.py` has no exclusivity check at all —
+invoking it directly routes around `gpu_exclusive.py`,
+`guard_authoritative_gpu.py` and `retime_parallel.py`'s `foreign_on()` check
+alike, which is exactly how D61 happened. Adding a refusal there is the one item
+on the whole list that prevents a *future* invalid number rather than correcting
+a past one.
+
+### 8.3 Container-vs-image staleness
+
+`env/solb` recreates the container when the image ID changes — **unless a sweep
+is running inside it**, in which case it warns and keeps the old container. A
+long sweep started before an image rebuild therefore finishes on the *old*
+stack while the repo, and anything you run afterwards, is on the new one. Read
+that warning; do not work around it. On a daemonless node the equivalent risk is
+worse because there is no image ID at all, which is why `env/solb-native` calls
+`env/check_stack.py` and refuses rather than assuming. And prime directive 6:
+if the pinned ROCm/torch combination is incompatible with something, record the
+incompatibility — silently upgrading torch changes every measured baseline.
+
+### 8.4 The FlashInfer trace blobs
+
+`scripts/fetch_flashinfer_traces.py` fetches external blobs that are not in git
+and not in the dataset. Without them, **9 of the 26 FlashInfer problems fail at
+run time as ordinary runtime errors** — which reads as a port defect and is not
+one. `FLASHINFER_TRACE_DIR=/work` must also be set, because the eval driver
+resolves trace paths against the staging directory rather than the CWD;
+`env/solb` sets it and a hand-rolled environment will not.
+
+### 8.5 Two smaller ones
+
+* **`determinism-sweep` never resets the setpoint.**
+  `scripts/clock_calibrate.py`'s `determinism-sweep` applies a setpoint per step
+  and leaves the last one in place. `STATE.md` records the consequence without
+  naming the part — `STATE.md:2244-2246`, "an unreset determinism sweep left
+  **a node** at a 1900 MHz setpoint, `provenance.f_lock_mhz()` returned the
+  preset's 1640 without reading a device, and 143 artifacts measured at
+  ~1860 MHz were stamped 1640"; and `STATE.md:2312-2314`, "**On another node**
+  an unreset sweep left a 1900 MHz setpoint while the preset returned 1640;
+  143 artifacts were measured at ~1860 and stamped 1640". Eleven hours of
+  measurement, every value about 12% faster than the number it claimed. Which
+  part, and which kind of artifact, is not recorded anywhere in the repo, and
+  neither is a preset of 1640: `build_manifest.py:139-143` retells the same
+  story in the same words, `CLOCK_LOCK_PRESETS` (`device_config.py:94`) has no
+  1640 entry (`git log -S1640` over that file is empty), and every other 1640
+  in tracked `.py` is a synthetic value in
+  `tests/scripts/test_build_manifest.py`. So do not assume it was this part.
+  If you run it at all —
+  and under this policy you should only run it to *document* the derate, not to
+  choose a lock — bracket it with `rocm-smi -r` and verify. **The table is not
+  the hardware.**
+* **`determinism-sweep` needs the privileged wrapper and writes its artifact as
+  root** into an NFS-mounted repo. `chown` it back, or the next unprivileged run
+  cannot overwrite it.
 
 ---
 
-## 8. What will still be open when you are done
+## 9. What will still be open when you are done
 
-None of these are MI355X problems. They follow the port.
+None of these are MI355X problems. They follow the port, and each will be wrong
+on MI355X in the same way and for the same reason.
 
-* **D18 — paged-attention `T_SOL` over-counts traffic**, 6 problems / 249
-  scoreable workloads. The declared-traffic tier prices a paged KV cache at full
-  allocation while the kernel gathers 34 pages of 989,669. It will be wrong on
-  MI355X in exactly the same way and by the same factor, because the defect is
-  in the traffic model, not the clock. The v1.1 fix is to derive paged traffic
-  from `num_kv_indices × page_size`. Scores on those six problems are not usable
-  and must be marked wherever they appear.
-* **D21 — `L1__005` (beaten 1.09–1.15×) and `L1__035` (1.003–1.013×)**. Not
-  paged; D18 does not explain them. `L1__005` is a compute-bound SOLAR roofline
-  ~15% too slow, and a compute-bound bound moves with F_LOCK, so re-derive it on
-  your clock before concluding anything about whether it reproduces.
-* **The 15 NVFP4 Quant problems** are deferred with evidence
-  (`artifacts/deferred.json`, `shipped_total: 220`). NVFP4 has no ROCm kernel
-  path and an MXFP4 twin is a re-specification, not a translation. Re-run
-  `mxfp4_spike.py` — the software path may have moved — but do not quietly
-  change the count: 220 means 220 everywhere, including in any comparison to
-  upstream.
-* **D20 — matmul timing spread is bimodal and unexplained** on MI350X: 0.13% of
-  iterations cost 3.9–4.5×. The clock hypothesis was tested and falsified;
+* **D18 / D42 — the declared-traffic tier over-counts.** It prices every declared
+  input at its full allocation regardless of what the kernel reads. `CLAUDE.md`
+  states the MI350X blast radius as **328 workloads across 38 problems**, still
+  resting on that tier after v1.1 fixed two paged problems individually rather
+  than fixing the tier. The defect is in the traffic model, not the clock, so it
+  crosses parts intact. Worse, it interacts with unlocked scoring in the unsafe
+  direction: an over-counted *memory* term is also the term that does **not**
+  shrink with clock, so on a boosting card it wins the `max` more often than it
+  did at a pinned clock, and the over-count propagates to more workloads. If you
+  can fix the tier before bringing up MI355X, do that first.
+* **D39 — the bound check is one-sided.** Nothing may beat a bound; nothing checks
+  that a bound is tight. `CLAUDE.md`: 827 workloads (22.3%) sit above 100×
+  headroom, where `S` is a PyTorch comparison with no roofline content. Marked
+  (`bound_quality`) at ingest, which means a consumer of the manifest alone
+  cannot see it.
+* **D43 — `rocprofv3 --pmc` hangs in this container**, so the counter path to an
+  *independent* traffic measurement is closed. This matters more than it sounds:
+  `CLAUDE.md` §6 says a self-consistent bound and anchor cannot detect a shared
+  error, and this is the tool that would break the tie. The shim is not
+  implicated. The counter-free route is a minimal independent kernel, timed.
+* **D20 — matmul timing is bimodal and unexplained** on MI350X: 0.13% of
+  iterations cost 3.9–4.5×; the clock hypothesis was tested and falsified;
   hipBLASLt kernel selection is the untested suspect. Two upstream tests are
-  skipped behind it because their thresholds were measured on RTX 4090 / B200
-  and no defensible AMD constant could be derived. Re-deriving them on MI355X
-  (`scripts/derive_timing_variance.py`) is a second data point on an open
-  question and is worth the twenty minutes.
-* **`origin/feat/agent-scoreboard`, 29 commits, unmerged** — §1.
-* **No full-benchmark agent baseline anywhere.** Upstream's median of 0.732 has
-  no counterpart on either part. `docs/agent-baseline.md` prices it.
+  skipped behind it because their thresholds were measured on RTX 4090 / B200.
+  Re-deriving them on MI355X (`scripts/derive_timing_variance.py`) is a second
+  data point on an open question and is worth the twenty minutes.
+  `docs/methodology.md` §7 adds a control D20 did not have: the short-window cost
+  is 21.2 µs on a 4096³ GEMM, 13.5 µs on a 1024³ one, and **0.6 µs** on
+  elementwise `a + b` — a 33–36× spread that puts it on the GEMM path, not the
+  clock and not launch overhead generally.
+* **The 15 NVFP4 Quant problems** stay deferred with evidence. NVFP4 has no ROCm
+  kernel path and an MXFP4 twin is a re-specification, not a translation.
 * **`scripts/verify_artifacts.py` has no test coverage**, and it is the
-  acceptance gate for all ten tasks. Three separate checks in it have been found
-  inert (F17, F22, F23). A bug in it does not fail loudly.
+  acceptance gate for all ten tasks. A bug in it does not fail loudly; it passes
+  quietly. Highest leverage-per-hour item on the list.
+* **`origin/feat/agent-scoreboard`, 30 commits, unmerged** — §2.
+* **No full-benchmark agent baseline on either part.** `docs/agent-baseline.md`
+  prices it.
 
 ---
 
-## 9. Effort
+## 10. What is explicitly NOT decided
 
-Estimates I can support, from artifact provenance timestamps on MI350X. These
-are elapsed spans between the first and last artifact of a sweep on **that**
-part, sharded 7-way, with other work interleaved — so they bound the wall clock
-rather than measuring the GPU time, and MI355X is a faster part with a higher
-power budget.
+Each of these needs data or a maintainer, and each must be revisited before the
+first MI355X `S` is published. Do not resolve any of them by picking a
+convenient default.
 
-| stage | MI350X elapsed | how measured |
-|---|---|---|
-| task 02, reference sweep, 235 problems, GPUs 1–7 | **0.6 h** | first→last `_provenance.utc` in `artifacts/02/references/` |
-| task 05, tolerance calibration, 235 problems, GPUs 1–7 | **5.3 h** | same, `artifacts/05/*.json` |
-| task 06, candidate selection, 235 problems, GPUs 1–7 | **10.2 h** | same, `artifacts/06/candidates/` |
-| task 06, authoritative re-time, 220 problems, one GPU, serial | **11.4 h** | same, `artifacts/06/authoritative/`; overlapped the candidate sweep, so this is elapsed and not exclusive |
-
-Two independent cross-checks on the T_b figures: the branch reports 223 problems
-of candidate selection in **107 min** across GPUs 1–7 on MI355X, and its
-mis-clocked authoritative run produced 143 artifacts in roughly eleven hours.
-
-Task 01 has no measured duration but its cost is fixed by the script's own
-parameters: 15 min per floor run × ≥4 runs, plus (settle 30 s + 60 s) per
-frequency in the determinism sweep, plus 30 stability trials in separate
-processes. Budget half a day including the analysis, and do not compress the
-floor runs — the p5 is taken over the *final* five minutes for a reason.
-
-**What I cannot estimate, and will not guess:** task 03 (SOLAR's per-problem
-timeout is 900 s and 51 of 235 problems hit failures on MI350X, so the total is
-dominated by how many fail rather than by how many succeed); tasks 04, 07 and
-08, none of which have a recorded wall clock; and anything involving an agent
-sweep, whose cost is a budget decision rather than a duration.
+1. **What task 01's acceptance check becomes on an unlocked node.** As written it
+   requires a preset, agreement between the preset and `STATE.md`, and every GPU
+   at the preset's setpoint (§3.4). All three presuppose a lock, and task 01 is a
+   hard blocker for 03, 05 and 06. Amending it is a methodology change
+   (prime directive 7).
+2. **Where the per-measurement clock comes from — or which of §4.3's
+   alternatives replaces it.** This is the load-bearing one. The 1–13 ms timed
+   window is shorter than any available sampler and runs 1.04–2.04× off steady
+   state unlocked (§4.3), so "read the clock back per measurement" is currently
+   a design intention, not a capability.
+3. **Whether the timed window is lengthened.** §4.3 option 1 fixes both the clock
+   sampling and the short-window bias, and breaks comparability with upstream's
+   50 iterations. A single decision with two consequences.
+4. **Whether `S` is published at all for MI355X v1**, or only speedups and
+   headroom (§4.3 option 4).
+5. **How `T_b` and `T_k` are normalized when they run at different clocks**
+   (§4.4). Unresolved, and it is the difference between a methodology and a
+   farmable scoreboard.
+6. **Whether `artifacts/` gains a part dimension** (`artifacts/<part>/<task>/`).
+   Two parts are already mixed inside `artifacts/00` and `artifacts/01` (§2), and
+   `verify_artifacts.py:246` is one MI355X floor run away from silently
+   corrupting the MI350X task-01 gate. §5 step 3 works around it; it does not fix
+   it.
+7. **Whether the MI350X artifacts get retro-stamped with an explicit
+   `_provenance.part`.** Today `manifest-v1.2.json`'s part is an *inference* from
+   a device string — its `_provenance.part` and `_provenance.host` are both
+   `None` — while `leaderboard/ingest.py`'s `manifest_part()` already prefers an
+   explicit field. Cheap to add going forward; changing tracked bytes is a
+   maintainer call.
+8. **Whether `--setperfdeterminism` is reliable on *any* CDNA4 part.** D55 says
+   the setpoint never binds on MI350X; PR #2 says it binds destructively on
+   MI355X. Same API, same die, opposite failures, and neither has been tested at a
+   setpoint clearly *below* the clock the card would otherwise reach. Half of
+   this has already been conceded in source: `requested_is_achieved` (§3.3)
+   says per part whether a request may be *read* as an achieved clock, and it
+   is `False` on MI355X. What it does not settle is whether `gpu_clk_mhz` — a
+   clock you request and then apply — is worth keeping on CDNA4 at all. If the
+   answer is "no", the concept is the thing to remove, not a number to update.
+9. **Whether the tolerance set is inherited or re-derived** (§6), and if
+   re-derived, the written-down ceiling rule that stops a re-derivation from
+   becoming "loosen it until the kernel passes" (task 05 forbids exactly that).
+10. **Whether `verify_anchor.py`'s and `verify_artifacts.py`'s anchor gates still
+    mean the same thing.** PR #2 changed what `total` counts in
+    `anchor-verification.json`, and `verify_artifacts.py` reads `passing`/`total`
+    and requires `>= 0.95`. The tracked artifact predates the change, so the
+    loosening is invisible until the next `verify_anchor` run — on either part.
+    Decide explicitly whether the exemption applies, and teach the gate about it
+    either way.
 
 ---
 
-## 10. Checklist
+## 11. Checklist
 
 Each line is a real command. Paste its real output into `STATE.md`.
 
 ```bash
-# setup
+# stack
 env/solb bash -lc 'python -m pytest tests/ -q'                       # 519 passed, 75 skipped
+env/solb-native python env/check_stack.py                            # on a daemonless node
+
+# node, unlocked
+env/solb bash -lc 'python scripts/gpu_parity_check.py --n-gpus 8 --out artifacts/00/gpu-parity-<HOST>.json'
+env/solb bash -lc 'python scripts/unlocked_clock_probe.py --out artifacts/01/unlocked-clock-<HOST>.json'
+env/solb bash -lc 'python scripts/burst_clock_probe.py --mode unlocked --out artifacts/01/burst-clock-<HOST>.json'
 env/solb bash -lc 'python scripts/verify_artifacts.py --task 00'
 
-# F_LOCK -- nothing below this line is trustworthy until it passes
-env/solb bash -lc 'python scripts/verify_artifacts.py --task 01'
+# THE DECISION POINT -- four written decisions in STATE.md before this line (§5 step 6)
 
 # the port, on this part
 env/solb bash -lc 'python scripts/check_coverage.py --artifacts artifacts/02/references'
 env/solb bash -lc 'python scripts/verify_artifacts.py --task 02'
 env/solb bash -lc 'python scripts/verify_artifacts.py --task 04'
 
-# bounds, tolerances, anchors
-env/solb bash -lc 'python scripts/check_coverage.py --artifacts artifacts/03/t_sol.json'
-env/solb bash -lc 'python scripts/verify_artifacts.py --task 03'
-env/solb bash -lc 'python scripts/check_coverage.py --artifacts artifacts/05/workloads --pattern workload.jsonl'
-env/solb bash -lc 'python scripts/verify_artifacts.py --task 05'
-env/solb bash -lc 'python scripts/check_coverage.py --artifacts artifacts/06/candidates'
-env/solb bash -lc 'python scripts/verify_artifacts.py --task 06'
+# bounds, tolerances, anchors -- every path explicit
+env/solb bash -lc 'python scripts/check_coverage.py --artifacts artifacts/03-MI355X/t_sol.json'
+env/solb bash -lc 'python scripts/check_coverage.py --artifacts artifacts/05-MI355X/workloads --pattern workload.jsonl'
+env/solb bash -lc 'python scripts/gpu_exclusive.py --gpu 0'          # before AND after task 06
+env/solb bash -lc 'python scripts/check_coverage.py --artifacts artifacts/06-MI355X/candidates'
 
 # quant, red team, release
 env/solb bash -lc 'python scripts/verify_artifacts.py --task 07'
@@ -593,12 +1180,14 @@ env/solb bash -lc 'python scripts/verify_artifacts.py --task 08'
 env/solb bash -lc 'python scripts/verify_artifacts.py --task 09 --full'
 
 # the board
-leaderboard/.venv/bin/python leaderboard/ingest.py --part MI355X --agent-runs <roots>
+leaderboard/.venv/bin/python leaderboard/ingest.py --part MI355X   # roots via sources.json
 leaderboard/.venv/bin/python -m pytest tests/leaderboard -q
 ```
 
-Done means: `--task 09 --full` passes, `check_coverage` exits zero for every
-sweep, every deferral is in `artifacts/deferred.json` with a reason and the same
-count appears in every document, and `db/solbench-MI355X.db` exists so the part
-switch lands on data. Anything short of that is recorded in `STATE.md` as a
-blocker, not smoothed over.
+**Done means:** `--task 09 --full` passes or its failures are enumerated in
+`STATE.md` with reasons; `check_coverage` exits zero for every sweep; every
+deferral is in `artifacts/deferred.json` with a reason and the same count appears
+in every document; `db/solbench-MI355X.db` exists so the part switch lands on
+data; and every one of §10's ten open items is either resolved in writing or
+still listed there. Anything short of that is recorded as a blocker, not
+smoothed over.

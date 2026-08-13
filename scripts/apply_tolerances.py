@@ -122,6 +122,20 @@ def main():
             for flag in ("allow_negative_inf", "max_error_cap"):
                 if flag in old:
                     new[flag] = old[flag]
+            # AMD: D52b. Carried, not dropped. These keys are not fields of
+            # `ToleranceSpec` and pydantic's default `extra="ignore"` drops
+            # them at load (verified: ToleranceSpec(**{..., "_exact_outputs":
+            # [0]}) parses and model_dump() shows only the declared fields), so
+            # carrying them cannot change what the harness enforces -- exactly
+            # as `_provenance` below has always been carried. What it changes
+            # is that the SHIPPED workload states which outputs the band does
+            # not apply to, and how wide the band is for an output whose own
+            # dtype earns a tighter one, instead of that living only in
+            # artifacts/05 where nothing downstream reads it.
+            for extra in ("_exact_outputs", "_dtype_floors",
+                          "_floor_over_grant"):
+                if extra in t:
+                    new[extra] = t[extra]
             new["_provenance"] = t.get("_derivation", "AMD-derived")
             w["tolerance"] = new
             lines.append(json.dumps(w))
@@ -130,8 +144,17 @@ def main():
             wid = f"{key}:{w['uuid']}"
             ob = b200.get(wid) or {}
             if not d.get("deterministic"):
+                # Both halves of the run-to-run measurement, because since D52
+                # `max_abs` covers only the FLOAT outputs. A problem that is
+                # non-deterministic only in its indices lands here with
+                # `max_abs 0.0`, which reads as a contradiction until the
+                # second column says where the variance actually is. Old
+                # artifacts predate the key and get "-" rather than a 0.0 that
+                # would claim a measurement nobody made.
+                r2r = d["run_to_run"]
                 nondeterministic.append(
-                    (key, w["uuid"], d["run_to_run"]["max_abs"],
+                    (key, w["uuid"], r2r["max_abs"],
+                     r2r.get("exact_outputs_max_abs"),
                      new["max_atol"], new["max_rtol"]))
             if ob.get("max_atol"):
                 ratio = new["max_atol"] / ob["max_atol"]
@@ -184,13 +207,16 @@ def main():
         "silently, because a wide tolerance is exactly what would let a wrong "
         "kernel through.",
         "",
-        "| problem | workload | run-to-run max_abs | derived atol | derived rtol |",
-        "|---|---|---|---|---|",
+        "| problem | workload | run-to-run max_abs (float outputs) | "
+        "run-to-run max_abs (int/bool outputs) | derived atol | derived rtol |",
+        "|---|---|---|---|---|---|",
     ]
-    for p, u, mab, at, rt in sorted(nondeterministic)[:200]:
-        lines.append(f"| {p} | `{u[:8]}` | {mab:.6g} | {at:.6g} | {rt:.6g} |")
+    for p, u, mab, emab, at, rt in sorted(nondeterministic)[:200]:
+        ex = "-" if emab is None else f"{emab:.6g}"
+        lines.append(
+            f"| {p} | `{u[:8]}` | {mab:.6g} | {ex} | {at:.6g} | {rt:.6g} |")
     if len(nondeterministic) > 200:
-        lines.append(f"| ... and {len(nondeterministic) - 200} more | | | | |")
+        lines.append(f"| ... and {len(nondeterministic) - 200} more | | | | | |")
 
     lines += [
         "",

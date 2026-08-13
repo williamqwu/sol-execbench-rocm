@@ -88,6 +88,68 @@ def check_tensor_sanity(
     return None
 
 
+# AMD: D52. An integer or boolean output carries no representation error, so
+# "within atol + rtol*|y|" is not a meaningful relaxation for one -- an index
+# is either the index the reference chose or it is not. The benchmark's data
+# model cannot say that per output: `Workload.tolerance` is a single
+# ToleranceSpec and the driver applies it to every output of the workload
+# (`eval_driver.py`, "-- Numerical correctness check --"). Task 05 used to
+# resolve the mismatch at derivation time by giving the WHOLE problem the
+# integer floor of {atol: 0, rtol: 0}, which made the float outputs' comparison
+# bit-identity-with-eager: L2__049 and Quant__011 return
+# (int64 topk_idx, float32 topk_weight) and were unpassable by construction.
+#
+# Splitting it here instead keeps both halves right no matter what a tolerance
+# says: float outputs get the derived band, integer and boolean outputs get
+# exact equality, and neither leaks into the other.
+def _is_integral(t: torch.Tensor) -> bool:
+    """True for integer and boolean tensors (everything with no ulp)."""
+    return not (t.is_floating_point() or t.is_complex())
+
+
+def _exact_error_stats(
+    output: torch.Tensor, reference: torch.Tensor, tolerance: ToleranceSpec
+) -> Tuple[Correctness, bool]:
+    """Exact comparison, for integer and boolean outputs.
+
+    The equality itself is decided in the OUTPUT'S OWN DTYPE, not through a
+    cast. The usual path casts to float32, which cannot represent every int64:
+    2**53 and 2**53+1 land on the same float and would compare equal. Only the
+    reported error magnitudes go through float64, and they are triage output,
+    not the verdict.
+
+    `required_matched_ratio` and `max_error_cap` still apply. This changes only
+    the WIDTH of the accepted band, from `atol + rtol*|y|` to zero; it does not
+    change the harness's own rule about how many elements may miss.
+    """
+    x, y = output, reference
+    if x.dtype != y.dtype:
+        x, y = x.to(torch.int64), y.to(torch.int64)
+
+    total_elements = x.numel()
+    if total_elements == 0:
+        return Correctness(), False
+
+    mismatched = float((x != y).sum().item())
+    # float64 for the magnitudes: exact for everything below 2**53, and it
+    # cannot overflow the way an int64 subtraction can.
+    diff = torch.abs(x.to(torch.float64) - y.to(torch.float64))
+    max_abs = float(diff.max().item())
+    matched_ratio = 1.0 - (mismatched / float(total_elements))
+    matched_ratio = max(0.0, min(1.0, matched_ratio))
+
+    exceeds_tol = matched_ratio < tolerance.required_matched_ratio
+    if tolerance.max_error_cap is not None and max_abs > tolerance.max_error_cap:
+        exceeds_tol = True
+
+    # Reported for triage only, with a denominator floor of 1 -- the smallest
+    # non-zero magnitude an integer has, so this cannot divide by near-zero.
+    rel = diff / torch.clamp(torch.abs(y.to(torch.float64)), min=1.0)
+    return Correctness(
+        max_absolute_error=max_abs, max_relative_error=float(rel.max().item())
+    ), exceeds_tol
+
+
 def compute_error_stats(
     output: torch.Tensor, reference: torch.Tensor, tolerance: ToleranceSpec
 ) -> Tuple[Correctness, bool]:
@@ -107,6 +169,13 @@ def compute_error_stats(
     infs_nans = check_tensor_sanity(x, y, allow_negative_inf=allow_neg_inf)
     if infs_nans is not None:
         return infs_nans, True
+
+    # AMD: D52 -- integer and boolean outputs are compared exactly. Placed
+    # AFTER check_tensor_sanity on purpose: the all-zeros check above is an
+    # anti-reward-hack guard, and an all-zero integer output against a mostly
+    # zero reference would otherwise slip through on matched ratio alone.
+    if _is_integral(output) and _is_integral(reference):
+        return _exact_error_stats(output, reference, tolerance)
 
     # When allow_negative_inf is set, exclude matching -inf positions from
     # error computation — they have already been validated by check_tensor_sanity.

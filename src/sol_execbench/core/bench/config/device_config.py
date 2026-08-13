@@ -53,13 +53,42 @@ class ClockPreset:
     #                        analytic bound wrong in the direction that looks
     #                        entirely plausible.
     #
-    # None means "requested == achieved" (the NVIDIA case).
+    # None means "not measured on this part". Whether that is harmless depends
+    # on `requested_is_achieved` below.
     achieved_gpu_clk_mhz: Optional[int] = None
 
+    # True on parts where asking for a clock gets you that clock, which is the
+    # NVIDIA case and the reason the default is True.
+    #
+    # It is FALSE on MI355X, and that is a measurement, not a caution: PR #2's
+    # per-card sweep put 15 of 16 measurements at 0.795-0.864x of the setpoint
+    # while the card drew 734-999 W of a 1400 W cap. Setting it False makes
+    # `f_lock_mhz` refuse rather than hand back the request.
+    requested_is_achieved: bool = True
+
     @property
-    def f_lock_mhz(self) -> int:
-        """The frequency measurements are actually taken at."""
-        return self.achieved_gpu_clk_mhz or self.gpu_clk_mhz
+    def f_lock_mhz(self) -> Optional[int]:
+        """The frequency measurements are actually taken at, or None if unknown.
+
+        **None is the honest answer and it is load-bearing.** This used to read
+        ``achieved_gpu_clk_mhz or gpu_clk_mhz``, which on a part where the two
+        differ returns the number that was ASKED FOR and labels it the number
+        that was ACHIEVED. That is prime directive 1 -- inventing a measurement
+        -- performed by a fallback operator, and it is silent by construction:
+        every artifact gets stamped, every guard compares the stamp against the
+        same table it came from, and the only automated cross-check
+        (``T_SOL <= T_b``) gets EASIER rather than harder, because a bound
+        divided by a clock that is too high and a T_b measured on silicon that
+        is too slow both move the same way.
+
+        Returning None instead makes `build_manifest.py` refuse to build at all
+        (its F18 guard, build_manifest.py:244) until someone supplies a real
+        measurement through ``SOLEXBENCH_F_LOCK_MHZ`` or by measuring the part.
+        A refusal is the correct output for "nobody has measured this yet".
+        """
+        if self.achieved_gpu_clk_mhz is not None:
+            return self.achieved_gpu_clk_mhz
+        return self.gpu_clk_mhz if self.requested_is_achieved else None
 
 
 CLOCK_LOCK_PRESETS: dict[str, ClockPreset] = {
@@ -82,7 +111,30 @@ CLOCK_LOCK_PRESETS: dict[str, ClockPreset] = {
     # For scale: the B200 ratio (1500/1970 ~ 76%) would imply ~1830 MHz here,
     # which is ABOVE the measured floor and would throttle continuously. The
     # MI355X derate is milder at 1650/2400 ~ 69%.
-    "AMD Instinct MI355X": ClockPreset(gpu_clk_mhz=1650, dram_clk_mhz=None),
+    #
+    #   RETRACTED as an F_LOCK, 2026-08-12, and the entry is kept rather than
+    #   deleted so the retraction is visible where the number was. The 1648
+    #   above is real but it is ONE card on one node: PR #2 swept all eight,
+    #   correctly addressed through the PCI translation, and found 15 of 16
+    #   measurements at 0.795-0.864x of the setpoint drawing 734-999 W of a
+    #   1400 W cap -- the cards do not raise their power state, and the clock
+    #   follows. The single measurement that reached its setpoint drew 1272 W.
+    #   Node-wide spread goes 3.0-3.4% unlocked to 21.0-21.3% locked, three
+    #   runs over five days across a hard reboot.
+    #
+    #   So 1650 is a REQUEST on this part and nothing here has measured what it
+    #   achieves. `requested_is_achieved=False` makes that state explicit and
+    #   makes `f_lock_mhz` return None, which makes the manifest refuse to
+    #   build. Stamping 1650 while the silicon holds ~1330 would make every
+    #   bound ~24% too tight in exactly the direction no gate can catch.
+    #
+    #   MI355X is to be measured UNLOCKED (docs/TODO-MI355X.md). Under that
+    #   plan this preset is not used for scoring at all; it stays because
+    #   `lock_clocks` still needs a request if anyone deliberately locks, and
+    #   because deleting it would leave the next person to rediscover 1650.
+    "AMD Instinct MI355X": ClockPreset(
+        gpu_clk_mhz=1650, dram_clk_mhz=None, requested_is_achieved=False
+    ),
     #
     # MI350X. MEASURED on gbt350-odcdh1-a08-1 (tasks/01, 2026-08-03). Same
     # CDNA4 die and the same gfx950 target as the MI355X above; a different

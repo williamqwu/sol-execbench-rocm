@@ -140,6 +140,120 @@ this on MI355X should re-run `tasks/01` and confirm whether the
 requested-vs-achieved split behaves the same way there; it was not observed on
 that node, but the node was also never asked the question this way.
 
+#### That question, asked on a second MI355X node
+
+It behaves worse there, and not in the way the paragraph above anticipates: the
+split is not between cards, it is between *asking* and *not asking*.
+`scripts/gpu_parity_check.py` runs one fixed 8192³ BF16 GEMM on all eight GPUs and
+measures throughput by wall clock, so the result does not depend on the clock
+telemetry being right. `scripts/unlocked_clock_probe.py` then varies the workload,
+the duration and the neighbour load. Both use nothing from the benchmark harness.
+
+**Unlocked, the node is uniform.** All eight cards on `perf_level=auto`, saturating,
+45 s: 1454–1500 TFLOPS (**3.0% spread**), 1725–1829 MHz, 1381–1399 W each, 55–63 °C.
+Every socket delivers its full 1400 W at once. No weak card, no cooling imbalance.
+
+**Applying `--setperfdeterminism` is what breaks that.** Same run with 1660 requested
+on all eight: throughput spread widens to **21.0%**. Six or seven of the eight sit
+~320 MHz below the frequency they acknowledged, at ~980 W against a 1400 W cap,
+*cooler* than the one or two that hold, and `amd-smi` reports no violation of any kind
+on them — not PPT, thermal, VR, HBM or PROCHOT. Not contention either: torch 2 alone,
+all others idle, still sits at 1325 MHz.
+
+The node-wide pair was measured three times over five days, **including across a hard
+reboot**, with identical firmware throughout: unlocked 3.4% / 3.0% / 3.0%, locked
+21.2% / 21.0% / 21.3%, six or seven cards low by the same margin each time. The reboot
+changed nothing about it. A hard reboot is worth trying before reading any of this as
+permanent, and on this node it was tried.
+
+**What the undershoot tracks is power, not identity.** The node-wide block cannot tell
+a card that undershoots from a card that ignores the request, because every card is
+given the same number. Sweeping each card on its own, all eight, two setpoints:
+
+| torch | 1200 → | | 1660 → | | power at 1660 |
+|---|---|---|---|---|---|
+| 0 | 1006 | 0.838× | 1401 | 0.844× | 978 W |
+| **1** | 1010 | 0.842× | **1655** | **0.997×** | **1272 W** |
+| 2 | 1023 | 0.853× | 1319 | 0.795× | 973 W |
+| 3 | 1015 | 0.846× | 1336 | 0.805× | 945 W |
+| 4 | 1037 | 0.864× | 1375 | 0.828× | 984 W |
+| 5 | 1031 | 0.859× | 1360 | 0.820× | 999 W |
+| 6 | 1022 | 0.852× | 1338 | 0.806× | 986 W |
+| 7 | 1010 | 0.842× | 1335 | 0.804× | 958 W |
+
+**15 of those 16 measurements land at 0.795–0.864× while drawing 734–999 W. The one
+that reaches its setpoint is the one that draws 1272 W.** So the failure is not the
+clock control refusing a number; it is the card not raising its power state, after
+which the clock it can hold follows. All sixteen accepted the request and read back as
+`perf_determinism`.
+
+**And it is not a property of a card.** Across four sweeps and three node-wide runs
+spanning a hard reboot, torch 0 has been measured at 1410, 1654, 1384 and 1401 MHz for
+the same node-wide request, and torch 1 has tracked 1200 MHz twice (1194, 1195) and
+undershot it once (1010). Any table naming which cards are affected — including the one
+above — is a snapshot, not a taxonomy. What reproduces is the *distribution*: nearly
+every card, nearly every time, ~20% low and ~300 W under-drawn.
+
+> **Two corrections, since a reader deciding whether to trust this should see them.**
+> The first version of this section claimed the setpoint was a *no-op* on two cards,
+> on a sweep showing torch 1 at 1655–1657 MHz whatever was asked. That was an index
+> bug: the sweep set setpoints with `rocm-smi -d <torch index>`, but `rocm-smi` and
+> `amd-smi` order devices by PCI bus and torch does not — on this node torch 1 is
+> device 0 to both tools — so the request went to a *neighbouring* card while the
+> loaded card was left alone at its own boost clock. That is the third finding this
+> repository has lost to that scrambled ordering (D11, D20's clock alignment, this
+> one), and `gpu_parity_check.py` now owns the sweep and translates through
+> `gpu_map.torch_to_amdsmi()` so the ad-hoc form cannot recur.
+>
+> The second version then claimed two cards track the setpoint correctly. Repeating
+> the sweep showed that wrong too: the same cards fall on different sides on different
+> runs. Both errors came from reading a per-card story into a handful of points, which
+> is why this section now reports a distribution and a correlate instead. The node-wide
+> figures were never affected by either, because a node-wide setting takes no device
+> index.
+
+**The telemetry is honest**, which is worth stating because it was the first
+suspicion. Throughput divided by reported clock is **788–859 TFLOPS/GHz on every
+card in every condition above** — locked, unlocked, alone, contended, fast and slow.
+A card reporting 1330 MHz delivers exactly the work 1330 MHz predicts. The cards
+really do run slow; nothing here is a sampling artifact.
+
+Firmware on that node, since this is a firmware-level finding and not a claim about
+the part: VBIOS `113-M355-01-1K1-000C`, SMC `04.86.10.05`, MEC 38, RLC 43, SOS
+`0x00450028`, identical across all eight; ROCm-SMI-LIB 7.8.0, amdgpu 6.16.6.
+
+#### On a node like this, do not lock
+
+The conclusion the measurements point at, stated plainly, because it inverts the
+premise §3 starts from. **Determinism is the less reproducible of the two modes here.**
+
+| | unlocked | locked |
+|---|---|---|
+| throughput spread, 8 cards, same kernel | **3.0–3.4%** (3 runs, 5 days, across a reboot) | 21.0–21.3% |
+| drift over 8 min sustained | **0.7%** | not measured |
+| sensitivity to seven busy neighbours | **1.0%** | up to −15% |
+| per-card behaviour stable run to run | **yes** | **no** — see above |
+
+So the lock buys nothing on this node and costs uniformity. What it *would* have bought
+is a frequency known in advance, and the honest position is that it never delivered
+that here either: the clock a measurement runs at has to be read back regardless, since
+a card can report `perf_determinism`, report no violation, and still be 20% low.
+
+Two things make unlocked workable rather than merely tidier. Frequency becomes a
+property of the *kernel* — 27.9% across workload types, because at `perf_level=auto`
+every card sits against the 1400 W cap and the clock falls out of how power-hungry the
+kernel is — so no single `F_LOCK` describes a run. That is what the split roofline
+terms in §5 are for: a bound can be evaluated at the clock its measurement observed,
+and for a memory-bound workload it does not move at all. And per §7 the timed window is
+too short to sample a clock anyway, which is a problem the lock did not solve either.
+
+What this means concretely, and none of it is specific to this node: read the clock back
+per measurement rather than trusting the setpoint; address per-device SMI calls through
+a PCI-resolved translation (`gpu_map`, and see the corrections above for what happens
+otherwise); and prefer `amd-smi` over `rocm-smi`, while knowing that the tool choice is
+*not* what fixes the index trap — the two enumerate identically, and both differ from
+torch.
+
 ## 4. Architectural constants: what may be shared between parts
 
 `src/solexbench_rocm/parts.py` is the single source of truth, and it separates
@@ -233,6 +347,32 @@ The bridge now recomputes SOLAR's own formula —
 SOLAR reports beside the result, and ceils, keeping the exact value in
 `t_sol_cycles_exact`.
 
+### Both terms of the roofline, not only their max
+
+The two terms of that `max` scale oppositely with the clock, and the arch YAML says
+which is which in its own annotations: `MAC_per_cycle` is architectural and
+frequency-independent, so the compute term is a fixed number of **cycles** and its
+time goes as 1/F; `DRAM_byte_per_cycle` is derived as `bytes_per_sec / freq`, so the
+memory term is a fixed **time** and its cycle count scales with F.
+
+Storing only the max discards that. A card boosting from 1650 to 2394 MHz on a
+memory-bound kernel has not moved that kernel's bound at all — HBM does not run off
+the core clock — while the same boost tightens a compute-bound bound by 31%. From the
+max alone neither term is recoverable, and **the bottleneck can flip as F moves**, so
+scaling whichever won at the reference clock is wrong in both directions.
+
+`sol_bounds.py` therefore emits `compute_cycles`, `memory_cycles_at_f_ref`,
+`mac_per_cycle` and `dram_byte_per_sec` alongside the bound, and
+`src/solexbench_rocm/t_sol_at.py` re-maxes them at any clock. Verified on real data
+to reproduce the recorded `t_sol_ms` exactly at the reference clock, and to leave a
+memory-bound bound flat from 1650 to 2394 MHz. Records written before the split are
+refused rather than inferred from `bottleneck`, which would happen to work only while
+the evaluated clock stayed above the reference one.
+
+This costs four numbers per workload and makes the bound model explicit enough to
+test. It is also what a node that cannot pin its clock needs in order to score at
+all — see *That question, asked on a second MI355X node* in §3.
+
 ### V1 / V2 / V3, the three flagged unknowns
 
 * **V1 — TF32 on CDNA4.** Deliberately absent from the MAC/cycle table rather
@@ -322,6 +462,8 @@ CUPTI has no ROCm build. This port therefore ships two methodologies and
 
 * **`hip_events`** — the default. Correct, and includes host launch overhead,
   so short kernels read slightly slow and their SOL scores read slightly low.
+  "Slightly" was optimistic; see *How short is the timed window?* below for the
+  measured size of it.
 * **`rocprof`** — dispatch-level attribution via a rocprofiler-sdk shim
   (`src/solexbench_rocm/shim/`), reaching parity with upstream's methodology.
 
@@ -348,6 +490,78 @@ Two traps were live and are worth restating:
   runtime initializes, and a session configured after that point produces zero
   records rather than an error. The eval driver therefore registers the shim
   *before* `import torch`, conditional on the methodology.
+
+### How short is the timed window?
+
+`BenchmarkConfig` defaults to `warmup_runs=10, iterations=50`, so `time_runnable`
+times 60 back-to-back executions. For the sub-millisecond kernels that make up most
+of this corpus that is a **1–13 ms window** — shorter than any telemetry sampler can
+observe, which means "what clock was this measured at?" had never actually been
+answered for any artifact, only assumed.
+
+It can be answered without telemetry. At a fixed shape, per-iteration time is
+proportional to 1/clock, so timing the same kernel at increasing burst lengths turns
+the question "was the clock the same?" into "did the work take the same time per
+unit?", at whatever timescale is convenient. `scripts/burst_clock_probe.py` does
+that. Per-iteration time relative to a fully sustained loop:
+
+Per-iteration time relative to a fully sustained loop, unlocked / locked:
+
+| burst | GEMM 4096³ (compute-bound) | GEMM 1024³ | elementwise (memory-bound) |
+|---|---|---|---|
+| **60 iters** (the shipped default) | **1.217 / 1.241×** | **2.040 / 2.090×** | 1.042 / 1.044× |
+| 400 | 1.079 / 1.112 | 2.516 / 2.543 | 1.009 / 1.010 |
+| 2 000 | 1.031 / 1.018 | 1.708 / 1.702 | 1.003 / 1.004 |
+| 10 000 | 1.017 / 1.001 | 1.001 / 0.999 | 1.000 / 1.001 |
+| 50 000 | 1.000 | 1.000 | 1.000 |
+
+A compute-bound GEMM measures **~22% slower** at the shipped burst length than at
+steady state, and a small one **more than twice as slow** — non-monotonically
+(2.04, 2.52, 1.71), because at that size the per-iteration cost dominates the whole
+window. Convergence needs ~10 000 iterations.
+
+**Slightly worse locked than unlocked** in all three shapes, so it is not an artifact
+of a node that cannot pin its clock. It is a property of this timing window that every
+`T_b` and every score already carries.
+
+**It is not the clock, and D20 is why we can say that cheaply.** A clock still ramping
+out of idle was the obvious reading and it is wrong, on two independent grounds. D20
+sampled the active DPM level at ~860 Hz *inside* the timing loop and found the clock
+steady to 1.00× during measurement. And the absolute cost per iteration here is not
+distributed the way a clock effect would be:
+
+| kernel | Δ per iteration, unlocked | locked |
+|---|---|---|
+| GEMM 4096³ | 21.2 µs | 25.5 µs |
+| GEMM 1024³ | 13.5 µs | 14.2 µs |
+| elementwise `a + b` | **0.6 µs** | **0.7 µs** |
+
+A depressed clock slows every kernel roughly in proportion. The elementwise kernel is
+effectively immune while both GEMMs pay 13–26 µs — a **33–36× spread** — so whatever
+this is lives on the **GEMM path**, not in the clock and not in launch overhead
+generally. Note also that the cost is nearly the same in absolute terms for a 4096³
+GEMM and a 1024³ one whose sustained iteration is 7.5× shorter, which is why it shows
+up as 1.2× on one and 2.0× on the other.
+
+That makes it the same suspect D20 ends on — "kernel selection inside hipBLASLt is the
+remaining suspect and has not been tested" — approached from the other side. D20 was
+chasing rare 3.9–21× stalls at 0.13% of iterations; this is a systematic cost on every
+iteration of a short window. They may or may not be one mechanism. What this
+contributes is a control D20 did not have: a non-GEMM kernel measured the same way,
+which is immune, and which therefore narrows the search to the GEMM path without
+needing any clock instrumentation at all.
+
+What it does and does not invalidate. Baseline and candidate are measured the same
+way, so **speedup ratios are unaffected** — the bias divides out. **SOL efficiency is
+systematically understated**, since `T_measured` carries this overhead and `T_SOL`
+does not model, roughly uniformly, so rankings hold. That is why this is documented
+rather than treated as a defect.
+
+Deliberately not fixed here. Raising `iterations` until the window reaches steady
+state would remove the bias and make the clock samplable, but 50 is upstream's
+methodology; changing it makes these numbers incomparable with upstream's and
+requires re-timing everything. That is a decision about what the benchmark is for,
+not a bug fix.
 
 ### How far apart the two methodologies actually are
 
@@ -435,6 +649,63 @@ by construction; the re-measurement is not, and it found one problem
 for them, stably across two independent runs. A manifest that only ever checked
 itself would have called that problem perfect.
 
+#### When is that third check even answerable?
+
+The `0.5 ± 0.03` check demands a timing precision, and how much precision depends on
+something it never looked at. `S` rises from 0.5 at `T_b` to 1.0 at `T_SOL`, so with
+headroom `h = (T_b − T_SOL) / T_b` and relative timing error `eps`,
+
+    |dS| = 0.5 * eps / h
+
+A workload whose `T_b` already sits within 3% of the speed of light therefore needs
+`T_k` reproduced to about **0.18%** to hold `S` inside ±3% — below any precision
+available here, and an order below the 22%-to-2× short-window bias of §7. Such a
+workload
+cannot pass however sound its bound and its `T_b` are.
+
+Measured on the MI355X run: of 219 workloads, **all 171 with headroom ≥ 25% passed**,
+and all 13 failures had headroom ≤ 16% (median 3.2%) while the two groups' timing
+reproduction error was indistinguishable (0.51% vs 0.75%). The failures were a
+property of the scale, not of the measurement.
+
+| headroom | workloads | failing |
+|---|---|---|
+| < 5% | 16 | 11 (69%) |
+| 5–10% | 9 | 1 (11%) |
+| 10–25% | 23 | 1 (4%) |
+| ≥ 25% | 171 | **0** |
+
+`verify_anchor.py` now separates **failing** from **undecidable**, with the threshold
+derived rather than chosen: `h_min = 0.5 × median(retime_error over workloads with
+≥25% headroom) / tolerance`. Estimating `eps` from the well-conditioned workloads
+only, rather than per workload, is what stops it being circular — otherwise a broken
+measurement would excuse itself by being noisy.
+
+The direction of that estimator matters more than it looks. A *pessimistic* precision
+estimate makes `h_min` larger and therefore exempts **more**, which is the unsafe
+direction. Using the p90 was tried and gave `eps = 4.0%`, `h_min = 67%`, exempting 89
+of 219 including workloads at 60% headroom that were passing perfectly well — an
+exemption wide enough to hide anything. The median gives `h_min = 10.5%` and exempts
+25 of 219, all in the 2.6–9.6% band.
+
+It does not rubber-stamp the run: one workload still fails, at 16% headroom with a
+2.04% reproduction error, so the publication gate stays shut. Undecidable workloads
+are excluded from the gate and reported, never counted as passing.
+
+Whether master's own 336/349 residue is the same phenomenon is untested here — a
+1.16× reproduction error is 16%, which no achievable headroom would excuse, so under
+this criterion `018_mla_paged_decode` would still fail. The criterion says when the
+question is answerable; it does not answer it.
+
+**What was not run: the agent baseline.** Upstream's median SOL of 0.732 and
+its r = 0.981 headroom correlation are results about a kernel-optimizing
+agent's submissions. The four PyTorch formulations here cluster around `T_b` by
+construction, because `T_b` is defined as the fastest of them, so the pooled
+correlation over them (0.175) is computed over a sample that barely varies and
+is not a failed replication of upstream's number — it is not that experiment.
+`artifacts/09/agent-baseline.json` records the decision and what a replication
+would need.
+
 **What is still not replicated: the agent baseline.** Upstream's median SOL of
 0.732 and its r = 0.981 headroom correlation are results about a
 kernel-optimizing agent's submissions over the whole benchmark. The four
@@ -509,9 +780,26 @@ Not a deferral — these problems *are* in the manifest and *do* produce scores.
 The scores are not usable, and saying so here is the only thing that stops them
 being read as ordinary results.
 
-A `T_SOL` is a lower bound: nothing can beat it. Three have been beaten, by
+A `T_SOL` is a lower bound: nothing can beat it. Some have been beaten, by
 correct kernels, on real hardware. That is not a kernel being exceptional; it
 is proof the bound is wrong.
+
+> **This section describes manifest v1 and is kept for that reason — v1 is
+> frozen and goes on reporting what v1 shipped.** The board serves **v1.2**,
+> where the count is **five**, and none of the three named below is among them:
+> `FlashInfer-Bench__019` and `L1__035` were corrected in v1.1, `L1__005` in
+> v1.2. The live list, with its mechanisms, is `TODO.md`; the derivations are in
+> `docs/findings.md`. As of v1.2 the five are `L1__018` (min T_k/T_SOL 0.312),
+> `L2__045` (0.357), `L1__042` (0.839), `L1__057` (0.871) and `L2__073` (0.992),
+> and **three of the five are one defect** — the declared-traffic tier below,
+> which was fixed for two paged problems rather than at the tier, leaving 328
+> workloads across 38 problems still resting on it.
+>
+> The count has risen every time a stronger optimizer covered more of the
+> benchmark — 3, then 10, then 12, then 13, then back to 5 as corrections
+> landed and up again as coverage grew. That is the finding, not an accident:
+> a bound is only shown to be wrong by a kernel that beats it, so the number of
+> *known* bad bounds tracks how hard anything has tried.
 
 | problem | beaten by | found by |
 |---|---|---|

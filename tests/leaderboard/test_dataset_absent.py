@@ -81,7 +81,11 @@ def test_the_dataset_number_is_absent_rather_than_invented(bare_client):
     uuid-sorted rows would look identical and mean a different workload."""
     body = bare_client.get(f"/problems/{KEY}").text
     rows = body.split('id="wl-table"', 1)[1].split("</table>", 1)[0]
-    assert '<td class="r mono sm dim-n">—</td>' in rows
+    # The dash is `app.MISSING` now -- one constant, one meaning, and a `title`
+    # that says which of the three empty states this is. It used to be one of
+    # three competing literal spellings behind a truthiness guard.
+    assert ('<td class="r mono sm dim-n"><span class="q-na" '
+            'title="not recorded">—</span></td>') in rows
     assert '<td class="r mono sm dim-n">1</td>' not in rows
 
 

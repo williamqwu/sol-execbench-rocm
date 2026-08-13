@@ -455,6 +455,52 @@ tbody tr:hover{background:var(--row-hover)}
 tr.dim td{opacity:.62}
 .big{font-family:var(--mono);font-weight:600;font-size:15px}
 td.mono,.sm{font-size:12.5px}
+
+/* ------------------------------------------------------------- numbers ----
+   TABULAR FIGURES. This file had zero `font-variant-numeric` rules, so every
+   digit in the proportional face was set at its own natural width and columns
+   of numbers did not line up at all -- a 1 is much narrower than a 0 in most
+   UI faces, so `0.4907` and `0.1111` were different lengths. `tnum` fixes it
+   everywhere a number is rendered. */
+td.r,td.mono,.big,.card .num,.q,.cn,.cov-n{
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1}
+
+/* THE MAGNITUDE STRIPE, and it is the part of this design that carries it.
+   `dur`, `ratio`, `bytes_h` and `mins` render 3 significant figures plus a
+   unit, so the unit is what says which decade the cell is in. Giving it its
+   own fixed-width slot makes the units form a vertical stripe down the
+   column, and a reader can then see at a glance that this cell is ns and the
+   one above it is us. Of the 235 problem pages, 104 render their whole T_SOL
+   column in one unit, 129 use two units and 2 use three -- so 131 pages, the
+   majority, need the stripe. Measured this session by running the shipped
+   `_laddered` over every `workload.t_sol_ms` in db/solbench-MI350X.db
+   (mode=ro) and counting distinct units per problem_key.
+
+   `.q` pins the mono face because `ch` is only meaningful in one: in a
+   proportional face `4ch` is the width of four ZEROES, which is not the width
+   of four of anything else. */
+.q{font-family:var(--mono);white-space:nowrap}
+.qv{display:inline-block;min-width:4ch;text-align:right}
+/* Right-aligning `.qv` aligns on the LAST mantissa digit, so with 3 s.f. the
+   decimal point staggers by at most two positions (1.23 / 12.4 / 769). That is
+   the accepted cost. The fix, if it ever bothers anyone, is to split `.qv`
+   into an integer span and a fraction span -- four lines here, and no
+   call-site change, because the helper already emits the parts. */
+.qu{display:inline-block;min-width:2.5ch;text-align:left;margin-left:.35em;
+  color:var(--dim);font-size:.85em}
+.q sup{font-size:.72em;line-height:0}
+/* Three states, three colours, and they are three different statements:
+   nothing was recorded; a real measured zero; a value outside its contract. */
+.q-na{color:var(--dim)}
+.q-zero{color:var(--dim)}
+.q-oor{color:var(--warn)}
+.q-bad .qv{color:var(--bad)}
+/* In a stat card there is no column to line up with, so the value slot stops
+   padding and the unit drops back to the size `.card .of` used -- `.85em` of a
+   25px number is a 21px "min", which reads as part of the figure. */
+.card .num .qv{min-width:0}
+.card .num .qu{font-size:14px;font-weight:400;margin-left:3px}
 .scroll{overflow-x:auto}
 .sortable-th{cursor:pointer;user-select:none}
 .sortable-th:hover{color:var(--fg)}

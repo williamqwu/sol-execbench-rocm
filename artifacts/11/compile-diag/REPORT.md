@@ -112,6 +112,8 @@ artifact failures with no db row at all: 523
 
 Every one of the 585 carries a non-null `latency_ms` (`sum(latency_ms is null) = 0`), which today's `ingest.py` cannot produce. `db_built_utc = 2026-08-06`; TODO.md records the D28 fix as landing **2026-08-07**. The lead's framing — "585 FAILED spanning 69 problems" — describes the D28 artefact and names the *passing* workloads. Ground truth is `artifacts/06/candidates`. (The coincidence is real but unrelated: 69 is also the size of `v2 ∩ v3` numerical-failure problems.)
 
+**But the live board is not affected, and an earlier version of this section invited the opposite conclusion.** `part_databases()` (`leaderboard/app.py:242`) reads `db/solbench-<PART>.db` first and falls back to the single-file layout only for a part the per-part layout has not produced. `db/solbench-MI350X.db` exists, built 2026-08-11T18:25Z, and carries `523` not-`PASSED` v2 rows — matching `artifacts/06` exactly — with `0` of them carrying a latency. Verified against the running server: `GET /api/v1/submissions/baseline-v2-compile/problems/L2__009_...` returns `{INCORRECT_NUMERICAL: 8, PASSED: 8}`. So the stale file is a pre-split leftover that nothing serves and that is gitignored, and no re-ingest is required. It is still worth deleting: if `db/` were wiped the fallback would serve it, and `run.sh`'s rebuild guard would count it as a database — only the freshness banner catches that.
+
 ---
 
 ## 3. Why these ~70 and not the other ~150

@@ -47,8 +47,8 @@
 <div class="cards">
   <div class="card"><div class="num">{{ problems|length }}</div><div class="lbl">problems with results</div></div>
   <div class="card"><div class="num">{{ problems|sum(attribute='passed') }}</div><div class="lbl">workloads passed</div></div>
-  {% if submission.cost_usd %}<div class="card"><div class="num">${{ '%.2f'|format(submission.cost_usd) }}</div><div class="lbl">API cost (list price)</div></div>{% endif %}
-  {% if submission.wall_seconds %}<div class="card"><div class="num">{{ '%.0f'|format(submission.wall_seconds/60) }}<span class="of">min</span></div><div class="lbl">wall time</div></div>{% endif %}
+  {% if submission.cost_usd is not none %}<div class="card"><div class="num">{{ submission.cost_usd|usd }}</div><div class="lbl">API cost (list price)</div></div>{% endif %}
+  {% if submission.wall_seconds is not none %}<div class="card"><div class="num">{{ submission.wall_seconds|mins }}</div><div class="lbl">wall time</div></div>{% endif %}
   {% if submission.gpu %}<div class="card"><div class="num sm-num">{{ submission.gpu }}</div><div class="lbl">timed on GPU</div></div>{% endif %}
 </div>
 
@@ -72,13 +72,16 @@
       <td class="r" data-sort="{{ p.passed }}">{{ p.passed }}<span class="sub">/{{ p.n_scoreable }}</span></td>
       {# See problem.html: AVG skips a beaten bound's NULL score, so this
          column's denominator varies by row and has to be printed. #}
-      <td class="r big" data-sort="{{ p.mean_score if p.mean_score is not none else '' }}">{{ '%.4f'|format(p.mean_score) if p.mean_score else '&mdash;'|safe }}
-        {%- if p.mean_score %}<span class="sub den{% if p.scored < p.passed %} den-short{% endif %}"
+      {# `is not none`, never truthiness: a problem where every scored
+         workload came in at S = 0.0 is a measurement, and the old guard
+         printed it as "nothing recorded". #}
+      <td class="r big" data-sort="{{ p.mean_score|sortv }}">{{ p.mean_score|score }}
+        {%- if p.mean_score is not none %}<span class="sub den{% if p.scored < p.passed %} den-short{% endif %}"
           {%- if p.scored < p.passed %} title="{{ p.passed - p.scored }} of the {{ p.passed }} passing workloads on this problem beat T_SOL. The bound is invalid there, so those have no score and are not in this average -- it is over {{ p.scored }}, not {{ p.passed }}."{% endif %}>over {{ p.scored }}{% if p.scored < p.passed %} of {{ p.passed }}{% endif %}</span>{% endif %}</td>
-      <td class="r" data-sort="{{ p.flagged or 0 }}">{% if p.flagged %}<span class="flag">{{ p.flagged }}</span>{% else %}&mdash;{% endif %}</td>
-      <td class="r mono" data-sort="{{ p.cost_usd or '' }}">{{ '$%.2f'|format(p.cost_usd) if p.cost_usd else '&mdash;'|safe }}</td>
-      <td class="r" data-sort="{{ p.turns or '' }}">{{ p.turns or '&mdash;'|safe }}</td>
-      <td class="r" data-sort="{{ p.harness_evals or '' }}">{{ p.harness_evals or '&mdash;'|safe }}</td>
+      <td class="r" data-sort="{{ p.flagged or 0 }}">{% if p.flagged %}<span class="flag">{{ p.flagged|n }}</span>{% else %}<span class="q-zero" title="nothing this run produced on this problem was rejected as a reward hack">0</span>{% endif %}</td>
+      <td class="r mono" data-sort="{{ p.cost_usd|sortv }}">{{ p.cost_usd|usd }}</td>
+      <td class="r" data-sort="{{ p.turns|sortv }}">{{ p.turns|n }}</td>
+      <td class="r" data-sort="{{ p.harness_evals|sortv }}">{{ p.harness_evals|n }}</td>
       <td class="sm"><a href="{{ part_url('/problems/' ~ p.key) }}">problem &rarr;</a></td>
     </tr>
   {% endfor %}

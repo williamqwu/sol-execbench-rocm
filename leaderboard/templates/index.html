@@ -16,8 +16,8 @@
 
 <div class="cards">
   <div class="card"><div class="num">{{ scope.problems if cat_row else meta.scoreable_problems }}<span class="of">/{{ cat_row.n if cat_row else meta.total_problems }}</span></div><div class="lbl">problems scoreable{% if category %} in {{ category }}{% endif %}</div></div>
-  <div class="card"><div class="num">{{ '{:,}'.format(scope.workloads|int) }}</div><div class="lbl">workload instances{% if category %} in {{ category }}{% endif %}</div></div>
-  <div class="card"><div class="num">{{ meta.part or '&mdash;' }}</div><div class="lbl">measured on</div></div>
+  <div class="card"><div class="num">{{ scope.workloads|n }}</div><div class="lbl">workload instances{% if category %} in {{ category }}{% endif %}</div></div>
+  <div class="card"><div class="num">{{ meta.part or missing }}</div><div class="lbl">measured on</div></div>
   <div class="card"><div class="num">{{ meta.f_lock_mhz }}<span class="of">MHz</span></div><div class="lbl">locked clock (achieved)</div></div>
   <div class="card"><div class="num">{{ meta.methodology }}</div><div class="lbl">timing methodology</div></div>
 </div>
@@ -73,7 +73,7 @@
                 title="Divide by the workloads this submission was actually run on. A workload it attempted and failed still counts as zero; only ones it never saw leave the denominator.">what it ran</button>
         <button type="button" class="scope-opt" data-scope="full"
                 aria-pressed="false"
-                title="Divide by all {{ '{:,}'.format(scope.workloads|int) }} scoreable workloads{% if category %} in {{ category }}{% endif %}. A workload never attempted counts as zero exactly like one that failed.">{% if category %}all of {{ category }}{% else %}whole benchmark{% endif %}</button>
+                title="Divide by all {{ scope.workloads|n_text }} scoreable workloads{% if category %} in {{ category }}{% endif %}. A workload never attempted counts as zero exactly like one that failed.">{% if category %}all of {{ category }}{% else %}whole benchmark{% endif %}</button>
       </div>
     </div>
     {# Every figure in both notes is `scope`, not `meta`: the rows honour the
@@ -82,17 +82,17 @@
        reader of `/?category=L1` that the column was over 3,717 workloads when
        it was over 1,480. #}
     <p class="sub scope-note" data-scope-note="attempted">
-      Scores divide by the <b>{{ '{:,}'.format(scope.workloads|int) }}-workload
+      Scores divide by the <b>{{ scope.workloads|n }}-workload
       {% if category %}{{ category }} subset{% else %}benchmark{% endif %} minus
       whatever a row never attempted</b>. Failures still count as zero.
       <b>This is not a ranking of submissions against each other</b> &mdash;
       a row that ran a handful of these workloads and one that ran all
-      {{ '{:,}'.format(scope.workloads|int) }} are being asked different
+      {{ scope.workloads|n }} are being asked different
       questions, and the narrower one is easier. Read the coverage column with
       it, every time.
     </p>
     <p class="sub scope-note" data-scope-note="full">
-      Scores divide by all <b>{{ '{:,}'.format(scope.workloads|int) }}</b>
+      Scores divide by all <b>{{ scope.workloads|n }}</b>
       scoreable workloads{% if category %} in <b>{{ category }}</b>{% endif %}. A
       workload that was never attempted counts as zero
       exactly like one that failed, so a <span class="star">*</span>&nbsp;<b>Partial</b>
@@ -150,13 +150,13 @@
          implementation of the score. #}
       <td class="r big" data-sort="{{ s.mean_score_attempted }}"
           data-s-attempted="{{ s.mean_score_attempted }}" data-s-full="{{ s.benchmark_score }}">
-        <span class="sc sc-attempted">{{ '%.4f'|format(s.mean_score_attempted) }}</span>
+        <span class="sc sc-attempted">{{ s.mean_score_attempted|score }}</span>
         {# The star belongs to the full scope alone: under "what it ran" nothing
            is missing from the denominator, so there is nothing to warn about.
            Under the whole benchmark it is the difference between a weak result
            and an absent one. #}
-        <span class="sc sc-full">{{ '%.4f'|format(s.benchmark_score) }}{%
-          if s.partial %}<span class="star" title="Partial: {{ '{:,}'.format(s.workloads_untested) }} of the {{ '{:,}'.format(s.workloads_total) }} scoreable workloads were never attempted and count as zero here. Switch to 'what it ran' for the score over what it was actually given.">*</span>{% endif %}</span>
+        <span class="sc sc-full">{{ s.benchmark_score|score }}{%
+          if s.partial %}<span class="star" title="Partial: {{ s.workloads_untested|n_text }} of the {{ s.workloads_total|n_text }} scoreable workloads were never attempted and count as zero here. Switch to 'what it ran' for the score over what it was actually given.">*</span>{% endif %}</span>
       </td>
       {# The bar is drawn in problems, over the whole benchmark, and every row's
          segments sum to the same width -- so the grey tail IS the part of the

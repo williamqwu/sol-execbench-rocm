@@ -285,8 +285,8 @@
   <tbody>
   {% for k in meta.problems_with_invalid_bound|from_json %}
     <tr><td class="mono sm"><a href="{{ part_url('/problems/' ~ k) }}">{{ k }}</a></td>
-        <td class="r sm">{{ invalid_bound_info.get(k, {}).get('n_workloads', '&mdash;') }}</td>
-        <td class="sm mono">{% if invalid_bound_info.get(k, {}).get('headroom') %}{{ '%.3f'|format(invalid_bound_info[k]['headroom']) }}&times;{% else %}&mdash;{% endif %}</td></tr>
+        <td class="r sm">{{ invalid_bound_info.get(k, {}).get('n_workloads')|n }}</td>
+        <td class="sm mono">{{ invalid_bound_info.get(k, {}).get('headroom')|ratio }}</td></tr>
   {% endfor %}
   </tbody>
 </table>
@@ -324,18 +324,18 @@
     'over 1000x': 'Effectively no roofline content. This is a T_b comparison wearing a SOL score.'
   } %}
   {% for label in ['under 2x', '2x - 10x', '10x - 100x', '100x - 1000x', 'over 1000x'] %}
-    {% set n = headroom.bands.get(label, 0) %}
+    {% set n_workloads = headroom.bands.get(label, 0) %}
     <tr><td class="mono sm">{{ label }}</td>
-        <td class="r sm">{{ '{:,}'.format(n) }}</td>
-        <td class="r sm">{{ '%.1f'|format(100 * n / headroom.total) }}%</td>
+        <td class="r sm">{{ n_workloads|n }}</td>
+        <td class="r sm">{{ (100 * n_workloads / headroom.total)|pct }}</td>
         <td class="sm">{{ meaning.get(label, '') }}</td></tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
-<p class="sub"><b>{{ '{:,}'.format(headroom.bands.get('100x - 1000x', 0) + headroom.bands.get('over 1000x', 0)) }}
-   of {{ '{:,}'.format(headroom.total) }} workloads
-   ({{ '%.1f'|format(100 * (headroom.bands.get('100x - 1000x', 0) + headroom.bands.get('over 1000x', 0)) / headroom.total) }}%)
+<p class="sub"><b>{{ (headroom.bands.get('100x - 1000x', 0) + headroom.bands.get('over 1000x', 0))|n }}
+   of {{ headroom.total|n }} workloads
+   ({{ (100 * (headroom.bands.get('100x - 1000x', 0) + headroom.bands.get('over 1000x', 0)) / headroom.total)|pct }})
    sit above 100&times;.</b> Set that against the handful of problems on the
    known-wrong list: the visible defect is the small one. No threshold is being
    asserted here &mdash; a memory-bound problem whose PyTorch reference is
@@ -363,8 +363,8 @@
   <tbody>
   {% for r in loosest %}
     <tr><td class="mono sm"><a href="{{ part_url('/problems/' ~ r.key) }}">{{ r.key }}</a></td>
-        <td class="r sm">{{ r.n_workloads }}</td>
-        <td class="r sm mono">{{ '{:,.0f}'.format(r.median_headroom) }}&times;</td></tr>
+        <td class="r sm">{{ r.n_workloads|n }}</td>
+        <td class="r sm mono">{{ r.median_headroom|ratio }}</td></tr>
   {% endfor %}
   </tbody>
 </table>
@@ -376,8 +376,26 @@
   <li><b>Benchmark score</b> sums per-workload scores over every scoreable
       workload and counts anything not passed as zero. It is the headline
       because it cannot be improved by attempting fewer problems.</li>
+  {# Said once, here, rather than left for a reader to discover by comparing a
+     cell against the API. Three significant figures is a real loss of digits
+     -- T_b 17060.6171875 renders `17.1 s` -- and the page has to admit it
+     rather than let someone quote a rounded number as an exact one. #}
+  <li><b>Every timing, ratio and size on this board is displayed to three
+      significant figures</b>, with the unit carrying the magnitude:
+      <code>3.08 ns</code>, <code>377 µs</code>, <code>17.1 s</code>,
+      <code>115k×</code>. A fixed number of decimal places is a fixed number of
+      significant figures only inside one decade, and these columns span
+      several &mdash; the old <code>%.5f</code> printed eight significant
+      figures at the top of the T<sub>b</sub> column and one at the bottom of
+      it. The digits that rounding drops are not gone: each cell's
+      <code>data-sort</code> carries the full float, and
+      <code>/api/v1</code> is the authority for exact values. Scores, which are
+      bounded in [0,&nbsp;1] and have a landmark at
+      T<sub>b</sub>&nbsp;=&nbsp;0.5, keep four decimal places instead, and the
+      tolerances &mdash; which have no unit and span sixteen decades &mdash;
+      stay in scientific notation.</li>
   <li><b>An asterisk on the benchmark score</b> means the submission was not run
-      on all {{ meta.scoreable_workloads }} scoreable workloads. The untested
+      on all {{ meta.scoreable_workloads|int|n }} scoreable workloads. The untested
       ones are still in the denominator, counting as zero exactly like failures,
       so a starred score is a floor rather than a measurement. Every row on the
       board is starred today.</li>
@@ -400,7 +418,7 @@
          did, in the same hour the check that broke it was added. A claim that
          is a negative has to be able to stop being one on its own. #}
       {% if flagged and flagged.n %}
-      <b>{{ '{:,}'.format(flagged.n) }} of {{ '{:,}'.format(flagged.total) }}
+      <b>{{ flagged.n|n }} of {{ flagged.total|n }}
       recorded results are flagged</b>, and the first of them was found on
       2026-08-10. Every one is the same mechanism: the submission lowered fp32
       matmul precision to TF32 &mdash; one line, no cast, dtypes unchanged,
@@ -429,10 +447,12 @@
       speedup with the evidence cleaned up.</span>
       {% else %}
       The count is <b>0{% if flagged %} across all
-      {{ '{:,}'.format(flagged.total) }} recorded results{% endif %}</b>: the
-      dash on every row means the check ran and caught nothing, not that it was
-      never run. It is kept as a column precisely so that a first non-zero is
-      visible the moment it happens.
+      {{ flagged.total|n }} recorded results{% endif %}</b>: the
+      dimmed <b>0</b> on every row means the check ran and caught nothing, not
+      that it was never run &mdash; which is exactly why it is a zero and not
+      a dash, the dash being reserved on this site for "nothing was recorded".
+      It is kept as a column precisely so that a first non-zero is visible the
+      moment it happens.
       {% endif %}</li>
 </ul>
 
