@@ -163,12 +163,43 @@ def main() -> int:
             "bound": stage_bound(t_sol, key),
             "t_b": stage_tb(ROOT, key),
         }
-        r["scoreable"] = all(r[s]["present"] for s in
-                             ("reference", "tolerance", "bound", "t_b"))
+        # "Scoreable" is a claim about whether S can actually be computed, not
+        # about whether four files exist. Two of the four stages can be present
+        # and still not support a score, and an earlier version of this script
+        # counted them as if they did -- which is the same defect as a gate that
+        # passes over an empty list, wearing a stronger name than it earns.
+        #
+        #   t_b must be AUTHORITATIVE. The candidates tier selects which variant
+        #   becomes the anchor; it is not the re-timed anchor. Counting it would
+        #   report a problem as scoreable before the pass that anchors it ran.
+        #
+        #   the bound must be RE-CLOCKABLE. On the unlocked basis T_SOL is
+        #   evaluated at the measurement's own bracket clock, which needs
+        #   compute_cycles and dram_byte_per_sec per workload. A bound carrying
+        #   only a millisecond figure is a bound at some other clock.
+        reasons = []
+        if not r["reference"]["present"]:
+            reasons.append("no reference")
+        if not r["tolerance"]["present"]:
+            reasons.append("no tolerance")
+        if not r["bound"]["present"]:
+            reasons.append("no bound")
+        elif not r["bound"].get("all_reclockable"):
+            reasons.append("bound not re-clockable")
+        if not r["t_b"]["present"]:
+            reasons.append("no T_b")
+        elif r["t_b"].get("tier") != "authoritative":
+            reasons.append("T_b is candidate-tier, not authoritative")
+        r["scoreable"] = not reasons
+        r["not_scoreable_because"] = reasons
         rows.append(r)
 
     counts = {s: sum(1 for r in rows if r[s]["present"])
               for s in ("reference", "tolerance", "bound", "t_b")}
+    counts["t_b_authoritative"] = sum(
+        1 for r in rows if r["t_b"].get("tier") == "authoritative")
+    counts["bound_reclockable"] = sum(
+        1 for r in rows if r["bound"].get("all_reclockable"))
     counts["scoreable"] = sum(1 for r in rows if r["scoreable"])
 
     try:
