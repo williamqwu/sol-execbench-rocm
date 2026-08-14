@@ -621,8 +621,15 @@ def clock_interval(record: Optional[dict]) -> Optional[tuple[float, float]]:
     None comes back only when there is genuinely nothing to read: a sampler error,
     an absent sample, or a non-positive one. Those are unchanged; an unknown clock
     is still not a permissive one.
+
+    ``sampler_error`` disqualifies a record even when both samples are present. The
+    error means the sampling path is DEFECTIVE -- the case that produced it read a
+    neighbouring card's clock through a scrambled index -- so the numbers beside it
+    are not weak evidence, they are evidence about something else.
     """
     if not record:
+        return None
+    if record.get("clock_bracket_sampler_error"):
         return None
     before, after = record.get("clock_before_mhz"), record.get("clock_after_mhz")
     if not all(isinstance(v, (int, float)) and v > 0 for v in (before, after)):

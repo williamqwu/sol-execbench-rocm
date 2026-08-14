@@ -76,6 +76,14 @@ def main() -> int:
                          "artifacts/05-MI355X/workloads. Pass 'none' to opt into "
                          "the dataset's B200 tolerances as an explicit choice. "
                          "Required: there is no part-correct default.")
+    # The gateway in front of these harnesses deploys NON-STANDARD model ids
+    # ("Claude-Sonnet-4.5", not "claude-sonnet-4-5-20250929"). Sending the
+    # canonical name returns HTTP 502 with zero tokens billed, which reads as
+    # "the gateway is down" and is actually "wrong model id". The harness has
+    # always accepted a model; only the CLI could not say one.
+    ap.add_argument("--model", action="append", metavar="[HARNESS=]MODEL",
+                    help="repeatable. Bare value applies to every harness; "
+                         "claude-code=NAME targets one.")
     ap.add_argument("--no-resume", action="store_true")
     ap.add_argument("--retry-transient", action="store_true",
                     help="also re-run units whose recorded session failed on "
@@ -91,6 +99,17 @@ def main() -> int:
     harnesses = args.harness or sorted(HARNESSES)
     workloads_root = None if str(args.workloads_root).lower() == "none" \
         else args.workloads_root
+
+    models: dict[str, str] = {}
+    for spec in args.model or []:
+        if "=" in spec:
+            h, m = spec.split("=", 1)
+            if h not in HARNESSES:
+                sys.exit(f"--model names unknown harness {h!r}; "
+                         f"known: {sorted(HARNESSES)}")
+            models[h] = m
+        else:
+            models.update({h: spec for h in harnesses})
 
     deferred = {} if args.include_deferred else load_deferred(ROOT)
     problems, excluded = discover_problems(args.benchmark_dir, args.categories,
@@ -147,7 +166,8 @@ def main() -> int:
 
     sweep = Sweep(
         run_root=run_root,
-        harness_specs={h: {} for h in harnesses},
+        harness_specs={h: ({"model": models[h]} if h in models else {})
+                       for h in harnesses},
         gpus=gpus,
         max_attempts=args.max_attempts,
         timeout_s=int(args.timeout_min * 60),

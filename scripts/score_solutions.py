@@ -707,6 +707,19 @@ def score_one(session_dir: Path, problem_dir: Path, workloads_root: Path | None,
             "clock_bracket": bracket,
             "reference_clock_bracket": ref_bracket,
             "clock_bracket_refused": clock_refused,
+            # Whether THIS window's bracket exceeded the threshold, as opposed to
+            # `clock_bracket_refused` above, which now means "no clock at all and
+            # therefore no score". Two different questions that used to have one
+            # answer; keeping both is what stops the demotion from losing the
+            # count. The wide ones are exactly the records whose interval is wide.
+            "clock_bracket_over_threshold": bool(
+                (bracket or {}).get("clock_bracket_refused")),
+            "clock_bracket_refused_reason": (
+                (bracket or {}).get("clock_bracket_refused_reason")),
+            # T_SOL and S at both ends of this window's clock bracket, and the
+            # width. Empty under the locked basis and wherever no interval could be
+            # formed; `t_sol_ms` above is then the manifest's own figure.
+            **interval,
             "max_absolute_error": w.get("max_absolute_error"),
             "max_relative_error": w.get("max_relative_error"),
             "allowed_atol": tol.get("max_atol"),
@@ -731,6 +744,35 @@ def score_one(session_dir: Path, problem_dir: Path, workloads_root: Path | None,
     result["passed"] = summary["passed"]
     result["all_passed"] = summary["all_passed"]
     return result
+
+
+def _interval_run_summary(results: list[dict]) -> dict:
+    """Run-level view of the T_SOL interval widths. Empty when nothing carries one.
+
+    Sortable and reportable without reprocessing the per-record list, which is the
+    requirement: a reader asking "how uncertain is this run" gets a median and a
+    max, and a reader asking "which records" gets the widest few by name.
+    """
+    recs = [r for res in results for r in res.get("records", [])
+            if r.get("t_sol_interval_halfwidth_rel") is not None]
+    if not recs:
+        return {}
+    widths = sorted(r["t_sol_interval_halfwidth_rel"] for r in recs)
+    return {"t_sol_interval": {
+        "published_at": "clock_min",
+        "n_records": len(recs),
+        "halfwidth_median": widths[len(widths) // 2],
+        "halfwidth_max": widths[-1],
+        "n_bottleneck_flips": sum(1 for r in recs
+                                  if r.get("t_sol_bottleneck_flips")),
+        "widest": [
+            {"problem": r.get("problem"), "workload_uuid": r.get("workload_uuid"),
+             "halfwidth_rel": r["t_sol_interval_halfwidth_rel"],
+             "clock_min_mhz": r.get("t_sol_clock_min_mhz"),
+             "clock_max_mhz": r.get("t_sol_clock_max_mhz")}
+            for r in sorted(recs, key=lambda r: -r["t_sol_interval_halfwidth_rel"])[:10]
+        ],
+    }}
 
 
 # --- the clock basis in force -----------------------------------------------
@@ -1099,10 +1141,22 @@ def main() -> int:
             "by_state": dict(sorted(card_states.items())),
             "refusals": refusals,
         },
+        # Two counters, deliberately, because the demotion split one question into
+        # two and collapsing them again is how the count would go quietly missing:
+        #   ..._refused_records        scores that could NOT be produced -- no
+        #                              clock at all. Still a gate.
+        #   ..._over_threshold_records measurements whose bracket exceeded the
+        #                              threshold and were scored anyway, with a
+        #                              stated interval. The label, still counted.
         "clock_bracket_refused_records": sum(
             1 for res in results for r in res.get("records", [])
             if r.get("clock_bracket_refused")
         ),
+        "clock_bracket_over_threshold_records": sum(
+            1 for res in results for r in res.get("records", [])
+            if r.get("clock_bracket_over_threshold")
+        ),
+        **_interval_run_summary(results),
         "harness_integrity": integrity,
         "workloads_root": str(workloads_root) if workloads_root else None,
         "spec_tampered": [

@@ -14,9 +14,11 @@ import math
 import pytest
 
 from solexbench_rocm.t_sol_at import (
+    INTERVAL_FIELDS,
     MissingBoundTerms,
     bottleneck_at,
     t_sol_cycles_at,
+    t_sol_interval,
     t_sol_ms_at,
 )
 
@@ -124,3 +126,129 @@ def test_rejects_nonsense_clock():
     for bad in (0.0, -1650.0):
         with pytest.raises(ValueError):
             t_sol_ms_at(w, bad)
+
+
+# ---------------------------------------------------------------------------
+# T_SOL as an interval over a clock bracket.
+#
+# The clock moves inside the timed window on this part, so a single T_SOL is a
+# claim the measurement does not support. These pin the three things the interval
+# has to get right: which end is published, how wide it is, and what happens to
+# the bottleneck across it.
+# ---------------------------------------------------------------------------
+
+#: The two problems the methodology decision was argued over, measured on
+#: artifacts/06-MI355X. WIDE moves the compute term by 33.7%; CLEAN by 3.3%.
+WIDE_BRACKET = (1607.0, 2148.0)
+CLEAN_BRACKET = (2314.0, 2390.0)
+
+
+def test_t_sol_is_larger_at_the_minimum_clock():
+    """Less clock, more milliseconds. The whole reason the published end is f_min."""
+    w = _record(compute_cycles=1e7, memory_bytes=1024)
+    iv = t_sol_interval(w, *WIDE_BRACKET)
+    assert iv["t_sol_ms_at_clock_min"] >= iv["t_sol_ms_at_clock_max"]
+
+
+def test_the_published_value_is_the_minimum_clock_end():
+    """Published = tightest = largest T_SOL = evaluated at f_min.
+
+    If this ever flips to f_max the bound becomes one nothing can violate, and the
+    "no measurement beats its T_SOL" check -- the only thing that can catch a wrong
+    bound from the outside -- goes permanently quiet. That is the failure mode
+    CLAUDE.md §6 names, so it gets an explicit test rather than a comment.
+    """
+    w = _record(compute_cycles=1e7, memory_bytes=1024)
+    iv = t_sol_interval(w, *WIDE_BRACKET)
+    assert iv["t_sol_ms_published"] == iv["t_sol_ms_at_clock_min"]
+    assert iv["t_sol_ms_published"] == t_sol_ms_at(w, min(WIDE_BRACKET))
+    assert iv["t_sol_published_at_mhz"] == min(WIDE_BRACKET)
+    assert iv["t_sol_published_end"] == "clock_min"
+    # ...and it really is the larger of the two, not merely the one so labelled.
+    assert iv["t_sol_ms_published"] > iv["t_sol_ms_at_clock_max"]
+
+
+def test_the_bracket_order_does_not_decide_the_published_end():
+    """`before` may be the higher sample; the bound must not depend on which."""
+    w = _record(compute_cycles=1e7, memory_bytes=1024)
+    lo_first = t_sol_interval(w, 1607.0, 2148.0)
+    hi_first = t_sol_interval(w, 2148.0, 1607.0)
+    assert lo_first == hi_first
+
+
+def test_interval_collapses_to_a_point_when_the_bracket_does():
+    """A card that read the same clock twice has no interval, and must say 0.0.
+
+    Zero width here is a measurement -- "the clock did not move" -- and must be
+    distinguishable from a missing interval, which is None.
+    """
+    w = _record(compute_cycles=1e7, memory_bytes=1024)
+    iv = t_sol_interval(w, 2390.0, 2390.0)
+    assert iv["t_sol_ms_at_clock_min"] == iv["t_sol_ms_at_clock_max"]
+    assert iv["t_sol_interval_width_rel"] == 0.0
+    assert iv["t_sol_interval_halfwidth_rel"] == 0.0
+    assert iv["t_sol_bottleneck_flips"] is False
+
+
+def test_a_memory_bound_workload_has_a_zero_width_interval():
+    """The correctness check on the whole idea.
+
+    The memory term is a fixed TIME -- bytes over bytes-per-second, with no clock
+    in it -- so a memory-bound bound does not move however wide the bracket is. If
+    this ever reads non-zero, the interval is being computed by scaling cycles by
+    1/F somewhere, which is the exact error the split into two terms exists to
+    prevent, and every compute-bound width would be wrong too.
+    """
+    w = _record(compute_cycles=1.0, memory_bytes=8_000_000)
+    iv = t_sol_interval(w, *WIDE_BRACKET)          # a 33.7% clock span
+    assert iv["t_sol_bottleneck_at_clock_min"] == "memory"
+    assert iv["t_sol_bottleneck_at_clock_max"] == "memory"
+    assert iv["t_sol_interval_halfwidth_rel"] == pytest.approx(0.0, abs=1e-12)
+    assert iv["t_sol_ms_published"] == pytest.approx(
+        iv["t_sol_ms_at_clock_max"], rel=1e-12)
+
+
+def test_a_bottleneck_flip_across_the_interval_is_reported():
+    """Compute-bound at one end, memory-bound at the other: say so, do not pick one.
+
+    Across the 33-43% spans measured on this corpus this really happens, and a
+    record naming a single bottleneck would be asserting something the bracket
+    does not support.
+    """
+    memory_bytes = 8_000_000
+    mem_cycles_at = lambda f: memory_bytes * f * 1e6 / DRAM_BPS
+    compute_cycles = (mem_cycles_at(1607.0) + mem_cycles_at(2148.0)) / 2
+    iv = t_sol_interval(_record(compute_cycles, memory_bytes), *WIDE_BRACKET)
+    assert iv["t_sol_bottleneck_at_clock_min"] == "compute"
+    assert iv["t_sol_bottleneck_at_clock_max"] == "memory"
+    assert iv["t_sol_bottleneck_flips"] is True
+
+
+def test_width_separates_a_wide_bracket_from_a_clean_one():
+    """The field exists to be sorted on, so the ordering it produces is the test."""
+    w = _record(compute_cycles=1e7, memory_bytes=1024)      # compute-bound
+    wide = t_sol_interval(w, *WIDE_BRACKET)
+    clean = t_sol_interval(w, *CLEAN_BRACKET)
+    # The compute term scales as 1/F, so the span of T_SOL is the span of the
+    # clock: 2148/1607 = 1.337 and 2390/2314 = 1.033, the figures the decision
+    # was argued from.
+    assert wide["t_sol_interval_width_rel"] == pytest.approx(
+        2148.0 / 1607.0 - 1, rel=1e-3)
+    assert clean["t_sol_interval_width_rel"] == pytest.approx(
+        2390.0 / 2314.0 - 1, rel=1e-3)
+    # +-14.4% against +-1.6%: an order of magnitude apart, which is the whole
+    # reason a reader needs the width beside the number.
+    assert wide["t_sol_interval_halfwidth_rel"] == pytest.approx(0.144, abs=5e-3)
+    assert clean["t_sol_interval_halfwidth_rel"] == pytest.approx(0.016, abs=5e-3)
+
+
+def test_every_declared_interval_field_is_emitted():
+    """One list of field names, so the manifest and the scorer cannot drift."""
+    iv = t_sol_interval(_record(1e7, 1024), *WIDE_BRACKET)
+    assert set(iv) == set(INTERVAL_FIELDS)
+
+
+def test_interval_refuses_a_record_it_cannot_re_clock():
+    old = {"t_sol_cycles_exact": 31142.6, "bottleneck": "memory"}
+    with pytest.raises(MissingBoundTerms):
+        t_sol_interval(old, *WIDE_BRACKET)
