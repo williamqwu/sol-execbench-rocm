@@ -13,8 +13,61 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGE="solbench:rocm7.2-torch2.9.1"
-NAME="solbench"
 SCRATCH="/var/tmp/solbench"
+
+# The container name is keyed to the tree it mounts. A fixed name looks
+# harmless until two checkouts exist on one node -- a working clone and a
+# read-only reference worktree, say. Whichever ran `env/solb` first wins, and
+# every later call from the OTHER tree silently executes against the first
+# one's /work: the dataset materializes into the wrong checkout, artifacts are
+# written where nobody looks for them, and the only visible symptom is that
+# `git -C /work` fails, because a linked worktree's gitdir points outside the
+# mount. That is how a session 4 run wrote its node report into a reference
+# worktree while reporting success. Keyed by path, the two trees simply get
+# two containers.
+NAME="solbench-$(printf '%s' "${ROOT}" | md5sum | cut -c1-8)"
+
+# SOLB_AGENT=1 adds what the task-10 agent harness needs and nothing else: the
+# `claude` and `codex` binaries from the host, and the credentials to reach a
+# model gateway. It gets its OWN container, under a "-agent" suffix, for two
+# reasons. Bind mounts are fixed when a container is created, so a flag alone
+# could not retrofit them onto the long-lived measurement container -- it would
+# have to destroy and recreate it, and that container routinely has a
+# multi-hour sweep inside it. And a measurement container has no business
+# holding an API key: every sweep that does not run agents stays exactly as it
+# was, with no credential in its environment.
+AGENT_MOUNTS=()
+if [ "${SOLB_AGENT:-0}" = "1" ]; then
+  NAME="${NAME}-agent"
+  # The binary is reached through its real path, not the ~/.local/bin symlink,
+  # because that symlink points into ~/.local/share and a mount of the link
+  # alone would dangle inside the container.
+  for d in "${HOME}/.local/share/claude" "${HOME}/.local/bin" "${HOME}/.codex"; do
+    [ -e "${d}" ] && AGENT_MOUNTS+=(-v "${d}:${d}:ro")
+  done
+  AGENT_MOUNTS+=(-e "PATH=/opt/venv/bin:${HOME}/.local/bin:/opt/rocm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+
+  # How the agent container reaches a model gateway is a property of the NODE,
+  # not of this benchmark, so it is not written down here. Reachability differs
+  # per site -- direct egress on one node, a forward proxy on another -- and a
+  # value committed here would be wrong everywhere except where it was written,
+  # while looking authoritative.
+  #
+  # Instead: if ${SCRATCH}/agent-env.sh exists it is sourced, and may append
+  # docker arguments to AGENT_MOUNTS. That file is under /var/tmp, outside the
+  # tree, and is deliberately not tracked.
+  #
+  #   # /var/tmp/solbench/agent-env.sh   (example, node-specific)
+  #   AGENT_MOUNTS+=(--network host)
+  #   for k in http_proxy https_proxy no_proxy HTTP_PROXY HTTPS_PROXY NO_PROXY; do
+  #     [ -n "${!k:-}" ] && AGENT_MOUNTS+=(-e "${k}")
+  #   done
+  #
+  # If the gateway is unreachable the CLI reports "Can't reach the API server
+  # ... (ENOTFOUND)", which reads like a credential problem and is not one.
+  # shellcheck source=/dev/null
+  [ -f "${SCRATCH}/agent-env.sh" ] && . "${SCRATCH}/agent-env.sh"
+fi
 
 if ! docker image inspect "${IMAGE}" >/dev/null 2>&1; then
   echo "building ${IMAGE} ..." >&2
@@ -84,8 +137,16 @@ if ! docker ps --format '{{.Names}}' | grep -qx "${NAME}"; then
   { getent passwd; printf '%s:x:%s:%s::%s:/bin/bash\n' \
       "$(id -un)" "$(id -u)" "$(id -g)" "${SCRATCH}/home"; } \
     | awk '!seen[$0]++' > "${PASSWD}"
+  # docker refuses `--hostname` together with `--network host` ("conflicting
+  # options: hostname and the network mode"), and a node's agent-env.sh may well
+  # ask for host networking. Under host networking the container already reports
+  # the host's name, so dropping the flag changes nothing that artifacts record.
+  HOSTNAME_ARG=(--hostname "$(hostname)")
+  case " ${AGENT_MOUNTS[*]+${AGENT_MOUNTS[*]}} " in
+    *" --network host "*|*" --net host "*) HOSTNAME_ARG=() ;;
+  esac
   docker run -d --name "${NAME}" \
-    --hostname "$(hostname)" \
+    "${HOSTNAME_ARG[@]+"${HOSTNAME_ARG[@]}"}" \
     --user "$(id -u):$(id -g)" \
     --group-add "$(getent group video  | cut -d: -f3)" \
     --group-add "$(getent group render | cut -d: -f3)" \
@@ -100,12 +161,77 @@ if ! docker ps --format '{{.Names}}' | grep -qx "${NAME}"; then
     -e "LOGNAME=$(id -un)" \
     -e "HF_HOME=${SCRATCH}/hf-cache" \
     -e "FLASHINFER_TRACE_DIR=/work" \
+    -e "AITER_JIT_DIR=${SCRATCH}/aiter-jit" \
+    -e "AITER_USE_SYSTEM_TRITON=1" \
+    -e "CK_DIR=${SCRATCH}/ck-include/ck" \
     -e "VIRTUAL_ENV=/opt/venv" \
     -e "UV_PROJECT_ENVIRONMENT=/opt/venv" \
     -e "UV_NO_SYNC=1" \
     -e "SOLEXBENCH_SCRATCH=${SCRATCH}" \
+    `# AITER_JIT_DIR / AITER_USE_SYSTEM_TRITON: both are required for` \
+    `# 'import aiter' to complete AT ALL in this image, and neither is` \
+    `# optional taste.` \
+    `#` \
+    `# AITER_JIT_DIR. aiter JIT-builds module_aiter_core on first import and` \
+    `# then imports it as 'aiter.jit.module_aiter_core'. get_user_jit_dir()` \
+    `# writes beside the package when that is writable; /opt/aiter is` \
+    `# root-owned and the container runs as the invoking user, so it takes` \
+    `# its fallback branch and copies the jit tree to $HOME/.aiter/jit --` \
+    `# which it never adds to sys.path OR to aiter.jit.__path__. The .so is` \
+    `# built, the build reports success, and the very next line fails with` \
+    `# "No module named 'aiter.jit.module_aiter_core'". Only the` \
+    `# AITER_JIT_DIR branch does the sys.path.insert that makes the built` \
+    `# module importable. Under the scratch mount, so the JIT cache is` \
+    `# persistent and shared, same as HF_HOME above.` \
+    `#` \
+    `# AITER_USE_SYSTEM_TRITON. aiter at the pinned SHA imports its gluon` \
+    `# kernels from aiter/__init__.py and hard-raises "aiter gluon kernels` \
+    `# require triton>=3.6.0" against this stack's pinned 3.5.1+rocm7.2.0.` \
+    `# The flag is aiter's own escape hatch: it downgrades that raise to a` \
+    `# warning. It is set here rather than the pinned triton being moved --` \
+    `# prime directive 6, and the Dockerfile already refuses aiter's` \
+    `# installer swapping triton out for the same reason. The cost is stated` \
+    `# rather than hidden: any aiter op that dispatches into a gluon kernel` \
+    `# is running against a Triton older than aiter was written for.` \
+    "${AGENT_MOUNTS[@]+"${AGENT_MOUNTS[@]}"}" \
     -w /work \
     "${IMAGE}" sleep infinity >/dev/null
+fi
+
+# A WRITABLE copy of the Composable Kernel headers, for the `ck` and `ck_tile`
+# languages.
+#
+# torch's ROCm `load()` runs hipify over every directory in
+# extra_include_paths and writes the result back INTO that directory. The
+# default CK_DIR is /opt/rocm/include/ck, which is root-owned, so an
+# unprivileged ck submission dies with
+#
+#   PermissionError: '/opt/rocm/include/ck/...'
+#
+# before the compiler is ever reached -- on a kernel that is fine. 27 MB copied
+# once into the scratch mount is the whole fix. ck_tile comes along because
+# build_ext also puts CK_DIR/.. on the include path, and `#include
+# <ck_tile/...>` resolves from there.
+if [ ! -d "${SCRATCH}/ck-include/ck" ]; then
+  echo "materializing writable CK headers at ${SCRATCH}/ck-include ..." >&2
+  docker exec "${NAME}" bash -lc \
+    'mkdir -p "$1" && cp -a /opt/rocm/include/ck /opt/rocm/include/ck_tile "$1"/' \
+    _ "${SCRATCH}/ck-include" >&2 || \
+    echo "WARNING: CK header copy failed; ck/ck_tile submissions will not build" >&2
+fi
+
+
+# Gateway credentials, only for an agent container.
+#
+# ANTHROPIC_*/OPENAI_* are forwarded; CLAUDE_CODE_* deliberately is NOT. Those
+# describe the *calling* Claude Code session -- CLAUDE_CODE_SSE_PORT,
+# CLAUDE_CODE_MESSAGING_SOCKET, CLAUDE_CODE_SESSION_ID -- and handing them to a
+# nested headless instance points it at a socket belonging to another process.
+AGENT_ENV=()
+if [ "${SOLB_AGENT:-0}" = "1" ]; then
+  while IFS='=' read -r k _; do
+    case "${k}" in ANTHROPIC_*|OPENAI_*) AGENT_ENV+=(-e "${k}") ;; esac
+  done < <(env)
 fi
 
 # -i so stdin pipes through; no -t unless attached to a real terminal.
@@ -117,4 +243,5 @@ exec docker exec -i ${TTY} \
   ${SOLEXBENCH_WORKLOADS_ROOT:+-e SOLEXBENCH_WORKLOADS_ROOT="${SOLEXBENCH_WORKLOADS_ROOT}"} \
   ${SOLEXBENCH_METHODOLOGY:+-e SOLEXBENCH_METHODOLOGY="${SOLEXBENCH_METHODOLOGY}"} \
   ${OMP_NUM_THREADS:+-e OMP_NUM_THREADS="${OMP_NUM_THREADS}"} \
+  "${AGENT_ENV[@]+"${AGENT_ENV[@]}"}" \
   "${NAME}" "$@"

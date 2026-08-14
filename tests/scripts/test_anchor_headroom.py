@@ -21,8 +21,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "src"))
 
 from verify_anchor import _classify_headroom  # noqa: E402
 
@@ -71,13 +74,68 @@ def test_a_noisy_workload_cannot_excuse_itself():
 
 
 def test_threshold_follows_the_measured_precision():
-    """h_min = 0.5 * eps / tol, so a noisier run exempts more, a cleaner run less."""
+    """h_min is linear in eps, so a noisier run exempts more, a cleaner run less."""
     clean = _healthy(20, err=0.002)
     noisy = _healthy(20, err=0.02)
     h_clean = _classify_headroom(clean, TOL)
     h_noisy = _classify_headroom(noisy, TOL)
     assert h_noisy > h_clean
-    assert abs(h_clean - 0.5 * 0.002 / TOL) < 1e-6
+    assert abs(h_clean - 0.002 / (2 - 1 / (0.5 + TOL))) < 1e-12
+
+
+def test_h_min_is_the_exact_constant_not_the_linearisation():
+    """S = 1/(2 + d/h) exactly, so h_min/eps = 1 / (2 - 1/(0.5+tol)) = 53/6 at 3%.
+
+    The linearisation |dS| = 0.5*eps/h gives 0.5/tol = 50/3 instead, larger by
+    exactly 1/(0.5+tol) = 100/53. A larger h_min exempts MORE workloads from the
+    gate, so the old constant never caused a false failure -- it silently
+    excused workloads that were adjudicable.
+    """
+    eps = 0.002
+    h_min = _classify_headroom(_healthy(20, err=eps), TOL)
+    assert h_min == pytest.approx(eps * 53.0 / 6.0, rel=1e-12)
+    assert h_min == pytest.approx(eps * (0.5 + TOL) / (2 * TOL), rel=1e-12)
+    # ...and it is strictly tighter than what the linearisation asked for
+    assert h_min == pytest.approx((0.5 * eps / TOL) * (0.5 + TOL), rel=1e-12)
+
+
+@pytest.mark.parametrize("tol", [0.01, 0.03, 0.05, 0.10])
+def test_the_fast_arm_is_the_binding_one(tol):
+    """A kernel re-timed FASTER than T_b leaves the tolerance band first.
+
+    S(x) = 1/(2+x) is decreasing and convex, so -x and +x are not equivalent:
+    at the fast arm's limit S sits exactly on 0.5+tol, while the same |x| on the
+    slow side is still comfortably inside 0.5-tol. h_min must come from the
+    fast arm.
+    """
+    fast = 2 - 1 / (0.5 + tol)          # |d/h| allowed when d < 0
+    slow = 1 / (0.5 - tol) - 2          # |d/h| allowed when d > 0
+    assert fast < slow, "if this flips, h_min must be derived from the other arm"
+    assert 1 / (2 - fast) == pytest.approx(0.5 + tol, rel=1e-12)
+    assert 1 / (2 + slow) == pytest.approx(0.5 - tol, rel=1e-12)
+    # the fast arm's limit applied on the slow side is strictly inside the band
+    assert 1 / (2 + fast) > 0.5 - tol
+
+
+def test_at_h_min_a_fast_eps_error_lands_on_the_tolerance_edge():
+    """The round trip the linearised derivation would have failed.
+
+    Build T_b and T_SOL at exactly h = h_min, re-time the anchor eps FASTER (the
+    binding arm), and score it through the real scoring function. S must land on
+    0.5 + tol to within floating point -- which is what makes h_min the smallest
+    headroom at which the anchor property is still testable.
+    """
+    from sol_execbench.sol_score import sol_score
+
+    eps = 0.002
+    h_min = _classify_headroom(_healthy(20, err=eps), TOL)
+    t_b = 100.0
+    t_k = t_b * (1 - eps)                       # fast arm
+    s = sol_score(t_k, t_b, t_b * (1 - h_min))
+    assert s == pytest.approx(0.5 + TOL, abs=1e-12)
+    assert abs(s - 0.5) <= TOL + 1e-12
+    # a hair less headroom and the property is genuinely untestable
+    assert abs(sol_score(t_k, t_b, t_b * (1 - 0.99 * h_min)) - 0.5) > TOL
 
 
 def test_a_few_noisy_outliers_do_not_widen_the_exemption():

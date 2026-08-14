@@ -1,0 +1,840 @@
+{
+ "_provenance": {
+  "task": "05-tolerances",
+  "utc": "2026-08-14T17:16:55.300605+00:00",
+  "git_sha": "b0cf4f51d1e8fbfee290d4795a0d5cb9fdfa8f30-dirty",
+  "host": "mia1-p02-g05",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "f_lock_mhz": null,
+  "visible_devices": "1"
+ },
+ "problem": "L2__078_fused_final_layer_upsample_with_adaptive_norm",
+ "definition": "078_fused_final_layer_upsample_with_adaptive_norm",
+ "margin": 1.25,
+ "seeds": 10,
+ "low_memory": true,
+ "golden_available": false,
+ "golden_comparable": false,
+ "golden_contract": null,
+ "input_device": "cuda:0",
+ "per_workload": [
+  {
+   "workload_uuid": "a74598f8-373e-5fe3-b96f-d19537e58b16",
+   "axes": {
+    "batch_size": 1,
+    "token_h": 64,
+    "token_w": 64
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.4096669359619884,
+      "rtol": 0.0078125,
+      "rms": 52.437367803134514
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.25,
+    "max_rel": 0.015625,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": false,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.4096669359619884,
+    "max_rtol": 0.01953125,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 52.437367803134514,
+      "atol": 0.4096669359619884,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "19a1a2c5-a149-50f7-8c8d-8734706e3ead",
+   "axes": {
+    "batch_size": 8,
+    "token_h": 16,
+    "token_w": 16
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.45952753248213407,
+      "rtol": 0.0078125,
+      "rms": 58.81952415771316
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.25,
+    "max_rel": 0.017001157597240905,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": false,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.45952753248213407,
+    "max_rtol": 0.021251446996551134,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 58.81952415771316,
+      "atol": 0.45952753248213407,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "069dd70d-01bb-52b4-94f9-25532ca4dc50",
+   "axes": {
+    "batch_size": 4,
+    "token_h": 16,
+    "token_w": 16
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.3988454733962843,
+      "rtol": 0.0078125,
+      "rms": 51.05222059472439
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.5,
+    "max_rel": 0.004016064257028112,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": false,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.625,
+    "max_rtol": 0.0078125,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 51.05222059472439,
+      "atol": 0.3988454733962843,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "bf757f4d-3866-56bf-92c8-bcc38bb9fa01",
+   "axes": {
+    "batch_size": 1,
+    "token_h": 11,
+    "token_w": 11
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.5434845231930499,
+      "rtol": 0.0078125,
+      "rms": 69.56601896871038
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 1.0,
+    "max_rel": 0.15,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": false,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 1.25,
+    "max_rtol": 0.1875,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 69.56601896871038,
+      "atol": 0.5434845231930499,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "1e32a29c-0341-5066-b301-66e9ec53cd3b",
+   "axes": {
+    "batch_size": 1,
+    "token_h": 53,
+    "token_w": 53
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.40137933030930867,
+      "rtol": 0.0078125,
+      "rms": 51.37655427959151
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.25,
+    "max_rel": 0.014285714285714285,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": false,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.40137933030930867,
+    "max_rtol": 0.017857142857142856,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 51.37655427959151,
+      "atol": 0.40137933030930867,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "c562ba02-4454-59a7-ae71-54c9da0cef98",
+   "axes": {
+    "batch_size": 8,
+    "token_h": 23,
+    "token_w": 23
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.3977800605158985,
+      "rtol": 0.0078125,
+      "rms": 50.915847746035006
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.25,
+    "max_rel": 0.01964025041845392,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": false,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.3977800605158985,
+    "max_rtol": 0.0245503130230674,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 50.915847746035006,
+      "atol": 0.3977800605158985,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "14705bec-5dfa-5454-9250-194ed2544a8e",
+   "axes": {
+    "batch_size": 16,
+    "token_h": 32,
+    "token_w": 32
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.4082313999067558,
+      "rtol": 0.0078125,
+      "rms": 52.25361918806474
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.5,
+    "max_rel": 0.0125,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": false,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.625,
+    "max_rtol": 0.015625,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 52.25361918806474,
+      "atol": 0.4082313999067558,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "c47db780-1e8c-5ab3-920c-249851ea4108",
+   "axes": {
+    "batch_size": 32,
+    "token_h": 32,
+    "token_w": 32
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.4402999990442743,
+      "rtol": 0.0078125,
+      "rms": 56.35839987766711
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.4402999990442743,
+    "max_rtol": 0.0078125,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 56.35839987766711,
+      "atol": 0.4402999990442743,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "0e247ac4-57cf-59d9-b5b3-b479a2a715f1",
+   "axes": {
+    "batch_size": 2,
+    "token_h": 17,
+    "token_w": 17
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.39532770694082464,
+      "rtol": 0.0078125,
+      "rms": 50.601946488425554
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.004149377593360996,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.39532770694082464,
+    "max_rtol": 0.0078125,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 50.601946488425554,
+      "atol": 0.39532770694082464,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "1157099f-9b82-5454-bf86-70a46f26cfca",
+   "axes": {
+    "batch_size": 8,
+    "token_h": 47,
+    "token_w": 47
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.44078512008708076,
+      "rtol": 0.0078125,
+      "rms": 56.42049537114634
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.44078512008708076,
+    "max_rtol": 0.0078125,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 56.42049537114634,
+      "atol": 0.44078512008708076,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "e0e443ab-3fd9-580b-8a14-e7aa54762a60",
+   "axes": {
+    "batch_size": 2,
+    "token_h": 48,
+    "token_w": 48
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.4154506168854895,
+      "rtol": 0.0078125,
+      "rms": 53.17767896134266
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.5,
+    "max_rel": 0.013888888888888888,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": false,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.625,
+    "max_rtol": 0.017361111111111112,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 53.17767896134266,
+      "atol": 0.4154506168854895,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "cf298b50-08f8-5d83-a810-a3dc2caf3759",
+   "axes": {
+    "batch_size": 1,
+    "token_h": 29,
+    "token_w": 29
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.40538601625198284,
+      "rtol": 0.0078125,
+      "rms": 51.8894100802538
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.40538601625198284,
+    "max_rtol": 0.0078125,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 51.8894100802538,
+      "atol": 0.40538601625198284,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "205a19bb-b959-598a-bc38-1e513db6ce70",
+   "axes": {
+    "batch_size": 2,
+    "token_h": 59,
+    "token_w": 59
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.5717407370607387,
+      "rtol": 0.0078125,
+      "rms": 73.18281434377455
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.03125,
+    "max_rel": 0.009433962264150943,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": false,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.5717407370607387,
+    "max_rtol": 0.011792452830188678,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 73.18281434377455,
+      "atol": 0.5717407370607387,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "4a79e495-f51f-566c-a0bb-7d46d5b1c7d3",
+   "axes": {
+    "batch_size": 64,
+    "token_h": 16,
+    "token_w": 16
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.39785487221941607,
+      "rtol": 0.0078125,
+      "rms": 50.92542364408526
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.5,
+    "max_rel": 0.0125,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": false,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.625,
+    "max_rtol": 0.015625,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 50.92542364408526,
+      "atol": 0.39785487221941607,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "c87730f3-231d-58c4-a8df-1e7ce8844023",
+   "axes": {
+    "batch_size": 8,
+    "token_h": 32,
+    "token_w": 32
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.38844282829082,
+      "rtol": 0.0078125,
+      "rms": 49.72068202122496
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.125,
+    "max_rel": 0.010056177423040135,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": false,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.38844282829082,
+    "max_rtol": 0.01257022177880017,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 49.72068202122496,
+      "atol": 0.38844282829082,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "3b134f80-3ce5-5a34-b5dd-ffb45ab03d98",
+   "axes": {
+    "batch_size": 2,
+    "token_h": 41,
+    "token_w": 41
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.4635092854116077,
+      "rtol": 0.0078125,
+      "rms": 59.329188532685784
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.25,
+    "max_rel": 0.006493506493506494,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": false,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.4635092854116077,
+    "max_rtol": 0.008116883116883118,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 59.329188532685784,
+      "atol": 0.4635092854116077,
+      "rtol": 0.0078125
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 1.0,
+     "rtol": 1.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS"
+   },
+   "ok": true
+  }
+ ],
+ "n_ok": 16,
+ "n_workloads": 16,
+ "ok": true
+}

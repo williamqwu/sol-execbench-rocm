@@ -62,13 +62,20 @@ def _classify_headroom(checks: list[dict], tolerance: float) -> float | None:
     precision it demands depends on something the test never looked at: how much room
     there is between T_b and T_SOL.
 
-    S rises from 0.5 at T_b to 1.0 at T_SOL, so with headroom
-    ``h = (t_b - t_sol) / t_b`` and a relative timing error ``eps``,
+    S rises from 0.5 at T_b to 1.0 at T_SOL. Write the re-timed t_k as
+    ``t_k = t_b * (1 + d)`` for a relative timing error ``d``, and the headroom as
+    ``h = (t_b - t_sol) / t_b``, so ``t_sol = t_b * (1 - h)``. Substituting into
+    ``S = 1 / (1 + (t_k - t_sol) / (t_b - t_sol))`` gives, with no approximation,
 
-        |dS| = 0.5 * eps / h
+        t_k - t_sol = t_b * (d + h)      t_b - t_sol = t_b * h
+
+        S = 1 / (2 + d/h)
+
+    So S depends on the error only through the ratio ``x = d/h``, and the
+    linearisation ``|dS| ~ 0.5 * |d| / h`` is its first-order expansion about x = 0.
 
     A workload where T_b is already within 3% of the speed of light therefore needs
-    t_k reproduced to about 0.18% to hold S inside +-3% -- far below the ~0.5% noise
+    t_k reproduced to about 0.34% to hold S inside +-3% -- far below the ~0.5% noise
     floor these measurements actually achieve, and an order below the short-window
     bias of the upstream timing window (docs/methodology.md §7, "How short is the
     timed window?"), which is 22% for a large GEMM and over 2x for a small one. Such
@@ -86,7 +93,26 @@ def _classify_headroom(checks: list[dict], tolerance: float) -> float | None:
       ``_WELL_CONDITIONED``), whose verdicts are trustworthy, as the MEDIAN of
       ``|t_k/t_b - 1|``. Using each workload's own error instead would be circular --
       a genuinely broken measurement would excuse itself by being noisy.
-    * ``h_min = 0.5 * eps / tolerance`` follows from the sensitivity above.
+    * ``h_min`` follows from ``S = 1 / (2 + d/h)`` exactly, not from its
+      linearisation. Requiring ``|S - 0.5| <= tol`` bounds ``x = d/h`` on both
+      sides, and the two sides are NOT symmetric:
+
+          S <= 0.5 + tol  =>  x >= 1/(0.5 + tol) - 2   (the FAST arm, d < 0)
+          S >= 0.5 - tol  =>  x <= 1/(0.5 - tol) - 2   (the SLOW arm, d > 0)
+
+      i.e. ``|x| <= 2tol/(0.5 + tol)`` when the kernel re-times FASTER than T_b,
+      and ``|x| <= 2tol/(0.5 - tol)`` when it re-times slower. S is a decreasing,
+      convex function of x, so a step below 0.5 costs more score than the same
+      step above it; the fast arm is the tighter of the two and therefore the one
+      that binds. At tol = 0.03 it allows |d/h| <= 6/53 = 0.1132 against the slow
+      arm's 6/47 = 0.1277. Taking the binding arm and |d| <= eps:
+
+          h_min = eps / (2 - 1/(0.5 + tolerance)) = eps * (0.5 + tol) / (2 * tol)
+
+      The linearised form ``0.5 * eps / tolerance`` that this replaces is larger
+      by exactly ``1/(0.5 + tol)`` -- a factor of 100/53 = 1.887 at tol = 0.03 --
+      and larger is the unsafe direction (see below): it exempted workloads the
+      gate could legitimately have adjudicated.
 
     The median, not a high percentile, and the direction matters more than it looks.
     A pessimistic precision estimate makes ``h_min`` larger and therefore exempts
@@ -122,7 +148,9 @@ def _classify_headroom(checks: list[dict], tolerance: float) -> float | None:
 
     import statistics
     eps = statistics.median(trusted)
-    h_min = 0.5 * eps / tolerance
+    # The fast arm binds: |d/h| <= 2 - 1/(0.5 + tol) == 2*tol/(0.5 + tol).
+    x_max = 2.0 - 1.0 / (0.5 + tolerance)
+    h_min = eps / x_max
     for c in checks:
         c["headroom_sufficient"] = (
             c["headroom"] is None or c["headroom"] >= h_min)
@@ -130,7 +158,7 @@ def _classify_headroom(checks: list[dict], tolerance: float) -> float | None:
             c["undecidable_reason"] = (
                 f"headroom {c['headroom']:.2%} < {h_min:.2%}: holding S within "
                 f"±{tolerance:.0%} would need t_k reproduced to "
-                f"{tolerance * c['headroom'] / 0.5:.3%}, below the {eps:.2%} "
+                f"{c['headroom'] * x_max:.3%}, below the {eps:.2%} "
                 f"precision these measurements achieve")
     return h_min
 

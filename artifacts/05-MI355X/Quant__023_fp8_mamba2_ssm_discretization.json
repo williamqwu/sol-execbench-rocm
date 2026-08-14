@@ -1,0 +1,496 @@
+{
+ "_provenance": {
+  "task": "05-tolerances",
+  "utc": "2026-08-14T17:14:34.461578+00:00",
+  "git_sha": "b0cf4f51d1e8fbfee290d4795a0d5cb9fdfa8f30-dirty",
+  "host": "mia1-p02-g45",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "f_lock_mhz": null,
+  "visible_devices": "4"
+ },
+ "problem": "Quant__023_fp8_mamba2_ssm_discretization",
+ "definition": "023_fp8_mamba2_ssm_discretization",
+ "margin": 1.25,
+ "seeds": 10,
+ "low_memory": true,
+ "golden_available": false,
+ "golden_comparable": false,
+ "golden_contract": null,
+ "input_device": "cuda:0",
+ "per_workload": [
+  {
+   "workload_uuid": "2ae24a48-d83d-5c2f-a369-127c725b07b3",
+   "axes": {
+    "batch_size": 16,
+    "seq_len": 128
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.06669944644604965,
+      "rtol": 0.0078125,
+      "rms": 8.537529145094355
+     }
+    },
+    {
+     "index": 1,
+     "dtype": "torch.float32",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 7.208397099852683e-07,
+      "rtol": 1.1920928955078125e-07,
+      "rms": 6.0468417579001015
+     }
+    },
+    {
+     "index": 2,
+     "dtype": "torch.float32",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 7.208397099852683e-07,
+      "rtol": 1.1920928955078125e-07,
+      "rms": 6.0468417579001015
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.06669944644604965,
+    "max_rtol": 0.0078125,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 8.537529145094355,
+      "atol": 0.06669944644604965,
+      "rtol": 0.0078125
+     },
+     {
+      "dtype": "torch.float32",
+      "n_outputs": 2,
+      "rms": 6.0468417579001015,
+      "atol": 7.208397099852683e-07,
+      "rtol": 1.1920928955078125e-07
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 92530.20542862821,
+     "rtol": 65536.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS (widest of 2 per-dtype floors [torch.bfloat16 0.0666994/0.0078125, torch.float32 7.2084e-07/1.19209e-07]; one ToleranceSpec per workload, so the tightest dtype is over-granted 92530.2x on atol and 65536x on rtol)"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "8a046f68-e649-5dc2-b417-2b8f1eebc243",
+   "axes": {
+    "batch_size": 4,
+    "seq_len": 256
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.06672105137177413,
+      "rtol": 0.0078125,
+      "rms": 8.540294575587088
+     }
+    },
+    {
+     "index": 1,
+     "dtype": "torch.float32",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 7.210902554372501e-07,
+      "rtol": 1.1920928955078125e-07,
+      "rms": 6.04894348548296
+     }
+    },
+    {
+     "index": 2,
+     "dtype": "torch.float32",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 7.210902554372501e-07,
+      "rtol": 1.1920928955078125e-07,
+      "rms": 6.04894348548296
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.06672105137177413,
+    "max_rtol": 0.0078125,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 8.540294575587088,
+      "atol": 0.06672105137177413,
+      "rtol": 0.0078125
+     },
+     {
+      "dtype": "torch.float32",
+      "n_outputs": 2,
+      "rms": 6.04894348548296,
+      "atol": 7.210902554372501e-07,
+      "rtol": 1.1920928955078125e-07
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 92528.01694195166,
+     "rtol": 65536.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS (widest of 2 per-dtype floors [torch.bfloat16 0.0667211/0.0078125, torch.float32 7.2109e-07/1.19209e-07]; one ToleranceSpec per workload, so the tightest dtype is over-granted 92528x on atol and 65536x on rtol)"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "5f34631d-1b21-5d2c-94e5-4c00be323ce7",
+   "axes": {
+    "batch_size": 2,
+    "seq_len": 512
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.06672105137177413,
+      "rtol": 0.0078125,
+      "rms": 8.540294575587088
+     }
+    },
+    {
+     "index": 1,
+     "dtype": "torch.float32",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 7.210902554372501e-07,
+      "rtol": 1.1920928955078125e-07,
+      "rms": 6.04894348548296
+     }
+    },
+    {
+     "index": 2,
+     "dtype": "torch.float32",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 7.210902554372501e-07,
+      "rtol": 1.1920928955078125e-07,
+      "rms": 6.04894348548296
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.06672105137177413,
+    "max_rtol": 0.0078125,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 8.540294575587088,
+      "atol": 0.06672105137177413,
+      "rtol": 0.0078125
+     },
+     {
+      "dtype": "torch.float32",
+      "n_outputs": 2,
+      "rms": 6.04894348548296,
+      "atol": 7.210902554372501e-07,
+      "rtol": 1.1920928955078125e-07
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 92528.01694195166,
+     "rtol": 65536.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS (widest of 2 per-dtype floors [torch.bfloat16 0.0667211/0.0078125, torch.float32 7.2109e-07/1.19209e-07]; one ToleranceSpec per workload, so the tightest dtype is over-granted 92528x on atol and 65536x on rtol)"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "4bd29372-bbb2-5247-9219-bf32453d92cf",
+   "axes": {
+    "batch_size": 2,
+    "seq_len": 128
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.06688975428883102,
+      "rtol": 0.0078125,
+      "rms": 8.561888548970371
+     }
+    },
+    {
+     "index": 1,
+     "dtype": "torch.float32",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 7.237067020680278e-07,
+      "rtol": 1.1920928955078125e-07,
+      "rms": 6.070891830621474
+     }
+    },
+    {
+     "index": 2,
+     "dtype": "torch.float32",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 7.237067020680278e-07,
+      "rtol": 1.1920928955078125e-07,
+      "rms": 6.070891830621474
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.06688975428883102,
+    "max_rtol": 0.0078125,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 8.561888548970371,
+      "atol": 0.06688975428883102,
+      "rtol": 0.0078125
+     },
+     {
+      "dtype": "torch.float32",
+      "n_outputs": 2,
+      "rms": 6.070891830621474,
+      "atol": 7.237067020680278e-07,
+      "rtol": 1.1920928955078125e-07
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 92426.60610671455,
+     "rtol": 65536.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS (widest of 2 per-dtype floors [torch.bfloat16 0.0668898/0.0078125, torch.float32 7.23707e-07/1.19209e-07]; one ToleranceSpec per workload, so the tightest dtype is over-granted 92426.6x on atol and 65536x on rtol)"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "e1e05e73-0309-5429-8c58-1e54a67c3110",
+   "axes": {
+    "batch_size": 4,
+    "seq_len": 128
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.06690051719821798,
+      "rtol": 0.0078125,
+      "rms": 8.563266201371901
+     }
+    },
+    {
+     "index": 1,
+     "dtype": "torch.float32",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 7.242156254112403e-07,
+      "rtol": 1.1920928955078125e-07,
+      "rms": 6.075160989049734
+     }
+    },
+    {
+     "index": 2,
+     "dtype": "torch.float32",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 7.242156254112403e-07,
+      "rtol": 1.1920928955078125e-07,
+      "rms": 6.075160989049734
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.06690051719821798,
+    "max_rtol": 0.0078125,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 8.563266201371901,
+      "atol": 0.06690051719821798,
+      "rtol": 0.0078125
+     },
+     {
+      "dtype": "torch.float32",
+      "n_outputs": 2,
+      "rms": 6.075160989049734,
+      "atol": 7.242156254112403e-07,
+      "rtol": 1.1920928955078125e-07
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 92376.51722886955,
+     "rtol": 65536.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS (widest of 2 per-dtype floors [torch.bfloat16 0.0669005/0.0078125, torch.float32 7.24216e-07/1.19209e-07]; one ToleranceSpec per workload, so the tightest dtype is over-granted 92376.5x on atol and 65536x on rtol)"
+   },
+   "ok": true
+  },
+  {
+   "workload_uuid": "14f3f297-5b6d-5420-bb6d-3c9d5bf57fb8",
+   "axes": {
+    "batch_size": 8,
+    "seq_len": 128
+   },
+   "outputs": [
+    {
+     "index": 0,
+     "dtype": "torch.bfloat16",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 0.06672105137177413,
+      "rtol": 0.0078125,
+      "rms": 8.540294575587088
+     }
+    },
+    {
+     "index": 1,
+     "dtype": "torch.float32",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 7.210902554372501e-07,
+      "rtol": 1.1920928955078125e-07,
+      "rms": 6.04894348548296
+     }
+    },
+    {
+     "index": 2,
+     "dtype": "torch.float32",
+     "comparison": "tolerance",
+     "own_floor": {
+      "atol": 7.210902554372501e-07,
+      "rtol": 1.1920928955078125e-07,
+      "rms": 6.04894348548296
+     }
+    }
+   ],
+   "run_to_run": {
+    "max_abs": 0.0,
+    "max_rel": 0.0,
+    "exact_outputs_max_abs": 0.0
+   },
+   "seeds": 10,
+   "executions_per_seed": 2,
+   "deterministic": true,
+   "vs_golden": null,
+   "tolerance": {
+    "max_atol": 0.06672105137177413,
+    "max_rtol": 0.0078125,
+    "required_matched_ratio": 0.99,
+    "_dtype_floors": [
+     {
+      "dtype": "torch.bfloat16",
+      "n_outputs": 1,
+      "rms": 8.540294575587088,
+      "atol": 0.06672105137177413,
+      "rtol": 0.0078125
+     },
+     {
+      "dtype": "torch.float32",
+      "n_outputs": 2,
+      "rms": 6.04894348548296,
+      "atol": 7.210902554372501e-07,
+      "rtol": 1.1920928955078125e-07
+     }
+    ],
+    "_floor_over_grant": {
+     "atol": 92528.01694195166,
+     "rtol": 65536.0
+    },
+    "_exact_outputs": [],
+    "_derivation": "max run-to-run error over 10 seeds x 1.25 margin, floored at torch.bfloat16 epsilon x output RMS (widest of 2 per-dtype floors [torch.bfloat16 0.0667211/0.0078125, torch.float32 7.2109e-07/1.19209e-07]; one ToleranceSpec per workload, so the tightest dtype is over-granted 92528x on atol and 65536x on rtol)"
+   },
+   "ok": true
+  }
+ ],
+ "n_ok": 6,
+ "n_workloads": 6,
+ "ok": true
+}

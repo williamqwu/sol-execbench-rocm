@@ -653,12 +653,17 @@ itself would have called that problem perfect.
 
 The `0.5 ± 0.03` check demands a timing precision, and how much precision depends on
 something it never looked at. `S` rises from 0.5 at `T_b` to 1.0 at `T_SOL`, so with
-headroom `h = (T_b − T_SOL) / T_b` and relative timing error `eps`,
+headroom `h = (T_b − T_SOL) / T_b` and relative timing error `d`
+(so `T_k = T_b(1 + d)` and `T_SOL = T_b(1 − h)`), substitution gives the score
+exactly:
 
-    |dS| = 0.5 * eps / h
+    S = 1 / (2 + d/h)
+
+`S` therefore depends on the error only through the ratio `d/h`, and the older
+`|dS| = 0.5·eps/h` is only its first-order expansion about `d = 0`.
 
 A workload whose `T_b` already sits within 3% of the speed of light therefore needs
-`T_k` reproduced to about **0.18%** to hold `S` inside ±3% — below any precision
+`T_k` reproduced to about **0.34%** to hold `S` inside ±3% — below any precision
 available here, and an order below the 22%-to-2× short-window bias of §7. Such a
 workload
 cannot pass however sound its bound and its `T_b` are.
@@ -676,17 +681,43 @@ property of the scale, not of the measurement.
 | ≥ 25% | 171 | **0** |
 
 `verify_anchor.py` now separates **failing** from **undecidable**, with the threshold
-derived rather than chosen: `h_min = 0.5 × median(retime_error over workloads with
-≥25% headroom) / tolerance`. Estimating `eps` from the well-conditioned workloads
-only, rather than per workload, is what stops it being circular — otherwise a broken
-measurement would excuse itself by being noisy.
+derived rather than chosen. `eps` is `median(retime_error over workloads with ≥25%
+headroom)`; estimating it from the well-conditioned workloads only, rather than per
+workload, is what stops it being circular — otherwise a broken measurement would
+excuse itself by being noisy. `h_min` then comes from `S = 1/(2 + d/h)` exactly.
+
+Requiring `|S − 0.5| ≤ tol` bounds `d/h` on both sides, and the two sides are **not**
+symmetric, because `S(x) = 1/(2+x)` is decreasing and convex:
+
+    S ≤ 0.5 + tol  ⇒  |d/h| ≤ 2 − 1/(0.5 + tol) = 2·tol/(0.5 + tol)   fast arm, d < 0
+    S ≥ 0.5 − tol  ⇒  |d/h| ≤ 1/(0.5 − tol) − 2 = 2·tol/(0.5 − tol)   slow arm, d > 0
+
+At `tol = 0.03` the fast arm allows `6/53 = 0.1132` and the slow arm `6/47 = 0.1277`,
+so the **fast arm binds** — a re-timed `T_b` that comes out *faster* than recorded
+leaves the band first. Hence
+
+    h_min = eps / (2 − 1/(0.5 + tol)) = eps · (0.5 + tol) / (2·tol)   ( = 8.833·eps at 3% )
+
+**Correction (this supersedes the linearised form).** `h_min = 0.5·eps/tolerance`
+was used up to and including the numbers quoted in the paragraph below. It is the
+first-order form and is larger than the exact one by exactly `1/(0.5 + tol)`, i.e.
+`100/53 = 1.887×` at `tol = 0.03`. Larger `h_min` exempts **more**, so nothing was
+ever failed that should have passed; the error ran the other way, silently excusing
+workloads the gate could have adjudicated. Re-classifying the tracked 349-check
+artifact (`artifacts/06/anchor-verification.json`, `eps = 0.433%`) offline moves
+`h_min` from 7.21% to 3.82% and 4 workloads from exempt to checked — **all four
+pass** (headrooms 4.4–7.2%, `|S − 0.5| ≤ 0.0043`). The 219-workload MI355X run below
+is not tracked as an artifact, so its exempt count has not been recomputed.
 
 The direction of that estimator matters more than it looks. A *pessimistic* precision
 estimate makes `h_min` larger and therefore exempts **more**, which is the unsafe
 direction. Using the p90 was tried and gave `eps = 4.0%`, `h_min = 67%`, exempting 89
 of 219 including workloads at 60% headroom that were passing perfectly well — an
-exemption wide enough to hide anything. The median gives `h_min = 10.5%` and exempts
-25 of 219, all in the 2.6–9.6% band.
+exemption wide enough to hide anything. The median gave `h_min = 10.5%` and exempted
+25 of 219, all in the 2.6–9.6% band. (Both of those `h_min` figures are the
+superseded linearised threshold; the corrected one is 53% of each — 5.6% and 35.5%
+respectively — and the corresponding exempt counts were not recomputed, because that
+run's per-check data is not tracked.)
 
 It does not rubber-stamp the run: one workload still fails, at 16% headroom with a
 2.04% reproduction error, so the publication gate stays shut. Undecidable workloads
