@@ -138,6 +138,23 @@ def _recover_interval_anchors(doc: dict, already: set) -> dict:
     return recovered
 
 
+#: How close two tiers' DRAM bandwidths must be to count as one number.
+#:
+#: 1e-9 relative is roughly six orders of magnitude tighter than any real
+#: difference between two arch configurations and six orders looser than float
+#: round-trip noise, so it cannot admit a genuine conflict and cannot reject a
+#: representational one. It is NOT a tolerance on the physics: the merge identity
+#: in `_reclock_terms` requires the two tiers to share a bandwidth exactly, and
+#: this says when they do.
+BANDWIDTH_IDENTICAL_REL = 1e-9
+
+
+def _one_bandwidth(values: set) -> bool:
+    """Are these all the same bandwidth, printed differently?"""
+    lo, hi = min(values), max(values)
+    return lo > 0 and (hi - lo) / hi <= BANDWIDTH_IDENTICAL_REL
+
+
 def _reclock_terms(s: dict, t: dict, source: str, stats: dict) -> dict:
     """The re-clocking terms for a merged bound, correct for BOTH tiers.
 
@@ -170,6 +187,16 @@ def _reclock_terms(s: dict, t: dict, source: str, stats: dict) -> dict:
     have = [d for d in (s, t) if d]
     bps = {d.get("dram_byte_per_sec") for d in have
            if d.get("dram_byte_per_sec") is not None}
+    if len(bps) > 1 and _one_bandwidth(bps):
+        # One bandwidth, two float printings of it. The MI355X tiers emit
+        # 7999919999999.999 and 7999920000000.0 -- the same 7.99992e12 from the same
+        # arch YAML, differing by 1 part in 8e12 because one script reached it by a
+        # multiplication and the other by a division. Exact set equality read that
+        # as two arch configs and refused to merge EVERY two-tier record on that
+        # corpus, which is not what the guard is for and is not a failure it can
+        # ever be right about: no two arch configs differ by 2e-16 relative.
+        # Collapsed to the larger, which is the pre-rounding value.
+        bps = {max(bps)}
     if len(bps) > 1:
         # Two bandwidths means two arch configs produced these tiers. Refusing to
         # merge leaves `t_sol_at` raising MissingBoundTerms, which is visible;

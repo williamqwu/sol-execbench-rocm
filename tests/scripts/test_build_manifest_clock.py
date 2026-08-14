@@ -233,6 +233,32 @@ def test_conflicting_bandwidths_leave_the_record_unreclockable():
     assert "dram_byte_per_sec" not in merged[KEY][UUID]
 
 
+def test_two_printings_of_one_bandwidth_are_not_a_conflict():
+    """The MI355X tiers really emit these two numbers, and they are one number.
+
+    7999919999999.999 and 7999920000000.0 are 7.99992e12 reached by a division and
+    by a multiplication. Exact set equality read them as two arch configs and left
+    every two-tier MI355X record un-re-clockable -- 16 of 16 workloads on
+    L2__004_fused_residual_rms_mlp, i.e. no interval on the widest problem in the
+    corpus. The guard is for two configs; no two configs differ by 2e-16.
+    """
+    solar = {KEY: {UUID: {"t_sol_cycles": 1000, "t_sol_ms": 1e-3,
+                          "compute_cycles": 1000.0, "memory_bytes": 4096,
+                          "dram_byte_per_sec": 7999919999999.999}}}
+    traffic = {KEY: {UUID: {"t_sol_cycles": 2000, "t_sol_ms": 2e-3,
+                            "compute_cycles": 0.0, "memory_bytes": 8192,
+                            "dram_byte_per_sec": 7999920000000.0}}}
+    merged, stats = bm.combine_bounds(solar, traffic, {})
+    assert not stats.get("reclock_terms_conflicting_bandwidth")
+    rec = merged[KEY][UUID]
+    assert rec["compute_cycles"] == 1000.0 and rec["memory_bytes"] == 8192
+    assert t_sol_cycles_at(rec, F_REF) > 0
+    # ...and a real disagreement is still a conflict, at any size worth calling one.
+    traffic[KEY][UUID]["dram_byte_per_sec"] = 7999920000000.0 * 1.001
+    _, stats2 = bm.combine_bounds(solar, traffic, {})
+    assert stats2["reclock_terms_conflicting_bandwidth"] == 1
+
+
 def test_a_record_predating_the_split_is_counted_not_faked():
     solar = {KEY: {UUID: {"t_sol_cycles": 1000, "t_sol_ms": 1e-3}}}
     merged, stats = bm.combine_bounds(solar, {}, {})

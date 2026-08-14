@@ -357,6 +357,55 @@ MI350X corpus takes exactly the path it took before.
   effect (per-iteration cost 21.1 / 12.6 / 1.2 µs across shapes, an 18× spread).
   No summary of this work may imply otherwise.
 
+**MI355X: T_SOL is an interval, published at the minimum clock of the bracket.**
+Approved by the maintainer 2026-08-14; gated on `SOLEXBENCH_CLOCK_BASIS=unlocked`,
+the locked MI350X path unchanged. Three parts:
+
+1. **Published at f_min** — the largest T_SOL, hence the tightest bound. Chosen for
+   the direction of its error: too strict is *detectable* (a measurement beats its
+   own bound and the existing check fires), too loose is not, and CLAUDE.md §6 names
+   an undetectable bound as the failure this repo has already had three times. The
+   argument is in `src/solexbench_rocm/t_sol_at.py`'s docstring, not only here.
+2. **Both ends recorded** — `t_sol_ms_at_clock_min` / `_max`, the clock at each end,
+   and `sol_score_at_clock_min` / `_max` beside the published `S`.
+3. **Width is a field**, per workload (`t_sol_interval_halfwidth_rel`) and per
+   problem (`t_sol_interval_halfwidth_max`), so it sorts without reprocessing.
+
+**Refusal is demoted from a gate to a label.** A bracket refused for *spread* no
+longer discards the measurement: it publishes with a stated width.
+`clock_bracket_refused` is still set, still counted, and `summarize_brackets` reports
+the same `n_refused` / `refusal_rate` / `refused_by_reason` it always did, plus an
+added interval split. A bracket with *no* samples — `no_clock_evidence`,
+`sampler_error` — is still refused, and `clock_fatalities()` still exits 1 on those.
+The demotion is applied at manifest-build time
+(`build_manifest._recover_interval_anchors`) rather than in the sweep runner,
+deliberately: changing selection mid-flight would split the corpus into problems
+chosen under two rules with nothing recording which.
+
+**Measured**, rebuilding the manifest off `artifacts/06-MI355X/authoritative` to a
+scratch path (the sweep was still live, so these move): 212/235 problems, 3558
+scoreable workloads, **every one of them carrying an interval**. Halfwidth **median
+0.19%**, **max 9.92%** (`L1__071_kv_cache_update_with_rope`); 2 problems above 5%;
+**2** bottleneck flips; **368 workloads admitted by the demoted label**, which under
+the gate were missing T_b. Per problem: L2__004 max 3.53%, L2__005 max 1.78%,
+L1__013 max 0.015%, L2__012 max 8.5e-6% (memory-bound at both ends — the width is
+zero for the right reason).
+
+**The ±33–43% figures quoted when this was requested are the clock span across a
+problem's workloads and variants, not within one timed window.** Within-window
+brackets on the same problems are much tighter (L2__004's widest single window is
+1811–1949 MHz), so the published intervals are correspondingly narrow. Do not quote
+the larger figures as interval widths.
+
+**One defect found doing it, and fixed:** the two T_SOL tiers emit DRAM bandwidth as
+`7999919999999.999` and `7999920000000.0` — the same 7.99992e12 reached by two
+routes. `_reclock_terms` compared them for exact equality and so refused to merge
+*every* two-tier MI355X record. **`artifacts/09-MI355X/manifest-v1.json` was built
+before the fix and carries `reclock_terms_conflicting_bandwidth: 2977`, with only
+576 of 3415 scoreable workloads holding an interval — it must be rebuilt.** After the
+fix that count is 0 conflicts and 3558/3558. Now compared at 1e-9 relative; a real
+disagreement is still a conflict.
+
 **Uncertainty to carry forward, none of it measured away:**
 
 * The **`amdsmi_init()` SIGSEGV under concurrency** is now serialised behind an
