@@ -331,6 +331,219 @@ observed.
 resolved once per run and passed to both timer and trace, so "recorded" and
 "used" cannot drift.
 
+**MI355X clock methodology: bracket the window** (`docs/TODO-MI355X.md` §4.3
+option 2), chosen by the maintainer. Sample the clock immediately before and
+after the timed window, record both, refuse the measurement if they disagree by
+more than the threshold. Off unless `SOLEXBENCH_CLOCK_BASIS=unlocked`; the
+MI350X corpus takes exactly the path it took before.
+
+* **The window is the `time_runnable` call in the eval driver**, and only that.
+  Compilation and `max_autotune` are behind it, driven by the correctness pass.
+  Bracketing `evaluate()` was tried and does not work: the kernel is 0.8–55% of
+  the span and 85% of measurements refuse.
+* **Threshold 0.0078**, the p99 of 6,544 consecutive-sample clock spreads in
+  `artifacts/01/unlocked-clock.json` (median 0.111%, p90 0.284%, max 26.4%).
+  Overridable by `SOLEXBENCH_CLOCK_BRACKET_THRESHOLD`; the value in force is
+  stamped on every measurement. **Caveat:** that artifact is from `g10`, and no
+  within-window bracket distribution has been measured on `mia1-p02-g46` at all —
+  the g46 figures (36.8% across shapes, 3.9% across cards) are between-shape and
+  between-card, the wrong statistic for this. Re-derive from the first sweep's
+  own recorded spreads.
+* **`T_b` and `T_k` are re-timed back to back in one session on one card**, and
+  both brackets are recorded (§4.4).
+* **The bracket bounds the clock error and nothing else.** It does not touch the
+  short-window bias (`docs/methodology.md` §7), which on g46 is +106.9% for the
+  worst shape at the shipped burst length and is measured *not* to be a clock
+  effect (per-iteration cost 21.1 / 12.6 / 1.2 µs across shapes, an 18× spread).
+  No summary of this work may imply otherwise.
+
+**Uncertainty to carry forward, none of it measured away:**
+
+* The **`amdsmi_init()` SIGSEGV under concurrency** is now serialised behind an
+  `flock` in `device/amd.py`. **The fix is unverified** — reproducing the crash
+  needs concurrent load on cards 1–7, which were running live sweeps. Do not
+  record it as confirmed.
+* Measured while wiring this up, on g46 GPU 0 (telemetry read only, no kernel):
+  an SMI read costs **0.23–0.55 ms**, so on a 1 ms window the bracket spans about
+  twice the region it brackets — recorded per measurement as
+  `clock_bracket_lag_ns`. And an **idle** card (~193 MHz, 2 MHz jitter) yields a
+  1.04% relative spread and is refused, where the same 2 MHz on a loaded card is
+  0.08–0.12%. Scoring windows always follow warmup so this should never bite, but
+  the relative-spread rule does have a quantisation floor at low clocks. No
+  absolute floor was added: that would be improvising a methodology change to get
+  past an obstacle (prime directive 7).
+
+**The other three step-6 decisions** (`docs/TODO-MI355X.md` §5 step 6 requires
+four written before any sweep that divides by a clock; the clock methodology
+above is the second). All four were put to the maintainer and answered on
+2026-08-14.
+
+1. **Where F_LOCK comes from: nowhere, and that is the answer.**
+   `get_clock_preset("AMD Instinct MI355X").f_lock_mhz` returns `None` and stays
+   that way; `SOLEXBENCH_F_LOCK_MHZ` is **not** exported. There is no single
+   achieved clock on this part to name — the measurement below puts the spread
+   across kernel shapes at 36.8% — so any one number would be a fabrication
+   dressed as a constant, which is what `4f7b06fd` removed. The bound instead
+   travels as separately-scalable terms (`compute_cycles`, `memory_bytes`,
+   `dram_byte_per_sec`, `mac_per_cycle`) and is re-maxed per measurement at that
+   measurement's own bracket clock. `build_manifest.py`'s top-level `:243` guard
+   therefore no longer hard-exits under `SOLEXBENCH_CLOCK_BASIS=unlocked`; the
+   refusal **moves down a level** into `collect_t_b`, which drops any winner
+   without a non-refused bracket and rejects outright any artifact carrying no
+   clock evidence at all. An unknown clock is still not a permissive one — the
+   guard was relocated, not relaxed.
+
+3. **Task 01's acceptance check becomes "the clock basis is characterised."**
+   The three lock-presupposing checks (preset exists, preset agrees with
+   STATE.md, every GPU at the setpoint) cannot pass unlocked, and task 01 is a
+   hard blocker for 03/05/06, so "not applicable" was not available. The
+   unlocked arm requires instead: the per-card clock distribution under
+   sustained load is recorded; the eight-card spread is ≤ 7%; and the bracket
+   refusal rate is ≤ 2%. The locked arm is untouched, so MI350X takes the same
+   path byte for byte. **The 2% is the weakest number in this file** — no
+   refusal rate had been observed anywhere when it was set, and it is derived
+   from a calibration distribution rather than measured. It is flagged as such
+   in `verify_artifacts.py` and must be re-derived from the first completed
+   sweep.
+
+4. **The low-headroom anchor exemption stays, and the gate is taught about it.**
+   A workload below `h_min` genuinely cannot hold `S` inside ±3% — that is what
+   `h_min` means — so counting it as a failure would report a measurement-
+   precision limit as an anchor defect. But an exemption that only ever raises
+   the pass rate is not a gate, so `verify_artifacts` now bounds the exemption
+   *count* separately in both check_06 and check_09: over-exempting is itself a
+   failure. See the corrected `h_min` below, which shrinks the exempt set by 47%
+   on its own.
+
+**T_b and T_k are re-timed back to back, same card, same session** (§4.4). This
+is the answer to the two-clock problem: unlocked, `T_b` was measured at whatever
+clock its kernel pulled and `T_k` at whatever the candidate's kernel pulls, and
+nothing in the repo normalized them, so a candidate that turns a compute-bound
+kernel into a memory-bound one would be rewarded twice — once for the real
+speedup and once for boosting. Both brackets are recorded on every score.
+
+A consequence worth stating because it changes the schedule and could look like
+a shortcut: **the authoritative pass is no longer pinned to one card.** MI350X
+pinned it to GPU 0 because eight cards spanned 1242–1307 MHz and a T_b from one
+card was not comparable to a T_b from another. Under same-card back-to-back
+re-timing the requirement is weaker and different — `T_b` and its `T_k` must
+share a card, not all `T_b` must share one card. So the authoritative pass runs
+8-way with per-problem card pinning (`plan[i::8]` over the sorted plan, a pure
+function of the problem name, so every replicate of a problem lands on the same
+card) and the card identity is recorded in the artifact and enforced at scoring
+time. This is a consequence of decision §4.4, not an independent relaxation, and
+it is what turns an 11.4-hour serial pass into roughly 1.5 hours.
+
+**`h_min` was wrong on trunk, and the correction is exact.** With
+`T_k = T_b(1+d)` and `h = (T_b − T_SOL)/T_b`, `S = 1/(2 + d/h)` exactly. The
+anchor property holds while `d/h ≤ 2 − 1/(0.5+tol)` on the fast arm (6/53 at
+tol = 0.03) and `1/(0.5−tol) − 2` on the slow arm (6/47). The fast arm binds, so
+`h_min = eps/(2 − 1/(0.5+tol)) = 8.833·eps`, against trunk's `0.5·eps/tol =
+16.667·eps` — larger by exactly `1/(0.5+tol)`. Trunk never produced a false
+failure; it silently excused workloads the gate could have adjudicated. Against
+`artifacts/06/anchor-verification.json` the threshold moves 7.210% → 3.821%,
+four workloads move from exempt to checked and **all four pass** (worst
+|S−0.5| = 0.0043).
+
+## What this node measured about its own clock
+
+`artifacts/00/gpu-parity-mia1-p02-g46.json`, `artifacts/01/unlocked-clock-*.json`,
+`artifacts/01/burst-clock-*.json`. These are the numbers the decisions above
+rest on, and they are **wider than the g10 figures `docs/TODO-MI355X.md` quotes**:
+
+| workload, GPU 1 alone | clock | power |
+|---|---|---|
+| `gemm_dense` | **1800 MHz** | 1383 W |
+| `gemm_small` | 2392 MHz | 673 W |
+| `memory_bound` | 2392 MHz | 1143 W |
+| `reduction` | 2391 MHz | 870 W |
+
+**36.8% spread across kernel shapes**, against the 27.9% quoted from g10. The
+cards are **power-capped at 1400 W, not clock-capped**, which is why the heavy
+shape is the slow-clocked one — and it is the direct refutation of §4.3's
+option 5, assuming one clock for everything. Eight cards loaded together span
+1739–1855 MHz and 3.9% in throughput.
+
+`burst_clock_probe` is the one that constrains what bracketing can claim: at
+`time_runnable`'s own burst length the worst shape reads **+106.9%** against a
+50,000-iteration sustained loop, and the per-iteration attribution is 21.1 µs /
+12.6 µs / 1.2 µs across three shapes — an **18× spread**. A depressed clock
+would slow all three alike. **So the short-window bias is largely not a clock
+effect, and bracketing bounds the clock error without touching it.** Do not read
+a passing bracket as evidence that the window is unbiased.
+
+### The first bracketed sweep refused 100% of its workloads — two bugs, both fixed
+
+**Root cause.** `_clock_info` resolved its device with
+`int(getattr(device, "index", device))`. Correct for `None`, an `int` and a
+`torch.device`; **silently wrong for the string `"cuda:0"`**, because `str` has
+an `.index` *method* — `getattr` finds it, the default is never reached, and
+`int(<built-in method>)` raises `TypeError` inside a bare
+`except Exception: return None`. `eval_driver.py:351` sets
+`_device = "cuda:0"`, so every sample returned `None` and every measurement was
+refused for absent clock evidence, at exit status 0. Verified on three cards:
+`sample_clock_mhz(0)` → 159/204/235 MHz, `sample_clock_mhz("cuda:0")` → None on
+all three. **Not** the PCI-ordering trap — the three distinct readings prove the
+translation addresses distinct physical cards correctly under a restricted
+`HIP_VISIBLE_DEVICES`.
+
+Fixed by `device/amd.py:torch_index_of()`, which parses every spelling
+explicitly and **raises** on anything else rather than defaulting to 0 — a
+default of 0 would read some card and return a plausible number, which is §8.1
+again and undetectable rather than merely total. Device resolution now sits
+*outside* the `try`, so a malformed request raises while genuine telemetry
+failure still returns None.
+
+**Second bug, independent.** The artifact's `clock_bracket_summary` was built
+from the **winners**, and a refused measurement never becomes a winner — so it
+read `n_bracketed: 0, n_refused: 0, refused_by_reason: {}` three lines below a
+correct `n_workloads_refused_on_clock: 16`. The field a reader checks went blind
+exactly when it mattered. Both counters now come from one list built in
+`select_winners`.
+
+**Loudness.** `clock_fatalities()` makes zero-brackets, any `sampler_error`, or
+a 100% refusal rate a non-zero exit with a `FATAL:` line and a
+`clock_bracket_fatal` field, while still writing the full artifact. Verified end
+to end: forcing the threshold to 1e-9 exits 1.
+
+### D-new: the 0.0078 threshold is WRONG for g46, and the reason is a clock ramp
+
+First within-window bracket-spread distribution ever measured on this part
+(GPU 0, `L1/009`, 4 variants × 16 workloads = 64 brackets):
+
+| q05 | q25 | **median** | q75 | q90 | q95 | max |
+|---|---|---|---|---|---|---|
+| 0.084% | 0.463% | **0.971%** | 3.58% | 4.54% | 5.41% | 6.50% |
+
+Against the shipped 0.0078 that is a **57.8% refusal rate** (37/64). The
+threshold was calibrated on `g10`'s 1-second-gap samples (median 0.111%, p99
+0.778%) and the realised median is **9× that**.
+
+**The refusals are a clock ramp, not noise.** 60 of 64 brackets have
+`after > before`, and **37 of 37 refusals do** — not one refusal is the clock
+falling. Refused windows start at a median **2271 MHz** and end at 2375;
+admitted windows start at 2373 and end at 2383. The card is still climbing into
+boost when the window opens. Two negative controls: window duration does not
+explain it (Pearson r = **−0.06** over the 64), and raising warmup from 10 to
+200 made it **worse**, not better (median 0.0078 → 0.0130, 8/16 → 13/16 refused,
+n=16, not over-interpreted).
+
+**Recommendation, for the maintainer — I did not change the constant.** Do not
+raise the threshold to fit. At 0.05 the rate is still 9.4%, and admitting a 5%
+bracket means admitting 5% of uncertainty into a compute-bound bound, against a
+3% anchor tolerance. The refusal is working: it is reporting that on this part a
+majority of measurements genuinely do not have one clock. The real options are
+(a) settle the card immediately before the window so it opens at steady boost,
+(b) accept the yield, or (c) re-derive the threshold from this distribution and
+state the resulting bound uncertainty. All three are methodology decisions.
+
+**Note for whoever takes that decision:** the bracket currently spans the
+`ShiftingMemoryPoolAllocator` construction as well as warmup + iterations,
+because that allocation happens inside `time_runnable`. That is CPU work with an
+idle GPU at the head of every window, and it is a plausible contributor to the
+ramp. Tightening the bracket to the measured loop alone means returning a
+bracket *from* `time_runnable`. Untested — do not treat it as diagnosed.
+
 ## Session log
 
 Handoff record. What each session *found* is in `docs/findings.md`; what it

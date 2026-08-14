@@ -4,6 +4,7 @@
 
     python scripts/verify_artifacts.py --task 01
     python scripts/verify_artifacts.py --task 09 --full
+    python scripts/verify_artifacts.py --task 04 --part MI355X
 
 These are deliberately mechanical. The point is that "done" is decided by a
 program, not by a judgement call made at the end of a long session.
@@ -11,6 +12,14 @@ program, not by a judgement call made at the end of a long session.
 Machine-checkable things are checked. Things that are not (was F_LOCK chosen
 sensibly? is a tolerance justified?) are reported as REQUIRES-JUDGEMENT so they
 show up rather than being silently skipped.
+
+**Every artifact location goes through `TREE`** (`ArtifactTree`), which maps
+`(task, part) -> path`. Before that existed, roughly twenty sites spelled
+`ART / "04" / "compare"` directly, so `--task 04` on an MI355X bring-up read the
+MI350X release tree and reported "5 checks, 0 failed" about another part's
+measurements. A gate that passes on the wrong part's data is worse than no gate,
+because it is read as evidence. See `ArtifactTree` for the two path conventions
+and for why a missing artifact must fail rather than fall back.
 """
 
 from __future__ import annotations
@@ -27,6 +36,193 @@ ART = ROOT / "artifacts"
 STATE = ROOT / "STATE.md"
 
 PASS, FAIL, WARN, JUDGE = "PASS", "FAIL", "WARN", "REQUIRES-JUDGEMENT"
+
+#: The part whose artifacts live at the unsuffixed, task-keyed paths -- the
+#: layout every existing invocation and every tracked manifest already cites.
+#: Changing this renames the release tree; don't.
+DEFAULT_PART = "MI350X"
+
+#: Parts an artifact can be attributed to. Kept as literals rather than imported
+#: from `solexbench_rocm.parts` because this resolver must work with no torch and
+#: no GPU -- it reads files, it does not detect hardware.
+KNOWN_PARTS = ("MI350X", "MI355X", "MI300X")
+
+#: Tasks whose non-default-part artifacts live *inside* the shared task
+#: directory under a host suffix, instead of in a `NN-<part>` directory.
+#:
+#: This is an inconsistency in the artifact tree, not a design: tasks 00 and 01
+#: were run on MI355X as `gpu-parity-<host>.json`, `unlocked-clock-<host>.json`
+#: and `burst-clock-<host>.json` in `artifacts/00` and `artifacts/01`, while
+#: tasks 02-07 wrote `artifacts/NN-MI355X/`. The files are NOT moved to
+#: normalise it: manifest v1 and STATE.md cite `artifacts/00` and `artifacts/01`
+#: by path, and a release record that no longer resolves is a worse defect than
+#: a convention with an exception in it. The exception is encoded here, once.
+SHARED_DIR_TASKS = frozenset({"00", "01"})
+
+
+def artifact_part(doc) -> str | None:
+    """Which part an artifact was measured on, or None if it does not say.
+
+    `_provenance.part` when present; otherwise inferred from the torch device
+    name, which is what `docs/TODO-MI355X.md` §2 does by hand for the four files
+    that predate the explicit field. None means *unattributable*, which is
+    deliberately distinct from *foreign*: see `ArtifactTree._accepts`.
+    """
+    prov = (doc or {}).get("_provenance") or {}
+    named = prov.get("part")
+    if isinstance(named, str) and named:
+        return named
+    for dev in (prov.get("torch") or {}).get("devices") or []:
+        for part in KNOWN_PARTS:
+            if part in str(dev):
+                return part
+    return None
+
+
+def _prov_utc(doc) -> str:
+    return str(((doc or {}).get("_provenance") or {}).get("utc") or "")
+
+
+class ArtifactTree:
+    """`(task, part) -> path`, in one place instead of twenty.
+
+    Two conventions, because the tree has two:
+
+    * **`artifacts/NN-<part>/`** for every task but 00 and 01 -- so
+      `--part MI355X --task 04` reads `artifacts/04-MI355X/compare`.
+    * **`artifacts/NN/<stem>-<host>.json`** for tasks 00 and 01, whose MI355X
+      files were written host-suffixed into the shared directory
+      (`SHARED_DIR_TASKS` says why they are not moved).
+
+    The default part resolves exactly as this file did before the resolver
+    existed: `artifacts/NN/<name>`, no globbing. That is the point -- no existing
+    invocation changes meaning.
+
+    **A missing artifact is a miss, never a substitution.** `path()` for a part
+    that has no such artifact returns a path that does not exist, so the check
+    that reads it fails; it never returns the other part's file. `searched()`
+    renders what was looked for, so the failure names a path.
+    """
+
+    def __init__(self, part: str = DEFAULT_PART, root: Path | None = None,
+                 host: str | None = None):
+        self.part = part
+        self.host = host
+        self._root = root
+
+    @property
+    def root(self) -> Path:
+        # Resolved on each access rather than captured, so that tests which
+        # monkeypatch the module-level ART at a tmp_path keep working.
+        return self._root if self._root is not None else ART
+
+    @property
+    def is_default(self) -> bool:
+        return self.part == DEFAULT_PART
+
+    def dir(self, task: str) -> Path:
+        """The directory holding this task's artifacts for this part."""
+        if self.is_default or task in SHARED_DIR_TASKS:
+            return self.root / task
+        return self.root / f"{task}-{self.part}"
+
+    def path(self, task: str, *rel: str) -> Path:
+        """A named artifact inside a task, resolved for this part."""
+        p = self.dir(task).joinpath(*rel)
+        if self.is_default or task not in SHARED_DIR_TASKS or not rel:
+            return p
+        return self._host_suffixed(p)
+
+    def shared(self, *rel: str) -> Path:
+        """A repo-level artifact that is NOT a per-part measurement.
+
+        Only `deferred.json` today. It records which problems are out of scope
+        and why -- a decision about the dataset, taken once, cited by every
+        part's manifest. It is deliberately not part-keyed; if a part ever needs
+        its own deferral set that is a methodology change, not a path change.
+        """
+        return self.root.joinpath(*rel)
+
+    def glob(self, task: str, pattern: str) -> list[Path]:
+        """Every artifact matching `pattern` that belongs to this part.
+
+        The filter matters only in `SHARED_DIR_TASKS`, where two parts' files sit
+        in one directory: `artifacts/01/floor-gpu*.json` was unfiltered, so the
+        first MI355X floor file written there would have been folded into the
+        MI350X F_LOCK-vs-floor comparison (`docs/TODO-MI355X.md` §5 step 3).
+        Elsewhere the directory is already part-scoped and every file is read.
+        """
+        base = self.dir(task)
+        if not base.exists():
+            return []
+        found = sorted(base.glob(pattern))
+        if task not in SHARED_DIR_TASKS:
+            return found
+        return [f for f in found if self._accepts(artifact_part(load_json(f)))]
+
+    def searched(self, task: str, *rel: str) -> str:
+        """What `path()` looked for, for a failure message."""
+        p = self.dir(task).joinpath(*rel)
+        if self.is_default or task not in SHARED_DIR_TASKS or not rel:
+            return str(p)
+        host = self.host or "<host>"
+        return f"{p.parent / f'{p.stem}-{host}{p.suffix}'} (part {self.part})"
+
+    # -- internals ---------------------------------------------------------
+
+    def _accepts(self, part: str | None) -> bool:
+        """Does an artifact attributed to `part` belong to the requested one?
+
+        Asymmetric, on purpose. For the default part an *unattributable* file is
+        accepted, because that is what this script has always done and most
+        MI350X artifacts predate the explicit `_provenance.part` field. For any
+        other part a positive match is required: accepting an unattributable file
+        there is exactly the fallback that made these gates report another part's
+        numbers.
+        """
+        if part is not None and part not in KNOWN_PARTS:
+            return part == self.part
+        if self.is_default:
+            return part in (None, self.part)
+        return part == self.part
+
+    def _host_suffixed(self, p: Path) -> Path:
+        """`<stem>-<host><suffix>` in the shared directory, for a non-default part.
+
+        Candidates are the host-suffixed files plus the unsuffixed one -- the
+        latter because `artifacts/01/unlocked-clock.json` is itself MI355X data
+        from an earlier node (`docs/TODO-MI355X.md` §2), and excluding it by
+        filename would discard a real measurement of the requested part. Every
+        candidate is filtered by its own provenance, then ranked: an explicitly
+        attributed file first, then the most recent, so a re-run on this node wins
+        over the same measurement taken on another MI355X node weeks ago. The
+        checks report the host they used, so the choice is visible rather than
+        assumed; `--host` pins it.
+        """
+        cands = list(p.parent.glob(f"{p.stem}-*{p.suffix}")) if p.parent.exists() else []
+        if p.exists():
+            cands.append(p)
+        if self.host:
+            cands = [c for c in cands if self.host in c.name
+                     or self.host in str(((load_json(c) or {}).get("_provenance")
+                                          or {}).get("host") or "")]
+        scored = []
+        for c in cands:
+            doc = load_json(c)
+            part = artifact_part(doc)
+            if not self._accepts(part):
+                continue
+            scored.append((part is not None, _prov_utc(doc), c.name, c))
+        if not scored:
+            # A path that cannot exist, so the caller's own existence check
+            # fails. Never the default part's file.
+            host = self.host or "<host>"
+            return p.parent / f"{p.stem}-{host}{p.suffix}"
+        return max(scored)[3]
+
+
+#: The resolver every check uses. `main()` rebinds it from `--part`.
+TREE = ArtifactTree()
 
 
 class Checks:
@@ -162,7 +358,7 @@ def f_lock_from_preset() -> tuple[int | None, str | None]:
 # --------------------------------------------------------------------------
 
 def check_00(c: Checks):
-    rep = load_json(ART / "00" / "node-report.json")
+    rep = load_json(TREE.path("00", "node-report.json"))
     if not c.require(rep is not None, "node-report.json exists",
                      detail_bad="run scripts/node_acceptance.sh"):
         return
@@ -194,7 +390,7 @@ def check_00(c: Checks):
                   f"outliers: {outliers} vs median {med} — a GPU that differs "
                   f"here will quietly produce different timings")
 
-    roof = load_json(ART / "00" / "roofline-gpu0.json")
+    roof = load_json(TREE.path("00", "roofline-gpu0.json"))
     c.require(roof is not None and roof.get("hbm_tbs"), "HBM roofline measured")
     c.require(roof is not None and roof.get("gemm_bf16_tflops"),
               "BF16 GEMM roofline measured")
@@ -202,18 +398,146 @@ def check_00(c: Checks):
           "confirm categories L1=94 L2=82 Quant=33 FlashInfer=26")
 
 
-def check_01(c: Checks):
-    fl = f_lock_from_state()
-    c.require(fl is not None, "F_LOCK recorded in STATE.md",
-              f"{fl} MHz",
-              "no canonical `**F_LOCK = <n> MHz**` line — blocks tasks 03, 05, 06")
+#: Widest eight-card clock spread under one sustained load that still counts as
+#: "this node behaves like the part we characterised". Measured, both nodes:
+#: `g10` gives 5.23% (gemm_dense, all 8 loaded) and 5.28% (the 8-minute drift
+#: block) from `artifacts/01/unlocked-clock.json`; `g46` gives 6.46% (medians
+#: 1739-1855 MHz) with a 3.9% throughput spread. 7% is above the larger of the
+#: two, so a node that breaches it has a card-to-card spread wider than either
+#: MI355X node this benchmark has ever been characterised on -- which is a fact
+#: about that node worth stopping for, not a threshold anyone chose to like.
+MAX_EIGHT_CARD_CLOCK_SPREAD = 0.07
 
+#: Ceiling on the bracket refusal rate.
+#:
+#: **Provisional, and the weakest number in this file** -- no refusal rate has
+#: ever been measured, because no bracketed sweep has been run. It is derived
+#: rather than observed: the threshold is the p99 of the clock-spread
+#: distribution at a *1-second* sampling gap, so under that distribution the
+#: refusal rate would be 1%; the window being bracketed is 1-13 ms, 77x to 1000x
+#: shorter, so the realised rate should be far below 1%. 2% is twice the rate the
+#: calibration distribution itself would produce on a much harder problem.
+#:
+#: Replace it with a measured quantile after the first sweep. A rate materially
+#: above this does not mean "loosen the bound" -- it means the threshold was
+#: derived from the wrong distribution, and the fix is to re-derive it from the
+#: sweep's own recorded spreads.
+MAX_BRACKET_REFUSAL_RATE = 0.02
+
+
+def _check_01_unlocked(c: Checks) -> None:
+    """Task 01 on a part that cannot pin its clock: characterised, not locked.
+
+    Every check `check_01` opens with presupposes a lock -- F_LOCK in STATE.md,
+    F_LOCK in the preset table, the two agreeing, every GPU at the setpoint. On
+    MI355X `get_clock_preset(...).f_lock_mhz` is `None` by design
+    (docs/TODO-MI355X.md §3.3), so they do not merely fail, they cannot pass.
+
+    The maintainer's replacement is that **the clock basis is characterised**:
+    the per-card distribution under sustained load is recorded, the eight-card
+    spread sits inside a stated band, and the bracket refusal rate is below a
+    stated bound. That is a weaker claim than a lock and it is the true one.
+
+    Reached only under `SOLEXBENCH_CLOCK_BASIS=unlocked`. On the locked basis
+    `check_01` is byte-for-byte what it was.
+    """
+    dist = load_json(TREE.path("01", "unlocked-clock.json"))
+    if not c.require(dist is not None,
+                     "per-card clock distribution under load recorded",
+                     detail_bad="artifacts/01/unlocked-clock.json missing — "
+                                "unlocked, this IS the clock calibration"):
+        return
+
+    prov = (dist.get("_provenance") or {})
+    c.add(JUDGE, "the clock distribution is THIS node's",
+          f"recorded on {prov.get('host', 'an unrecorded host')} — a distribution "
+          f"measured on another MI355X node describes that node's chassis, not "
+          f"this one")
+
+    blocks = [b for b in (dist.get("blocks") or []) if len(b.get("per_gpu") or {}) >= 8]
+    if not c.require(bool(blocks), "all eight cards sampled under one load",
+                     f"{len(blocks)} eight-card block(s)",
+                     "no block loads all eight cards — a per-card spread cannot "
+                     "be computed from one card at a time"):
+        return
+
+    worst = None
+    for b in blocks:
+        med = [v.get("clock_median_mhz") for v in b["per_gpu"].values()]
+        med = [m for m in med if m]
+        if len(med) < 8:
+            continue
+        spread = (max(med) - min(med)) / (sum(med) / len(med))
+        if worst is None or spread > worst[0]:
+            worst = (spread, b.get("label", "?"), min(med), max(med))
+    if worst:
+        spread, label, lo, hi = worst
+        c.require(spread <= MAX_EIGHT_CARD_CLOCK_SPREAD,
+                  "eight-card clock spread within the stated band",
+                  f"{spread:.2%} ({lo:.0f}-{hi:.0f} MHz, {label}) <= "
+                  f"{MAX_EIGHT_CARD_CLOCK_SPREAD:.0%}",
+                  f"{spread:.2%} ({lo:.0f}-{hi:.0f} MHz, {label}) exceeds "
+                  f"{MAX_EIGHT_CARD_CLOCK_SPREAD:.0%}, wider than either MI355X "
+                  f"node characterised so far — sharding across these cards puts "
+                  f"that spread into the score scale")
+
+    # The refusal rate, read from whatever the T_b sweep actually wrote. Absent
+    # is reported as absent: an unmeasured rate must not read as a rate of zero.
+    rates: list[tuple[str, float]] = []
+    tb_dir = TREE.path("06", "authoritative")
+    for f in sorted(tb_dir.glob("*.json")) if tb_dir.exists() else []:
+        s = (load_json(f) or {}).get("clock_bracket_summary") or {}
+        if isinstance(s.get("refusal_rate"), (int, float)):
+            rates.append((f.name, s["refusal_rate"]))
+    if not rates:
+        c.add(JUDGE, "bracket refusal rate below its bound",
+              "no bracketed T_b artifact carries clock_bracket_summary — the "
+              "rate has not been measured, which is not the same as it being low")
+        return
+    n_refused = sum((load_json(tb_dir / n) or {}).get(
+        "clock_bracket_summary", {}).get("n_refused", 0) for n, _ in rates)
+    n_total = sum((load_json(tb_dir / n) or {}).get(
+        "clock_bracket_summary", {}).get("n_bracketed", 0) for n, _ in rates)
+    rate = n_refused / n_total if n_total else None
+    c.require(rate is not None and rate <= MAX_BRACKET_REFUSAL_RATE,
+              "bracket refusal rate below its bound",
+              f"{n_refused}/{n_total} = {rate:.2%} <= "
+              f"{MAX_BRACKET_REFUSAL_RATE:.0%}" if rate is not None else "",
+              f"{n_refused}/{n_total} = {rate:.2%} of measurements refused, above "
+              f"{MAX_BRACKET_REFUSAL_RATE:.0%} — do NOT loosen the threshold to "
+              f"fit; a rate this high says it was derived from the wrong "
+              f"distribution and must be re-derived from these spreads"
+              if rate is not None else "no bracketed measurements at all")
+
+
+def check_01(c: Checks):
+    sys.path.insert(0, str(ROOT / "src"))
+    from sol_execbench.core.bench.clock_bracket import clock_basis
+
+    unlocked = clock_basis() == "unlocked"
+    if unlocked:
+        # Not a weakened gate: a DIFFERENT gate, for a part where the original
+        # one can neither pass nor fail informatively -- on MI355X
+        # `get_clock_preset(...).f_lock_mhz` is None by design, so "no preset for
+        # this device" is reported about an entry that exists. Amending task 01's
+        # acceptance is a methodology change and therefore a maintainer decision
+        # (prime directive 7); this is that decision, recorded in STATE.md's
+        # *Decisions taken*. The node checks below -- floors, stability,
+        # interference -- are properties of the node rather than of the lock and
+        # run on both bases.
+        _check_01_unlocked(c)
+
+    fl = f_lock_from_state()
     preset_fl, part = f_lock_from_preset()
-    c.require(preset_fl is not None, "F_LOCK present in CLOCK_LOCK_PRESETS",
-              f"{preset_fl} MHz for {part}",
-              "no preset for this device — lock_clocks() will refuse and every "
-              "artifact's f_lock_mhz will be null")
-    if fl is not None and preset_fl is not None:
+    if not unlocked:
+        c.require(fl is not None, "F_LOCK recorded in STATE.md",
+                  f"{fl} MHz",
+                  "no canonical `**F_LOCK = <n> MHz**` line — blocks tasks 03, 05, 06")
+        c.require(preset_fl is not None, "F_LOCK present in CLOCK_LOCK_PRESETS",
+                  f"{preset_fl} MHz for {part}",
+                  "no preset for this device — lock_clocks() will refuse and every "
+                  "artifact's f_lock_mhz will be null")
+    if not unlocked and fl is not None and preset_fl is not None:
         # The one comparison that catches a stale document or a stale constant.
         # Both are load-bearing: the preset is what gets applied and stamped, the
         # document is what a human reads, and a benchmark whose two records of its
@@ -229,8 +553,13 @@ def check_01(c: Checks):
     # checks a stamp against the table the stamp came from, so a node left at
     # someone else's setpoint passes by agreeing with itself. Reading MAX_CLK
     # back off every GPU catches exactly that, with no load and no timed region.
-    setpoints = determinism_setpoints()
-    requested = requested_clock_from_preset()
+    #
+    # Skipped entirely on the unlocked basis: there is no setpoint to be at, and
+    # `requested_clock_from_preset()` still returns MI355X's 1650 request, so the
+    # comparison would report every card as wrong for holding the clock the
+    # methodology says it should hold.
+    setpoints = {} if unlocked else determinism_setpoints()
+    requested = None if unlocked else requested_clock_from_preset()
     if setpoints and requested:
         wrong = {g: v for g, v in setpoints.items() if v != requested}
         c.require(not wrong,
@@ -239,14 +568,20 @@ def check_01(c: Checks):
                   f"{len(wrong)} GPU(s) at a different setpoint {wrong} while the "
                   f"preset requests {requested} — artifacts measured now would be "
                   f"stamped {requested} and be wrong by the ratio")
-    elif not setpoints:
+    elif not setpoints and not unlocked:
         c.add(JUDGE, "determinism setpoint read back off the GPUs",
               "amd-smi unavailable — the stamp cannot be checked against hardware")
 
-    floors = list((ART / "01").glob("floor-gpu*.json")) if (ART / "01").exists() else []
+    # Part-filtered. The glob used to be unfiltered, and `artifacts/01` holds
+    # both parts' files (SHARED_DIR_TASKS): one MI355X `floor-gpu*.json` written
+    # there would have entered the MI350X `F_LOCK <= min(p5)` comparison below
+    # and gated a 1300 MHz lock against an unlocked ~1700 MHz floor -- a check
+    # that then cannot fail (docs/TODO-MI355X.md §5 step 3).
+    floors = TREE.glob("01", "floor-gpu*.json")
     c.require(len(floors) >= 3, "clock floor sampled on >=3 GPUs",
-              f"{len(floors)} GPUs",
-              f"only {len(floors)} — per-GPU variation would go unseen")
+              f"{len(floors)} GPUs on {TREE.part}",
+              f"only {len(floors)} on {TREE.part} — per-GPU variation would go "
+              f"unseen (searched {TREE.dir('01')}/floor-gpu*.json)")
 
     p5s = []
     for f in floors:
@@ -260,7 +595,10 @@ def check_01(c: Checks):
     # the GPU can actually hold" is the failure that makes every timing drift,
     # and it must still be evaluated. Losing a real check as a side effect of
     # adding a stricter one is the same trade F17 was written to stop.
-    fl_eff = fl if fl is not None else preset_fl
+    # None on the unlocked basis, where there is no single frequency to compare a
+    # floor against -- the floor question is replaced by the distribution the
+    # unlocked arm checks, not answered by a number that does not exist.
+    fl_eff = None if unlocked else (fl if fl is not None else preset_fl)
     if p5s and fl_eff:
         src = "STATE.md" if fl is not None else "CLOCK_LOCK_PRESETS"
         c.require(fl_eff <= min(p5s), "F_LOCK at or below lowest observed floor",
@@ -271,14 +609,14 @@ def check_01(c: Checks):
             c.add(WARN, "per-GPU floor spread >50MHz",
                   f"{min(p5s)}-{max(p5s)} MHz; F_LOCK must suit the worst")
 
-    stab = load_json(ART / "01" / "stability-gpu0.json")
+    stab = load_json(TREE.path("01", "stability-gpu0.json"))
     if c.require(stab is not None, "stability measured"):
         cv = stab.get("cv")
         c.require(cv is not None and cv < 0.02, "timing CV < 2%",
                   f"CV={cv:.4f}",
                   f"CV={cv} — noise will swamp real optimization differences")
 
-    intf = load_json(ART / "01" / "interference.json")
+    intf = load_json(TREE.path("01", "interference.json"))
     if c.require(intf is not None, "sibling interference measured",
                  detail_bad="this result shapes the whole schedule"):
         c.require(bool(intf.get("scheduling_consequence")),
@@ -300,7 +638,7 @@ def check_full_coverage(c: Checks, artifact_dir: Path, pattern: str | None = Non
     by_cat = {cat: sum(1 for k in keys if k.startswith(f"{cat}__"))
               for cat in EXPECTED_CATEGORIES}
     deferred = {}
-    df = ART / "deferred.json"
+    df = TREE.shared("deferred.json")
     if df.exists():
         deferred = (load_json(df) or {}).get("problems", {})
 
@@ -322,11 +660,12 @@ def check_02(c: Checks):
     # original sweep against the dataset's B200 tolerances is kept beside it
     # and compared below, because the difference between them is the whole
     # argument for task 05 existing.
-    d = ART / "02" / "references-amd"
-    b200 = ART / "02" / "references"
+    d = TREE.path("02", "references-amd")
+    b200 = TREE.path("02", "references")
     if not c.require(d.exists(), "reference sweep ran (AMD tolerances)",
-                     detail_bad="run shard_sweep with "
-                                "SOLEXBENCH_WORKLOADS_ROOT=artifacts/05/workloads"):
+                     detail_bad=f"missing {d} — run shard_sweep with "
+                                f"SOLEXBENCH_WORKLOADS_ROOT="
+                                f"{TREE.path('05', 'workloads')}"):
         return
     check_full_coverage(c, d)
     results = [load_json(p) for p in d.glob("*.json")]
@@ -337,7 +676,7 @@ def check_02(c: Checks):
     # Pass rate is over WORKLOADS. Per problem is the wrong denominator: a
     # problem with one failing workload out of sixteen is not a failed
     # problem, and counting it as one hides the fifteen that work.
-    deferred_keys = set((load_json(ART / "deferred.json") or {}).get("problems", {}))
+    deferred_keys = set((load_json(TREE.shared("deferred.json")) or {}).get("problems", {}))
     wl = [w for r in results if r.get("problem") not in deferred_keys
           for w in (r.get("per_workload") or [])]
     passed = sum(1 for w in wl if w.get("status") == "PASSED")
@@ -360,8 +699,10 @@ def check_02(c: Checks):
     c.require(all(w.get("methodology") for w in wl),
               "traces record timing methodology",
               f"{len({w.get('methodology') for w in wl})} distinct value(s)")
-    c.require((ART / "02" / "flush-sweep.json").exists(),
-              "LLC flush-size bandwidth cliff recorded")
+    flush = TREE.path("02", "flush-sweep.json")
+    c.require(flush.exists(),
+              "LLC flush-size bandwidth cliff recorded",
+              detail_bad=f"missing {flush}")
 
     # The comparison that justifies task 05: how many workloads the SAME
     # references fail when scored against B200's tolerances instead.
@@ -376,8 +717,9 @@ def check_02(c: Checks):
 
 
 def check_03(c: Checks):
-    t = load_json(ART / "03" / "t_sol.json")
-    if not c.require(t is not None, "t_sol.json exists"):
+    t = load_json(TREE.path("03", "t_sol.json"))
+    if not c.require(t is not None, "t_sol.json exists",
+                     detail_bad=f"missing {TREE.searched('03', 't_sol.json')}"):
         return
     c.require(has_provenance(t), "t_sol has provenance")
     entries = t.get("problems", {})
@@ -410,9 +752,9 @@ def check_03(c: Checks):
 
     # Upstream ships no per-workload SOL times, so the cross-checks are
     # internal. Read their own report rather than restating their logic here.
-    xc = (ART / "03" / "cross-checks.md")
+    xc = TREE.path("03", "cross-checks.md")
     if c.require(xc.exists(), "cross-checks report exists",
-                 detail_bad="run scripts/sol_cross_checks.py"):
+                 detail_bad=f"missing {xc} — run scripts/sol_cross_checks.py"):
         text = xc.read_text()
         m = re.search(r"implied bandwidth above DRAM peak: \*\*(\d+)\*\*", text)
         n = re.search(r"implied FLOPS above the precision's peak: \*\*(\d+)\*\*",
@@ -430,8 +772,9 @@ def check_03(c: Checks):
 
 
 def check_05(c: Checks):
-    d = ART / "05" / "workloads"
-    if not c.require(d.exists(), "tolerance sweep ran"):
+    d = TREE.path("05", "workloads")
+    if not c.require(d.exists(), "tolerance sweep ran",
+                     detail_bad=f"missing {d}"):
         return
     files = list(d.rglob("workload.jsonl"))
     c.require(len(files) > 0, "AMD workload files produced", f"{len(files)}")
@@ -458,8 +801,9 @@ def check_05(c: Checks):
         c.add(WARN, "B200 tolerance reference absent",
               "copy-detection skipped; add reference/b200-tolerances.json")
 
-    c.require((ART / "05" / "triage.md").exists(),
-              "per-problem triage recorded")
+    triage = TREE.path("05", "triage.md")
+    c.require(triage.exists(), "per-problem triage recorded",
+              detail_bad=f"missing {triage}")
     c.add(JUDGE, "problems needing >2x B200 tolerance individually justified")
 
 
@@ -482,8 +826,9 @@ def _check_d(c: Checks):
     alone cannot falsify a bound that is too slow, because the reference
     over-reads the same way T_SOL does; agent submissions can, and do.
     """
-    manifest = load_json(ART / "09" / "manifest-v1.json")
-    if not c.require(manifest is not None, "check D: manifest available"):
+    manifest = load_json(TREE.path("09", "manifest-v1.json"))
+    if not c.require(manifest is not None, "check D: manifest available",
+                     detail_bad=f"missing {TREE.searched('09', 'manifest-v1.json')}"):
         return
 
     bounds = {}
@@ -493,7 +838,7 @@ def _check_d(c: Checks):
                 bounds[(key, uuid)] = w["t_sol_ms"]
 
     violations, n_measured, sources = [], 0, 0
-    for scored in sorted((ART / "10").glob("*/scored.json")) if (ART / "10").exists() else []:
+    for scored in TREE.glob("10", "*/scored.json"):
         doc = load_json(scored) or {}
         sources += 1
         for r in doc.get("results", []):
@@ -533,15 +878,15 @@ def check_06(c: Checks):
     check that could not fail, but one that could not pass. Both report
     something other than the state of the work.
     """
-    auth = ART / "06" / "authoritative"
-    docs = sorted(auth.glob("*.json")) if auth.exists() else []
+    auth = TREE.path("06", "authoritative")
+    docs = TREE.glob("06", "authoritative/*.json")
     if not c.require(bool(docs), "authoritative T_b artifacts exist",
                      f"{len(docs)} problems",
-                     "artifacts/06/authoritative/ is empty — no problem has an "
-                     "anchor and nothing is scoreable"):
+                     f"{auth} is empty or absent — no problem has an "
+                     f"anchor and nothing is scoreable"):
         return
 
-    deferred = (load_json(ART / "deferred.json") or {}).get("problems", {})
+    deferred = (load_json(TREE.shared("deferred.json")) or {}).get("problems", {})
     expected = EXPECTED_TOTAL - len(deferred)
     with_tb = [d for d in docs
                if (load_json(d) or {}).get("winner_by_workload")]
@@ -573,10 +918,11 @@ def check_06(c: Checks):
               f"T_b spans {len(measured)} clocks {measured} — mixing them "
               f"rescales those problems' scores (F18)")
 
-    anchor = load_json(ART / "06" / "anchor-verification.json")
+    anchor = load_json(TREE.path("06", "anchor-verification.json"))
     if c.require(anchor is not None, "anchor property verified",
-                 detail_bad="T_b must score 0.5+-0.03; reference must not "
-                            "score above the anchor"):
+                 detail_bad=f"missing {TREE.searched('06', 'anchor-verification.json')}"
+                            f" — T_b must score 0.5+-0.03; reference must not "
+                            f"score above the anchor"):
         # Read the fields this artifact actually has. Written first against
         # guessed names (`n_failed`), which resolved to None and printed
         # "every checked workload within tolerance" over 13 real failures --
@@ -597,6 +943,7 @@ def check_06(c: Checks):
                   "T_b re-times to S = 0.5 +- 0.03",
                   f"{passing}/{total} workloads"
                   + ("" if passing == total else " — see STATE.md D15"))
+        _check_headroom_exemption(c, ap)
         c.require(rp.get("passing") == rp.get("total") and rp.get("total"),
                   "reference never scores above the anchor",
                   f"{rp.get('passing')}/{rp.get('total')}",
@@ -612,9 +959,83 @@ def check_06(c: Checks):
           "quiet vs busy, per task 01 interference verdict")
 
 
+#: Ceiling on the fraction of anchor checks the low-headroom exemption may
+#: excuse, and on the exemption threshold itself.
+#:
+#: `verify_anchor._classify_headroom` cannot adjudicate a workload whose T_b is
+#: already so close to T_SOL that holding S inside +-3% would need a timing
+#: precision below what the node achieves. Exempting those is right. But nothing
+#: bounded how many could be exempted, and the exemption is self-widening in the
+#: dangerous direction: a noisier run raises `eps`, which raises `h_min`, which
+#: exempts more workloads, which raises the pass RATE. Over-exempting has to be
+#: a failure in its own right, not a quieter success.
+#:
+#: **Both numbers are measured, from the manifest the gate reads.** Per-workload
+#: headroom h = (t_b - t_sol)/t_b over all 3717 scoreable workloads:
+#:
+#:   manifest v1     h < 4.5%: 38 (1.02%)   h < 6.6%: 57 (1.53%)
+#:   manifest v1.2   h < 4.5%:  0           h < 6.6%:  0
+#:
+#: 4.5-6.6% is the h_min band implied by the re-timing precision this node
+#: actually achieves (eps 0.51-0.75%, `tests/scripts/test_anchor_headroom.py`),
+#: through h_min = eps*(0.5+tol)/(2*tol) = eps*53/6 at tol = 3%.
+#:
+#: MAX_EXEMPT_FRACTION 0.12: the anchor check samples 20 problems, and the
+#: low-headroom workloads are heavily CONCENTRATED -- only 11 problems in
+#: manifest v1 contain any, one of them 11 of its 16 (which is also why D15 found
+#: 12 of 13 failures on a single problem). The worst 20-problem draw the measured
+#: distribution can produce is therefore not 1.53% but **57/569 = 10.02%**,
+#: computed by taking every problem containing a low-headroom workload. 12% is
+#: that worst case plus two points: it cannot fire on any sample of the measured
+#: manifest, so a breach means the headroom distribution or the timing precision
+#: moved, which is the thing worth catching.
+#:
+#: MAX_H_MIN 0.066 bounds the mechanism rather than its effect, which is the
+#: tighter statement of the two: it is the top of the measured precision band, so
+#: exceeding it means the run's own re-timing got noisier and widened its
+#: exemption, regardless of how many workloads that happened to catch.
+MAX_EXEMPT_FRACTION = 0.12
+MAX_H_MIN = 0.066
+
+
+def _check_headroom_exemption(c: Checks, ap: dict) -> None:
+    """Bound the low-headroom exemption separately from the pass rate."""
+    n_exempt = ap.get("undecidable_insufficient_headroom")
+    checked = ap.get("checked")
+    if n_exempt is None or not checked:
+        # Artifacts written before the exemption existed carry neither field.
+        # Reported, not silently passed: a check keyed on a field that does not
+        # exist always passes, and this file has already been bitten by that
+        # once (the `n_failed` guess above).
+        c.add(WARN, "headroom exemption is bounded",
+              "artifact predates the exemption fields "
+              "(undecidable_insufficient_headroom / checked) — re-run "
+              "verify_anchor.py to make this check evaluable")
+        return
+    frac = n_exempt / checked
+    c.require(frac <= MAX_EXEMPT_FRACTION,
+              "headroom exemption stays within its measured bound",
+              f"{n_exempt}/{checked} = {frac:.1%} exempt "
+              f"(bound {MAX_EXEMPT_FRACTION:.0%})",
+              f"{n_exempt}/{checked} = {frac:.1%} of anchor checks were exempted "
+              f"for low headroom, above the {MAX_EXEMPT_FRACTION:.0%} bound — the "
+              f"gate is adjudicating less than it was calibrated to, so a higher "
+              f"pass rate is not evidence of a better anchor")
+    h_min = ap.get("min_headroom_for_tolerance")
+    if h_min is not None:
+        c.require(h_min <= MAX_H_MIN,
+                  "exemption threshold within the measured precision band",
+                  f"h_min {h_min:.2%} <= {MAX_H_MIN:.1%}",
+                  f"h_min {h_min:.2%} exceeds {MAX_H_MIN:.1%}, the top of the "
+                  f"measured re-timing precision band — the exemption widened "
+                  f"because this run was noisy, not because these workloads are "
+                  f"degenerate")
+
+
 def check_07(c: Checks):
-    spike = load_json(ART / "07" / "spike.json")
-    c.require(spike is not None, "MXFP4 feasibility spike ran")
+    spike = load_json(TREE.path("07", "spike.json"))
+    c.require(spike is not None, "MXFP4 feasibility spike ran",
+              detail_bad=f"missing {TREE.searched('07', 'spike.json')}")
     if spike:
         c.require(spike.get("verdict") in ("go", "no-go"),
                   "spike has an explicit verdict", str(spike.get("verdict")))
@@ -624,7 +1045,7 @@ def check_07(c: Checks):
     # non-NVFP4 Quant problems pass every workload in the task 02 reference
     # sweep. Asserting the existence of a write-up says nothing about whether
     # FP8 works, and it reported a missing document as a missing measurement.
-    refs = ART / "02" / "references"
+    refs = TREE.path("02", "references")
     fp8 = sorted(p for p in (ROOT / "data" / "SOL-ExecBench" / "benchmark" /
                              "Quant").glob("*") if p.is_dir()
                  and "nvfp4" not in p.name)
@@ -640,11 +1061,11 @@ def check_07(c: Checks):
                   f"reference sweep",
                   f"only {len(passing)}/{len(fp8)} — CDNA4 is OCP FP8 and these "
                   f"were expected to port directly")
-        doc = ART / "07" / "fp8-validation.md"
+        doc = TREE.path("07", "fp8-validation.md")
         c.add(PASS if doc.exists() else WARN, "FP8 result written up",
               str(doc) if doc.exists()
-              else "evidence is in artifacts/02/references/Quant__*.json; no "
-                   "summary document")
+              else f"evidence is in {refs}/Quant__*.json; no "
+                   f"summary document")
     st = state_text()
     if spike and spike.get("verdict") == "no-go":
         c.require("220" in st, "deferral documented with problem count",
@@ -652,8 +1073,9 @@ def check_07(c: Checks):
 
 
 def check_08(c: Checks):
-    r = load_json(ART / "08" / "replay-results.json")
-    if not c.require(r is not None, "exploit corpus replayed"):
+    r = load_json(TREE.path("08", "replay-results.json"))
+    if not c.require(r is not None, "exploit corpus replayed",
+                     detail_bad=f"missing {TREE.searched('08', 'replay-results.json')}"):
         return
     # "passed" means the exploit was detected OR neutralized, and the corpus
     # states which per case. Both are acceptable outcomes; neither is
@@ -664,12 +1086,14 @@ def check_08(c: Checks):
               "every exploit detected or neutralized",
               f"{detected}/{total}",
               f"{detected}/{total} — a miss is a release blocker")
-    c.require((ART / "08" / "amd-specific.md").exists(),
-              "AMD-specific probes recorded (streams, smi, XCD, LDS)")
+    amd_md = TREE.path("08", "amd-specific.md")
+    c.require(amd_md.exists(),
+              "AMD-specific probes recorded (streams, smi, XCD, LDS)",
+              detail_bad=f"missing {amd_md}")
     # A detector that fires on the problem's own reference would fail every
     # honest submission, so this is checked rather than eyeballed: the
     # reference sweep is the largest corpus of known-good submissions there is.
-    refs = ART / "02" / "references-amd"
+    refs = TREE.path("02", "references-amd")
     if refs.exists():
         flagged = []
         for f in refs.glob("*.json"):
@@ -686,19 +1110,20 @@ def check_08(c: Checks):
 
 
 def check_09(c: Checks, full=False):
-    m = load_json(ART / "09" / "manifest-v1.json")
-    if not c.require(m is not None, "scoring manifest exists"):
+    m = load_json(TREE.path("09", "manifest-v1.json"))
+    if not c.require(m is not None, "scoring manifest exists",
+                     detail_bad=f"missing {TREE.searched('09', 'manifest-v1.json')}"):
         return
     c.require(has_provenance(m), "manifest has provenance")
     probs = m.get("problems", {})
-    c.require(len(probs) + len((load_json(ART / "deferred.json") or {}).get(
+    c.require(len(probs) + len((load_json(TREE.shared("deferred.json")) or {}).get(
         "problems", {})) >= EXPECTED_TOTAL,
         f"manifest accounts for all {EXPECTED_TOTAL} problems",
         f"{len(probs)} in manifest",
         f"{len(probs)} in manifest — the rest must be in deferred.json")
     # Completeness is a property of WORKLOADS -- the manifest keys t_sol, t_b
     # and tolerance per workload instance, because that is where they differ.
-    deferred_keys = set((load_json(ART / "deferred.json") or {}).get("problems", {}))
+    deferred_keys = set((load_json(TREE.shared("deferred.json")) or {}).get("problems", {}))
     incomplete = []
     for k, v in probs.items():
         if k in deferred_keys:
@@ -732,10 +1157,10 @@ def check_09(c: Checks, full=False):
               "manifest records torch_version",
               str((prov.get("torch") or {}).get("version")))
     if full:
-        base = load_json(ART / "09" / "agent-baseline.json")
+        base = load_json(TREE.path("09", "agent-baseline.json"))
         if base is None:
             c.add(FAIL, "agent baseline accounted for",
-                  "no artifacts/09/agent-baseline.json — run it, or record "
+                  f"no {TREE.searched('09', 'agent-baseline.json')} — run it, or record "
                   "explicitly that it was not run and why")
         elif base.get("ran"):
             c.require(base.get("median") is not None,
@@ -743,8 +1168,9 @@ def check_09(c: Checks, full=False):
         else:
             c.add(JUDGE, "agent baseline NOT run",
                   str(base.get("reason", ""))[:90])
-        dist = load_json(ART / "09" / "score-distribution.json")
-        if c.require(dist is not None, "score distribution computed"):
+        dist = load_json(TREE.path("09", "score-distribution.json"))
+        if c.require(dist is not None, "score distribution computed",
+                     detail_bad=f"missing {TREE.searched('09', 'score-distribution.json')}"):
             ac = dist.get("anchor_check") or {}
             dev = ac.get("max_abs_deviation_from_half")
             c.require(dev is not None and dev <= 1e-6,
@@ -752,8 +1178,9 @@ def check_09(c: Checks, full=False):
                       f"max |S-0.5| = {dev:.1e}" if dev is not None else "",
                       "T_b in the manifest is not the time that "
                       "implementation actually takes")
-        anchor = load_json(ART / "06" / "anchor-verification.json")
-        if c.require(anchor is not None, "anchor re-verified on hardware"):
+        anchor = load_json(TREE.path("06", "anchor-verification.json"))
+        if c.require(anchor is not None, "anchor re-verified on hardware",
+                     detail_bad=f"missing {TREE.searched('06', 'anchor-verification.json')}"):
             ap = anchor["anchor_property"]
             c.require(not anchor["t_sol_violations"],
                       "no measured time below its own T_SOL",
@@ -761,6 +1188,10 @@ def check_09(c: Checks, full=False):
             c.require(ap["passing"] / max(ap["total"], 1) >= 0.95,
                       "re-timed anchor scores 0.5 +- tol",
                       f"{ap['passing']}/{ap['total']}")
+            # The pass rate above is over ADJUDICABLE workloads only, so it can
+            # be raised by exempting more of them. Bound the exemption too, or
+            # the 95% gate is satisfiable by widening the exclusion.
+            _check_headroom_exemption(c, ap)
         readme = (ROOT / "README.md").read_text() if (ROOT / "README.md").exists() else ""
         c.require("within-platform" in readme.lower(),
                   "cross-vendor caveat present in README",
@@ -768,40 +1199,72 @@ def check_09(c: Checks, full=False):
                              "project — state it explicitly")
 
 
+def check_04(c: Checks):
+    """Was inline in `main()`; a function so it resolves through TREE like the rest.
+
+    NOTE the tails line below quotes 330/1430, which is MI350X's figure read out
+    of MI350X's report. It is a REQUIRES-JUDGEMENT detail, not an assertion, and
+    it is only reached when this part HAS a methodology-comparison.md — so it
+    cannot print another part's number about a part that has one of its own.
+    Deriving it from `text` would be an improvement and a change to what the
+    check says; it is left alone and reported instead.
+    """
+    cmp_dir = TREE.path("04", "compare")
+    c.require(cmp_dir.exists(), "methodology comparison ran",
+              detail_bad=f"missing {cmp_dir}")
+    clk_log = TREE.path("04", "clock-domain-verification.log")
+    c.require(clk_log.exists(),
+              "clock domain verified on real captures",
+              detail_bad=f"missing {clk_log} — ROCM CONTRACT #1, wrong "
+                         f"domain fails silently")
+    rep = TREE.path("04", "methodology-comparison.md")
+    if c.require(rep.exists(), "methodology report written",
+                 detail_bad=f"missing {rep} — run scripts/methodology_report.py"):
+        text = rep.read_text()
+        m = re.search(r"kernels >= 100 us: ([-+][\d.]+)%", text)
+        c.require(m and abs(float(m.group(1))) <= 2.0,
+                  "median hip_events vs rocprof divergence <= 2%",
+                  f"{m.group(1)}%" if m else "",
+                  "the two methodologies are not interchangeable at this "
+                  "spread; a trace's methodology field is not enough")
+        c.add(JUDGE, "divergence tails",
+              "330/1430 pairs differ by >20%; mechanism in the report")
+
+
 CHECKS = {"00": check_00, "01": check_01, "02": check_02, "03": check_03,
-          "05": check_05, "06": check_06, "07": check_07, "08": check_08}
+          "04": check_04, "05": check_05, "06": check_06, "07": check_07,
+          "08": check_08}
 
 
 def main():
+    global TREE
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--task", required=True)
     ap.add_argument("--full", action="store_true")
+    ap.add_argument("--part", default=DEFAULT_PART, choices=list(KNOWN_PARTS),
+                    help="which part's artifacts to check. Default %(default)s, "
+                         "the unsuffixed release tree; anything else resolves "
+                         "artifacts/NN-<part>/ (and, for tasks 00 and 01, "
+                         "host-suffixed files inside artifacts/NN/).")
+    ap.add_argument("--artifacts-root", type=Path,
+                    help="override the artifacts/ root entirely, e.g. a copy of "
+                         "the tree from another node. Combines with --part.")
+    ap.add_argument("--host",
+                    help="pin the host-suffixed task-00/01 artifacts to one node "
+                         "(substring of the filename or of _provenance.host). "
+                         "Without it the most recent matching-part file wins.")
     a = ap.parse_args()
 
+    TREE = ArtifactTree(part=a.part, root=a.artifacts_root, host=a.host)
+
     c = Checks()
-    print(f"\nAcceptance check — task {a.task}\n")
+    print(f"\nAcceptance check — task {a.task} — part {TREE.part}"
+          f"{'' if a.host is None else f' — host {a.host}'}\n")
     if a.task == "09":
         check_09(c, a.full)
     elif a.task in CHECKS:
         CHECKS[a.task](c)
-    elif a.task == "04":
-        cmp_dir = ART / "04" / "compare"
-        c.require(cmp_dir.exists(), "methodology comparison ran")
-        c.require((ART / "04" / "clock-domain-verification.log").exists(),
-                  "clock domain verified on real captures",
-                  detail_bad="ROCM CONTRACT #1 — wrong domain fails silently")
-        rep = ART / "04" / "methodology-comparison.md"
-        if c.require(rep.exists(), "methodology report written",
-                     detail_bad="run scripts/methodology_report.py"):
-            text = rep.read_text()
-            m = re.search(r"kernels >= 100 us: ([-+][\d.]+)%", text)
-            c.require(m and abs(float(m.group(1))) <= 2.0,
-                      "median hip_events vs rocprof divergence <= 2%",
-                      f"{m.group(1)}%" if m else "",
-                      "the two methodologies are not interchangeable at this "
-                      "spread; a trace's methodology field is not enough")
-            c.add(JUDGE, "divergence tails",
-                  "330/1430 pairs differ by >20%; mechanism in the report")
     else:
         print(f"no automated check for task {a.task}", file=sys.stderr)
         sys.exit(2)
