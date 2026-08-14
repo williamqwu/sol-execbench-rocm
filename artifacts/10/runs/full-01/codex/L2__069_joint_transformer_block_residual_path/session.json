@@ -1,0 +1,33 @@
+{
+  "harness": "codex",
+  "model": null,
+  "problem": "L2__069_joint_transformer_block_residual_path",
+  "packet_dir": "/sgl-workspace/sol-execbench-rocm/artifacts/10/runs/full-01/codex/L2__069_joint_transformer_block_residual_path/packet",
+  "gpu": 2,
+  "returncode": 0,
+  "timed_out": false,
+  "wallclock_s": 582.3589560985565,
+  "input_tokens": 1615607,
+  "output_tokens": 20768,
+  "cached_input_tokens": 1555940,
+  "reasoning_tokens": 9143,
+  "cost_usd": null,
+  "cost_source": null,
+  "num_turns": 1,
+  "produced_solution": true,
+  "verify_attempts": 5,
+  "verify_best_passed": 16,
+  "verify_workloads": 16,
+  "error": null,
+  "orphans_killed": [],
+  "transient_failure": false,
+  "harness_api_error": false,
+  "attempt": 1,
+  "stderr_tail": "Reading additional input from stdin...\n2026-08-06T03:12:40.072398Z ERROR codex_core::tools::router: error=exec_command failed for `/bin/bash -lc \"rm -f /tmp/nonexistent 2>/dev/null || true\npython - <<'PY'\nimport importlib.util, torch, reference, time\nspec=importlib.util.spec_from_file_location('candidate','kernel.py'); c=importlib.util.module_from_spec(spec); spec.loader.exec_module(c)\naxes={'batch_size':1,'seq_len':1024,'context_len':77}; atol=.02464955384779021\ninputs=reference.get_inputs(axes,torch.device('cuda')); args=list(inputs.values()); ref=reference.run(*args)\nt=time.perf_counter(); out=c.run(*args); torch.cuda.synchronize(); print('first ms',(time.perf_counter()-t)*1000)\nfor i,(a,b) in enumerate(zip(out,ref)):\n d=(a-b).abs(); good=d<=atol+1.1920928955078125e-7*b.abs(); print(i,d.max().item(),d.mean().item(),good.float().mean().item())\nfor _ in range(3): c.run(*args)\ntorch.cuda.synchronize(); t=time.perf_counter()\nfor _ in range(10): c.run(*args)\ntorch.cuda.synchronize(); print('warm ms',(time.perf_counter()-t)*100)\nPY\"`: CreateProcess { message: \"Rejected(\\\"`/bin/bash -lc \\\\\\\"rm -f /tmp/nonexistent 2>/dev/null || true\\\\npython - <<'PY'\\\\nimport importlib.util, torch, reference, time\\\\nspec=importlib.util.spec_from_file_location('candidate','kernel.py'); c=importlib.util.module_from_spec(spec); spec.loader.exec_module(c)\\\\naxes={'batch_size':1,'seq_len':1024,'context_len':77}; atol=.02464955384779021\\\\ninputs=reference.get_inputs(axes,torch.device('cuda')); args=list(inputs.values()); ref=reference.run(*args)\\\\nt=time.perf_counter(); out=c.run(*args); torch.cuda.synchronize(); print('first ms',(time.perf_counter()-t)*1000)\\\\nfor i,(a,b) in enumerate(zip(out,ref)):\\\\n d=(a-b).abs(); good=d<=atol+1.1920928955078125e-7*b.abs(); print(i,d.max().item(),d.mean().item(),good.float().mean().item())\\\\nfor _ in range(3): c.run(*args)\\\\ntorch.cuda.synchronize(); t=time.perf_counter()\\\\nfor _ in range(10): c.run(*args)\\\\ntorch.cuda.synchronize(); print('warm ms',(time.perf_counter()-t)*100)\\\\nPY\\\\\\\"` rejected: rm -f style commands are not permitted. Use a safer approach\\\")\" }\n",
+  "raw_usage": {
+    "input_tokens": 1615607,
+    "output_tokens": 20768,
+    "cached_input_tokens": 1555940,
+    "reasoning_output_tokens": 9143
+  }
+}

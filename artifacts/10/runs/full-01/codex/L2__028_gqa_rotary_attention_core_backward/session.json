@@ -1,0 +1,33 @@
+{
+  "harness": "codex",
+  "model": null,
+  "problem": "L2__028_gqa_rotary_attention_core_backward",
+  "packet_dir": "/sgl-workspace/sol-execbench-rocm/artifacts/10/runs/full-01/codex/L2__028_gqa_rotary_attention_core_backward/packet",
+  "gpu": 3,
+  "returncode": 0,
+  "timed_out": false,
+  "wallclock_s": 1325.8899207115173,
+  "input_tokens": 4781846,
+  "output_tokens": 50047,
+  "cached_input_tokens": 4681216,
+  "reasoning_tokens": 23709,
+  "cost_usd": null,
+  "cost_source": null,
+  "num_turns": 1,
+  "produced_solution": true,
+  "verify_attempts": 5,
+  "verify_best_passed": 16,
+  "verify_workloads": 16,
+  "error": null,
+  "orphans_killed": [],
+  "transient_failure": false,
+  "harness_api_error": false,
+  "attempt": 1,
+  "stderr_tail": "Reading additional input from stdin...\n2026-08-06T01:02:01.716361Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /sgl-workspace/sol-execbench-rocm/artifacts/10/runs/full-01/codex/L2__028_gqa_rotary_attention_core_backward/packet/kernel.py:\n        alpha = tl.exp(m - new_m)\n        p = tl.exp(s - new_m[:, None])\n        l = l * alpha + tl.sum(p, axis=1)\n        m = new_m\n        start_n += BLOCK_N\n\n    acc = tl.zeros((BLOCK_M, 128), tl.float32)\n    start_n = 0\n    while start_n < (pid_m + 1) * BLOCK_M:\n        cols = start_n + on\n        k = tl.load(K + b * skb + kh * skh + cols[:, None] * skn + od[None, :],\n                    mask=cols[:, None] < N, other=0.0)\n        v = tl.load(V + b * svb + kh * skh + cols[:, None] * svn + od[None, :],\n                    mask=cols[:, None] < N, other=0.0)\n        s = tl.dot(q, tl.trans(k), out_dtype=tl.float32).to(tl.bfloat16)\n        s = (s.to(tl.float32) * scale).to(tl.bfloat16).to(tl.float32)\n        valid = (om[:, None] < N) & (cols[None, :] < N) & (om[:, None] >= cols[None, :])\n        s = tl.where(valid, s, -float(\"inf\"))\n        p = tl.exp(s - m[:, None]) / l[:, None]\n        acc += tl.dot(p.to(tl.bfloat16), v, out_dtype=tl.float32)\n        start_n += BLOCK_N\n\n    tl.store(O + b * sob + h * soh + om[:, None] * som + od[None, :],\n             acc.to(tl.bfloat16), mask=om[:, None] < N)\n",
+  "raw_usage": {
+    "input_tokens": 4781846,
+    "output_tokens": 50047,
+    "cached_input_tokens": 4681216,
+    "reasoning_output_tokens": 23709
+  }
+}

@@ -1,0 +1,26 @@
+Reading additional input from stdin...
+2026-08-06T01:02:01.716361Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /sgl-workspace/sol-execbench-rocm/artifacts/10/runs/full-01/codex/L2__028_gqa_rotary_attention_core_backward/packet/kernel.py:
+        alpha = tl.exp(m - new_m)
+        p = tl.exp(s - new_m[:, None])
+        l = l * alpha + tl.sum(p, axis=1)
+        m = new_m
+        start_n += BLOCK_N
+
+    acc = tl.zeros((BLOCK_M, 128), tl.float32)
+    start_n = 0
+    while start_n < (pid_m + 1) * BLOCK_M:
+        cols = start_n + on
+        k = tl.load(K + b * skb + kh * skh + cols[:, None] * skn + od[None, :],
+                    mask=cols[:, None] < N, other=0.0)
+        v = tl.load(V + b * svb + kh * skh + cols[:, None] * svn + od[None, :],
+                    mask=cols[:, None] < N, other=0.0)
+        s = tl.dot(q, tl.trans(k), out_dtype=tl.float32).to(tl.bfloat16)
+        s = (s.to(tl.float32) * scale).to(tl.bfloat16).to(tl.float32)
+        valid = (om[:, None] < N) & (cols[None, :] < N) & (om[:, None] >= cols[None, :])
+        s = tl.where(valid, s, -float("inf"))
+        p = tl.exp(s - m[:, None]) / l[:, None]
+        acc += tl.dot(p.to(tl.bfloat16), v, out_dtype=tl.float32)
+        start_n += BLOCK_N
+
+    tl.store(O + b * sob + h * soh + om[:, None] * som + od[None, :],
+             acc.to(tl.bfloat16), mask=om[:, None] < N)
