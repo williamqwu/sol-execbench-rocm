@@ -75,6 +75,35 @@ def choose(by_cat: dict[str, list[str]], n: int) -> tuple[list[tuple[str, str]],
                             "largest-remainder apportionment"}
 
 
+def clock_span(root: Path, key: str) -> float | None:
+    """Widest before/after clock ratio seen in any of this problem's windows.
+
+    A proxy for the width of the T_SOL interval, and a conservative one: T_SOL's
+    compute term goes as 1/f while its memory term is clock-invariant, so the
+    bound's relative width is at most this span and is exactly zero for a
+    purely memory-bound workload. Using the widest window rather than the median
+    is deliberate -- the question a precision filter answers is "how badly is
+    this problem's bound known at worst", not "on average".
+
+    Returns None when nothing has bracketed the problem yet, which is different
+    from a span of zero and must not be conflated with it.
+    """
+    lo = hi = None
+    for sub in ("authoritative", "authoritative-40", "candidates"):
+        d = _loads(root / "artifacts" / "06-MI355X" / sub / f"{key}.json")
+        if not d:
+            continue
+        for v in (d.get("variants") or {}).values():
+            for cb in (v.get("clock_bracket_by_workload") or {}).values():
+                if not isinstance(cb, dict):
+                    continue
+                for f in (cb.get("clock_before_mhz"), cb.get("clock_after_mhz")):
+                    if f:
+                        lo = f if lo is None else min(lo, f)
+                        hi = f if hi is None else max(hi, f)
+    return None if not lo else hi / lo - 1.0
+
+
 def _loads(p: Path):
     """A file counts as present only if it parses. A crash stub is not a result."""
     try:
@@ -100,23 +129,43 @@ def stage_reference(root: Path, key: str) -> dict:
             "all_passed": bool(d.get("all_passed"))}
 
 
-def stage_bound(t_sol: dict | None, key: str) -> dict:
-    if not t_sol:
+def _reclockable(w) -> bool:
+    """Can this workload's bound be evaluated at a clock other than the one it
+    was written at? Needs the terms that scale differently: a cycle count for
+    the compute side and a bytes/second for the memory side."""
+    return (isinstance(w, dict)
+            and w.get("compute_cycles") is not None
+            and w.get("dram_byte_per_sec") is not None)
+
+
+def stage_bound(t_sol: dict | None, key: str,
+                traffic: dict | None = None) -> dict:
+    """A workload is bounded if EITHER tier bounds it.
+
+    T_SOL comes from two derivations -- SOLAR's roofline over the traced graph,
+    and the traffic the definition declares over DRAM bandwidth -- and the
+    manifest takes the max of the two that survive checking against the
+    measurement. Reading only the SOLAR tier here reported 8 of the first 40 as
+    unbounded when the traffic tier covers them; SOLAR's tracing ceiling is a
+    property of SOLAR, not of the problem.
+    """
+    tiers = {}
+    for name, src in (("solar", t_sol), ("traffic", traffic)):
+        rec = ((src or {}).get("problems") or {}).get(key)
+        if rec is not None:
+            tiers[name] = rec.get("workloads") or {}
+    if not tiers:
         return {"present": False}
-    rec = (t_sol.get("problems") or {}).get(key)
-    if rec is None:
-        return {"present": False}
-    wl = rec.get("workloads") or {}
-    # the four fields t_sol_at needs to re-max the bound at a measured clock;
-    # a bound that cannot be re-clocked is not usable on an unlocked part
+
+    ids = set().union(*(set(w) for w in tiers.values()))
     reclockable = sum(
-        1 for w in wl.values()
-        if isinstance(w, dict)
-        and w.get("compute_cycles") is not None
-        and w.get("dram_byte_per_sec") is not None
+        1 for i in ids
+        if any(_reclockable(w.get(i)) for w in tiers.values())
     )
-    return {"present": True, "workloads": len(wl), "reclockable": reclockable,
-            "all_reclockable": bool(wl) and reclockable == len(wl)}
+    return {"present": True, "workloads": len(ids),
+            "reclockable": reclockable,
+            "all_reclockable": bool(ids) and reclockable == len(ids),
+            "tiers": sorted(tiers)}
 
 
 def stage_tolerance(root: Path, key: str) -> dict:
@@ -127,10 +176,11 @@ def stage_tolerance(root: Path, key: str) -> dict:
 
 
 def stage_tb(root: Path, key: str) -> dict:
-    for sub in ("authoritative", "candidates"):
+    for sub in ("authoritative", "authoritative-40", "candidates"):
         f = root / "artifacts" / "06-MI355X" / sub / f"{key}.json"
         if f.is_file() and _loads(f) is not None:
-            return {"present": True, "tier": sub}
+            tier = "authoritative" if sub.startswith("authoritative") else sub
+            return {"present": True, "tier": tier, "source": sub}
     return {"present": False}
 
 
@@ -142,14 +192,47 @@ def main() -> int:
                     default=str(ROOT / "data" / "SOL-ExecBench" / "benchmark"), type=Path)
     ap.add_argument("--t-sol", default=str(ROOT / "artifacts" / "03-MI355X" / "t_sol.json"),
                     type=Path)
+    ap.add_argument("--t-sol-traffic",
+                    default=str(ROOT / "artifacts" / "03-MI355X" / "t_sol_traffic.json"),
+                    type=Path,
+                    help="the declared-traffic tier. T_SOL is the max of two "
+                         "derivations; reading only SOLAR under-reports coverage "
+                         "wherever its tracing failed.")
     ap.add_argument("--out", default=str(ROOT / "artifacts" / "delivery" / "index-40.json"),
                     type=Path)
     ap.add_argument("--markdown", type=Path, help="also write a human-readable table")
+    ap.add_argument("--max-clock-span", type=float,
+                    help="keep only problems whose widest in-window clock span is "
+                         "at most this (0.05 = 5%%). On an unlocked part the T_SOL "
+                         "interval is at most this wide, so it selects for "
+                         "problems whose bound is precisely known. Excluded "
+                         "problems are listed with their measured span -- the "
+                         "subset must never look like it selected itself.")
     a = ap.parse_args()
 
     by_cat = discover(a.benchmark_dir)
+
+    # Precision filter. This is the ONE criterion allowed to shrink the pool, and
+    # it is a measured property with a stated threshold, not "drop what failed".
+    # The difference matters: excluding problems because they did not work makes
+    # the result "the N that happened to be measurable", and every rate quoted
+    # over it is then biased by the same effect that caused the exclusion. A
+    # threshold on a published quantity is reproducible, arguable, and visible.
+    excluded_by_span: dict[str, float | None] = {}
+    if a.max_clock_span is not None:
+        for cat, names in by_cat.items():
+            keep = []
+            for p in names:
+                key = f"{cat}__{p}"
+                span = clock_span(ROOT, key)
+                if span is not None and span <= a.max_clock_span:
+                    keep.append(p)
+                else:
+                    excluded_by_span[key] = span
+            by_cat[cat] = keep
     picked, how = choose(by_cat, a.n)
     t_sol = _loads(a.t_sol) if a.t_sol.is_file() else None
+    traffic = _loads(a.t_sol_traffic) if a.t_sol_traffic.is_file() else None
 
     rows = []
     for cat, name in picked:
@@ -160,7 +243,7 @@ def main() -> int:
             "key": key,
             "reference": stage_reference(ROOT, key),
             "tolerance": stage_tolerance(ROOT, key),
-            "bound": stage_bound(t_sol, key),
+            "bound": stage_bound(t_sol, key, traffic),
             "t_b": stage_tb(ROOT, key),
         }
         # "Scoreable" is a claim about whether S can actually be computed, not
@@ -212,6 +295,24 @@ def main() -> int:
     doc = {**prov, "n_requested": a.n, "n_selected": len(rows),
            "selection": how, "stage_counts": counts,
            "t_sol_source": str(a.t_sol) if t_sol else None,
+           # Every problem the precision filter removed, with the span that
+           # removed it. Without this the subset would look like it selected
+           # itself, and a reader could not tell a deliberate precision floor
+           # from a quiet exclusion of everything inconvenient.
+           "precision_filter": (
+               None if a.max_clock_span is None else {
+                   "max_clock_span": a.max_clock_span,
+                   "rationale":
+                       "T_SOL's compute term goes as 1/f, so the in-window clock "
+                       "span bounds the width of the T_SOL interval. The anchor "
+                       "property is 0.5 +- 0.03, so a bound known to worse than "
+                       "about that is not usable for ranking. This threshold is "
+                       "the measured quantity, not a judgement about the problem.",
+                   "n_excluded": len(excluded_by_span),
+                   "excluded": dict(sorted(
+                       excluded_by_span.items(),
+                       key=lambda kv: (kv[1] is None, -(kv[1] or 0)))),
+               }),
            "problems": rows}
     a.out.parent.mkdir(parents=True, exist_ok=True)
     a.out.write_text(json.dumps(doc, indent=2, default=str))
