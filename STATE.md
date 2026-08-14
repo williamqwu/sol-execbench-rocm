@@ -537,12 +537,155 @@ majority of measurements genuinely do not have one clock. The real options are
 (b) accept the yield, or (c) re-derive the threshold from this distribution and
 state the resulting bound uncertainty. All three are methodology decisions.
 
-**Note for whoever takes that decision:** the bracket currently spans the
-`ShiftingMemoryPoolAllocator` construction as well as warmup + iterations,
-because that allocation happens inside `time_runnable`. That is CPU work with an
-idle GPU at the head of every window, and it is a plausible contributor to the
-ramp. Tightening the bracket to the measured loop alone means returning a
-bracket *from* `time_runnable`. Untested — do not treat it as diagnosed.
+### The allocator hypothesis was WRONG, and tightening the bracket would not help
+
+I proposed that `ShiftingMemoryPoolAllocator` construction — CPU work with an
+idle GPU, inside `time_runnable` and therefore inside the bracket — was holding
+the card down at the "before" sample. **Measured, and it is not.** Instrumented
+phase breakdown on GPU 0, same problem, four workloads:
+
+| workload | allocator ctor | clock before ctor | clock after ctor |
+|---|---|---|---|
+| 65d4e462 | 0.164 ms | 1597 MHz | 1597 MHz |
+| 8d38a764 | 0.083 ms | 2020 MHz | 2020 MHz |
+| 3f768220 | 0.081 ms | 2257 MHz | 2257 MHz |
+| 6a068dec | 0.118 ms | 2323 MHz | 2323 MHz |
+
+Construction costs 0.08–0.16 ms and moves the clock by **exactly 0 MHz** in all
+four. It is not the gap.
+
+**And tightening the bracket would not have fixed it**, computed from the same
+run rather than by building it first: bracketing only the measured loop instead
+of all of `time_runnable` changes the spread 0.2186 → 0.1954, 0.1046 → 0.0938,
+0.0421 → 0.0385, 0.0200 → **0.0205** (one gets *worse*). Every one is still far
+above 0.0078. Per the maintainer's instruction I stopped here and did **not**
+move the sampling inward.
+
+**What it actually is: a DVFS boost ramp slower than the window.** The card
+climbs throughout the timed region and is still climbing when it ends — the
+highest reading of every run is the one taken after the loop. Ramp
+characterisation after 3 s idle: **117 ms to come within 1% of peak**
+(2364 → 2398 MHz). From deep idle it is far larger: the first workload of a
+process opens its window at 1597 MHz against a ~2400 MHz ceiling. The effect is
+positional — median spread by position within a variant run is 0.029 / 0.028 /
+0.026 for the first three workloads (start clock 2243–2302 MHz) and ~0.008
+thereafter (start clock 2356–2384 MHz).
+
+This is a property of the hardware and of the harness's duty cycle, not a
+bracketing defect. It is **not** the same class as the `evaluate()` mistake.
+
+### D-new: keep 0.0078. It is right on score-error grounds; the yield is a separate defect
+
+Re-derived from the score rather than from the refusal rate. Only compute-bound
+bounds are clock-sensitive — memory-bound bounds are clock-invariant — which is
+**47.1%** of scoreable workloads, using MI350X v1.2 as a proxy for the mix since
+no MI355X manifest exists yet. A relative clock uncertainty `u` produces a score
+error of at most `u·(1−h)/h`, reached as `T_k → T_SOL`; it is exactly 0 at the
+anchor, so the anchor tolerance is a ceiling on the error, not a description of
+it.
+
+| u | median h (0.764) | q10 h (0.263) | q01 h (0.122) |
+|---|---|---|---|
+| **0.0078** | 0.24% | **2.2%** | 5.6% |
+| 0.0128 | 0.40% | 3.6% | 9.2% |
+| 0.0200 | 0.62% | 5.6% | 14.4% |
+| 0.0500 | 1.55% | 14.0% | 36.0% |
+
+Holding the q10-headroom compute-bound workload inside the ±3% the anchor gate
+already uses implies a ceiling of **u = 0.0107**. The shipped 0.0078 sits below
+it with margin, so **the calibration holds** — it was derived from the wrong
+distribution (g10's 1-second-gap steady-load samples) and lands in the right
+place for the right reason. That is luck, and it is worth saying so.
+
+**And that settles the yield question.** Moving to the largest defensible value,
+0.0107, lifts the admit rate only from **42.2% to 56.2%**. No threshold that
+keeps scores honest fixes this. The 58% refusal rate is therefore not a
+calibration problem and must not be treated as one — it is the boost ramp. The
+options are to settle the card with the real kernel before the window
+(~120–200 ms), to re-measure refused workloads once the card is warm, or to
+accept the yield. All three change what a measurement means and are the
+maintainer's call.
+
+### Allocator is NOT in the timed region — checked, because it would have been serious
+
+Were per-iteration allocator work inside the event pair, every latency this
+benchmark has produced on any part would be inflated and no artifact would say
+so. It is not. Causal test: injecting a **50 ms** sleep into `setup()` moved the
+reported median by **0.055 ms** (0.949 → 1.004 ms). `setup()`, the L2 flush and
+`_fence_streams()` all precede `start_events[i].record()`; only `fn(args)` and
+`_join_streams()` lie between the two events. Both the causal and the structural
+form are now pinned by
+`tests/sol_execbench/core/bench/test_setup_outside_timed_region.py`.
+
+### Pre-window settle: implemented, measured, and it works
+
+`docs/TODO-MI355X.md` §4.3 option (a), chosen by the maintainer. Before the
+window opens, run **the real kernel** until the clock stops climbing, then
+sample. Off unless `SOLEXBENCH_CLOCK_BASIS=unlocked`; `SOLEXBENCH_CLOCK_SETTLE=0`
+disables it so the effect can be measured against its own absence in one session.
+
+**Why this is not methodology drift, and say so when asked.** The measured
+quantity does not move: the timed region is still upstream's `warmup_runs=10,
+iterations=50` around the same callable, and the settle runs entirely before the
+first clock sample and the first timing event. That is the distinction from
+§4.3 option 1 — lengthening the window to ~10,000 iterations *would* change what
+is measured and break comparability with upstream, which is why it was declined.
+Settling changes only the state the card is in when measurement starts.
+
+**Measured A/B, GPU 0, `L1/009`, both arms back to back in the same session**
+(so neighbour load is held constant; GPUs 1–7 were running a reference sweep
+throughout). The no-settle arm reproduced at 59.4% against the 57.8% measured
+when the fleet was idle, which incidentally bounds the neighbour effect at ~1.6
+points:
+
+| | refusal | median spread | q90 | max | anchors |
+|---|---|---|---|---|---|
+| no settle | 59.4% | 0.00948 | 0.04678 | 0.05838 | 11/16 |
+| **settle** | **4.7%** | **0.00294** | **0.00631** | **0.00926** | **16/16** |
+
+**The positional effect is flattened**, which was the sharpest test:
+first-three-workloads refusal **9/12 → 1/12** (median 0.0297 → 0.0048), and
+position ≥3 **29/52 → 2/52** (median 0.0089 → 0.0029).
+
+**And the steady-state tail I could not explain is gone with it.** I flagged 56%
+refusal at position ≥3 as possibly a second mechanism; it fell to 3.8% under the
+same fix, so it was the same ramp seen at a different phase, not a second one.
+One problem, one card — not proof, but the open question is narrower now.
+
+**Threshold unchanged at 0.0078**, as instructed. It was not retuned and did not
+need to be: the realised distribution moved under it rather than the other way
+round.
+
+**Cost.** +11.7 s on an 86.4 s problem (**+13.5%**), settle median 186 ms, max
+778 ms, 64/64 settled without hitting a cap. Extrapolated over the full
+candidate sweep — 235 problems, 3957 workloads, 5 variants = 19,785 timed calls
+at ~146 ms added each: **≈48 min serial, ≈6 min at 8-way shard**.
+
+**Two implementation traps, both hit and both worth keeping written down.**
+
+1. *Stability must be judged over the window's own duration.* The first version
+   exited when three consecutive ~10 ms samples agreed within the band. That is a
+   test on the slope, and it passes early on a slow ramp: 2340→2348→2355 spans
+   0.64% over 30 ms and reads as settled, while the same ramp across the ~100 ms
+   window is 6% and is refused. It exited after a median of **12 ms / 6
+   iterations** and made things **worse — 53.1% → 78.1% refusal**. The horizon is
+   now `window_iters × measured per-iteration cost`, recorded per measurement as
+   `settle_stability_horizon_ms`.
+2. *A self-contradictory coverage check made the criterion dead code.* Having
+   filtered samples to those within the trailing horizon, it then asked whether
+   the oldest of *those* was at least a horizon old — satisfiable only by exact
+   equality. Every settle silently ran to the 1000 ms cap. It still worked
+   (1.6% refusal) but cost 5.6× more and stamped `settled: false` on every good
+   measurement. Fixed to check coverage against the oldest sample overall;
+   `settled` is now true 64/64 and the cost fell from +66 s to +11.7 s.
+
+Both are pinned by tests, including `test_a_slow_ramp_does_not_read_as_settled`.
+
+**Still unverified:** one problem on one card. The caps (1000 ms / 20000 iters)
+have never been hit in a real run, so the capped path is covered only by unit
+tests. And the settle's own GPU work is not free of side effects in principle —
+it warms the card for the *next* workload too, which is a direction the A/B
+cannot separate.
 
 ## Session log
 

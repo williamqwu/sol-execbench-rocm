@@ -373,6 +373,20 @@ This costs four numbers per workload and makes the bound model explicit enough t
 test. It is also what a node that cannot pin its clock needs in order to score at
 all — see *That question, asked on a second MI355X node* in §3.
 
+**Both tiers emit them, and the `max_of_both` record carries a union.** The
+declared-traffic tier (`sol_traffic_floor.py`) emits `compute_cycles = 0.0`,
+`mac_per_cycle = null` and its own `dram_byte_per_sec` — `0.0` being the literal
+truth about a derivation that accounts for all the traffic and none of the
+arithmetic, not a filler value. That alone is not enough where the manifest ships
+the *max* of the two tiers: a `max_of_both` record that inherited only the winning
+tier's terms would re-clock as if the workload had no arithmetic, and only at
+clocks other than the reference one, which is exactly where nobody would look. So
+`build_manifest.py` recomputes the terms from both tiers — the compute term that
+exists and the larger of the two memory terms — which reproduces
+`max(B_solar(F), B_traffic(F))` exactly at every clock, because both tiers share
+one `dram_byte_per_sec`. If they ever do not, the merge is refused and the record
+is left visibly un-re-clockable rather than quietly half-right.
+
 ### V1 / V2 / V3, the three flagged unknowns
 
 * **V1 — TF32 on CDNA4.** Deliberately absent from the MAC/cycle table rather
@@ -562,6 +576,63 @@ state would remove the bias and make the clock samplable, but 50 is upstream's
 methodology; changing it makes these numbers incomparable with upstream's and
 requires re-timing everything. That is a decision about what the benchmark is for,
 not a bug fix.
+
+### What clock was it, then? Bracketing the window
+
+On an unlocked part there is no F_LOCK to divide a bound by, and the window is
+too short to sample a clock inside. The methodology adopted for MI355X is
+`docs/TODO-MI355X.md` §4.3 **option 2**: sample the clock immediately before and
+immediately after the timed region, record **both**, and **refuse** the
+measurement when they disagree by more than a stated threshold.
+
+Read the claim narrowly, because it is a narrow one. Two samples around a window
+do not give the window's clock — they give a **bound on how wrong assuming one
+clock is**. What makes that worth having is the refusal: a measurement taken
+while a card was moving between power states is thrown out rather than averaged
+in.
+
+* **Where the window is.** The `time_runnable` call in the eval driver, and only
+  that. By then compilation and `max_autotune` are behind us, driven by the
+  correctness pass. Bracketing anything wider was tried — around `evaluate()`,
+  which spawns the driver subprocess — and the kernel came out at 0.8–55% of the
+  bracketed span, the observed spread 36%, and 85% of measurements refused. That
+  is the compiler's clock, not the kernel's.
+* **The threshold is 0.78%**, the **p99 of 6,544 measured consecutive-sample
+  clock spreads** in `artifacts/01/unlocked-clock.json` — the same statistic, on
+  the same part, under sustained load. Median 0.111%, p90 0.284%, p99 0.778%,
+  max 26.4%. The sampling gap there is 1 s against a 1–13 ms window, so the
+  threshold is calibrated on a harder problem than the one it guards; and it sits
+  an order of magnitude below every load-transition excursion in that artifact
+  (8.2% to 26.4%), which are exactly what refusal is for. Overridable by
+  `SOLEXBENCH_CLOCK_BRACKET_THRESHOLD`, and the value in force is stamped on
+  every measurement.
+* **`T_b` and `T_k` are re-timed back to back**, in one session on one card, and
+  **both** brackets are recorded (§4.4). Unlocked, `S` is otherwise a two-clock
+  quantity, and a candidate that turns a compute-bound kernel into a
+  memory-bound one is rewarded twice — once for the real speedup, once for
+  boosting.
+* **The threshold and the refusal count are first-class artifact fields**, not
+  log lines, because task 01's acceptance on this part is "the refusal rate is
+  below a stated bound" and a rate nobody can read cannot gate anything.
+* **An unknown clock is not a permissive one.** Under
+  `SOLEXBENCH_CLOCK_BASIS=unlocked` the manifest build proceeds without an
+  F_LOCK, but refuses any `T_b` that carries no clock evidence of its own.
+
+**This does not fix the short-window bias above, and must not be read as doing
+so.** The two are independent. On `mia1-p02-g46` the worst shape reads **+106.9%**
+per iteration at the shipped burst length against a 50,000-iteration loop, and
+the per-iteration cost attributes as 21.1 µs / 12.6 µs / 1.2 µs across shapes —
+an 18× spread, where a depressed clock would slow all of them alike. A perfectly
+tight bracket on a perfectly steady clock leaves that bias exactly where it was.
+
+**What has not been measured.** No within-window bracket-spread distribution
+exists for `mia1-p02-g46`; the threshold above is derived from the `g10`
+artifact in this tree. The g46 figures that *are* measured — 36.8% across kernel
+shapes (gemm_dense 1800 MHz @1383 W against gemm_small 2392 MHz @673 W, i.e.
+power-capped rather than clock-capped) and 3.9% across eight loaded cards — are
+*between* shapes and *between* cards, and say nothing about two samples
+milliseconds apart on one card. The first MI355X sweep re-derives the quantile
+from its own recorded spreads.
 
 ### How far apart the two methodologies actually are
 

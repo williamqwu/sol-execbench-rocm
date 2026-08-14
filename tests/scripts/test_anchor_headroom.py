@@ -183,3 +183,71 @@ def test_missing_bound_is_adjudicated_not_exempted():
                               "t_k_ms": 100.0, "anchor_ok": False}]
     _classify_headroom(checks, TOL)
     assert checks[-1]["headroom_sufficient"] is True
+
+
+# ---------------------------------------------------------------------------
+# Over-exempting is itself a failure
+#
+# `_classify_headroom` is self-widening in the dangerous direction: a noisier run
+# raises `eps`, which raises `h_min`, which exempts more workloads, which raises
+# the PASS RATE, because the rate is computed over adjudicable workloads only. The
+# exemption therefore needs a bound of its own, or "more workloads passed" and
+# "fewer workloads were judged" are indistinguishable in the artifact.
+# `verify_artifacts._check_headroom_exemption` is that bound.
+# ---------------------------------------------------------------------------
+
+from verify_artifacts import (  # noqa: E402
+    FAIL, MAX_EXEMPT_FRACTION, MAX_H_MIN, PASS, WARN, Checks,
+    _check_headroom_exemption,
+)
+
+
+def _statuses(ap: dict) -> list[str]:
+    c = Checks()
+    _check_headroom_exemption(c, ap)
+    return [s for s, _, _ in c.results]
+
+
+def test_an_exemption_within_the_measured_bound_passes():
+    """10.02% is the worst 20-problem draw manifest v1 can produce — every
+    problem containing a low-headroom workload, 57 of 569. It must not fail."""
+    assert _statuses({"undecidable_insufficient_headroom": 57, "checked": 569,
+                      "min_headroom_for_tolerance": 0.05}) == [PASS, PASS]
+
+
+def test_over_exempting_is_a_failure_not_a_higher_pass_rate():
+    ap = {"undecidable_insufficient_headroom": 100, "checked": 349,
+          "min_headroom_for_tolerance": 0.05}
+    assert FAIL in _statuses(ap)
+
+
+def test_the_bound_is_on_the_fraction_not_the_count():
+    """A larger sample may exempt more workloads and still be adjudicating the
+    same share of them."""
+    small = {"undecidable_insufficient_headroom": 10, "checked": 100,
+             "min_headroom_for_tolerance": 0.05}
+    big = {"undecidable_insufficient_headroom": 100, "checked": 1000,
+           "min_headroom_for_tolerance": 0.05}
+    assert _statuses(small) == _statuses(big) == [PASS, PASS]
+
+
+def test_a_widened_threshold_fails_even_when_it_catches_nothing():
+    """The tighter of the two statements. h_min above the measured precision band
+    means the run's own re-timing got noisier, whether or not the wider exemption
+    happened to catch any workload on this particular sample."""
+    ap = {"undecidable_insufficient_headroom": 0, "checked": 349,
+          "min_headroom_for_tolerance": MAX_H_MIN * 1.5}
+    assert _statuses(ap) == [PASS, FAIL]
+
+
+def test_the_bounds_are_the_measured_ones():
+    """Pinned so a future edit is deliberate. Both come from the headroom
+    distribution of the manifest the gate reads, not from a preference."""
+    assert MAX_EXEMPT_FRACTION == 0.12 and MAX_H_MIN == 0.066
+
+
+def test_an_artifact_without_the_fields_warns_rather_than_passing():
+    """A check keyed on a field that does not exist always passes, and this file
+    has been bitten by exactly that before (the `n_failed` guess)."""
+    assert _statuses({"passing": 336, "total": 349}) == [WARN]
+    assert _statuses({"undecidable_insufficient_headroom": 0}) == [WARN]

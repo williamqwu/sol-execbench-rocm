@@ -68,6 +68,31 @@ class Performance(BaseModelWithDocstrings):
     """Reference implementation latency in milliseconds for comparison."""
     speedup_factor: float = Field(default=0.0, ge=0.0)
     """Performance speedup factor compared to reference (reference_time / solution_time)."""
+    # AMD: the clock samples taken either side of the timed window, and the
+    # verdict they support. See `core/bench/clock_bracket.py`.
+    #
+    # Unlocked, `latency_ms` alone does not identify what was measured: this
+    # part's clock depends on the kernel (36.8% across shapes on
+    # mia1-p02-g46), so a bound divided by any single frequency is a bound at a
+    # frequency the measurement may never have run at. The bracket does not
+    # recover the window's clock -- two samples cannot -- it bounds how wrong
+    # assuming one is, and refuses the measurement when that bound is too loose.
+    #
+    # Optional with a None default so traces written before this field existed
+    # still load, and so the locked basis and the NVIDIA path are unchanged when
+    # it is not set.
+    clock_bracket: Optional[dict] = None
+    """Clock samples bracketing the solution's timed window (AMD, unlocked basis)."""
+    # AMD, TODO-MI355X §4.4: `S` has three terms and re-clocking the bound
+    # addresses one. `T_b` and `T_k` are separate measurements at separate
+    # clocks, so a candidate that turns a compute-bound kernel into a
+    # memory-bound one is rewarded twice -- once for the real speedup, once for
+    # boosting. The chosen normalisation is to time both arms back to back in
+    # one session on the same card (which `benchmark_reference=True` already
+    # does) and record BOTH brackets, so the two clocks are visible rather than
+    # assumed equal.
+    reference_clock_bracket: Optional[dict] = None
+    """Clock samples bracketing the reference's timed window, timed back to back."""
 
 
 class Environment(BaseModelWithDocstrings):

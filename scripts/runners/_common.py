@@ -329,6 +329,17 @@ def summarize(traces: list[dict]) -> dict:
             # trace so hip_events and rocprof results can never be silently
             # mixed (tasks 02 and 04).
             "methodology": (ev.get("environment") or {}).get("methodology"),
+            # AMD, unlocked basis: the clock samples either side of THIS
+            # workload's timed window, and the refusal verdict they support.
+            # None under the locked basis, where the driver does not bracket.
+            # Per workload, not per artifact: on this part the clock depends on
+            # the kernel, which is the whole reason one F_LOCK stopped
+            # describing a run (docs/TODO-MI355X.md §4).
+            "clock_bracket": perf.get("clock_bracket"),
+            # The reference arm, timed back to back with the solution arm on the
+            # same card in the same process (§4.4). Present only when
+            # `benchmark_reference=True`.
+            "reference_clock_bracket": perf.get("reference_clock_bracket"),
             "log": (ev.get("log") or "")[-2000:] if not _passed(ev) else "",
         })
     passed = sum(1 for w in per_workload if w["status"] == PASSED)

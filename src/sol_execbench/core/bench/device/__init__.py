@@ -105,6 +105,20 @@ def default_ld_flags() -> list[str]:
     return get_backend().default_ld_flags()
 
 
+def current_clock_mhz(device=None) -> int | None:
+    """Current core clock in MHz, or None where the vendor backend cannot say.
+
+    Present on the facade because the clock bracket
+    (``sol_execbench.core.bench.clock_bracket``) is vendor-neutral code that must
+    not reach into a backend directly. The NVIDIA backend does not implement it
+    and is not expected to: it is the unlocked CDNA4 part that needs a clock per
+    measurement. Absent means None, which the bracket records as "no clock
+    evidence" and refuses -- it never substitutes a nominal value.
+    """
+    fn = getattr(get_backend(), "current_clock_mhz", None)
+    return fn(device) if fn is not None else None
+
+
 def default_timing_methodology() -> str:
     """The timing methodology this vendor uses when none is requested.
 
@@ -135,5 +149,6 @@ __all__ = [
     "arch_flags",
     "default_device_cflags",
     "default_ld_flags",
+    "current_clock_mhz",
     "default_timing_methodology",
 ]

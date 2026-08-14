@@ -141,6 +141,7 @@ def _load_problem() -> "tuple[dict, list[dict]]":
 definition_dict, _workload_dicts = _load_problem()
 
 # ── Imports from sol_execbench.core ─────────────────────────────────────────────
+from sol_execbench.core.bench import clock_bracket  # noqa: E402
 from sol_execbench.core.bench.clock_lock import are_clocks_locked  # noqa: E402
 from sol_execbench.core.bench.config import BenchmarkConfig  # noqa: E402
 from sol_execbench.core.bench.correctness import (  # noqa: E402
@@ -219,11 +220,53 @@ ref_fn = ref_namespace.get("run")
 if ref_fn is None:
     raise RuntimeError("Reference code does not define a top-level 'run' function")
 
+# ── AMD: clock bracketing ────────────────────────────────────────────────────
+# Does this run bracket its timed windows with a clock sample either side?
+# Resolved once, from SOLEXBENCH_CLOCK_BASIS. Off unless the basis is
+# `unlocked`, so the locked MI350X corpus and the NVIDIA path take exactly the
+# code path they took before this existed (prime directive 7).
+#
+# Defined HERE, above the integrity snapshot, rather than beside the timing
+# loop where it is used: a function defined after the snapshot cannot be in it,
+# and this one decides which clock a score's bound is evaluated at. A submission
+# that replaced it with `lambda thunk, dev: (thunk(), _slow_clock)` would report
+# a depressed clock, loosen its own compute bound and score higher, with nothing
+# in the trace to show for it.
+_clock_bracketing = clock_bracket.bracketing_enabled()
+_clock_settling = clock_bracket.settle_enabled()
+
+
+def _bracketed_timing(thunk, device, settle=None, window_iters=60):
+    """Run *thunk* (a `time_runnable` call), returning (result, bracket-or-None).
+
+    One function, two call sites -- the solution arm and the reference arm --
+    so the two cannot drift apart about where the window starts, nor about how
+    the card was conditioned before it opened. When bracketing is off this is a
+    bare call: no SMI traffic, no settle, no added latency, no field on the
+    trace, so MI350X and the NVIDIA path stay byte-identical.
+
+    *settle* is a zero-argument callable running the SAME kernel the window is
+    about to time. It must be the real one: this part's clock is
+    workload-dependent (36.8% across shapes on this node), so a synthetic settle
+    would leave the card at the wrong operating point and the ramp would simply
+    move inside the window. See `clock_bracket.settle_clock` for why this is a
+    change to the card's STATE and not to the measured quantity.
+    """
+    if not _clock_bracketing:
+        return thunk(), None
+    result, br = clock_bracket.bracketed(
+        thunk, device=device, settle=settle if _clock_settling else None,
+        window_iters=window_iters)
+    return result, br.as_dict()
+
+
 # ── Integrity snapshot (before user code import) ─────────────────────────────
 # Capture id() of every function that affects measurement or correctness.
 # Checked after user code import and after each user_fn() call.
 _CRITICAL_NAMES = [
     "time_runnable",
+    # AMD: decides the clock a bound is evaluated at -- see above.
+    "_bracketed_timing",
     # AMD: the ROCm-side guards are snapshotted too, or a submission could
     # simply replace them and walk through the door they were guarding.
     "check_default_stream",
@@ -672,15 +715,37 @@ for _workload in workloads:
         _timing_outputs = (
             allocate_outputs(definition, _resolved_axes, _device) if _dps else []
         )
-        _sol_latency_ms = time_runnable(
-            user_fn,
-            _inputs,
-            _timing_outputs,
+        # AMD, unlocked basis: bracket THIS call and nothing wider.
+        #
+        # `_bracketed_timing` samples the clock, stamps t0, runs `time_runnable`
+        # (warmup + iterations, the whole timed window), stamps t1, samples
+        # again. Everything expensive and clock-irrelevant is already behind us:
+        # packaging and compilation happened in the parent process, and
+        # torch.compile / max_autotune were driven by the correctness pass above,
+        # which has called `user_fn` on this workload several times already.
+        #
+        # Bracketing anything wider was tried and does not work. Around
+        # `evaluate()` the kernel is 0.8-55% of the bracketed span -- the rest is
+        # compilation -- the observed clock spread is 36% and 85% of
+        # measurements are refused. That is not a measurement of the timing
+        # window's clock; it is a measurement of the compiler's.
+        _sol_latency_ms, _sol_bracket = _bracketed_timing(
+            lambda: time_runnable(
+                user_fn,
+                _inputs,
+                _timing_outputs,
+                _device,
+                warmup=bench_config.warmup_runs,
+                rep=bench_config.iterations,
+                seed=bench_config.seed,
+                methodology=_methodology,
+            ),
             _device,
-            warmup=bench_config.warmup_runs,
-            rep=bench_config.iterations,
-            seed=bench_config.seed,
-            methodology=_methodology,
+            # The real kernel, the real inputs: settle the card on the very work
+            # about to be timed. `_timing_outputs` is appended for DPS kernels so
+            # the call shape matches what the allocator hands the timing loop.
+            settle=lambda: user_fn(*_inputs, *_timing_outputs),
+            window_iters=bench_config.warmup_runs + bench_config.iterations,
         )
     except Exception as _e:
         _emit(
@@ -714,17 +779,28 @@ for _workload in workloads:
     # -- Reference latency (for speedup factor) —always return-value style --
     # Inputs are cloned (not regenerated) since the reference cannot cheat.
     _ref_latency_ms = 0.0
+    _ref_bracket = None
     if bench_config.benchmark_reference:
         try:
-            _ref_latency_ms = time_runnable(
-                ref_fn,
-                _inputs,
-                [],
+            # AMD, TODO-MI355X §4.4: this is the "back to back in one session on
+            # the same card" arm. Its bracket is recorded separately so the two
+            # clocks can be compared instead of assumed equal -- which is the
+            # difference between a workable unlocked methodology and a
+            # scoreboard an agent can farm by lowering power draw.
+            _ref_latency_ms, _ref_bracket = _bracketed_timing(
+                lambda: time_runnable(
+                    ref_fn,
+                    _inputs,
+                    [],
+                    _device,
+                    warmup=bench_config.warmup_runs,
+                    rep=bench_config.iterations,
+                    seed=bench_config.seed,
+                    methodology=_methodology,
+                ),
                 _device,
-                warmup=bench_config.warmup_runs,
-                rep=bench_config.iterations,
-                seed=bench_config.seed,
-                methodology=_methodology,
+                settle=lambda: ref_fn(*_inputs),
+                window_iters=bench_config.warmup_runs + bench_config.iterations,
             )
         except Exception:
             pass
@@ -746,6 +822,8 @@ for _workload in workloads:
                     latency_ms=_sol_latency_ms,
                     reference_latency_ms=_ref_latency_ms,
                     speedup_factor=_speedup,
+                    clock_bracket=_sol_bracket,
+                    reference_clock_bracket=_ref_bracket,
                 ),
             ),
         )

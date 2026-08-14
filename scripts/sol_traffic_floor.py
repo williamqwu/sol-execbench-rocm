@@ -144,6 +144,31 @@ def main() -> int:
                 "bottleneck": "memory",
                 "memory_bytes": declared,
                 "macs": None,
+                # -- The fields `t_sol_at` needs to re-max at another clock
+                # (docs/TODO-MI355X.md §4.2(b)). Without them this whole tier
+                # raises `MissingBoundTerms`, which on an unlocked part means it
+                # cannot be scored at all -- 328 workloads across 38 problems on
+                # the MI350X manifest rest on this tier.
+                #
+                # `compute_cycles = 0.0` is the literal truth about this
+                # derivation, not filler: the declared-traffic tier accounts for
+                # ALL the traffic and NONE of the arithmetic. A pure traffic
+                # bound is therefore clock-invariant in time, and that is exactly
+                # what `t_sol_ms_at` returns from these numbers.
+                #
+                # `mac_per_cycle = None` for the same reason: no arithmetic term,
+                # so no rate. Emitted rather than omitted so a consumer can tell
+                # "this tier has no compute term" from "this record predates the
+                # split".
+                #
+                # `dram_byte_per_sec` is `sol_bounds.py`'s own derivation
+                # inverted: DRAM_byte_per_cycle is *defined* in the arch YAML as
+                # bytes_per_sec / freq, so multiplying back is exact rather than
+                # a re-estimate.
+                "compute_cycles": 0.0,
+                "memory_cycles_at_f_ref": declared / dram_bpc,
+                "mac_per_cycle": None,
+                "dram_byte_per_sec": dram_bpc * freq_ghz * 1e9,
                 "axes": dict(w.get("axes") or {}),
                 "t_sol_source": "declared_traffic",
                 "gated_against_t_b": measured is not None,

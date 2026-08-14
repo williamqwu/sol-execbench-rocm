@@ -51,6 +51,89 @@ def collect_t_sol(path: Path) -> dict[str, dict]:
     return {k: (v.get("workloads") or {}) for k, v in doc.get("problems", {}).items()}
 
 
+#: The terms `solexbench_rocm.t_sol_at` needs to re-evaluate a bound at the clock
+#: a measurement actually ran at. `mac_per_cycle` is carried alongside for
+#: provenance; the arithmetic uses the other three.
+RECLOCK_FIELDS = ("compute_cycles", "memory_bytes", "dram_byte_per_sec",
+                  "mac_per_cycle")
+
+#: The bracket a T_b measurement carries into the manifest. `clock_mhz` is the
+#: mean of the two samples and the only one a bound may be divided by; the rest
+#: are what makes that number auditable rather than asserted. The window is
+#: published so a reader can see how long the bracketed region was -- a 1 ms
+#: window bracketed by two multi-millisecond SMI reads is a weaker bracket than
+#: the same spread across a 13 ms one, and only `window_ns` says which it was.
+CLOCK_FIELDS = ("clock_before_mhz", "clock_after_mhz", "clock_mhz",
+                "clock_bracket_spread", "clock_bracket_threshold",
+                "clock_bracket_refused", "clock_bracket_refused_reason",
+                "clock_bracket_sampler_error",
+                "window_ns", "window_ms", "reference_clock_bracket")
+
+
+def _reclock_terms(s: dict, t: dict, source: str, stats: dict) -> dict:
+    """The re-clocking terms for a merged bound, correct for BOTH tiers.
+
+    docs/TODO-MI355X.md §4.2(b) names this as a real gap and it is: taking the
+    winning tier's terms is wrong exactly where `max_of_both` won. The two tiers
+    are separate lower bounds and the manifest ships their max, so re-clocking
+    has to re-max BOTH -- and the declared-traffic tier carries no compute term,
+    so a `max_of_both` record that inherited only the traffic tier's terms would
+    re-clock as if the workload had no arithmetic at all. On MI350X's manifest
+    that is the tier under 328 workloads across 38 problems.
+
+    The union is exact, not an approximation, and the algebra is short enough to
+    check here. Write B_s(F) and B_t(F) for the two tiers' bounds in cycles:
+
+        B_s(F) = max(compute_cycles_s, memory_bytes_s * F / bytes_per_sec)
+        B_t(F) = max(0,                memory_bytes_t * F / bytes_per_sec)
+
+    The shipped bound is max(B_s, B_t), and because both are a max over the same
+    two shapes with the SAME `dram_byte_per_sec`,
+
+        max(B_s(F), B_t(F)) = max(compute_cycles_s,
+                                  max(memory_bytes_s, memory_bytes_t) * F / bps)
+
+    -- i.e. one record with the larger memory term and the compute term that
+    exists reproduces the two-tier max at every clock. That identity depends on
+    the two tiers sharing a bandwidth figure; they are generated from the same
+    arch YAML, but if they ever disagree the merge is unsound, so the disagreement
+    is detected and the record is left un-re-clockable rather than silently wrong.
+    """
+    have = [d for d in (s, t) if d]
+    bps = {d.get("dram_byte_per_sec") for d in have
+           if d.get("dram_byte_per_sec") is not None}
+    if len(bps) > 1:
+        # Two bandwidths means two arch configs produced these tiers. Refusing to
+        # merge leaves `t_sol_at` raising MissingBoundTerms, which is visible;
+        # picking one would produce a plausible bound at every other clock.
+        stats["reclock_terms_conflicting_bandwidth"] = (
+            stats.get("reclock_terms_conflicting_bandwidth", 0) + 1)
+        return {}
+
+    compute = [d.get("compute_cycles") for d in have
+               if d.get("compute_cycles") is not None]
+    membytes = [d.get("memory_bytes") for d in have
+                if d.get("memory_bytes") is not None]
+    if not bps or not compute or not membytes:
+        stats["reclock_terms_missing"] = stats.get("reclock_terms_missing", 0) + 1
+        return {}
+
+    stats["reclock_terms_present"] = stats.get("reclock_terms_present", 0) + 1
+    if source == "max_of_both":
+        stats["reclock_terms_unioned"] = stats.get("reclock_terms_unioned", 0) + 1
+    return {
+        "compute_cycles": max(compute),
+        "memory_bytes": max(membytes),
+        "dram_byte_per_sec": next(iter(bps)),
+        # Provenance only. The winning tier's rate, or SOLAR's where the traffic
+        # tier (which has none) won, so a reader can see which arithmetic model
+        # the compute term came from.
+        "mac_per_cycle": (s.get("mac_per_cycle")
+                          if s.get("mac_per_cycle") is not None
+                          else t.get("mac_per_cycle")),
+    }
+
+
 def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
     """One T_SOL per workload, from two derivations, with the source recorded.
 
@@ -106,15 +189,25 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
                 stats["no_valid_bound"] += 1
                 continue
             stats[source] += 1
-            merged[u] = {**chosen, "t_sol_source": source,
+            # The re-clocking terms are recomputed from BOTH tiers, never
+            # inherited from the winner: `chosen` is one tier's record, and for
+            # `max_of_both` the winner is often the traffic tier, whose
+            # compute_cycles is 0 by construction. Dropping them first means a
+            # record `_reclock_terms` declines to merge is left visibly
+            # un-re-clockable (t_sol_at raises) rather than quietly carrying one
+            # tier's half of the answer.
+            base = {k: v for k, v in chosen.items() if k not in RECLOCK_FIELDS}
+            merged[u] = {**base, "t_sol_source": source,
                          "t_sol_cycles_solar": s_cyc,
-                         "t_sol_cycles_traffic": t.get("t_sol_cycles")}
+                         "t_sol_cycles_traffic": t.get("t_sol_cycles"),
+                         **_reclock_terms(s, t, source, stats)}
         if merged:
             out[key] = merged
     return out, stats
 
 
-def collect_t_b(directory: Path, f_lock_mhz: int | None = None) -> dict[str, dict]:
+def collect_t_b(directory: Path, f_lock_mhz: int | None = None,
+                clock_basis: str = "locked") -> dict[str, dict]:
     """{problem: {workload_uuid: {variant, t_b_ms}}} from artifacts/06.
 
     ``f_lock_mhz`` refuses any artifact whose *stamped* clock differs. T_b is a
@@ -146,14 +239,43 @@ def collect_t_b(directory: Path, f_lock_mhz: int | None = None) -> dict[str, dic
     and stamping the clock actually observed, which is a change to the timing
     runners rather than to this function. This check remains necessary and is not
     sufficient.
+
+    **``clock_basis="unlocked"``** replaces the F_LOCK comparison rather than
+    relaxing it. There is no single clock to compare a stamp against on that
+    part, so the guard moves down a level: every winner record must carry its own
+    non-refused clock bracket (``clock_bracket_refused is False`` and a positive
+    ``clock_mhz``). Records that do not are dropped and counted; an artifact where
+    *no* record carries clock evidence is rejected whole, loudly. The reading is
+    the same one the F_LOCK guard applies -- an unknown clock is not a permissive
+    one -- moved from once per artifact to once per measurement, which is where
+    the clock actually varies.
     """
     out: dict[str, dict] = {}
     if not directory.exists():
         return out
+    unlocked = clock_basis == "unlocked"
+    if unlocked:
+        sys.path.insert(0, str(ROOT / "src"))
+        from sol_execbench.core.bench.clock_bracket import has_clock_evidence
     foreign: list[tuple[str, object]] = []
+    no_evidence: list[str] = []
+    dropped = 0
     for f in sorted(directory.glob("*.json")):
         doc = _load(f)
         if not (doc and doc.get("winner_by_workload")):
+            continue
+        if unlocked:
+            winners = doc["winner_by_workload"]
+            kept = {u: w for u, w in winners.items() if has_clock_evidence(w)}
+            dropped += len(winners) - len(kept)
+            if not kept:
+                # Not "zero scoreable workloads" -- a rejected artifact. A file
+                # of anchors with no clock evidence at all is indistinguishable
+                # from one measured on another node at another clock, and that
+                # is the exact failure F18 was.
+                no_evidence.append(f.name)
+                continue
+            out[doc.get("problem", f.stem)] = kept
             continue
         # None means the artifact predates provenance stamping of F_LOCK, which is
         # a different problem from being measured at the wrong clock; those are
@@ -163,6 +285,17 @@ def collect_t_b(directory: Path, f_lock_mhz: int | None = None) -> dict[str, dic
             foreign.append((f.name, measured_at))
             continue
         out[doc.get("problem", f.stem)] = doc["winner_by_workload"]
+    if no_evidence or dropped:
+        print(f"\n  UNLOCKED BASIS: dropped {dropped} T_b measurement(s) with no "
+              f"usable clock bracket, and REJECTED {len(no_evidence)} artifact(s) "
+              f"carrying none at all:", file=sys.stderr)
+        for name in no_evidence[:5]:
+            print(f"    {name}", file=sys.stderr)
+        if len(no_evidence) > 5:
+            print(f"    ... and {len(no_evidence) - 5} more", file=sys.stderr)
+        print("  Unlocked, T_b's clock is per measurement; without one there is "
+              "nothing to divide a bound by. An unknown clock is not a "
+              "permissive one.\n", file=sys.stderr)
     if foreign:
         print(f"\n  REJECTED {len(foreign)} T_b artifact(s) measured at a different "
               f"clock than F_LOCK={f_lock_mhz}:", file=sys.stderr)
@@ -173,6 +306,30 @@ def collect_t_b(directory: Path, f_lock_mhz: int | None = None) -> dict[str, dic
         print("  T_b is a wall-clock time; mixing clocks rescales those problems' "
               "scores.\n", file=sys.stderr)
     return out
+
+
+def _bracket_summary(t_b: dict[str, dict]) -> dict:
+    """Refusal statistics over every T_b that made it into the manifest.
+
+    Note what this can and cannot count. Measurements refused at *sweep* time
+    never became winners and so are not here; `time_tb_candidates` records those
+    per problem in `clock_bracket_refused_by_workload`, and they show up in this
+    manifest as workloads missing T_b. What this counts is what survived --
+    which is the number a reader needs in order to know whether "the clock is
+    characterised" is a claim about the whole corpus or about a filtered part of
+    it.
+    """
+    sys.path.insert(0, str(ROOT / "src"))
+    from sol_execbench.core.bench.clock_bracket import summarize_brackets
+
+    records = [w for wl in t_b.values() for w in wl.values()]
+    summary = summarize_brackets(records)
+    summary["n_with_clock_evidence"] = sum(
+        1 for r in records
+        if isinstance(r.get("clock_mhz"), (int, float)) and r["clock_mhz"] > 0
+    )
+    summary["n_t_b_total"] = len(records)
+    return summary
 
 
 def _methodology_of(directory: Path) -> str:
@@ -240,8 +397,26 @@ def main():
     # cannot disagree about it.
     from provenance import f_lock_mhz as _f_lock
 
+    # AMD, docs/TODO-MI355X.md §3.4: which clock basis is this manifest built on?
+    #
+    # `locked`   (default) — one F_LOCK for the whole manifest, the MI350X case.
+    # `unlocked` — no F_LOCK exists; each measurement carries its own bracketed
+    #              clock and the guard moves into `collect_t_b`.
+    #
+    # Read from the environment rather than a flag so it travels with the sweep
+    # that produced the artifacts: a manifest built on the other basis from the
+    # one the T_b runs used is not a build error, it is a wrong manifest.
+    from sol_execbench.core.bench.clock_bracket import clock_basis as _basis
+
+    clock_basis = _basis()
+    if clock_basis not in ("locked", "unlocked"):
+        raise SystemExit(
+            f"SOLEXBENCH_CLOCK_BASIS={clock_basis!r} is not a basis this build "
+            f"knows. Use 'locked' (one F_LOCK) or 'unlocked' (per-measurement "
+            f"bracketed clocks).")
+
     expected_f_lock = _f_lock()
-    if expected_f_lock is None:
+    if expected_f_lock is None and clock_basis != "unlocked":
         # The guard below is only a guard when it has a number to compare
         # against. `f_lock_mhz()` returns None off-GPU with no override set, and
         # `collect_t_b(..., None)` then admits artifacts from any clock -- so
@@ -249,14 +424,31 @@ def main():
         # exactly the defect F18 fixed, and the output would look normal.
         # Refusing is the only safe reading: an unknown clock is not a
         # permissive one.
+        #
+        # Note the two F_LOCK guards in this file treat None in OPPOSITE ways
+        # and both are deliberate: HERE a None means "we do not know the clock,
+        # refuse"; inside `collect_t_b` a None *stamp on an artifact* means "this
+        # artifact predates F_LOCK stamping", which is a different problem and is
+        # admitted. Do not unify them.
         raise SystemExit(
             "cannot resolve F_LOCK: no GPU preset and no SOLEXBENCH_F_LOCK_MHZ.\n"
             "  The T_b clock guard cannot run without it, and building without "
             "the guard is how a two-clock T_b directory got into a manifest in "
             "the first place (STATE.md F18).\n"
-            "  Set SOLEXBENCH_F_LOCK_MHZ=<achieved MHz> to build off-GPU.")
+            "  Set SOLEXBENCH_F_LOCK_MHZ=<achieved MHz> to build off-GPU, or "
+            "SOLEXBENCH_CLOCK_BASIS=unlocked to score from per-measurement "
+            "bracketed clocks (docs/TODO-MI355X.md §4.3 option 2). The unlocked "
+            "basis is NOT the permissive option: it refuses every measurement "
+            "that carries no clock evidence of its own.")
 
-    t_b = collect_t_b(Path(a.t_b), expected_f_lock)
+    t_b = collect_t_b(Path(a.t_b), expected_f_lock, clock_basis)
+    if clock_basis == "unlocked" and not t_b:
+        raise SystemExit(
+            f"unlocked basis: no T_b artifact in {a.t_b} carries a usable clock "
+            f"bracket, so nothing is scoreable.\n"
+            f"  Re-run the task 06 sweep with SOLEXBENCH_CLOCK_BASIS=unlocked so "
+            f"the eval driver brackets each timed window, or build on the locked "
+            f"basis with a measured SOLEXBENCH_F_LOCK_MHZ.")
     t_sol, bound_sources = combine_bounds(
         collect_t_sol(Path(a.t_sol)),
         collect_t_sol(Path(a.t_sol_traffic)),
@@ -318,6 +510,17 @@ def main():
                 "t_b_ms": b.get("t_b_ms"),
                 # "Optimized PyTorch" is not reproducible; a named variant is.
                 "t_b_variant": b.get("variant"),
+                # -- The four terms that let a consumer re-evaluate this bound at
+                # the clock the measurement ran at (§4.2(c)). `t_sol_at` cannot
+                # see them any other way; without them it raises
+                # MissingBoundTerms on every record, however correct it is.
+                **{k: s.get(k) for k in RECLOCK_FIELDS},
+                # -- The clock this T_b was measured at, as evidence rather than
+                # as a single number: both samples, their spread, the threshold
+                # in force, the verdict, and the window they bracket. Under the
+                # locked basis every one of these is None and `t_sol_ms` above
+                # remains the bound at F_LOCK.
+                **{k: b.get(k) for k in CLOCK_FIELDS},
                 "tolerance": tol.get(u),
                 "scoreable": has_sol and has_tb,
             }
@@ -350,6 +553,29 @@ def main():
         },
         "stats": stats,
         "bound_sources": bound_sources,
+        # AMD: what a T_SOL in this manifest is expressed at.
+        #
+        # `locked`   — every t_sol_ms is at f_lock_mhz and is directly usable.
+        # `unlocked` — t_sol_ms is at the REFERENCE clock sol_bounds.py was run
+        #              with, and is a reference value, not the bound the score
+        #              should use. The bound for a measurement is
+        #              `t_sol_at.t_sol_ms_at(record, record["clock_mhz"])`, which
+        #              is why the four re-clocking terms and the bracket travel
+        #              in the same record.
+        #
+        # Stated at the top level for the same reason `methodology` is: a
+        # consumer that reads `t_sol_ms` off an unlocked manifest without
+        # re-clocking gets a plausible wrong number, and nothing else in the file
+        # would tell it so.
+        "clock_basis": clock_basis,
+        "clock_bracket": {
+            "note": "Bounds how wrong assuming one clock for the timed window "
+                    "is; does NOT recover the window's clock, and does NOT "
+                    "address the short-window timing bias "
+                    "(docs/methodology.md §7), which is a separate and larger "
+                    "effect and is not a clock effect.",
+            **_bracket_summary(t_b),
+        },
         "problems": problems,
     }
     write_artifact(out, f"09-manifest-{a.version}", payload)
