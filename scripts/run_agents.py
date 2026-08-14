@@ -66,10 +66,16 @@ def main() -> int:
                     help="wallclock cap per problem")
     ap.add_argument("--budget-usd", type=float,
                     help="stop starting new units once reported spend exceeds this")
-    ap.add_argument("--workloads-root",
-                    default=str(ROOT / "artifacts" / "05" / "workloads"), type=Path,
-                    help="tree of AMD-derived tolerances; "
-                         "pass 'none' to use the dataset's B200 tolerances")
+    # No default, deliberately. `artifacts/05/workloads` is the MI350X tolerance
+    # tree, and a default that silently resolves on the wrong part is the exact
+    # failure this project keeps hitting: the run succeeds, every agent is judged
+    # against another part's tolerances, and nothing in the output says so. On
+    # MI355X the tree is artifacts/05-MI355X/workloads. Make the caller say which.
+    ap.add_argument("--workloads-root", required=True, type=Path,
+                    help="tree of AMD-derived tolerances FOR THIS PART, e.g. "
+                         "artifacts/05-MI355X/workloads. Pass 'none' to opt into "
+                         "the dataset's B200 tolerances as an explicit choice. "
+                         "Required: there is no part-correct default.")
     ap.add_argument("--no-resume", action="store_true")
     ap.add_argument("--retry-transient", action="store_true",
                     help="also re-run units whose recorded session failed on "
