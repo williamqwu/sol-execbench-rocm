@@ -9,9 +9,14 @@ why they are tested together:
   hard-exits on that. Under `SOLEXBENCH_CLOCK_BASIS=unlocked` it must instead
   build from the per-measurement bracketed clocks.
 * **It must still refuse.** The unlocked basis is not the permissive option: an
-  artifact carrying no clock evidence, or one whose brackets were refused, must
-  not become a scoreable anchor. An unknown clock is not a permissive one — the
-  same reading the F_LOCK guard applies, moved down to where the clock varies.
+  artifact carrying no clock evidence must not become a scoreable anchor. An
+  unknown clock is not a permissive one — the same reading the F_LOCK guard
+  applies, moved down to where the clock varies.
+
+  What that no longer covers is a bracket refused for *spread*. Under the interval
+  methodology those two samples are evidence, not an absence, and the measurement
+  is admitted with a published width. The refusal is kept as a label and still
+  counted; only its consequence changed.
 
 Plus the two plumbing properties nothing else would catch: the four re-clocking
 terms reaching the per-workload record (§4.2(c)), and the max-of-both tier
@@ -93,9 +98,6 @@ def test_unlocked_admits_a_bracketed_anchor(tmp_path):
 @pytest.mark.parametrize("winner,why", [
     ({"variant": "v1", "t_b_ms": 1.0}, "no bracket at all"),
     ({"variant": "v1", "t_b_ms": 1.0,
-      **_bracket(refused=True, reason="bracket_spread_above_threshold")},
-     "bracket refused on spread"),
-    ({"variant": "v1", "t_b_ms": 1.0,
       **_bracket(before=None, after=None, refused=True,
                  reason="no_clock_evidence")},
      "clock unreadable"),
@@ -103,18 +105,43 @@ def test_unlocked_admits_a_bracketed_anchor(tmp_path):
 def test_unlocked_refuses_an_anchor_without_usable_clock_evidence(
         tmp_path, winner, why):
     """The failure this whole mechanism exists to prevent: a T_b that sets the
-    score scale at a clock nobody can name."""
+    score scale at a clock nobody can name.
+
+    Note what is deliberately NOT in this list any more: a bracket refused for
+    *spread*. That window has two measured clocks, and under the interval
+    methodology it anchors with a stated width instead of being discarded. A
+    window with no samples still cannot, because there is no width to state.
+    """
     d = _tb_artifact(tmp_path, {UUID: winner})
     assert bm.collect_t_b(d, None, "unlocked") == {}, why
 
 
+def test_unlocked_admits_a_spread_refused_anchor_and_keeps_the_label(tmp_path):
+    """Refusal demoted from gate to label: the measurement survives, the flag does.
+
+    The old rule dropped this anchor entirely, which is how five problems on the
+    MI355X corpus ended up with no T_b at all while their timings sat in the
+    artifact.
+    """
+    d = _tb_artifact(tmp_path, {UUID: {
+        "variant": "v1", "t_b_ms": 1.0,
+        **_bracket(before=1607.0, after=2148.0, refused=True,
+                   reason="bracket_spread_above_threshold")}})
+    got = bm.collect_t_b(d, None, "unlocked")
+    assert got[KEY][UUID]["t_b_ms"] == 1.0
+    assert got[KEY][UUID]["clock_bracket_refused"] is True
+    assert (got[KEY][UUID]["clock_bracket_refused_reason"]
+            == "bracket_spread_above_threshold")
+
+
 def test_unlocked_keeps_the_good_measurements_out_of_a_mixed_artifact(tmp_path):
-    """A refused workload must not take its siblings down with it — that would
-    turn a clock excursion on one shape into a lost problem."""
+    """A workload with no clock at all must not take its siblings down with it —
+    that would turn one unreadable sample into a lost problem."""
     d = _tb_artifact(tmp_path, {
         "good": {"variant": "v1", "t_b_ms": 1.0, **_bracket()},
         "bad": {"variant": "v1", "t_b_ms": 2.0,
-                **_bracket(refused=True, reason="no_clock_evidence")},
+                **_bracket(before=None, after=None, refused=True,
+                           reason="no_clock_evidence")},
     })
     got = bm.collect_t_b(d, None, "unlocked")
     assert set(got[KEY]) == {"good"}

@@ -94,6 +94,16 @@ from solexbench_agents.scoring import (  # noqa: E402
 # and the failure mode of a disagreement is a silently cross-card score.
 from authoritative_tb import card_identity, parse_shard, shard_of  # noqa: E402
 
+# The bound terms and the interval arithmetic, from the one module that owns them.
+# `RECLOCK_FIELDS` is imported from the manifest builder for the same reason the
+# card probe is imported above: two lists of "the fields needed to re-clock a
+# bound" is one more than can be kept in agreement.
+from build_manifest import RECLOCK_FIELDS  # noqa: E402
+from solexbench_rocm.t_sol_at import (  # noqa: E402
+    MissingBoundTerms,
+    t_sol_interval,
+)
+
 # Likewise the part->path resolver: `verify_artifacts.ArtifactTree` already maps
 # (task, part) -> path and already refuses to substitute one part's artifact for
 # another's. Duplicating it is how `artifacts/03/t_sol.json` -- MI350X, derived
@@ -118,6 +128,13 @@ def load_manifest_bounds(path: Path) -> tuple[dict, dict, dict]:
 
     Returned in the shape ``workload_bound`` already expects, so the caller does
     not care which source it got.
+
+    **The four re-clocking terms come across too**, under the unlocked basis, and
+    they have to: ``t_sol_ms`` in the manifest is at the reference clock, and the
+    bound this scorer needs is the one evaluated over *this* measurement's own clock
+    bracket. Without the terms, `t_sol_at` cannot produce it and the record would
+    fall back to a reference-clock bound that belongs to a different frequency —
+    plausibly, and only visibly to someone who knew to check.
     """
     if not path.exists():
         return {}, {}, {}
@@ -130,7 +147,8 @@ def load_manifest_bounds(path: Path) -> tuple[dict, dict, dict]:
         for uuid, w in (entry.get("workloads") or {}).items():
             if w.get("t_sol_ms") is not None:
                 sol_wl[uuid] = {"t_sol_ms": w["t_sol_ms"],
-                                "t_sol_cycles": w.get("t_sol_cycles")}
+                                "t_sol_cycles": w.get("t_sol_cycles"),
+                                **{k: w.get(k) for k in RECLOCK_FIELDS}}
             if w.get("t_b_ms") is not None:
                 b_wl[uuid] = {"t_b_ms": w["t_b_ms"],
                               "t_b_variant": w.get("t_b_variant")}
@@ -173,6 +191,56 @@ def load_bounds(path: Path, part: str | None) -> tuple[dict, dict]:
 def workload_bound(bounds: dict, problem_key: str, uuid: str, field: str):
     entry = (bounds.get(problem_key) or {}).get("workloads") or {}
     return (entry.get(uuid) or {}).get(field)
+
+
+def workload_record(bounds: dict, problem_key: str, uuid: str) -> dict:
+    """The whole bound record, which `t_sol_at` needs and `workload_bound` hides."""
+    entry = (bounds.get(problem_key) or {}).get("workloads") or {}
+    return entry.get(uuid) or {}
+
+
+def _interval_score(sol_record: dict, bracket: dict | None, t_k, t_b_ms) -> dict:
+    """T_SOL and S as intervals over this measurement's own clock bracket.
+
+    Unlocked, the clock moves inside the timed window and the compute half of the
+    roofline is a fixed CYCLE count, so T_SOL is a range, not a number. **The
+    published bound is the minimum-clock end** -- the largest T_SOL, the tightest
+    bound, the one a real measurement can visibly beat if the choice is wrong. The
+    reasoning for that direction is in ``solexbench_rocm.t_sol_at`` and is not
+    repeated here; what matters at this call site is that ``S`` inherits it.
+
+    S is evaluated at *both* ends and both are recorded beside the published one.
+    They bracket it by construction -- the published value is one of the two -- and
+    the pair is what tells a reader whether a score of 0.61 means 0.61 or means
+    "somewhere in 0.52 to 0.68 depending on what the card was doing".
+
+    Returns ``{}`` when no interval can be formed, rather than a half-populated
+    record: the caller then keeps the reference-clock bound it already had, and the
+    absence is stated on the record instead of being papered over.
+    """
+    from sol_execbench.core.bench.clock_bracket import clock_interval
+
+    span = clock_interval(bracket)
+    if span is None:
+        return {}
+    try:
+        iv = t_sol_interval(sol_record, *span)
+    except (MissingBoundTerms, ValueError):
+        # A pre-split bound record, or a nonsense clock. Refused, never inferred:
+        # a guessed bound would be wrong only at clocks nobody would think to
+        # check, which is the worst place for it.
+        return {}
+    lo_end, hi_end = iv["t_sol_ms_at_clock_min"], iv["t_sol_ms_at_clock_max"]
+    return {
+        **iv,
+        # S at the two ends of the bound's interval, both against the same T_k and
+        # the same T_b. Named by the CLOCK they correspond to, not by magnitude:
+        # the min-clock end gives the LARGER T_SOL, and which way that moves S
+        # depends on whether T_k is above or below T_b, so a name like "s_low"
+        # would be wrong half the time.
+        "sol_score_at_clock_min": sol_score(t_k, lo_end, t_b_ms),
+        "sol_score_at_clock_max": sol_score(t_k, hi_end, t_b_ms),
+    }
 
 
 # --- which card does this problem's anchor live on? -------------------------
@@ -549,19 +617,29 @@ def score_one(session_dir: Path, problem_dir: Path, workloads_root: Path | None,
         t_b_ms = workload_bound(t_b, problem_key, uuid, "t_b_ms")
         correct = w["status"] == "PASSED"
 
-        # Unlocked basis: a window whose clock bracket was refused has no
-        # defensible latency, so it makes no timing claim at all. Same reading
+        # Unlocked basis: a window with NO clock sample at all has no defensible
+        # latency, so it makes no timing claim. Same reading
         # `build_manifest.collect_t_b` applies to an anchor -- an unknown clock
         # is not a permissive one -- applied to T_k. The record still exists and
         # still reports correctness; it simply drops to a basis with no clock in
         # it, and says why.
+        #
+        # **A bracket refused for SPREAD no longer lands here.** It used to: the
+        # test was `has_clock_evidence`, which requires a single defensible
+        # frequency, and a window that moved from 1607 to 2148 MHz has none. Under
+        # the interval methodology it has two, the bound is evaluated at both, and
+        # the measurement is published with a width instead of being thrown away.
+        # The refusal is still recorded, still counted, and still filterable -- it
+        # is a quality label now rather than a gate. What stays a gate is an
+        # ABSENT clock, immediately below.
         bracket = w.get("clock_bracket")
         ref_bracket = w.get("reference_clock_bracket")
         clock_refused = None
         clock_refusal_reason = None
+        interval: dict = {}
         if not lock_clocks:
             from sol_execbench.core.bench.clock_bracket import (  # noqa: E402
-                has_clock_evidence,
+                has_clock_interval,
             )
             for label, br in (("solution", bracket), ("reference", ref_bracket)):
                 # The reference arm matters too: `headroom_fraction` and
@@ -570,10 +648,10 @@ def score_one(session_dir: Path, problem_dir: Path, workloads_root: Path | None,
                 # solution bracket poisons T_k.
                 if br is None and label == "reference" and t_ref is None:
                     continue
-                if not has_clock_evidence(br):
+                if not has_clock_interval(br):
                     clock_refused = True
                     clock_refusal_reason = (
-                        f"{label} window carries no usable clock bracket: "
+                        f"{label} window carries no clock samples at all: "
                         f"{(br or {}).get('clock_bracket_refused_reason') or 'absent'}"
                     )
                     break
@@ -584,10 +662,27 @@ def score_one(session_dir: Path, problem_dir: Path, workloads_root: Path | None,
             basis = ScoreBasis.CORRECTNESS_ONLY
             s = hf = None
         else:
+            if not lock_clocks:
+                # The bound this T_k is judged against is the one over T_k's OWN
+                # window, not the reference-clock figure the manifest carries and
+                # not the one derived over the T_b window. Where an interval can
+                # be formed, `t_sol_ms` below becomes the published (minimum-clock)
+                # end, so every downstream consumer -- S, headroom, the
+                # `bound_violation` check -- sees the same bound.
+                interval = _interval_score(
+                    workload_record(t_sol, problem_key, uuid), bracket, t_k, t_b_ms)
+                if interval:
+                    t_sol_ms = interval["t_sol_ms_published"]
             basis = resolve_basis(correct=correct, t_k_ms=t_k, t_ref_ms=t_ref,
                                   t_sol_ms=t_sol_ms, t_b_ms=t_b_ms)
             s = sol_score(t_k, t_sol_ms, t_b_ms) if correct else None
             hf = headroom_fraction(t_k, t_ref, t_sol_ms) if correct else None
+        if not correct:
+            # S is not computed for an incorrect kernel, so neither end of its
+            # interval means anything either. Dropped rather than left as a pair of
+            # numbers beside a null score.
+            interval = {k: v for k, v in interval.items()
+                        if not k.startswith("sol_score_at_")}
 
         tol = raw_workloads[i].get("tolerance", {}) if i < len(raw_workloads) else {}
         record = {

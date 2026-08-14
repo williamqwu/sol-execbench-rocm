@@ -83,6 +83,8 @@ __all__ = [
     "bracketing_enabled",
     "clock_basis",
     "sample_clock_mhz",
+    "clock_interval",
+    "has_clock_interval",
 ]
 
 CLOCK_BASIS_ENV = "SOLEXBENCH_CLOCK_BASIS"
@@ -591,6 +593,14 @@ def has_clock_evidence(record: Optional[dict]) -> bool:
     "Unknown clock" and "clock outside threshold" both answer False. An unknown
     clock is not a permissive one -- the same reading ``build_manifest.py``
     applies to a missing F_LOCK.
+
+    **This is the STRICT, point-estimate predicate, and it is deliberately
+    unchanged.** It answers "is there a single frequency that describes this
+    window?", which a wide bracket genuinely does not have. Under the interval
+    methodology the consumers that publish a bound ask a weaker and more useful
+    question instead -- ``has_clock_interval`` below -- but this one is still the
+    right test wherever a *single* clock is what is needed, and it is the test the
+    task-06 sweep runner applies when selecting winners.
     """
     if not record:
         return False
@@ -600,15 +610,71 @@ def has_clock_evidence(record: Optional[dict]) -> bool:
     return isinstance(mhz, (int, float)) and mhz > 0
 
 
+def clock_interval(record: Optional[dict]) -> Optional[tuple[float, float]]:
+    """``(f_min, f_max)`` from a bracket's two samples, or None if it has neither.
+
+    The spread verdict is **not** consulted. A bracket refused for spread is a
+    bracket that measured a moving clock, and the two numbers it measured are the
+    two most informative numbers about that window that exist -- refusing to look
+    at them throws away the evidence and keeps the complaint.
+
+    None comes back only when there is genuinely nothing to read: a sampler error,
+    an absent sample, or a non-positive one. Those are unchanged; an unknown clock
+    is still not a permissive one.
+    """
+    if not record:
+        return None
+    before, after = record.get("clock_before_mhz"), record.get("clock_after_mhz")
+    if not all(isinstance(v, (int, float)) and v > 0 for v in (before, after)):
+        return None
+    return (float(min(before, after)), float(max(before, after)))
+
+
+def has_clock_interval(record: Optional[dict]) -> bool:
+    """True when *record* supports an interval-valued bound. The demoted gate.
+
+    **This is where refusal stops being a gate and becomes a label.** The reasoning
+    is in ``solexbench_rocm.t_sol_at``: with both roofline terms carried, a bracket
+    that spans 1607-2148 MHz does not make a measurement unusable, it makes it
+    usable with a stated width. Discarding it was the right call only while T_SOL
+    had to be a single number.
+
+    What did *not* change, and must not be read as having changed:
+
+    * ``clock_bracket_refused`` is still set, still carries its reason, and is still
+      counted by ``summarize_brackets``. The label survives the demotion -- a
+      consumer can still filter on it, task 01's "refusal rate below a stated bound"
+      acceptance still has its rate, and the wide brackets are still visible as the
+      lower-quality measurements they are.
+    * ``sampler_error`` and ``no_clock_evidence`` still answer False here. Those are
+      not wide brackets, they are absent ones, and no width can be stated for a
+      window nobody sampled. ``clock_fatalities`` in the sweep runner keeps failing
+      the run closed on them, which is a different failure and stays a gate.
+    """
+    return clock_interval(record) is not None
+
+
 def summarize_brackets(records: Sequence[Optional[dict]]) -> dict:
     """Refusal counts over a set of bracket records. A first-class artifact field.
 
     Task 01's acceptance on an unlocked part is "the refusal rate is below a
     stated bound", so the rate has to be a number in the artifact, not something
     a reader recovers by grepping logs.
+
+    **The refusal counts here are unchanged by the demotion of refusal from a gate
+    to a label.** ``n_refused``, ``refusal_rate`` and ``refused_by_reason`` count
+    exactly what they counted before, and ``clock_fatalities`` -- which reads all
+    three -- keeps behaving identically. What is *added* is the interval-era split
+    of those same refusals: how many of them still carry two usable samples and are
+    therefore admitted with a stated width (``n_refused_with_interval``), against
+    how many carry no clock at all and remain unusable (``n_without_interval``).
+    A rate that fell because the rule loosened would be a rate that stopped meaning
+    anything, so it was left alone and the new question got new names.
     """
     seen = [r for r in records if r]
     refused = [r for r in seen if r.get("clock_bracket_refused")]
+    with_interval = [r for r in seen if has_clock_interval(r)]
+    refused_with_interval = [r for r in refused if has_clock_interval(r)]
     reasons: dict[str, int] = {}
     for r in refused:
         k = r.get("clock_bracket_refused_reason") or "unknown"
@@ -626,6 +692,11 @@ def summarize_brackets(records: Sequence[Optional[dict]]) -> dict:
         "n_refused": len(refused),
         "refusal_rate": (len(refused) / len(seen)) if seen else None,
         "refused_by_reason": reasons,
+        # -- The interval-era split of the same population. Added, never
+        # substituted: the three counters above are what task 01 gates on.
+        "n_with_interval": len(with_interval),
+        "n_refused_with_interval": len(refused_with_interval),
+        "n_without_interval": len(seen) - len(with_interval),
         # A mixture is reported as a mixture. Two thresholds in one artifact
         # means two policies produced it, which is a fact about the artifact.
         "thresholds_in_force": thresholds,

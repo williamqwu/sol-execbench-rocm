@@ -35,12 +35,26 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "src"))
 
 from provenance import write_artifact  # noqa: E402
+# Both are pure-python and import no torch, so they are safe at module scope.
+from sol_execbench.core.bench.clock_bracket import (  # noqa: E402
+    clock_interval,
+    has_clock_interval,
+)
+from solexbench_rocm.t_sol_at import (  # noqa: E402
+    INTERVAL_FIELDS,
+    MissingBoundTerms,
+    t_sol_interval,
+)
 
 EXPECTED = {"L1": 94, "L2": 82, "Quant": 33, "FlashInfer-Bench": 26}
 
 
 def _load(path: Path):
     return json.loads(path.read_text()) if path.exists() else None
+
+
+def _pct(x) -> str:
+    return "n/a" if x is None else f"{x * 100:.2f}%"
 
 
 def collect_t_sol(path: Path) -> dict[str, dict]:
@@ -67,7 +81,61 @@ CLOCK_FIELDS = ("clock_before_mhz", "clock_after_mhz", "clock_mhz",
                 "clock_bracket_spread", "clock_bracket_threshold",
                 "clock_bracket_refused", "clock_bracket_refused_reason",
                 "clock_bracket_sampler_error",
-                "window_ns", "window_ms", "reference_clock_bracket")
+                "window_ns", "window_ms", "reference_clock_bracket",
+                # Why this anchor is here at all when the sweep-time gate dropped
+                # it. Absent on every anchor the sweep kept, so its presence is
+                # itself the flag.
+                "t_b_admitted_by_interval")
+
+
+def _recover_interval_anchors(doc: dict, already: set) -> dict:
+    """Anchors the sweep-time gate discarded, recovered from the same artifact.
+
+    **Why this exists.** ``time_tb_candidates.select_winners`` refuses a candidate
+    whose bracket spread is above threshold, so a workload whose every variant read
+    wide gets no winner and reaches the manifest as "missing T_b". Under the
+    interval methodology that is no longer the right disposal: a wide bracket makes
+    a measurement *uncertain*, not *absent*, and the timing was really taken. On the
+    MI355X corpus this is about 10% of problems severely affected and five that
+    cannot be anchored at all.
+
+    **Why the recovery is here and not in the runner.** Doing it at sweep time would
+    mean re-running the sweeps, and would split the corpus in half: problems timed
+    before the change selected under the gate, problems timed after it under the
+    label, with nothing in either artifact saying which rule applied. Recovering at
+    manifest-build time applies one rule to every artifact that already exists,
+    including the ones written before this was decided. It also costs no GPU.
+
+    **Nothing is invented.** Every number returned is read out of the artifact's own
+    ``variants`` block, which records each variant's per-workload latency beside the
+    bracket it was measured under. The selection rule is the runner's: the fastest
+    passing variant wins. What differs is only which candidates are eligible.
+    """
+    recovered: dict[str, dict] = {}
+    for name, r in (doc.get("variants") or {}).items():
+        if not (r.get("ok") and r.get("all_passed")):
+            continue
+        brackets = r.get("clock_bracket_by_workload") or {}
+        ref_brackets = r.get("reference_clock_bracket_by_workload") or {}
+        for uuid, ms in (r.get("latency_ms_by_workload") or {}).items():
+            if uuid in already or ms is None:
+                continue
+            br = brackets.get(uuid)
+            if not has_clock_interval(br):
+                continue
+            if uuid not in recovered or ms < recovered[uuid]["t_b_ms"]:
+                recovered[uuid] = {
+                    "variant": name, "t_b_ms": ms, **br,
+                    "reference_clock_bracket": ref_brackets.get(uuid),
+                    # The label, on the record, permanently. This anchor rests on a
+                    # bracket the threshold refused; its T_SOL interval will be
+                    # wide and that width is the honest statement of what it is
+                    # worth. A reader filtering the corpus down to tight
+                    # measurements filters on this and on the width, and both are
+                    # columns rather than something to recompute.
+                    "t_b_admitted_by_interval": True,
+                }
+    return recovered
 
 
 def _reclock_terms(s: dict, t: dict, source: str, stats: dict) -> dict:
@@ -243,31 +311,43 @@ def collect_t_b(directory: Path, f_lock_mhz: int | None = None,
     **``clock_basis="unlocked"``** replaces the F_LOCK comparison rather than
     relaxing it. There is no single clock to compare a stamp against on that
     part, so the guard moves down a level: every winner record must carry its own
-    non-refused clock bracket (``clock_bracket_refused is False`` and a positive
-    ``clock_mhz``). Records that do not are dropped and counted; an artifact where
+    clock bracket. Records that do not are dropped and counted; an artifact where
     *no* record carries clock evidence is rejected whole, loudly. The reading is
     the same one the F_LOCK guard applies -- an unknown clock is not a permissive
     one -- moved from once per artifact to once per measurement, which is where
     the clock actually varies.
+
+    **What the guard now asks is ``has_clock_interval``, not ``has_clock_evidence``.**
+    A bracket refused for spread has two real samples and supports an interval-valued
+    T_SOL; it is admitted, labelled, and published with its width. A bracket with no
+    samples at all -- ``sampler_error``, ``no_clock_evidence`` -- is still refused
+    here, because no width can be stated for a window nobody sampled. The refusal
+    counts are untouched by this and are still reported (``_bracket_summary``); what
+    changed is what a refusal *does*, not whether it is recorded.
     """
     out: dict[str, dict] = {}
     if not directory.exists():
         return out
     unlocked = clock_basis == "unlocked"
-    if unlocked:
-        sys.path.insert(0, str(ROOT / "src"))
-        from sol_execbench.core.bench.clock_bracket import has_clock_evidence
     foreign: list[tuple[str, object]] = []
     no_evidence: list[str] = []
     dropped = 0
+    recovered_total = 0
     for f in sorted(directory.glob("*.json")):
         doc = _load(f)
-        if not (doc and doc.get("winner_by_workload")):
+        if not doc:
             continue
         if unlocked:
-            winners = doc["winner_by_workload"]
-            kept = {u: w for u, w in winners.items() if has_clock_evidence(w)}
+            winners = doc.get("winner_by_workload") or {}
+            kept = {u: w for u, w in winners.items() if has_clock_interval(w)}
             dropped += len(winners) - len(kept)
+            # An artifact with no winners at all is not skipped any more: under the
+            # gate that was the signature of a problem where every bracket read
+            # wide, which is exactly the population the interval methodology
+            # exists to recover. Five problems on this corpus are in it.
+            recovered = _recover_interval_anchors(doc, set(kept))
+            recovered_total += len(recovered)
+            kept.update(recovered)
             if not kept:
                 # Not "zero scoreable workloads" -- a rejected artifact. A file
                 # of anchors with no clock evidence at all is indistinguishable
@@ -277,6 +357,11 @@ def collect_t_b(directory: Path, f_lock_mhz: int | None = None,
                 continue
             out[doc.get("problem", f.stem)] = kept
             continue
+        # -- Locked basis below. Byte-identical to what it was before the interval
+        # methodology existed, including this skip, which the unlocked branch above
+        # no longer shares. The MI350X corpus is frozen and must not move.
+        if not doc.get("winner_by_workload"):
+            continue
         # None means the artifact predates provenance stamping of F_LOCK, which is
         # a different problem from being measured at the wrong clock; those are
         # admitted, and check_06 already requires provenance separately.
@@ -285,6 +370,12 @@ def collect_t_b(directory: Path, f_lock_mhz: int | None = None,
             foreign.append((f.name, measured_at))
             continue
         out[doc.get("problem", f.stem)] = doc["winner_by_workload"]
+    if recovered_total:
+        print(f"\n  UNLOCKED BASIS: admitted {recovered_total} T_b measurement(s) "
+              f"whose bracket the sweep-time threshold refused. Each is published "
+              f"with an interval-valued T_SOL and carries "
+              f"`t_b_admitted_by_interval`; the width is the statement of what it "
+              f"is worth. The refusal counts are unchanged.\n", file=sys.stderr)
     if no_evidence or dropped:
         print(f"\n  UNLOCKED BASIS: dropped {dropped} T_b measurement(s) with no "
               f"usable clock bracket, and REJECTED {len(no_evidence)} artifact(s) "
@@ -306,6 +397,128 @@ def collect_t_b(directory: Path, f_lock_mhz: int | None = None,
         print("  T_b is a wall-clock time; mixing clocks rescales those problems' "
               "scores.\n", file=sys.stderr)
     return out
+
+
+#: Emitted in place of the interval when one cannot be computed, so a consumer that
+#: reads `t_sol_ms_published` off every record gets a None rather than a
+#: KeyError-shaped hole, and a reader gets the reason without cross-referencing.
+_NO_INTERVAL = {k: None for k in INTERVAL_FIELDS}
+
+
+def _interval_fields(s: dict, b: dict, clock_basis: str, stats: dict) -> dict:
+    """The interval-valued T_SOL for one workload, or a stated absence.
+
+    Three things have to be true before an interval exists, and each failure is
+    counted separately rather than collapsed into "no interval":
+
+    * the basis is ``unlocked`` -- under ``locked`` there is one F_LOCK, the bound is
+      a point, and this returns ``{}`` so the record is byte-identical to what the
+      frozen MI350X manifest carries;
+    * the T_b measurement carries two clock samples (``clock_interval``);
+    * the bound carries both roofline terms, without which it cannot be re-evaluated
+      at any clock at all (``MissingBoundTerms``, which is raised rather than
+      guessed around -- see ``t_sol_at``).
+    """
+    if clock_basis != "unlocked":
+        return {}
+    interval = clock_interval(b)
+    if interval is None:
+        stats["workloads_without_clock_interval"] = (
+            stats.get("workloads_without_clock_interval", 0) + 1)
+        return {**_NO_INTERVAL, "t_sol_interval_absent": "no_clock_samples"}
+    try:
+        fields = t_sol_interval(s, *interval)
+    except MissingBoundTerms:
+        # Not inferred from `bottleneck`. A record that kept only the max of the two
+        # terms cannot be re-clocked, and pretending otherwise would produce a
+        # plausible bound at every clock but the reference one.
+        stats["workloads_without_reclock_terms"] = (
+            stats.get("workloads_without_reclock_terms", 0) + 1)
+        return {**_NO_INTERVAL, "t_sol_interval_absent": "no_reclock_terms"}
+    stats["workloads_with_t_sol_interval"] = (
+        stats.get("workloads_with_t_sol_interval", 0) + 1)
+    if fields["t_sol_bottleneck_flips"]:
+        stats["workloads_with_bottleneck_flip"] = (
+            stats.get("workloads_with_bottleneck_flip", 0) + 1)
+    return {**fields, "t_sol_interval_absent": None}
+
+
+def _problem_interval_summary(entries: dict[str, dict]) -> dict:
+    """Per-problem roll-up of the per-workload interval widths.
+
+    Reportable and sortable without reprocessing: that is the requirement, and it is
+    why these are stored rather than derived on read. `None` throughout when no
+    workload in the problem has an interval, which is a different statement from a
+    width of zero -- zero means "measured, and the bound does not move"; None means
+    "not established".
+    """
+    widths = [e["t_sol_interval_halfwidth_rel"] for e in entries.values()
+              if e.get("t_sol_interval_halfwidth_rel") is not None]
+    if not widths:
+        return {}
+    widths.sort()
+    return {
+        "t_sol_interval_halfwidth_max": widths[-1],
+        "t_sol_interval_halfwidth_median": widths[len(widths) // 2],
+        "n_workloads_with_t_sol_interval": len(widths),
+        "n_workloads_with_bottleneck_flip": sum(
+            1 for e in entries.values() if e.get("t_sol_bottleneck_flips")),
+        # An anchor admitted only because refusal was demoted to a label. Counted
+        # per problem because "10% of problems severely affected" has to be a
+        # number someone can recompute from the manifest.
+        "n_workloads_admitted_by_interval": sum(
+            1 for e in entries.values() if e.get("t_b_admitted_by_interval")),
+    }
+
+
+#: A workload whose bound moves by more than this across its own bracket is called
+#: out by name in the corpus summary. 0.05 is a reporting cut, not a gate: nothing is
+#: dropped for exceeding it and no score changes at it. It is set here rather than
+#: derived from the distribution because the first question anyone asks of this
+#: manifest is "which problems are the uncertain ones", and that needs a list, not a
+#: histogram. The measured corpus splits far either side of it -- clean problems read
+#: ~0.016 and the worst read ~0.15 -- so the exact cut does not decide membership.
+WIDE_INTERVAL_HALFWIDTH = 0.05
+
+
+def _corpus_interval_summary(problems: dict[str, dict]) -> dict:
+    """Every problem's interval width in one sortable place, plus the wide ones.
+
+    The published bound is the minimum-clock end everywhere (``t_sol_at`` explains
+    why), so this summary is not a spread of published values -- it is a statement of
+    how far the *other* admissible end sits from each one.
+    """
+    per_problem = {
+        k: v["t_sol_interval_halfwidth_max"] for k, v in problems.items()
+        if v.get("t_sol_interval_halfwidth_max") is not None
+    }
+    widths = sorted(per_problem.values())
+    flips = sum(v.get("n_workloads_with_bottleneck_flip") or 0
+                for v in problems.values())
+    admitted = sum(v.get("n_workloads_admitted_by_interval") or 0
+                   for v in problems.values())
+    return {
+        "note": "T_SOL is published at the MINIMUM clock of each measurement's "
+                "bracket: the largest T_SOL, hence the tightest bound. Wrong in "
+                "that direction is detectable -- a measurement beats its own bound "
+                "and the bound check fires. Published at the maximum clock it "
+                "would be undetectable (CLAUDE.md §6). "
+                "`t_sol_ms_at_clock_min` / `t_sol_ms_at_clock_max` are the two "
+                "ends, `t_sol_interval_halfwidth_rel` the +- around their midpoint.",
+        "published_at": "clock_min",
+        "n_problems_with_interval": len(per_problem),
+        "halfwidth_median": widths[len(widths) // 2] if widths else None,
+        "halfwidth_max": widths[-1] if widths else None,
+        "wide_threshold": WIDE_INTERVAL_HALFWIDTH,
+        "problems_wide": sorted(
+            (k for k, v in per_problem.items() if v > WIDE_INTERVAL_HALFWIDTH),
+            key=lambda k: -per_problem[k]),
+        # Both counted at the top level because both are claims the release notes
+        # make, and a number quoted in prose that nobody can recompute from the
+        # artifact is how the count of scoreable problems drifted last time.
+        "n_workloads_with_bottleneck_flip": flips,
+        "n_workloads_admitted_by_interval": admitted,
+    }
 
 
 def _bracket_summary(t_b: dict[str, dict]) -> dict:
@@ -521,6 +734,11 @@ def main():
                 # locked basis every one of these is None and `t_sol_ms` above
                 # remains the bound at F_LOCK.
                 **{k: b.get(k) for k in CLOCK_FIELDS},
+                # -- T_SOL as an INTERVAL over the bracket's two clocks (§2 of the
+                # approved unlocked methodology). Empty under the locked basis, and
+                # empty for any record that cannot support it, in which case the
+                # reason is on the record rather than absent.
+                **_interval_fields(s, b, clock_basis, stats),
                 "tolerance": tol.get(u),
                 "scoreable": has_sol and has_tb,
             }
@@ -528,6 +746,11 @@ def main():
             "category": category,
             "n_workloads": len(entries),
             "n_scoreable": sum(1 for e in entries.values() if e["scoreable"]),
+            # Per problem, aggregated from its own workloads so a reader can sort
+            # 235 problems by how much clock ambiguity their bound carries without
+            # opening any of them. `max` is the headline because a problem is only
+            # as well-determined as its worst workload.
+            **_problem_interval_summary(entries),
             "workloads": entries,
             "deferred": deferred.get(key),
         }
@@ -559,15 +782,27 @@ def main():
         # `unlocked` — t_sol_ms is at the REFERENCE clock sol_bounds.py was run
         #              with, and is a reference value, not the bound the score
         #              should use. The bound for a measurement is
-        #              `t_sol_at.t_sol_ms_at(record, record["clock_mhz"])`, which
-        #              is why the four re-clocking terms and the bracket travel
-        #              in the same record.
+        #              `t_sol_ms_published` -- T_SOL at the MINIMUM clock of that
+        #              measurement's own bracket -- and the two ends of the
+        #              interval are `t_sol_ms_at_clock_min` /
+        #              `t_sol_ms_at_clock_max`, which is why the four re-clocking
+        #              terms and the bracket travel in the same record.
+        #
+        # `t_sol_ms` is deliberately NOT overwritten with the published value: it
+        # is the reference-clock figure `sol_bounds.py` derived, it is what the
+        # cycle column corresponds to, and silently redefining a field that the
+        # frozen MI350X manifest also carries would make the two versions of the
+        # same key mean different things.
         #
         # Stated at the top level for the same reason `methodology` is: a
         # consumer that reads `t_sol_ms` off an unlocked manifest without
         # re-clocking gets a plausible wrong number, and nothing else in the file
         # would tell it so.
         "clock_basis": clock_basis,
+        # AMD, unlocked basis: T_SOL is an interval, and this is the corpus-level
+        # view of it. Absent under the locked basis, where the bound is a point.
+        **({"t_sol_interval": _corpus_interval_summary(problems)}
+           if clock_basis == "unlocked" else {}),
         "clock_bracket": {
             "note": "Bounds how wrong assuming one clock for the timed window "
                     "is; does NOT recover the window's clock, and does NOT "
@@ -586,6 +821,23 @@ def main():
     for k in ("workloads_missing_t_sol", "workloads_missing_t_b",
               "workloads_missing_tolerance"):
         print(f"  {k:<28} {stats[k]}")
+    if clock_basis == "unlocked":
+        iv = payload["t_sol_interval"]
+        print(f"  T_SOL interval, published at {iv['published_at']}:")
+        print(f"    problems with an interval  {iv['n_problems_with_interval']}")
+        print(f"    halfwidth median / max     "
+              f"{_pct(iv['halfwidth_median'])} / {_pct(iv['halfwidth_max'])}")
+        print(f"    wide (> {_pct(iv['wide_threshold'])})              "
+              f"{len(iv['problems_wide'])} problems")
+        print(f"    bottleneck flips           "
+              f"{iv['n_workloads_with_bottleneck_flip']} workloads")
+        print(f"    admitted by interval       "
+              f"{iv['n_workloads_admitted_by_interval']} workloads "
+              f"(bracket refused, measurement kept)")
+        for k in ("workloads_without_clock_interval",
+                  "workloads_without_reclock_terms"):
+            if stats.get(k):
+                print(f"    {k:<26} {stats[k]}")
     if len(scoreable_problems) < len(census):
         missing = sorted(set(census) - set(scoreable_problems) - set(deferred))
         print(f"\n{len(missing)} problems are neither scoreable nor recorded in "
