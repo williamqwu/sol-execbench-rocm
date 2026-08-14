@@ -141,6 +141,24 @@ if ! docker ps --format '{{.Names}}' | grep -qx "${NAME}"; then
   # options: hostname and the network mode"), and a node's agent-env.sh may well
   # ask for host networking. Under host networking the container already reports
   # the host's name, so dropping the flag changes nothing that artifacts record.
+  # A LINKED WORKTREE's .git is a FILE pointing at a gitdir elsewhere -- for
+  # `git worktree add /var/tmp/... ` that target is under the user's $HOME,
+  # which is not mounted here. Inside the container `git rev-parse HEAD` then
+  # fails with "not a git repository", and scripts/provenance.py's git_sha()
+  # wraps that in a bare `except` and returns None. The result is not an error:
+  # it is `"git_sha": null` stamped on every artifact, exit 0, no warning
+  # anywhere. A whole sweep's worth of artifacts becomes unusable for scoring
+  # (prime directive 5) and nothing says so until someone reads a gate failure
+  # days later. Mount the git COMMON dir at its own absolute path so the
+  # gitdir file resolves; read-only, because provenance only reads.
+  GITDIR_MOUNT=()
+  if [ -f "${ROOT}/.git" ]; then
+    _common="$(git -C "${ROOT}" rev-parse --git-common-dir 2>/dev/null || true)"
+    case "${_common}" in
+      /*) [ -d "${_common}" ] && GITDIR_MOUNT+=(-v "${_common}:${_common}:ro") ;;
+    esac
+  fi
+
   HOSTNAME_ARG=(--hostname "$(hostname)")
   case " ${AGENT_MOUNTS[*]+${AGENT_MOUNTS[*]}} " in
     *" --network host "*|*" --net host "*) HOSTNAME_ARG=() ;;
@@ -156,6 +174,7 @@ if ! docker ps --format '{{.Names}}' | grep -qx "${NAME}"; then
     -v "${ROOT}:/work" \
     -v "${SCRATCH}:${SCRATCH}" \
     -v "${PASSWD}:/etc/passwd:ro" \
+    "${GITDIR_MOUNT[@]+"${GITDIR_MOUNT[@]}"}" \
     -e "HOME=${SCRATCH}/home" \
     -e "USER=$(id -un)" \
     -e "LOGNAME=$(id -un)" \
@@ -242,6 +261,9 @@ exec docker exec -i ${TTY} \
   ${SOLEXBENCH_F_LOCK_MHZ:+-e SOLEXBENCH_F_LOCK_MHZ="${SOLEXBENCH_F_LOCK_MHZ}"} \
   ${SOLEXBENCH_WORKLOADS_ROOT:+-e SOLEXBENCH_WORKLOADS_ROOT="${SOLEXBENCH_WORKLOADS_ROOT}"} \
   ${SOLEXBENCH_METHODOLOGY:+-e SOLEXBENCH_METHODOLOGY="${SOLEXBENCH_METHODOLOGY}"} \
+  ${SOLEXBENCH_CLOCK_BASIS:+-e SOLEXBENCH_CLOCK_BASIS="${SOLEXBENCH_CLOCK_BASIS}"} \
+  ${SOLEXBENCH_CLOCK_BRACKET_THRESHOLD:+-e SOLEXBENCH_CLOCK_BRACKET_THRESHOLD="${SOLEXBENCH_CLOCK_BRACKET_THRESHOLD}"} \
+  ${SOLEXBENCH_CLOCK_SETTLE:+-e SOLEXBENCH_CLOCK_SETTLE="${SOLEXBENCH_CLOCK_SETTLE}"} \
   ${OMP_NUM_THREADS:+-e OMP_NUM_THREADS="${OMP_NUM_THREADS}"} \
   "${AGENT_ENV[@]+"${AGENT_ENV[@]}"}" \
   "${NAME}" "$@"

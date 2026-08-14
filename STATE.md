@@ -700,6 +700,7 @@ Handoff record. What each session *found* is in `docs/findings.md`; what it
 | 2026-08-11 | MI350X | Session 4: leaderboard front end only; the only new API behaviour is a 400 | D44–D49, D58 |
 | 2026-08-11 | MI350X | Why torch.compile fails 71 problems | D50–D54 |
 | 2026-08-12 | MI350X | The lock measured; D50 acted on; D52/D52b/D53 fixed in code | D55–D58; the re-sweep and its retraction, D59–D61 |
+| 2026-08-14 | `mia1-p02-g46`, MI355X, GPU 0 only | Solution-language coverage: one real seed each for `aiter`, `ck`, `ck_tile`, `hipblaslt`, `miopen`, run end to end through packager + eval_driver, all workloads passing | `reference/seeds/*.json`, `artifacts/backends/`, TODO N3 closed, `docs/backend-coverage.md` rewritten; two packager defects fixed (`--use_fast_math`, `-lcuda` substitution) with a regression test; `agent_eval.py --solution` added. **No timing artifact produced — these runs had no locked clock (`f_lock_mhz: null`) and none of their latencies is usable for scoring.** |
 
 **Next session:** start with `TODO.md` item 1 (the anchor), and run
 `scripts/gpu_exclusive.py --gpu 0` before you time anything.

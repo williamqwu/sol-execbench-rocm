@@ -1,0 +1,31 @@
+{
+ "name": "seed_ck_tile__025_rmsnorm_h4096",
+ "definition": "025_rmsnorm_h4096",
+ "author": "sol-execbench-amd",
+ "description": "ck_tile seed: proves the ck_tile header path (CK_DIR must be a WRITABLE copy; ck_tile resolves from CK_DIR/..). Stock one-pass rmsnorm2d pipeline; a path test, not a tuned kernel.",
+ "spec": {
+  "languages": [
+   "ck_tile"
+  ],
+  "target_hardware": [
+   "LOCAL"
+  ],
+  "entry_point": "kernel.hip::run",
+  "dependencies": [],
+  "destination_passing_style": false,
+  "binding": "torch",
+  "compile_options": {
+   "cuda_cflags": [
+    "-U__HIP_NO_HALF_CONVERSIONS__",
+    "-U__HIP_NO_HALF_OPERATORS__",
+    "-O3"
+   ]
+  }
+ },
+ "sources": [
+  {
+   "path": "kernel.hip",
+   "content": "// SPDX-License-Identifier: Apache-2.0\n// ck_tile seed for FlashInfer-Bench/025_rmsnorm_h4096.\n//\n// Exists to prove the ck_tile path end to end: a submission that assembles a\n// ck_tile kernel out of the shipped pipeline/epilogue templates, compiles\n// against the CK header tree the packager puts on the include path, and\n// passes the AMD-derived tolerance. It is a path test; the tile shape below\n// is the obvious one for hidden=4096 and was not tuned.\n//\n// ck_tile is header-only and ships no host launcher for rmsnorm2d -- upstream\n// keeps that in an example directory that ROCm does not install -- so the\n// launch is written out here: Problem -> Pipeline -> Kernel, then\n// make_kernel/launch_kernel on the harness's stream.\n#include <torch/extension.h>\n#include <hip/hip_runtime.h>\n#include <c10/hip/HIPStream.h>\n\n#include \"ck_tile/core.hpp\"\n#include \"ck_tile/host/kernel_launch.hpp\"\n#include \"ck_tile/host/stream_config.hpp\"\n#include \"ck_tile/ops/common/generic_2d_block_shape.hpp\"\n#include \"ck_tile/ops/epilogue/default_2d_epilogue.hpp\"\n#include \"ck_tile/ops/rmsnorm2d.hpp\"\n\nnamespace {\n\nconstexpr int kHidden = 4096;\n\n// One row per block; 256 threads each hold 2 x 8 contiguous bf16 elements,\n// which covers 4096 in a single pass -- hence the one-pass pipeline and\n// kTwoPass = false.\nusing BlockShape = ck_tile::Generic2dBlockShape<ck_tile::sequence<1, kHidden>,\n                                                ck_tile::sequence<1, 256>,\n                                                ck_tile::sequence<1, 8>>;\n\nusing XDataType = ck_tile::bf16_t;\nusing ComputeDataType = float;  // fp32 accumulation, as the reference does\n\nusing Traits = ck_tile::Rmsnorm2dFwdTraits<\n    false,  // kPadN -- 4096 is an exact multiple of the tile\n    false,  // kSaveInvRms -- this problem does not want it\n    false,  // kSaveUnquant\n    false,  // kTwoPass\n    ck_tile::Rmsnorm2dFusedAddEnum::NO_ADD,\n    ck_tile::Rmsnorm2dFusedQuantEnum::NO_SWEEP,\n    ck_tile::Rmsnorm2dSensitiveEnum::NO_SPECIFIC_MODEL>;\n\nusing Problem = ck_tile::Rmsnorm2dFwdPipelineProblem<\n    XDataType,             // X\n    XDataType,             // Gamma\n    ComputeDataType,       // Compute\n    XDataType,             // Y\n    ck_tile::null_type,    // InvRms (not saved)\n    ck_tile::null_type,    // UnquantY\n    ck_tile::null_type,    // SmoothScale\n    ck_tile::null_type,    // YScale\n    BlockShape,\n    Traits>;\n\nusing Pipeline = ck_tile::Rmsnorm2dFwdPipelineOnePass<Problem>;\nusing Epilogue = ck_tile::Default2DEpilogue<\n    ck_tile::Default2DEpilogueProblem<ComputeDataType, XDataType, false, false>>;\nusing Kernel = ck_tile::Rmsnorm2dFwd<Pipeline, Epilogue>;\n\n}  // namespace\n\ntorch::Tensor run(const torch::Tensor& hidden_states,\n                  const torch::Tensor& weight) {\n  TORCH_CHECK(hidden_states.dim() == 2, \"hidden_states must be 2D\");\n  TORCH_CHECK(hidden_states.size(1) == kHidden, \"hidden_size must be 4096\");\n  TORCH_CHECK(hidden_states.scalar_type() == torch::kBFloat16, \"bf16 only\");\n  TORCH_CHECK(weight.scalar_type() == torch::kBFloat16, \"bf16 only\");\n\n  auto x = hidden_states.contiguous();\n  auto w = weight.contiguous();\n  auto y = torch::empty_like(x);\n  const int rows = static_cast<int>(x.size(0));\n\n  ck_tile::Rmsnorm2dFwdHostArgs hargs{};\n  hargs.p_x = x.data_ptr();\n  hargs.p_x_residual = nullptr;\n  hargs.p_sm_scale = nullptr;\n  hargs.p_gamma = w.data_ptr();\n  hargs.p_y = y.data_ptr();\n  hargs.p_y_residual = nullptr;\n  hargs.p_y_scale = nullptr;\n  hargs.p_invRms = nullptr;\n  hargs.p_y_unquant = nullptr;\n  hargs.epsilon = 1e-5f;\n  hargs.m = rows;\n  hargs.n = kHidden;\n  hargs.x_stride = kHidden;\n  hargs.xr_stride = kHidden;\n  hargs.y_stride = kHidden;\n  hargs.yr_stride = kHidden;\n\n  // Kernel::BlockSize() is a host function -- it calls is_wave32(), a runtime\n  // query -- so the block size is a runtime dim3 here, not a template\n  // argument. make_kernel's leading template parameter is MinBlockPerCu.\n  const dim3 grids = Kernel::GridSize(hargs);\n  const dim3 blocks = dim3(Kernel::BlockSize());\n  // The one-pass pipeline reduces across warps through LDS. Passing 0 here\n  // compiles and launches; it just reads and writes memory the block does not\n  // own.\n  const std::size_t lds_bytes = Kernel::GetSmemSize();\n\n  // stream_config default-constructs with time_kernel_ = false: the harness\n  // owns the timing bracket, and ck_tile's own timer would synchronize and\n  // launch extra iterations inside it.\n  ck_tile::stream_config s{};\n  s.stream_id_ = c10::hip::getCurrentHIPStream();\n\n  ck_tile::launch_kernel(\n      s, ck_tile::make_kernel<1>(Kernel{}, grids, blocks, lds_bytes,\n                                 Kernel::MakeKargs(hargs)));\n  return y;\n}\n\nPYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {\n  m.def(\"run\", &run, \"RMSNorm h4096 bf16 via ck_tile (ck_tile seed)\");\n}\n"
+  }
+ ]
+}

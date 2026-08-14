@@ -1,0 +1,31 @@
+{
+ "name": "seed_hipblaslt__004_gemm_n128_k2048",
+ "definition": "004_gemm_n128_k2048",
+ "author": "sol-execbench-amd",
+ "description": "hipblaslt seed: proves the hipcc + -lhipblaslt link-and-run path. Heuristic-selected library GEMM on the harness stream; a path test, not a tuned kernel.",
+ "spec": {
+  "languages": [
+   "hipblaslt"
+  ],
+  "target_hardware": [
+   "LOCAL"
+  ],
+  "entry_point": "kernel.hip::run",
+  "dependencies": [],
+  "destination_passing_style": false,
+  "binding": "torch",
+  "compile_options": {
+   "ld_flags": [
+    "-lamdhip64",
+    "-L/opt/rocm/lib",
+    "-lhipblaslt"
+   ]
+  }
+ },
+ "sources": [
+  {
+   "path": "kernel.hip",
+   "content": "// SPDX-License-Identifier: Apache-2.0\n// hipblaslt seed for FlashInfer-Bench/004_gemm_n128_k2048.\n//\n// Exists to prove the hipBLASLt path end to end -- a .hip submission that\n// links against -lhipblaslt, runs the library's own heuristic-selected GEMM\n// on the harness's stream, and passes the AMD-derived tolerance. It is a path\n// test; it is also, being a vendor library call, about as fast as the anchor.\n//\n// The layout argument is the only subtle part. The problem is\n// C[M,N] = A[M,K] @ B[N,K]^T with ALL THREE row-major, and hipBLASLt is\n// column-major. A row-major MxK buffer read column-major is a KxM buffer, so\n// with Acm = KxM(ldA=K) and Bcm = KxN(ldB=K):\n//\n//     C^T (N x M, column-major) = Bcm^T * Acm      -> opA = T, opB = N\n//\n// and a column-major NxM result is exactly the row-major MxN buffer the\n// harness wants. Getting this wrong does not fail to compile; it produces\n// numbers, and the tolerance is what catches it.\n#include <torch/extension.h>\n#include <hip/hip_runtime.h>\n#include <c10/hip/HIPStream.h>\n#include <hipblaslt/hipblaslt.h>\n\n#include <stdexcept>\n#include <string>\n\nnamespace {\n\n#define CHECK_BLASLT(expr)                                                    \\\n  do {                                                                        \\\n    hipblasStatus_t _s = (expr);                                              \\\n    if (_s != HIPBLAS_STATUS_SUCCESS) {                                       \\\n      throw std::runtime_error(std::string(\"hipblaslt failed: \" #expr \" -> \") \\\n                               + std::to_string(static_cast<int>(_s)));       \\\n    }                                                                         \\\n  } while (0)\n\n// One handle for the process. Creating a handle per call would dominate the\n// measurement and tell us nothing about the library's GEMM.\nhipblasLtHandle_t get_handle() {\n  static hipblasLtHandle_t handle = [] {\n    hipblasLtHandle_t h = nullptr;\n    CHECK_BLASLT(hipblasLtCreate(&h));\n    return h;\n  }();\n  return handle;\n}\n\nconstexpr size_t kWorkspaceBytes = 32ull * 1024 * 1024;\n\n}  // namespace\n\ntorch::Tensor run(const torch::Tensor& A, const torch::Tensor& B) {\n  TORCH_CHECK(A.dim() == 2 && B.dim() == 2, \"A and B must be 2D\");\n  TORCH_CHECK(A.scalar_type() == torch::kHalf && B.scalar_type() == torch::kHalf,\n              \"fp16 only\");\n  TORCH_CHECK(A.size(1) == B.size(1), \"K mismatch\");\n\n  auto a = A.contiguous();\n  auto b = B.contiguous();\n  const int64_t M = a.size(0), K = a.size(1), N = b.size(0);\n  auto c = torch::empty({M, N}, a.options());\n\n  // Workspace as a torch tensor so it comes from the caching allocator the\n  // harness already accounts for, rather than a raw hipMalloc.\n  static torch::Tensor workspace;\n  if (!workspace.defined() || workspace.device() != a.device()) {\n    workspace = torch::empty({static_cast<int64_t>(kWorkspaceBytes)},\n                             a.options().dtype(torch::kUInt8));\n  }\n\n  hipblasLtHandle_t handle = get_handle();\n\n  hipblasLtMatmulDesc_t desc = nullptr;\n  hipblasLtMatrixLayout_t la = nullptr, lb = nullptr, lc = nullptr;\n  hipblasLtMatmulPreference_t pref = nullptr;\n  CHECK_BLASLT(hipblasLtMatmulDescCreate(&desc, HIPBLAS_COMPUTE_32F, HIP_R_32F));\n  hipblasOperation_t op_t = HIPBLAS_OP_T, op_n = HIPBLAS_OP_N;\n  CHECK_BLASLT(hipblasLtMatmulDescSetAttribute(\n      desc, HIPBLASLT_MATMUL_DESC_TRANSA, &op_t, sizeof(op_t)));\n  CHECK_BLASLT(hipblasLtMatmulDescSetAttribute(\n      desc, HIPBLASLT_MATMUL_DESC_TRANSB, &op_n, sizeof(op_n)));\n\n  // \"A\" of the multiply is the problem's B (K x N column-major), \"B\" is the\n  // problem's A (K x M column-major), and D is C^T (N x M column-major).\n  CHECK_BLASLT(hipblasLtMatrixLayoutCreate(&la, HIP_R_16F, K, N, K));\n  CHECK_BLASLT(hipblasLtMatrixLayoutCreate(&lb, HIP_R_16F, K, M, K));\n  CHECK_BLASLT(hipblasLtMatrixLayoutCreate(&lc, HIP_R_16F, N, M, N));\n\n  CHECK_BLASLT(hipblasLtMatmulPreferenceCreate(&pref));\n  size_t ws = kWorkspaceBytes;\n  CHECK_BLASLT(hipblasLtMatmulPreferenceSetAttribute(\n      pref, HIPBLASLT_MATMUL_PREF_MAX_WORKSPACE_BYTES, &ws, sizeof(ws)));\n\n  hipblasLtMatmulHeuristicResult_t heur[1];\n  int returned = 0;\n  CHECK_BLASLT(hipblasLtMatmulAlgoGetHeuristic(handle, desc, la, lb, lc, lc,\n                                               pref, 1, heur, &returned));\n  if (returned == 0) {\n    hipblasLtMatmulPreferenceDestroy(pref);\n    hipblasLtMatrixLayoutDestroy(la);\n    hipblasLtMatrixLayoutDestroy(lb);\n    hipblasLtMatrixLayoutDestroy(lc);\n    hipblasLtMatmulDescDestroy(desc);\n    throw std::runtime_error(\"hipblaslt returned no algorithm for this shape\");\n  }\n\n  const float alpha = 1.0f, beta = 0.0f;\n  hipblasStatus_t st = hipblasLtMatmul(\n      handle, desc, &alpha, b.data_ptr(), la, a.data_ptr(), lb, &beta,\n      c.data_ptr(), lc, c.data_ptr(), lc, &heur[0].algo,\n      workspace.data_ptr(), kWorkspaceBytes,\n      c10::hip::getCurrentHIPStream());\n\n  hipblasLtMatmulPreferenceDestroy(pref);\n  hipblasLtMatrixLayoutDestroy(la);\n  hipblasLtMatrixLayoutDestroy(lb);\n  hipblasLtMatrixLayoutDestroy(lc);\n  hipblasLtMatmulDescDestroy(desc);\n  CHECK_BLASLT(st);\n\n  return c;\n}\n\nPYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {\n  m.def(\"run\", &run, \"GEMM n128 k2048 fp16 via hipBLASLt (hipblaslt seed)\");\n}\n"
+  }
+ ]
+}

@@ -961,9 +961,16 @@ meant to go on reporting what v1 shipped. The board serves v1.2. A *second* gate
 failure is a regression.
 
 **N3. Five backends the schema accepts and nothing has been built through** —
-`ck`, `ck_tile`, `hipblaslt`, `miopen`, `aiter`. A coverage gap, not a wrong
-number. `docs/backend-coverage.md`, which also lists the three defects the one
-`hip_cpp` seed found.
+`ck`, `ck_tile`, `hipblaslt`, `miopen`, `aiter`. ~~A coverage gap, not a wrong
+number.~~ **Closed 2026-08-14.** One seed per language, each run end to end
+through the real packager + eval_driver on GPU 0 of `mia1-p02-g46` and passing
+every workload of its problem: `reference/seeds/{aiter,ck,ck_tile,hipblaslt,
+miopen}__*.json`, results in `artifacts/backends/`. Two more packaging defects
+of the `-lcuda` family fell out of it (`--use_fast_math` reaching clang++, and
+the `-lcuda` fix's emptiness test skipping any submission that set a flag) --
+both fixed in `ProblemPackager` with a regression test. What is established is
+"the path builds and runs", per language, on one well-conditioned problem;
+shape coverage and aiter's gluon path are not. `docs/backend-coverage.md`.
 
 **N4. Goldens capped by tensor size.** 165 `.pt` files; the rest of the 235
 problems have workloads recorded as `skipped: N elements > cap` in

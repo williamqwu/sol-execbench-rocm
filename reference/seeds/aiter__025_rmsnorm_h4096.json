@@ -1,0 +1,26 @@
+{
+ "name": "seed_aiter__025_rmsnorm_h4096",
+ "definition": "025_rmsnorm_h4096",
+ "author": "sol-execbench-amd",
+ "description": "aiter seed: proves the AITER Python-import path. Calls aiter.rmsnorm2d_fwd; it is a path test, not a baseline.",
+ "spec": {
+  "languages": [
+   "aiter"
+  ],
+  "target_hardware": [
+   "LOCAL"
+  ],
+  "entry_point": "kernel.py::run",
+  "dependencies": [
+   "torch",
+   "aiter"
+  ],
+  "destination_passing_style": false
+ },
+ "sources": [
+  {
+   "path": "kernel.py",
+   "content": "# SPDX-License-Identifier: Apache-2.0\n# aiter seed for FlashInfer-Bench/025_rmsnorm_h4096.\n#\n# Exists to prove the aiter path end to end -- an `import aiter` submission\n# reaching a real AITER kernel through the packager's Python branch and\n# passing the AMD-derived tolerance -- NOT to be fast.\n#\n# `aiter.rmsnorm2d_fwd` is the library's 2-D RMSNorm forward. It JIT-builds\n# `module_rmsnorm` on first call into AITER_JIT_DIR; the container sets that\n# variable, and without it the built module is not importable (see env/solb).\nimport torch\nimport aiter\n\n\n@torch.no_grad()\ndef run(hidden_states, weight):\n    # aiter's kernel wants a contiguous 2-D row-major input; the harness\n    # already supplies one, and .contiguous() is a no-op then.\n    x = hidden_states.contiguous()\n    w = weight.contiguous()\n    return aiter.rmsnorm2d_fwd(x, w, 1e-5)\n"
+  }
+ ]
+}

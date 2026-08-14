@@ -61,7 +61,13 @@ def build_solution(definition, source: str, language: str, entry_point: str):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--problem", required=True, type=Path)
-    ap.add_argument("--kernel", required=True, type=Path)
+    ap.add_argument("--kernel", type=Path)
+    # A full Solution JSON, for submissions that cannot be expressed as one
+    # bare source file: several sources, or `compile_options` the packager
+    # must not have to guess (`-lhipblaslt`, `-lMIOpen`). Same evaluation path
+    # as --kernel -- the only difference is where the Solution comes from.
+    ap.add_argument("--solution", type=Path,
+                    help="path to a Solution JSON (e.g. reference/seeds/*.json)")
     ap.add_argument("--out", type=Path)
     ap.add_argument("--language", default="pytorch")
     ap.add_argument("--entry-point", default="kernel.py::run")
@@ -75,9 +81,21 @@ def main() -> int:
 
     from sol_execbench.core import BenchmarkConfig
 
+    if not (a.reference or a.kernel or a.solution):
+        ap.error("one of --kernel, --solution or --reference is required")
+
     definition, workloads = load_problem(a.problem)
     if a.reference:
         solution = reference_solution(definition)
+    elif a.solution:
+        from sol_execbench.core import Solution
+
+        sol_dict = json.loads(a.solution.read_text())
+        solution = Solution(**sol_dict)
+        if solution.definition != definition.name:
+            raise SystemExit(
+                f"solution targets '{solution.definition}' but --problem is "
+                f"'{definition.name}'")
     else:
         solution = build_solution(definition, a.kernel.read_text(),
                                   a.language, a.entry_point)

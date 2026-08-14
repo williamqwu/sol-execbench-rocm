@@ -1,0 +1,31 @@
+{
+ "name": "seed_ck__004_gemm_n128_k2048",
+ "definition": "004_gemm_n128_k2048",
+ "author": "sol-execbench-amd",
+ "description": "ck seed: proves the Composable Kernel header path (CK_DIR must be a WRITABLE copy). Stock fp16 XDL GEMM instance; a path test, not a tuned kernel.",
+ "spec": {
+  "languages": [
+   "ck"
+  ],
+  "target_hardware": [
+   "LOCAL"
+  ],
+  "entry_point": "kernel.hip::run",
+  "dependencies": [],
+  "destination_passing_style": false,
+  "binding": "torch",
+  "compile_options": {
+   "cuda_cflags": [
+    "-U__HIP_NO_HALF_CONVERSIONS__",
+    "-U__HIP_NO_HALF_OPERATORS__",
+    "-O3"
+   ]
+  }
+ },
+ "sources": [
+  {
+   "path": "kernel.hip",
+   "content": "// SPDX-License-Identifier: Apache-2.0\n// ck seed for FlashInfer-Bench/004_gemm_n128_k2048.\n//\n// Exists to prove the Composable Kernel path end to end: a submission that\n// instantiates a CK device op, compiles against the CK header tree the\n// packager puts on the include path, and passes the AMD-derived tolerance.\n// The tile configuration is CK's own stock fp16 XDL instance -- it is a path\n// test, not a tuned kernel, and at N=128 it wastes most of each tile.\n//\n// The problem is C[M,N] = A[M,K] @ B[N,K]^T. A row-major NxK buffer is a\n// column-major KxN buffer, so B enters CK as ColumnMajor with stride K and\n// no transpose is needed anywhere.\n//\n// GemmSpecialization::MNKPadding is load-bearing: M is a benchmark axis and\n// takes values as small as 1, far below MPerBlock. The unpadded specialization\n// does not reject those shapes at compile time -- IsSupportedArgument() would\n// refuse them at run time, one workload at a time.\n#include <torch/extension.h>\n#include <hip/hip_runtime.h>\n#include <c10/hip/HIPStream.h>\n\n#include \"ck/ck.hpp\"\n#include \"ck/stream_config.hpp\"\n#include \"ck/tensor_operation/gpu/device/gemm_specialization.hpp\"\n#include \"ck/tensor_operation/gpu/device/impl/device_gemm_xdl_cshuffle.hpp\"\n#include \"ck/tensor_operation/gpu/device/tensor_layout.hpp\"\n#include \"ck/tensor_operation/gpu/element/element_wise_operation.hpp\"\n\n#include <stdexcept>\n\nnamespace {\n\nusing F16 = ck::half_t;\nusing F32 = float;\n\nusing Row = ck::tensor_layout::gemm::RowMajor;\nusing Col = ck::tensor_layout::gemm::ColumnMajor;\nusing PassThrough = ck::tensor_operation::element_wise::PassThrough;\n\nstatic constexpr auto kSpec =\n    ck::tensor_operation::device::GemmSpecialization::MNKPadding;\n\ntemplate <ck::index_t... Is>\nusing S = ck::Sequence<Is...>;\n\nusing DeviceGemmInstance = ck::tensor_operation::device::DeviceGemm_Xdl_CShuffle<\n    Row, Col, Row,\n    F16, F16, F16,\n    F32,   // accumulate in fp32\n    F16,   // CShuffle staging type\n    PassThrough, PassThrough, PassThrough,\n    kSpec,\n    1,           // NumGemmKPrefetchStage\n    256,         // BlockSize\n    256, 128, 32,  // MPerBlock, NPerBlock, KPerBlock\n    8, 8,        // AK1, BK1\n    32, 32,      // MPerXDL, NPerXDL\n    4, 2,        // MXdlPerWave, NXdlPerWave\n    S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, 1,\n    S<4, 64, 1>, S<1, 0, 2>, S<1, 0, 2>, 2, 8, 8, 1,\n    1, 1, S<1, 32, 1, 8>, 8>;\n\n}  // namespace\n\ntorch::Tensor run(const torch::Tensor& A, const torch::Tensor& B) {\n  TORCH_CHECK(A.dim() == 2 && B.dim() == 2, \"A and B must be 2D\");\n  TORCH_CHECK(A.scalar_type() == torch::kHalf && B.scalar_type() == torch::kHalf,\n              \"fp16 only\");\n  TORCH_CHECK(A.size(1) == B.size(1), \"K mismatch\");\n\n  auto a = A.contiguous();\n  auto b = B.contiguous();\n  const int64_t M = a.size(0), K = a.size(1), N = b.size(0);\n  auto c = torch::empty({M, N}, a.options());\n\n  auto gemm = DeviceGemmInstance{};\n  auto argument = gemm.MakeArgument(\n      static_cast<const F16*>(a.data_ptr()),\n      static_cast<const F16*>(b.data_ptr()),\n      static_cast<F16*>(c.data_ptr()),\n      static_cast<ck::index_t>(M), static_cast<ck::index_t>(N),\n      static_cast<ck::index_t>(K),\n      static_cast<ck::index_t>(K),   // StrideA: row-major A, ld = K\n      static_cast<ck::index_t>(K),   // StrideB: column-major B, ld = K\n      static_cast<ck::index_t>(N),   // StrideC: row-major C, ld = N\n      PassThrough{}, PassThrough{}, PassThrough{});\n\n  if (!gemm.IsSupportedArgument(argument)) {\n    throw std::runtime_error(\n        \"CK instance does not support this shape: \" + gemm.GetTypeString());\n  }\n\n  auto invoker = gemm.MakeInvoker();\n  // time_kernel = false: the harness owns the timing, and CK's own timer would\n  // both synchronize and launch extra iterations inside the measured region.\n  invoker.Run(argument, StreamConfig{c10::hip::getCurrentHIPStream(), false});\n  return c;\n}\n\nPYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {\n  m.def(\"run\", &run, \"GEMM n128 k2048 fp16 via Composable Kernel (ck seed)\");\n}\n"
+  }
+ ]
+}

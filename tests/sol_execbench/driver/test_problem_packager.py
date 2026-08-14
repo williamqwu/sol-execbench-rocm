@@ -227,6 +227,59 @@ class TestCompile:
         cuda_cflags = sol["spec"]["compile_options"]["cuda_cflags"]
         assert cuda_cflags == ["-arch=sm_90"]
 
+    # AMD: the two nvcc-only CompileOptions defaults, both of which reach the
+    # compiler intact the moment a submission sets ANY build flag -- because
+    # then pydantic materializes the whole model, defaults included. Each was
+    # observed as a build failure on a kernel that was fine: the ck seed on
+    # `-lcuda`, the hipblaslt seed on `--use_fast_math`.
+    @pytest.mark.parametrize(
+        "given, expect_cflag, expect_ldflag",
+        [
+            # ld_flags left at its default -> the C++ submission asked for
+            # nothing and must still link.
+            ({"cuda_cflags": ["-O3"]}, "-O3", "-lamdhip64"),
+            # a submission that named a library keeps it, and only -lcuda is
+            # rewritten.
+            (
+                {"ld_flags": ["-lcuda", "-lhipblaslt"]},
+                "-ffast-math",
+                "-lhipblaslt",
+            ),
+        ],
+    )
+    def test_amd_translates_nvcc_only_defaults(
+        self, tmp_path, definition, workloads, config, monkeypatch,
+        given, expect_cflag, expect_ldflag,
+    ):
+        from sol_execbench.core.bench import device as device_layer
+        from sol_execbench.driver import problem_packager as pp
+
+        monkeypatch.setattr(device_layer, "detect_vendor", lambda: "amd")
+        monkeypatch.setattr(pp, "_get_local_gfx", lambda: "gfx950")
+
+        sol_dict = {
+            **_CUDA_SOLUTION_DICT,
+            "spec": {
+                **_CUDA_SOLUTION_DICT["spec"],
+                "languages": ["hip_cpp"],
+                "target_hardware": ["LOCAL"],
+                "entry_point": "kernel.hip::vecadd",
+                "compile_options": given,
+            },
+            "sources": [{"path": "kernel.hip", "content": "// hip kernel\n"}],
+        }
+        pkg = _make_packager(tmp_path, definition, workloads,
+                             Solution(**sol_dict), config)
+        pkg.compile()
+        opts = json.loads((pkg.output_dir / "solution.json").read_text())[
+            "spec"]["compile_options"]
+
+        assert "--use_fast_math" not in opts["cuda_cflags"]
+        assert expect_cflag in opts["cuda_cflags"]
+        assert "--offload-arch=gfx950" in opts["cuda_cflags"]
+        assert "-lcuda" not in opts["ld_flags"]
+        assert expect_ldflag in opts["ld_flags"]
+
     def test_asserts_on_python_solution(
         self, tmp_path, definition, workloads, python_solution, config
     ):

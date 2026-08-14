@@ -1,0 +1,31 @@
+{
+ "name": "seed_miopen__025_rmsnorm_h4096",
+ "definition": "025_rmsnorm_h4096",
+ "author": "sol-execbench-amd",
+ "description": "miopen seed: proves the hipcc + -lMIOpen link-and-run path. MIOpen's T5 LayerNorm is RMSNorm; a path test, not a tuned kernel.",
+ "spec": {
+  "languages": [
+   "miopen"
+  ],
+  "target_hardware": [
+   "LOCAL"
+  ],
+  "entry_point": "kernel.hip::run",
+  "dependencies": [],
+  "destination_passing_style": false,
+  "binding": "torch",
+  "compile_options": {
+   "ld_flags": [
+    "-lamdhip64",
+    "-L/opt/rocm/lib",
+    "-lMIOpen"
+   ]
+  }
+ },
+ "sources": [
+  {
+   "path": "kernel.hip",
+   "content": "// SPDX-License-Identifier: Apache-2.0\n// miopen seed for FlashInfer-Bench/025_rmsnorm_h4096.\n//\n// Exists to prove the hipcc + -lMIOpen path end to end. MIOpen's T5 LayerNorm\n// *is* RMSNorm -- normalize by the root mean square, scale by a learned\n// weight, no mean subtraction and no bias -- so it maps onto this problem\n// without reinterpretation.\n//\n// Two things are not optional and are easy to miss:\n//   * the LayerNorm entry points sit behind MIOPEN_BETA_API, so the define\n//     must precede the include or the symbol simply is not declared;\n//   * MIOpen keeps its own stream. Without miopenSetStream() the work is\n//     issued on MIOpen's default stream, outside the harness's timing\n//     bracket -- which does not fail, it just measures the wrong thing.\n#define MIOPEN_BETA_API 1\n\n#include <torch/extension.h>\n#include <hip/hip_runtime.h>\n#include <c10/hip/HIPStream.h>\n#include <miopen/miopen.h>\n\n#include <stdexcept>\n#include <string>\n#include <vector>\n\nnamespace {\n\n#define CHECK_MIOPEN(expr)                                                   \\\n  do {                                                                       \\\n    miopenStatus_t _s = (expr);                                              \\\n    if (_s != miopenStatusSuccess) {                                         \\\n      throw std::runtime_error(std::string(\"miopen failed: \" #expr \" -> \")   \\\n                               + std::to_string(static_cast<int>(_s)));      \\\n    }                                                                        \\\n  } while (0)\n\nmiopenHandle_t get_handle() {\n  static miopenHandle_t handle = [] {\n    miopenHandle_t h = nullptr;\n    CHECK_MIOPEN(miopenCreate(&h));\n    return h;\n  }();\n  return handle;\n}\n\nstruct TensorDesc {\n  miopenTensorDescriptor_t d = nullptr;\n  TensorDesc(miopenDataType_t dt, std::vector<int> dims,\n             std::vector<int> strides) {\n    CHECK_MIOPEN(miopenCreateTensorDescriptor(&d));\n    CHECK_MIOPEN(miopenSetTensorDescriptor(\n        d, dt, static_cast<int>(dims.size()), dims.data(), strides.data()));\n  }\n  ~TensorDesc() { miopenDestroyTensorDescriptor(d); }\n  TensorDesc(const TensorDesc&) = delete;\n  TensorDesc& operator=(const TensorDesc&) = delete;\n};\n\nconstexpr int kHidden = 4096;\n\n}  // namespace\n\ntorch::Tensor run(const torch::Tensor& hidden_states,\n                  const torch::Tensor& weight) {\n  TORCH_CHECK(hidden_states.dim() == 2, \"hidden_states must be 2D\");\n  TORCH_CHECK(hidden_states.size(1) == kHidden, \"hidden_size must be 4096\");\n  TORCH_CHECK(hidden_states.scalar_type() == torch::kBFloat16, \"bf16 only\");\n  TORCH_CHECK(weight.scalar_type() == torch::kBFloat16, \"bf16 only\");\n\n  auto x = hidden_states.contiguous();\n  auto w = weight.contiguous();\n  auto y = torch::empty_like(x);\n\n  const int rows = static_cast<int>(x.size(0));\n  // rstd is an output MIOpen requires even though this problem does not want\n  // it; it is fp32 because that is the accumulation type of the reduction.\n  auto rstd = torch::empty({rows}, x.options().dtype(torch::kFloat32));\n\n  TensorDesc xd(miopenBFloat16, {rows, kHidden}, {kHidden, 1});\n  TensorDesc yd(miopenBFloat16, {rows, kHidden}, {kHidden, 1});\n  TensorDesc wd(miopenBFloat16, {kHidden}, {1});\n  TensorDesc rd(miopenFloat, {rows}, {1});\n\n  miopenHandle_t handle = get_handle();\n  CHECK_MIOPEN(miopenSetStream(handle, c10::hip::getCurrentHIPStream()));\n\n  CHECK_MIOPEN(miopenT5LayerNormForward(\n      handle, MIOPEN_WEIGHT_BIAS_T5, xd.d, x.data_ptr(), wd.d, w.data_ptr(),\n      1e-5f, yd.d, y.data_ptr(), rd.d, rstd.data_ptr()));\n\n  return y;\n}\n\nPYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {\n  m.def(\"run\", &run, \"RMSNorm h4096 bf16 via MIOpen T5LayerNorm (miopen seed)\");\n}\n"
+  }
+ ]
+}

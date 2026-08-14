@@ -210,10 +210,29 @@ class ProblemPackager:
             unique_gfx = [
                 g for g in gfx_targets if not (g in seen_gfx or seen_gfx.add(g))
             ]
+            # AMD: `CompileOptions.cuda_cflags` defaults to
+            # `["-O3", "--use_fast_math"]`. `--use_fast_math` is nvcc-only;
+            # hipcc hands the flag to clang++, which rejects it outright:
+            #
+            #   clang++: error: unknown argument: '--use_fast_math'
+            #
+            # This is the `-lcuda` defect (below) in a second form, and it
+            # bites the same way: the default only materializes once
+            # `compile_options` exists, which is true for EVERY submission
+            # that sets any build flag at all -- so a submission that asked
+            # for `-lhipblaslt` could not compile, for a reason that has
+            # nothing to do with what it asked for. `-ffast-math` is clang's
+            # spelling of the same intent, so the field keeps meaning upstream
+            # what it means here.
+            cuda_cflags = [
+                "-ffast-math" if f == "--use_fast_math" else f for f in cuda_cflags
+            ]
             if unique_gfx:
                 compile_options["cuda_cflags"] = [
                     _gfx_to_offload_arch(g) for g in unique_gfx
                 ] + cuda_cflags
+            elif cuda_cflags:
+                compile_options["cuda_cflags"] = cuda_cflags
             # AMD: `CompileOptions.ld_flags` defaults to `["-lcuda"]`, which
             # does not exist on ROCm. The default only bites once
             # compile_options is materialized at all -- which the block above
@@ -222,8 +241,20 @@ class ProblemPackager:
             # "/usr/bin/ld: cannot find -lcuda", on a kernel that had compiled
             # cleanly. torch adds -lamdhip64 itself; naming it here keeps the
             # field meaning the same thing it means upstream.
-            if compile_options and not compile_options.get("ld_flags"):
-                compile_options["ld_flags"] = ["-lamdhip64"]
+            #
+            # It is a SUBSTITUTION, not a fill-in-if-empty. `-lcuda` is a
+            # pydantic *default*, so it is present in the dumped dict whenever
+            # the submission set any other build flag at all -- and an
+            # emptiness test then skips exactly the submissions that asked for
+            # a library. Observed on the `ck` seed, which set only
+            # `cuda_cflags` and still died at the link step on `-lcuda` after
+            # compiling a full CK GEMM instance cleanly.
+            if compile_options:
+                ld_flags = [
+                    "-lamdhip64" if f == "-lcuda" else f
+                    for f in (compile_options.get("ld_flags") or [])
+                ]
+                compile_options["ld_flags"] = ld_flags or ["-lamdhip64"]
             if compile_options:
                 spec["compile_options"] = compile_options
                 sol_dict["spec"] = spec
