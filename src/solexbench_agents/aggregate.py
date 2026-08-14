@@ -29,6 +29,16 @@ CATEGORIES = ("L1", "L2", "Quant", "FlashInfer-Bench")
 # the first is a harness or budget story, the second is a model story.
 NON_DELIVERY = ("no_solution", "invalid_solution", "scorer_error")
 
+# Outcomes that mean "the scorer refused to produce a number", which is a third
+# story again: the agent may well have delivered, and the benchmark declined to
+# measure it under conditions it does not accept -- a T_k on a card that does
+# not hold its own problem's T_b (STATE.md 4.4), or a packet claiming a
+# different problem than the one it sits under. Named rather than folded into
+# `unknown`, because a refusal that reads as an unexplained failure is a
+# refusal nobody acts on, and the value of refusing is that someone re-runs the
+# shard on the right card.
+REFUSED = ("refused_card_mismatch", "refused_packet_problem_mismatch")
+
 
 def _mean(values: list[float]) -> float | None:
     return statistics.fmean(values) if values else None
@@ -52,6 +62,8 @@ def failure_kind(result: dict, record: dict | None = None) -> str:
     """
     outcome = result.get("outcome")
     if outcome in NON_DELIVERY:
+        return outcome
+    if outcome in REFUSED:
         return outcome
     if outcome == "rejected_static_screen":
         return "rejected_static_screen"
