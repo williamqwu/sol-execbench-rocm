@@ -1,8 +1,8 @@
 {
  "_provenance": {
   "task": "04-methodology-compare",
-  "utc": "2026-08-14T18:03:49.219809+00:00",
-  "git_sha": "b0cf4f51d1e8fbfee290d4795a0d5cb9fdfa8f30-dirty",
+  "utc": "2026-08-14T19:09:45.387147+00:00",
+  "git_sha": "9b7e84352dde9e6dc5ddae5097171fa614b2785f-dirty",
   "host": "mia1-p02-g45",
   "python": "3.12.3",
   "torch": {
@@ -21,7 +21,7 @@
    "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
   },
   "f_lock_mhz": null,
-  "visible_devices": "3"
+  "visible_devices": "2"
  },
  "problem": "L1__093_grouped_topk_moe_routing_backward",
  "definition": "093_grouped_topk_moe_routing_backward",
@@ -32,30 +32,163 @@
     "hip_events"
    ],
    "latency_ms": {
-    "a7745163-2ce5-56f0-99f7-700992bb0ef1": 0.0713610015809536,
-    "7710d03b-e2f0-534c-9a2c-5b1c2b744705": 0.08451999723911285,
-    "04b5b822-a22a-5304-ae4a-81d932f1a899": 0.07358000054955482,
-    "7507a9bc-9898-5873-b0b6-fc122d298c2d": 0.10802049934864044,
-    "0fd904af-1e0b-5bbd-8a81-78b4767f622e": 0.11176049709320068,
-    "61b0f541-4115-595b-bff9-cf35991c92e8": 0.07232049852609634,
-    "090656c4-8144-5674-a59c-69bdee08c372": 0.0728599987924099,
-    "22645295-6050-50c8-91c4-443999062935": 0.1372009962797165,
-    "7ee5eebb-cc60-513f-a5f0-8bd66eafdd69": 0.0850604996085167,
-    "b4e4aa52-0044-502f-bd28-3a2656be09c9": 0.07820050045847893,
-    "80ffd378-a0e0-5d4c-8966-91fb32d3cecf": 0.09348099678754807,
-    "2fdc5c48-6c94-51c6-8df8-25e568bdf4d7": 0.08534049987792969,
-    "2bfea624-3ebe-54ab-986f-104fbeebf1fb": 0.08748099952936172,
-    "2308ecad-33bd-57bf-9dfa-ec9c7f77d8a9": 0.07495999708771706,
-    "a04f0232-d658-595f-b2a4-5a479045cce4": 0.09466049820184708,
-    "ec0632ac-fd54-5474-b26a-ae78459e37b4": 0.07924000173807144
+    "a7745163-2ce5-56f0-99f7-700992bb0ef1": 0.07110049948096275,
+    "7710d03b-e2f0-534c-9a2c-5b1c2b744705": 0.08376099914312363,
+    "04b5b822-a22a-5304-ae4a-81d932f1a899": 0.07344000041484833,
+    "7507a9bc-9898-5873-b0b6-fc122d298c2d": 0.10862049832940102,
+    "0fd904af-1e0b-5bbd-8a81-78b4767f622e": 0.11124049872159958,
+    "61b0f541-4115-595b-bff9-cf35991c92e8": 0.07264050096273422,
+    "090656c4-8144-5674-a59c-69bdee08c372": 0.07212050259113312,
+    "22645295-6050-50c8-91c4-443999062935": 0.13756100088357925,
+    "7ee5eebb-cc60-513f-a5f0-8bd66eafdd69": 0.08524099737405777,
+    "b4e4aa52-0044-502f-bd28-3a2656be09c9": 0.07774000242352486,
+    "80ffd378-a0e0-5d4c-8966-91fb32d3cecf": 0.09380000084638596,
+    "2fdc5c48-6c94-51c6-8df8-25e568bdf4d7": 0.0853005014359951,
+    "2bfea624-3ebe-54ab-986f-104fbeebf1fb": 0.08630049973726273,
+    "2308ecad-33bd-57bf-9dfa-ec9c7f77d8a9": 0.0752204991877079,
+    "a04f0232-d658-595f-b2a4-5a479045cce4": 0.09488049894571304,
+    "ec0632ac-fd54-5474-b26a-ae78459e37b4": 0.07874000072479248
    }
   },
   "rocprof": {
-   "ok": false,
-   "error": "RuntimeError: no traces produced (rc=1)\nstderr:\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_n1ceiyoc/eval_driver.py\", line 61, in <module>\n    import _rocprof_shim as _solb_shim\nModuleNotFoundError: No module named '_rocprof_shim'\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_n1ceiyoc/eval_driver.py\", line 69, in <module>\n    raise RuntimeError(\nRuntimeError: methodology='rocprof' requested but the shim did not configure: No module named '_rocprof_shim'. Build it with `python src/solexbench_rocm/shim/build.py`.\n\nstdout:\n"
+   "ok": true,
+   "recorded_methodology": [
+    "rocprof"
+   ],
+   "latency_ms": {
+    "a7745163-2ce5-56f0-99f7-700992bb0ef1": 0.1286605,
+    "7710d03b-e2f0-534c-9a2c-5b1c2b744705": 0.125062,
+    "04b5b822-a22a-5304-ae4a-81d932f1a899": 0.11707999999999999,
+    "7507a9bc-9898-5873-b0b6-fc122d298c2d": 0.1420605,
+    "0fd904af-1e0b-5bbd-8a81-78b4767f622e": 0.155561,
+    "61b0f541-4115-595b-bff9-cf35991c92e8": 0.11782100000000001,
+    "090656c4-8144-5674-a59c-69bdee08c372": 0.12056,
+    "22645295-6050-50c8-91c4-443999062935": 0.1834615,
+    "7ee5eebb-cc60-513f-a5f0-8bd66eafdd69": 0.1253205,
+    "b4e4aa52-0044-502f-bd28-3a2656be09c9": 0.117241,
+    "80ffd378-a0e0-5d4c-8966-91fb32d3cecf": 0.12295700000000001,
+    "2fdc5c48-6c94-51c6-8df8-25e568bdf4d7": 0.11320050000000001,
+    "2bfea624-3ebe-54ab-986f-104fbeebf1fb": 0.11854100000000001,
+    "2308ecad-33bd-57bf-9dfa-ec9c7f77d8a9": 0.08523,
+    "a04f0232-d658-595f-b2a4-5a479045cce4": 0.102461,
+    "ec0632ac-fd54-5474-b26a-ae78459e37b4": 0.085846
+   }
   }
  },
- "divergences": [],
- "n_compared": 0,
+ "divergences": [
+  {
+   "workload_uuid": "04b5b822-a22a-5304-ae4a-81d932f1a899",
+   "hip_events_ms": 0.07344000041484833,
+   "rocprof_ms": 0.11707999999999999,
+   "divergence_pct": -59.422657051522016,
+   "microsecond_scale": true
+  },
+  {
+   "workload_uuid": "090656c4-8144-5674-a59c-69bdee08c372",
+   "hip_events_ms": 0.07212050259113312,
+   "rocprof_ms": 0.12056,
+   "divergence_pct": -67.1646697798003,
+   "microsecond_scale": true
+  },
+  {
+   "workload_uuid": "0fd904af-1e0b-5bbd-8a81-78b4767f622e",
+   "hip_events_ms": 0.11124049872159958,
+   "rocprof_ms": 0.155561,
+   "divergence_pct": -39.84205553529644,
+   "microsecond_scale": false
+  },
+  {
+   "workload_uuid": "22645295-6050-50c8-91c4-443999062935",
+   "hip_events_ms": 0.13756100088357925,
+   "rocprof_ms": 0.1834615,
+   "divergence_pct": -33.36737797892827,
+   "microsecond_scale": false
+  },
+  {
+   "workload_uuid": "2308ecad-33bd-57bf-9dfa-ec9c7f77d8a9",
+   "hip_events_ms": 0.0752204991877079,
+   "rocprof_ms": 0.08523,
+   "divergence_pct": -13.306879002908552,
+   "microsecond_scale": true
+  },
+  {
+   "workload_uuid": "2bfea624-3ebe-54ab-986f-104fbeebf1fb",
+   "hip_events_ms": 0.08630049973726273,
+   "rocprof_ms": 0.11854100000000001,
+   "divergence_pct": -37.35841664983606,
+   "microsecond_scale": true
+  },
+  {
+   "workload_uuid": "2fdc5c48-6c94-51c6-8df8-25e568bdf4d7",
+   "hip_events_ms": 0.0853005014359951,
+   "rocprof_ms": 0.11320050000000001,
+   "divergence_pct": -32.70789514049875,
+   "microsecond_scale": true
+  },
+  {
+   "workload_uuid": "61b0f541-4115-595b-bff9-cf35991c92e8",
+   "hip_events_ms": 0.07264050096273422,
+   "rocprof_ms": 0.11782100000000001,
+   "divergence_pct": -62.19739461935171,
+   "microsecond_scale": true
+  },
+  {
+   "workload_uuid": "7507a9bc-9898-5873-b0b6-fc122d298c2d",
+   "hip_events_ms": 0.10862049832940102,
+   "rocprof_ms": 0.1420605,
+   "divergence_pct": -30.786087511023293,
+   "microsecond_scale": false
+  },
+  {
+   "workload_uuid": "7710d03b-e2f0-534c-9a2c-5b1c2b744705",
+   "hip_events_ms": 0.08376099914312363,
+   "rocprof_ms": 0.125062,
+   "divergence_pct": -49.30815209869305,
+   "microsecond_scale": true
+  },
+  {
+   "workload_uuid": "7ee5eebb-cc60-513f-a5f0-8bd66eafdd69",
+   "hip_events_ms": 0.08524099737405777,
+   "rocprof_ms": 0.1253205,
+   "divergence_pct": -47.01904466235166,
+   "microsecond_scale": true
+  },
+  {
+   "workload_uuid": "80ffd378-a0e0-5d4c-8966-91fb32d3cecf",
+   "hip_events_ms": 0.09380000084638596,
+   "rocprof_ms": 0.12295700000000001,
+   "divergence_pct": -31.084220565588033,
+   "microsecond_scale": true
+  },
+  {
+   "workload_uuid": "a04f0232-d658-595f-b2a4-5a479045cce4",
+   "hip_events_ms": 0.09488049894571304,
+   "rocprof_ms": 0.102461,
+   "divergence_pct": -7.98952486392828,
+   "microsecond_scale": true
+  },
+  {
+   "workload_uuid": "a7745163-2ce5-56f0-99f7-700992bb0ef1",
+   "hip_events_ms": 0.07110049948096275,
+   "rocprof_ms": 0.1286605,
+   "divergence_pct": -80.95583144876362,
+   "microsecond_scale": true
+  },
+  {
+   "workload_uuid": "b4e4aa52-0044-502f-bd28-3a2656be09c9",
+   "hip_events_ms": 0.07774000242352486,
+   "rocprof_ms": 0.117241,
+   "divergence_pct": -50.81167525732128,
+   "microsecond_scale": true
+  },
+  {
+   "workload_uuid": "ec0632ac-fd54-5474-b26a-ae78459e37b4",
+   "hip_events_ms": 0.07874000072479248,
+   "rocprof_ms": 0.085846,
+   "divergence_pct": -9.024637045717087,
+   "microsecond_scale": true
+  }
+ ],
+ "n_compared": 16,
  "ok": true
 }

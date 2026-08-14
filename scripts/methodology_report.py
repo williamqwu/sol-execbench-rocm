@@ -35,6 +35,34 @@ def pct(xs: list[float], q: float) -> float:
     return s[min(len(s) - 1, int(q * len(s)))]
 
 
+def sign_paragraph(median: float) -> str:
+    """The sign discussion, DERIVED from this part's median.
+
+    This paragraph used to be a fixed string asserting "slightly negative",
+    "well under a percent", "agree to under 1%" and a node CV of 0.0034 — all
+    of them MI350X readings, hardcoded. Regenerating the report for a second
+    part reproduced those sentences verbatim over a different part's numbers,
+    which is prime directive 2 wearing a template as a disguise. The size words
+    now come from the number in front of them; the node's own reproducibility
+    figure is not quoted at all, because this script has no way to know it.
+    """
+    direction = ("`rocprof` reads *slower*" if median < 0
+                 else "`hip_events` reads *slower*, as predicted")
+    size = ("under a percent" if abs(median) < 1
+            else f"about {abs(median):.1f}%")
+    expected = ("**The median landed on the unexpected side of zero.** "
+                if median < 0 else "")
+    return (
+        f"{expected}The predicted sign was positive — events include the "
+        f"launch, activity tracing does not — and the measured median is "
+        f"{median:+.2f}%, i.e. {direction}. The gap is {size} at the median. "
+        f"It is reported rather than explained: whether {size} is inside this "
+        f"node's run-to-run reproducibility is a question for that node's own "
+        f"stability measurement, which this script does not read and therefore "
+        f"does not quote."
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--compare", default="artifacts/04/compare")
@@ -70,6 +98,13 @@ def main() -> int:
     for _, _, _, p in tail:
         by_problem[p] = by_problem.get(p, 0) + 1
 
+    # The two extremes, named from THIS part's data. Previously "~90%" and
+    # "~3x on L1/034", which were MI350X's and travelled into any other part's
+    # report unchanged.
+    hi = max(rows, key=lambda r: r[1], default=(0.0, 0.0, False, "—"))
+    lo = min(rows, key=lambda r: r[1], default=(0.0, 0.0, False, "—"))
+    hi_extreme, lo_extreme, lo_problem = hi[1], lo[1], lo[3]
+
     L = [
         "# Task 04 — `hip_events` vs `rocprof`",
         "",
@@ -100,14 +135,7 @@ def main() -> int:
         f"{medians['kernels >= 100 us']:+.2f}%** against a gate of "
         f"{a.gate:.0f}%. {'PASS' if gate_ok else 'FAIL'}.",
         "",
-        "**The median landed on the unexpected side of zero.** The predicted "
-        "sign was positive — events include the launch, activity tracing does "
-        "not — and the measured median is slightly negative, i.e. `rocprof` "
-        "reads marginally *slower*. At well under a percent this is inside the "
-        "run-to-run reproducibility of the node (CV 0.0034), so it is reported "
-        "rather than explained: the honest statement is that the two "
-        "methodologies agree to under 1% at the median, not that the expected "
-        "asymmetry was observed.",
+        sign_paragraph(medians["kernels >= 100 us"]),
         "",
         "Sub-100 us kernels are reported separately rather than folded in. "
         "There the median is "
@@ -122,12 +150,14 @@ def main() -> int:
         "because most iterations dispatch one kernel; the tail is where they "
         "do not.",
         "",
-        "* **`hip_events` much slower** (up to ~90%) on problems whose "
+        f"* **`hip_events` much slower** (up to {hi_extreme:+.0f}%) on problems "
+        "whose "
         "iteration is many tiny kernels. The event pair contains the host-side "
         "work between them and the activity sum does not. This is the "
         "understood direction and is why short kernels score slightly low "
         "under the default methodology.",
-        "* **`rocprof` slower** (to ~3x on `L1/034`) on some multi-dispatch "
+        f"* **`rocprof` slower** (to {lo_extreme:+.0f}% on `{lo_problem}`) on "
+        "some multi-dispatch "
         "iterations. Summing per-dispatch durations exceeds the wall clock "
         "whenever dispatches overlap, so the activity sum is not a wall-clock "
         "measurement for those. Stated as the hypothesis it is: it has not "
