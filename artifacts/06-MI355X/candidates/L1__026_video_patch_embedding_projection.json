@@ -1,0 +1,864 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-14T19:27:22.004802+00:00",
+  "git_sha": "15f3c3ea23e5e580db0c5ed44267e60bcc5ba950-dirty",
+  "host": "mia1-p02-g46",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "f_lock_mhz": null,
+  "visible_devices": "5"
+ },
+ "ok": true,
+ "clock_bracket_fatal": null,
+ "problem": "L1__026_video_patch_embedding_projection",
+ "definition": "026_video_patch_embedding_projection",
+ "workloads_from": "artifacts/05-MI355X/workloads/L1/026_video_patch_embedding_projection/workload.jsonl",
+ "gpu": "5",
+ "variants": {
+  "v1_eager": {
+   "ok": true,
+   "workloads": 4,
+   "passed": 4,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "85500ede-d60d-5097-b291-0ccd1a2e8a27": 81.9135513305664,
+    "ded3638e-e404-5055-a495-905d4b4980a9": 64.06811141967773,
+    "813ae5c8-9e11-566a-aad4-c9075bf2e616": 22.87658405303955,
+    "a4eea060-8ad4-5cc2-80db-a6b85f952fe9": 13.159540176391602
+   },
+   "clock_bracket_by_workload": {
+    "85500ede-d60d-5097-b291-0ccd1a2e8a27": {
+     "clock_before_mhz": 2256,
+     "clock_after_mhz": 2255,
+     "clock_bracket_spread": 0.0004433606739082243,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2255.5,
+     "window_ns": [
+      1435414613798136,
+      1435419540339156
+     ],
+     "window_ms": 4926.54102,
+     "clock_bracket_lag_ns": [
+      175777,
+      715608
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1076.07048,
+      "settle_iterations": 13,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2387,
+      "settle_exit_mhz": 2256,
+      "settle_min_mhz": 2240,
+      "settle_max_mhz": 2387,
+      "settle_n_samples": 14,
+      "settle_stability_horizon_ms": 4889.84064
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "ded3638e-e404-5055-a495-905d4b4980a9": {
+     "clock_before_mhz": 2254,
+     "clock_after_mhz": 2239,
+     "clock_bracket_spread": 0.006677053193857111,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2246.5,
+     "window_ns": [
+      1435425169484588,
+      1435429024729350
+     ],
+     "window_ms": 3855.244762,
+     "clock_bracket_lag_ns": [
+      172617,
+      721918
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1052.204089,
+      "settle_iterations": 16,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2385,
+      "settle_exit_mhz": 2254,
+      "settle_min_mhz": 2239,
+      "settle_max_mhz": 2385,
+      "settle_n_samples": 17,
+      "settle_stability_horizon_ms": 3873.4051200000004
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "813ae5c8-9e11-566a-aad4-c9075bf2e616": {
+     "clock_before_mhz": 2199,
+     "clock_after_mhz": 2188,
+     "clock_bracket_spread": 0.00501481650330522,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2193.5,
+     "window_ns": [
+      1435431390592847,
+      1435432772148170
+     ],
+     "window_ms": 1381.555323,
+     "clock_bracket_lag_ns": [
+      171087,
+      602410
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1008.637462,
+      "settle_iterations": 43,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2349,
+      "settle_exit_mhz": 2199,
+      "settle_min_mhz": 2193,
+      "settle_max_mhz": 2349,
+      "settle_n_samples": 44,
+      "settle_stability_horizon_ms": 1373.94366
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "a4eea060-8ad4-5cc2-80db-a6b85f952fe9": {
+     "clock_before_mhz": 2264,
+     "clock_after_mhz": 2277,
+     "clock_bracket_spread": 0.005725611098876899,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2270.5,
+     "window_ns": [
+      1435434501726477,
+      1435435298936594
+     ],
+     "window_ms": 797.210117,
+     "clock_bracket_lag_ns": [
+      170517,
+      775377
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1011.888868,
+      "settle_iterations": 72,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2350,
+      "settle_exit_mhz": 2264,
+      "settle_min_mhz": 2256,
+      "settle_max_mhz": 2350,
+      "settle_n_samples": 73,
+      "settle_stability_horizon_ms": 803.87712
+     },
+     "clock_bracket_sampler_error": null
+    }
+   },
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 4,
+    "n_refused": 0,
+    "refusal_rate": 0.0,
+    "refused_by_reason": {},
+    "thresholds_in_force": [
+     0.0078
+    ],
+    "spread_median": 0.005725611098876899,
+    "spread_max": 0.006677053193857111
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v2_compile": {
+   "ok": true,
+   "workloads": 4,
+   "passed": 4,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "85500ede-d60d-5097-b291-0ccd1a2e8a27": 16.885156631469727,
+    "ded3638e-e404-5055-a495-905d4b4980a9": 12.666559219360352,
+    "813ae5c8-9e11-566a-aad4-c9075bf2e616": 4.4192399978637695,
+    "a4eea060-8ad4-5cc2-80db-a6b85f952fe9": 2.784912943840027
+   },
+   "clock_bracket_by_workload": {
+    "85500ede-d60d-5097-b291-0ccd1a2e8a27": {
+     "clock_before_mhz": 2217,
+     "clock_after_mhz": 2228,
+     "clock_bracket_spread": 0.0049493813273340835,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2222.5,
+     "window_ns": [
+      1435463220108283,
+      1435464256348217
+     ],
+     "window_ms": 1036.239934,
+     "clock_bracket_lag_ns": [
+      188347,
+      917414
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1008.088472,
+      "settle_iterations": 57,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2392,
+      "settle_exit_mhz": 2217,
+      "settle_min_mhz": 2212,
+      "settle_max_mhz": 2392,
+      "settle_n_samples": 58,
+      "settle_stability_horizon_ms": 1026.9792000000002
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "ded3638e-e404-5055-a495-905d4b4980a9": {
+     "clock_before_mhz": 2222,
+     "clock_after_mhz": 2201,
+     "clock_bracket_spread": 0.009495817318562062,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2211.5,
+     "window_ns": [
+      1435483369243031,
+      1435484139103466
+     ],
+     "window_ms": 769.860435,
+     "clock_bracket_lag_ns": [
+      169747,
+      935334
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1005.969774,
+      "settle_iterations": 77,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2386,
+      "settle_exit_mhz": 2222,
+      "settle_min_mhz": 2220,
+      "settle_max_mhz": 2386,
+      "settle_n_samples": 78,
+      "settle_stability_horizon_ms": 757.76616
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "813ae5c8-9e11-566a-aad4-c9075bf2e616": {
+     "clock_before_mhz": 2146,
+     "clock_after_mhz": 2207,
+     "clock_bracket_spread": 0.02802664828853664,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2176.5,
+     "window_ns": [
+      1435496607518404,
+      1435496881805837
+     ],
+     "window_ms": 274.287433,
+     "clock_bracket_lag_ns": [
+      169707,
+      665328
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1001.180369,
+      "settle_iterations": 209,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2360,
+      "settle_exit_mhz": 2146,
+      "settle_min_mhz": 2146,
+      "settle_max_mhz": 2360,
+      "settle_n_samples": 106,
+      "settle_stability_horizon_ms": 271.09071
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "a4eea060-8ad4-5cc2-80db-a6b85f952fe9": {
+     "clock_before_mhz": 2378,
+     "clock_after_mhz": 2387,
+     "clock_bracket_spread": 0.003777544596012592,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2382.5,
+     "window_ns": [
+      1435507370008360,
+      1435507545449292
+     ],
+     "window_ms": 175.440932,
+     "clock_bracket_lag_ns": [
+      179437,
+      993223
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 246.409716,
+      "settle_iterations": 81,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2364,
+      "settle_exit_mhz": 2378,
+      "settle_min_mhz": 2348,
+      "settle_max_mhz": 2378,
+      "settle_n_samples": 29,
+      "settle_stability_horizon_ms": 168.14134
+     },
+     "clock_bracket_sampler_error": null
+    }
+   },
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 4,
+    "n_refused": 2,
+    "refusal_rate": 0.5,
+    "refused_by_reason": {
+     "bracket_spread_above_threshold": 2
+    },
+    "thresholds_in_force": [
+     0.0078
+    ],
+    "spread_median": 0.009495817318562062,
+    "spread_max": 0.02802664828853664
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v3_compile_max_autotune": {
+   "ok": true,
+   "workloads": 4,
+   "passed": 2,
+   "all_passed": false,
+   "latency_ms_by_workload": {
+    "813ae5c8-9e11-566a-aad4-c9075bf2e616": 4.5057408809661865,
+    "a4eea060-8ad4-5cc2-80db-a6b85f952fe9": 2.7839330434799194
+   },
+   "clock_bracket_by_workload": {
+    "813ae5c8-9e11-566a-aad4-c9075bf2e616": {
+     "clock_before_mhz": 2153,
+     "clock_after_mhz": 2183,
+     "clock_bracket_spread": 0.013837638376383764,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2168.0,
+     "window_ns": [
+      1435524049811475,
+      1435524328841139
+     ],
+     "window_ms": 279.029664,
+     "clock_bracket_lag_ns": [
+      175097,
+      785887
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 512.785637,
+      "settle_iterations": 103,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2361,
+      "settle_exit_mhz": 2153,
+      "settle_min_mhz": 2153,
+      "settle_max_mhz": 2361,
+      "settle_n_samples": 53,
+      "settle_stability_horizon_ms": 276.32379000000003
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "a4eea060-8ad4-5cc2-80db-a6b85f952fe9": {
+     "clock_before_mhz": 2380,
+     "clock_after_mhz": 2391,
+     "clock_bracket_spread": 0.004611192622091804,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2385.5,
+     "window_ns": [
+      1435530672012766,
+      1435530846318198
+     ],
+     "window_ms": 174.305432,
+     "clock_bracket_lag_ns": [
+      181727,
+      660198
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 194.038977,
+      "settle_iterations": 64,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2368,
+      "settle_exit_mhz": 2380,
+      "settle_min_mhz": 2359,
+      "settle_max_mhz": 2380,
+      "settle_n_samples": 23,
+      "settle_stability_horizon_ms": 169.52112
+     },
+     "clock_bracket_sampler_error": null
+    }
+   },
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 2,
+    "n_refused": 1,
+    "refusal_rate": 0.5,
+    "refused_by_reason": {
+     "bracket_spread_above_threshold": 1
+    },
+    "thresholds_in_force": [
+     0.0078
+    ],
+    "spread_median": 0.013837638376383764,
+    "spread_max": 0.013837638376383764
+   },
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "85500ede-d60d-5097-b291-0ccd1a2e8a27",
+     "status": "RUNTIME_ERROR",
+     "log": "istics.py\", line 1310, in run\n    self.precompile()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 486, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 508, in _precompile_worker\n    compile_results.append(self._precompile_config(c))\n                           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 819, in _precompile_config\n    binary = triton.compile(*compile_args, **compile_kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/comp"
+    },
+    {
+     "workload_uuid": "ded3638e-e404-5055-a495-905d4b4980a9",
+     "status": "RUNTIME_ERROR",
+     "log": "n_heuristics.py\", line 1310, in run\n    self.precompile()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 486, in precompile\n    self._precompile_worker()\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 508, in _precompile_worker\n    compile_results.append(self._precompile_config(c))\n                           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_inductor/runtime/triton_heuristics.py\", line 819, in _precompile_config\n    binary = triton.compile(*compile_args, **compile_kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compile"
+    }
+   ]
+  },
+  "v4_contiguous": {
+   "ok": true,
+   "workloads": 4,
+   "passed": 4,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "85500ede-d60d-5097-b291-0ccd1a2e8a27": 81.8567123413086,
+    "ded3638e-e404-5055-a495-905d4b4980a9": 64.07454299926758,
+    "813ae5c8-9e11-566a-aad4-c9075bf2e616": 22.881709098815918,
+    "a4eea060-8ad4-5cc2-80db-a6b85f952fe9": 13.156562805175781
+   },
+   "clock_bracket_by_workload": {
+    "85500ede-d60d-5097-b291-0ccd1a2e8a27": {
+     "clock_before_mhz": 2258,
+     "clock_after_mhz": 2250,
+     "clock_bracket_spread": 0.00354924578527063,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2254.0,
+     "window_ns": [
+      1435541003965231,
+      1435545943946343
+     ],
+     "window_ms": 4939.981112,
+     "clock_bracket_lag_ns": [
+      192937,
+      789407
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1008.031316,
+      "settle_iterations": 11,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2388,
+      "settle_exit_mhz": 2258,
+      "settle_min_mhz": 2251,
+      "settle_max_mhz": 2388,
+      "settle_n_samples": 12,
+      "settle_stability_horizon_ms": 5434.22658
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "ded3638e-e404-5055-a495-905d4b4980a9": {
+     "clock_before_mhz": 2246,
+     "clock_after_mhz": 2247,
+     "clock_bracket_spread": 0.0004451368795904741,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2246.5,
+     "window_ns": [
+      1435551657187564,
+      1435555520915388
+     ],
+     "window_ms": 3863.727824,
+     "clock_bracket_lag_ns": [
+      200386,
+      1194930
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1040.602726,
+      "settle_iterations": 15,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2384,
+      "settle_exit_mhz": 2246,
+      "settle_min_mhz": 2241,
+      "settle_max_mhz": 2384,
+      "settle_n_samples": 16,
+      "settle_stability_horizon_ms": 3977.07096
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "813ae5c8-9e11-566a-aad4-c9075bf2e616": {
+     "clock_before_mhz": 2190,
+     "clock_after_mhz": 2185,
+     "clock_bracket_spread": 0.002285714285714286,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2187.5,
+     "window_ns": [
+      1435557922258863,
+      1435559304483986
+     ],
+     "window_ms": 1382.225123,
+     "clock_bracket_lag_ns": [
+      168567,
+      971274
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1011.917505,
+      "settle_iterations": 43,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2345,
+      "settle_exit_mhz": 2190,
+      "settle_min_mhz": 2179,
+      "settle_max_mhz": 2345,
+      "settle_n_samples": 44,
+      "settle_stability_horizon_ms": 1377.4451999999999
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "a4eea060-8ad4-5cc2-80db-a6b85f952fe9": {
+     "clock_before_mhz": 2259,
+     "clock_after_mhz": 2268,
+     "clock_bracket_spread": 0.003976143141153081,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2263.5,
+     "window_ns": [
+      1435561042426196,
+      1435561847123596
+     ],
+     "window_ms": 804.6974,
+     "clock_bracket_lag_ns": [
+      182767,
+      730798
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 994.373293,
+      "settle_iterations": 71,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2347,
+      "settle_exit_mhz": 2259,
+      "settle_min_mhz": 2252,
+      "settle_max_mhz": 2347,
+      "settle_n_samples": 72,
+      "settle_stability_horizon_ms": 800.96898
+     },
+     "clock_bracket_sampler_error": null
+    }
+   },
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 4,
+    "n_refused": 0,
+    "refusal_rate": 0.0,
+    "refused_by_reason": {},
+    "thresholds_in_force": [
+     0.0078
+    ],
+    "spread_median": 0.00354924578527063,
+    "spread_max": 0.003976143141153081
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v5_compile_contiguous": {
+   "ok": true,
+   "workloads": 4,
+   "passed": 0,
+   "all_passed": false,
+   "latency_ms_by_workload": {},
+   "clock_bracket_by_workload": {},
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 0,
+    "n_refused": 0,
+    "refusal_rate": null,
+    "refused_by_reason": {},
+    "thresholds_in_force": [],
+    "spread_median": null,
+    "spread_max": null
+   },
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "85500ede-d60d-5097-b291-0ccd1a2e8a27",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "ded3638e-e404-5055-a495-905d4b4980a9",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "813ae5c8-9e11-566a-aad4-c9075bf2e616",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "a4eea060-8ad4-5cc2-80db-a6b85f952fe9",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    }
+   ]
+  }
+ },
+ "winner_by_workload": {
+  "85500ede-d60d-5097-b291-0ccd1a2e8a27": {
+   "variant": "v2_compile",
+   "t_b_ms": 16.885156631469727,
+   "clock_before_mhz": 2217,
+   "clock_after_mhz": 2228,
+   "clock_bracket_spread": 0.0049493813273340835,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 2222.5,
+   "window_ns": [
+    1435463220108283,
+    1435464256348217
+   ],
+   "window_ms": 1036.239934,
+   "clock_bracket_lag_ns": [
+    188347,
+    917414
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": false,
+    "settle_capped": "max_ms",
+    "settle_ms": 1008.088472,
+    "settle_iterations": 57,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2392,
+    "settle_exit_mhz": 2217,
+    "settle_min_mhz": 2212,
+    "settle_max_mhz": 2392,
+    "settle_n_samples": 58,
+    "settle_stability_horizon_ms": 1026.9792000000002
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  },
+  "ded3638e-e404-5055-a495-905d4b4980a9": {
+   "variant": "v1_eager",
+   "t_b_ms": 64.06811141967773,
+   "clock_before_mhz": 2254,
+   "clock_after_mhz": 2239,
+   "clock_bracket_spread": 0.006677053193857111,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 2246.5,
+   "window_ns": [
+    1435425169484588,
+    1435429024729350
+   ],
+   "window_ms": 3855.244762,
+   "clock_bracket_lag_ns": [
+    172617,
+    721918
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": false,
+    "settle_capped": "max_ms",
+    "settle_ms": 1052.204089,
+    "settle_iterations": 16,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2385,
+    "settle_exit_mhz": 2254,
+    "settle_min_mhz": 2239,
+    "settle_max_mhz": 2385,
+    "settle_n_samples": 17,
+    "settle_stability_horizon_ms": 3873.4051200000004
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  },
+  "813ae5c8-9e11-566a-aad4-c9075bf2e616": {
+   "variant": "v1_eager",
+   "t_b_ms": 22.87658405303955,
+   "clock_before_mhz": 2199,
+   "clock_after_mhz": 2188,
+   "clock_bracket_spread": 0.00501481650330522,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 2193.5,
+   "window_ns": [
+    1435431390592847,
+    1435432772148170
+   ],
+   "window_ms": 1381.555323,
+   "clock_bracket_lag_ns": [
+    171087,
+    602410
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": false,
+    "settle_capped": "max_ms",
+    "settle_ms": 1008.637462,
+    "settle_iterations": 43,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2349,
+    "settle_exit_mhz": 2199,
+    "settle_min_mhz": 2193,
+    "settle_max_mhz": 2349,
+    "settle_n_samples": 44,
+    "settle_stability_horizon_ms": 1373.94366
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  },
+  "a4eea060-8ad4-5cc2-80db-a6b85f952fe9": {
+   "variant": "v2_compile",
+   "t_b_ms": 2.784912943840027,
+   "clock_before_mhz": 2378,
+   "clock_after_mhz": 2387,
+   "clock_bracket_spread": 0.003777544596012592,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 2382.5,
+   "window_ns": [
+    1435507370008360,
+    1435507545449292
+   ],
+   "window_ms": 175.440932,
+   "clock_bracket_lag_ns": [
+    179437,
+    993223
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": true,
+    "settle_capped": null,
+    "settle_ms": 246.409716,
+    "settle_iterations": 81,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2364,
+    "settle_exit_mhz": 2378,
+    "settle_min_mhz": 2348,
+    "settle_max_mhz": 2378,
+    "settle_n_samples": 29,
+    "settle_stability_horizon_ms": 168.14134
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  }
+ },
+ "clock_basis": "unlocked",
+ "clock_bracket_threshold": 0.0078,
+ "clock_bracket_summary": {
+  "n_bracketed": 12,
+  "n_refused": 2,
+  "refusal_rate": 0.16666666666666666,
+  "refused_by_reason": {
+   "bracket_spread_above_threshold": 2
+  },
+  "thresholds_in_force": [
+   0.0078
+  ],
+  "spread_median": 0.0049493813273340835,
+  "spread_max": 0.02802664828853664
+ },
+ "clock_bracket_refused_by_workload": {
+  "ded3638e-e404-5055-a495-905d4b4980a9": [
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 12.666559219360352,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.009495817318562062
+   }
+  ],
+  "813ae5c8-9e11-566a-aad4-c9075bf2e616": [
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 4.4192399978637695,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.02802664828853664
+   }
+  ]
+ },
+ "n_workloads_with_a_refusal": 2,
+ "n_workloads_with_no_anchor_due_to_clock": 0,
+ "n_workloads": 4,
+ "n_workloads_with_tb": 4,
+ "complete": true
+}

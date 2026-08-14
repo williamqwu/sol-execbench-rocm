@@ -1,0 +1,557 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-14T19:22:27.993562+00:00",
+  "git_sha": "9b7e84352dde9e6dc5ddae5097171fa614b2785f-dirty",
+  "host": "mia1-p02-g45",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "f_lock_mhz": null,
+  "visible_devices": "3"
+ },
+ "ok": true,
+ "clock_bracket_fatal": null,
+ "problem": "Quant__029_nvfp4_fused_mlp_silu_gating",
+ "definition": "029_nvfp4_fused_mlp_silu_gating",
+ "workloads_from": "artifacts/05-MI355X/workloads/Quant/029_nvfp4_fused_mlp_silu_gating/workload.jsonl",
+ "gpu": "3",
+ "variants": {
+  "v1_eager": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 0,
+   "all_passed": false,
+   "latency_ms_by_workload": {},
+   "clock_bracket_by_workload": {},
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 0,
+    "n_refused": 0,
+    "refusal_rate": null,
+    "refused_by_reason": {},
+    "thresholds_in_force": [],
+    "spread_median": null,
+    "spread_max": null
+   },
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "7f694073-eb27-5c3f-942b-778862dd1c39",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "5bc4c7f3-8d15-56c7-9ba0-f761cf72b053",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "13d8b99e-393b-50eb-9aad-999c6c5ddcb5",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "c6df536d-a3ac-5eb7-9e5a-54511966cb5a",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "cc62dbc1-70cd-5e63-8bc0-b2e1ed2ed451",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "7703167a-3452-50f7-80cd-ab3d513375e3",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "237389bd-3c50-57d0-8634-1572c33cb661",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "f837cef2-4450-568a-85c8-9f1e13a50f98",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "64b3ad69-ae1b-55b8-91fa-3a83610b2330",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "6be36caa-a252-5ab7-aace-8bfeb1e2de53",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "e81c0fbd-1d75-5423-b576-e4e10fa2b9f8",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "ada749bb-13b9-5465-8bd5-451e8691203f",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "6b24122c-e0e1-555b-88a4-44badb3d79ef",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "d6394d9e-c58a-508e-82f7-eab7d258cba8",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "83cb2cb1-070e-5ef2-b297-a41b4999b1f1",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "03413911-1d95-5652-ba5d-2179aa7d47f4",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_3ayb_gm4/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    }
+   ]
+  },
+  "v2_compile": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 0,
+   "all_passed": false,
+   "latency_ms_by_workload": {},
+   "clock_bracket_by_workload": {},
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 0,
+    "n_refused": 0,
+    "refusal_rate": null,
+    "refused_by_reason": {},
+    "thresholds_in_force": [],
+    "spread_median": null,
+    "spread_max": null
+   },
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "7f694073-eb27-5c3f-942b-778862dd1c39",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "5bc4c7f3-8d15-56c7-9ba0-f761cf72b053",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "13d8b99e-393b-50eb-9aad-999c6c5ddcb5",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "c6df536d-a3ac-5eb7-9e5a-54511966cb5a",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "cc62dbc1-70cd-5e63-8bc0-b2e1ed2ed451",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "7703167a-3452-50f7-80cd-ab3d513375e3",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "237389bd-3c50-57d0-8634-1572c33cb661",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "f837cef2-4450-568a-85c8-9f1e13a50f98",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "64b3ad69-ae1b-55b8-91fa-3a83610b2330",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "6be36caa-a252-5ab7-aace-8bfeb1e2de53",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "e81c0fbd-1d75-5423-b576-e4e10fa2b9f8",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "ada749bb-13b9-5465-8bd5-451e8691203f",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "6b24122c-e0e1-555b-88a4-44badb3d79ef",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "d6394d9e-c58a-508e-82f7-eab7d258cba8",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "83cb2cb1-070e-5ef2-b297-a41b4999b1f1",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "03413911-1d95-5652-ba5d-2179aa7d47f4",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_69s12gep/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    }
+   ]
+  },
+  "v3_compile_max_autotune": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 0,
+   "all_passed": false,
+   "latency_ms_by_workload": {},
+   "clock_bracket_by_workload": {},
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 0,
+    "n_refused": 0,
+    "refusal_rate": null,
+    "refused_by_reason": {},
+    "thresholds_in_force": [],
+    "spread_median": null,
+    "spread_max": null
+   },
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "7f694073-eb27-5c3f-942b-778862dd1c39",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "5bc4c7f3-8d15-56c7-9ba0-f761cf72b053",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "13d8b99e-393b-50eb-9aad-999c6c5ddcb5",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "c6df536d-a3ac-5eb7-9e5a-54511966cb5a",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "cc62dbc1-70cd-5e63-8bc0-b2e1ed2ed451",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "7703167a-3452-50f7-80cd-ab3d513375e3",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "237389bd-3c50-57d0-8634-1572c33cb661",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "f837cef2-4450-568a-85c8-9f1e13a50f98",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "64b3ad69-ae1b-55b8-91fa-3a83610b2330",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "6be36caa-a252-5ab7-aace-8bfeb1e2de53",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "e81c0fbd-1d75-5423-b576-e4e10fa2b9f8",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "ada749bb-13b9-5465-8bd5-451e8691203f",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "6b24122c-e0e1-555b-88a4-44badb3d79ef",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "d6394d9e-c58a-508e-82f7-eab7d258cba8",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "83cb2cb1-070e-5ef2-b297-a41b4999b1f1",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "03413911-1d95-5652-ba5d-2179aa7d47f4",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_h6kmalqu/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    }
+   ]
+  },
+  "v4_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 0,
+   "all_passed": false,
+   "latency_ms_by_workload": {},
+   "clock_bracket_by_workload": {},
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 0,
+    "n_refused": 0,
+    "refusal_rate": null,
+    "refused_by_reason": {},
+    "thresholds_in_force": [],
+    "spread_median": null,
+    "spread_max": null
+   },
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "7f694073-eb27-5c3f-942b-778862dd1c39",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "5bc4c7f3-8d15-56c7-9ba0-f761cf72b053",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "13d8b99e-393b-50eb-9aad-999c6c5ddcb5",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "c6df536d-a3ac-5eb7-9e5a-54511966cb5a",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "cc62dbc1-70cd-5e63-8bc0-b2e1ed2ed451",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "7703167a-3452-50f7-80cd-ab3d513375e3",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "237389bd-3c50-57d0-8634-1572c33cb661",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "f837cef2-4450-568a-85c8-9f1e13a50f98",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "64b3ad69-ae1b-55b8-91fa-3a83610b2330",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "6be36caa-a252-5ab7-aace-8bfeb1e2de53",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "e81c0fbd-1d75-5423-b576-e4e10fa2b9f8",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "ada749bb-13b9-5465-8bd5-451e8691203f",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "6b24122c-e0e1-555b-88a4-44badb3d79ef",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "d6394d9e-c58a-508e-82f7-eab7d258cba8",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "83cb2cb1-070e-5ef2-b297-a41b4999b1f1",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "03413911-1d95-5652-ba5d-2179aa7d47f4",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_04n9ge4o/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    }
+   ]
+  },
+  "v5_compile_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 0,
+   "all_passed": false,
+   "latency_ms_by_workload": {},
+   "clock_bracket_by_workload": {},
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 0,
+    "n_refused": 0,
+    "refusal_rate": null,
+    "refused_by_reason": {},
+    "thresholds_in_force": [],
+    "spread_median": null,
+    "spread_max": null
+   },
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "7f694073-eb27-5c3f-942b-778862dd1c39",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "5bc4c7f3-8d15-56c7-9ba0-f761cf72b053",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "13d8b99e-393b-50eb-9aad-999c6c5ddcb5",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "c6df536d-a3ac-5eb7-9e5a-54511966cb5a",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "cc62dbc1-70cd-5e63-8bc0-b2e1ed2ed451",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "7703167a-3452-50f7-80cd-ab3d513375e3",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "237389bd-3c50-57d0-8634-1572c33cb661",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "f837cef2-4450-568a-85c8-9f1e13a50f98",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "64b3ad69-ae1b-55b8-91fa-3a83610b2330",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "6be36caa-a252-5ab7-aace-8bfeb1e2de53",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "e81c0fbd-1d75-5423-b576-e4e10fa2b9f8",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "ada749bb-13b9-5465-8bd5-451e8691203f",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "6b24122c-e0e1-555b-88a4-44badb3d79ef",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "d6394d9e-c58a-508e-82f7-eab7d258cba8",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "83cb2cb1-070e-5ef2-b297-a41b4999b1f1",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    },
+    {
+     "workload_uuid": "03413911-1d95-5652-ba5d-2179aa7d47f4",
+     "status": "INVALID_REFERENCE",
+     "log": "Reference run() failed: scaled_gemm with `torch.float8_e4m3fn` scales of 1x16 blocks is only supported for CUDA 12.8 and above\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 572, in <module>\n    _ref_outputs = _call_and_collect_outputs(\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/eval_driver.py\", line 107, in _call_and_collect_outputs\n    result = fn(*inputs)\n             ^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py\", line 120, in decorate_context\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 416, in run\n    gate_out = gate_gemm.scaled_mm(\n               ^^^^^^^^^^^^^^^^^^^^\n  File \"/var/tmp/solbench/solb_run_ud5f8x6h/_reference.py\", line 318, in scaled_mm\n    result = torch._scaled_mm(\n             ^^^^^^^^^^^^^^^^^\nRuntimeError: scaled_gemm with `torch.float8_e4"
+    }
+   ]
+  }
+ },
+ "winner_by_workload": {},
+ "clock_basis": "unlocked",
+ "clock_bracket_threshold": 0.0078,
+ "clock_bracket_summary": {
+  "n_bracketed": 0,
+  "n_refused": 0,
+  "refusal_rate": null,
+  "refused_by_reason": {},
+  "thresholds_in_force": [],
+  "spread_median": null,
+  "spread_max": null
+ },
+ "clock_bracket_refused_by_workload": {},
+ "n_workloads_with_a_refusal": 0,
+ "n_workloads_with_no_anchor_due_to_clock": 0,
+ "n_workloads": 16,
+ "n_workloads_with_tb": 0,
+ "complete": false
+}

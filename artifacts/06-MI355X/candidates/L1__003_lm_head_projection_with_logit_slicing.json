@@ -1,0 +1,3003 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-14T19:19:42.399127+00:00",
+  "git_sha": "9b7e84352dde9e6dc5ddae5097171fa614b2785f-dirty",
+  "host": "mia1-p02-g46",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "f_lock_mhz": null,
+  "visible_devices": "3"
+ },
+ "ok": true,
+ "clock_bracket_fatal": null,
+ "problem": "L1__003_lm_head_projection_with_logit_slicing",
+ "definition": "003_lm_head_projection_with_logit_slicing",
+ "workloads_from": "artifacts/05-MI355X/workloads/L1/003_lm_head_projection_with_logit_slicing/workload.jsonl",
+ "gpu": "3",
+ "variants": {
+  "v1_eager": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": 1.2613645195960999,
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": 0.1242000013589859,
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": 2.4898685216903687,
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": 0.09905999898910522,
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": 0.6814619898796082,
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": 0.406700998544693,
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": 0.18476049602031708,
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": 0.40834200382232666,
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": 1.1126840114593506,
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": 0.6806830167770386,
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": 1.2648650407791138,
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": 1.260803997516632,
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": 0.1237809993326664,
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": 0.9531230032444,
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": 0.32802100479602814,
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": 0.40696150064468384
+   },
+   "clock_bracket_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": {
+     "clock_before_mhz": 1813,
+     "clock_after_mhz": 1849,
+     "clock_bracket_spread": 0.019661387220098307,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1831.0,
+     "window_ns": [
+      1434995349404041,
+      1434995445509565
+     ],
+     "window_ms": 96.105524,
+     "clock_bracket_lag_ns": [
+      167077,
+      736167
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 357.650437,
+      "settle_iterations": 268,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2185,
+      "settle_exit_mhz": 1813,
+      "settle_min_mhz": 1809,
+      "settle_max_mhz": 2190,
+      "settle_n_samples": 37,
+      "settle_stability_horizon_ms": 74.3659425
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": {
+     "clock_before_mhz": 1911,
+     "clock_after_mhz": 1994,
+     "clock_bracket_spread": 0.042509603072983355,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1952.5,
+     "window_ns": [
+      1434996539985056,
+      1434996563178186
+     ],
+     "window_ms": 23.19313,
+     "clock_bracket_lag_ns": [
+      165597,
+      429643
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1000.814005,
+      "settle_iterations": 7745,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2169,
+      "settle_exit_mhz": 1911,
+      "settle_min_mhz": 1905,
+      "settle_max_mhz": 2169,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.1844688888888895
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": {
+     "clock_before_mhz": 1788,
+     "clock_after_mhz": 1828,
+     "clock_bracket_spread": 0.022123893805309734,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1808.0,
+     "window_ns": [
+      1434997504482567,
+      1434997668345504
+     ],
+     "window_ms": 163.862937,
+     "clock_bracket_lag_ns": [
+      163727,
+      531420
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 518.756192,
+      "settle_iterations": 199,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2275,
+      "settle_exit_mhz": 1788,
+      "settle_min_mhz": 1781,
+      "settle_max_mhz": 2275,
+      "settle_n_samples": 53,
+      "settle_stability_horizon_ms": 148.287735
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": {
+     "clock_before_mhz": 2372,
+     "clock_after_mhz": 2376,
+     "clock_bracket_spread": 0.0016849199663016006,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2374.0,
+     "window_ns": [
+      1434998731490486,
+      1434998753735203
+     ],
+     "window_ms": 22.244717,
+     "clock_bracket_lag_ns": [
+      166807,
+      617859
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1006.297732,
+      "settle_iterations": 9030,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2064,
+      "settle_exit_mhz": 2372,
+      "settle_min_mhz": 2064,
+      "settle_max_mhz": 2386,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 6.170590515463918
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": {
+     "clock_before_mhz": 1867,
+     "clock_after_mhz": 1924,
+     "clock_bracket_spread": 0.030071221313637563,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1895.5,
+     "window_ns": [
+      1434999158541328,
+      1434999213771037
+     ],
+     "window_ms": 55.229709,
+     "clock_bracket_lag_ns": [
+      164957,
+      810936
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 222.399898,
+      "settle_iterations": 309,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2313,
+      "settle_exit_mhz": 1867,
+      "settle_min_mhz": 1867,
+      "settle_max_mhz": 2313,
+      "settle_n_samples": 24,
+      "settle_stability_horizon_ms": 40.08415285714286
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": {
+     "clock_before_mhz": 2045,
+     "clock_after_mhz": 2114,
+     "clock_bracket_spread": 0.0331810531377735,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2079.5,
+     "window_ns": [
+      1434999459642251,
+      1434999498368784
+     ],
+     "window_ms": 38.726533,
+     "clock_bracket_lag_ns": [
+      165477,
+      605959
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 121.775552,
+      "settle_iterations": 288,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2218,
+      "settle_exit_mhz": 2045,
+      "settle_min_mhz": 2045,
+      "settle_max_mhz": 2218,
+      "settle_n_samples": 14,
+      "settle_stability_horizon_ms": 23.9571625
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": {
+     "clock_before_mhz": 2355,
+     "clock_after_mhz": 2365,
+     "clock_bracket_spread": 0.00423728813559322,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2360.0,
+     "window_ns": [
+      1435000571760831,
+      1435000598665257
+     ],
+     "window_ms": 26.904426,
+     "clock_bracket_lag_ns": [
+      164677,
+      742288
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1005.760873,
+      "settle_iterations": 5323,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2245,
+      "settle_exit_mhz": 2355,
+      "settle_min_mhz": 2236,
+      "settle_max_mhz": 2361,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 10.715270181818182
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": {
+     "clock_before_mhz": 2099,
+     "clock_after_mhz": 2149,
+     "clock_bracket_spread": 0.023540489642184557,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2124.0,
+     "window_ns": [
+      1435000821882442,
+      1435000861061187
+     ],
+     "window_ms": 39.178745,
+     "clock_bracket_lag_ns": [
+      162037,
+      501941
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 112.01458,
+      "settle_iterations": 263,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2347,
+      "settle_exit_mhz": 2099,
+      "settle_min_mhz": 2099,
+      "settle_max_mhz": 2347,
+      "settle_n_samples": 13,
+      "settle_stability_horizon_ms": 23.692248
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": {
+     "clock_before_mhz": 1843,
+     "clock_after_mhz": 1911,
+     "clock_bracket_spread": 0.036228023441662226,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1877.0,
+     "window_ns": [
+      1435001377185466,
+      1435001458723411
+     ],
+     "window_ms": 81.537945,
+     "clock_bracket_lag_ns": [
+      165708,
+      763827
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 307.790508,
+      "settle_iterations": 257,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2257,
+      "settle_exit_mhz": 1843,
+      "settle_min_mhz": 1842,
+      "settle_max_mhz": 2260,
+      "settle_n_samples": 34,
+      "settle_stability_horizon_ms": 67.4287875
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": {
+     "clock_before_mhz": 1843,
+     "clock_after_mhz": 1914,
+     "clock_bracket_spread": 0.03779611392068139,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1878.5,
+     "window_ns": [
+      1435001838663216,
+      1435001894090481
+     ],
+     "window_ms": 55.427265,
+     "clock_bracket_lag_ns": [
+      163597,
+      508451
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 231.956574,
+      "settle_iterations": 322,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2206,
+      "settle_exit_mhz": 1843,
+      "settle_min_mhz": 1843,
+      "settle_max_mhz": 2206,
+      "settle_n_samples": 25,
+      "settle_stability_horizon_ms": 40.30799142857143
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": {
+     "clock_before_mhz": 1800,
+     "clock_after_mhz": 1855,
+     "clock_bracket_spread": 0.030095759233926128,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1827.5,
+     "window_ns": [
+      1435002519012106,
+      1435002609375609
+     ],
+     "window_ms": 90.363503,
+     "clock_bracket_lag_ns": [
+      188497,
+      569170
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 351.692711,
+      "settle_iterations": 265,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2256,
+      "settle_exit_mhz": 1800,
+      "settle_min_mhz": 1800,
+      "settle_max_mhz": 2256,
+      "settle_n_samples": 37,
+      "settle_stability_horizon_ms": 74.247525
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": {
+     "clock_before_mhz": 1815,
+     "clock_after_mhz": 1875,
+     "clock_bracket_spread": 0.032520325203252036,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1845.0,
+     "window_ns": [
+      1435003186078625,
+      1435003275859389
+     ],
+     "window_ms": 89.780764,
+     "clock_bracket_lag_ns": [
+      170847,
+      739247
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 310.074828,
+      "settle_iterations": 236,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2249,
+      "settle_exit_mhz": 1815,
+      "settle_min_mhz": 1815,
+      "settle_max_mhz": 2249,
+      "settle_n_samples": 32,
+      "settle_stability_horizon_ms": 74.14604999999999
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": {
+     "clock_before_mhz": 1916,
+     "clock_after_mhz": 2004,
+     "clock_bracket_spread": 0.044897959183673466,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1960.0,
+     "window_ns": [
+      1435004354090396,
+      1435004377772228
+     ],
+     "window_ms": 23.681832,
+     "clock_bracket_lag_ns": [
+      171237,
+      787127
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1000.484296,
+      "settle_iterations": 7697,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2140,
+      "settle_exit_mhz": 1916,
+      "settle_min_mhz": 1904,
+      "settle_max_mhz": 2140,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.210551219512194
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": {
+     "clock_before_mhz": 1871,
+     "clock_after_mhz": 1933,
+     "clock_bracket_spread": 0.03259726603575184,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1902.0,
+     "window_ns": [
+      1435004862798694,
+      1435004934897992
+     ],
+     "window_ms": 72.099298,
+     "clock_bracket_lag_ns": [
+      166867,
+      775786
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 261.887929,
+      "settle_iterations": 259,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2254,
+      "settle_exit_mhz": 1871,
+      "settle_min_mhz": 1871,
+      "settle_max_mhz": 2254,
+      "settle_n_samples": 28,
+      "settle_stability_horizon_ms": 56.884062
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": {
+     "clock_before_mhz": 2154,
+     "clock_after_mhz": 2159,
+     "clock_bracket_spread": 0.002318571759795966,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2156.5,
+     "window_ns": [
+      1435005808131371,
+      1435005848884649
+     ],
+     "window_ms": 40.753278,
+     "clock_bracket_lag_ns": [
+      173527,
+      739588
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 772.006623,
+      "settle_iterations": 2448,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2201,
+      "settle_exit_mhz": 2154,
+      "settle_min_mhz": 2120,
+      "settle_max_mhz": 2201,
+      "settle_n_samples": 76,
+      "settle_stability_horizon_ms": 31.43071272727273
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": {
+     "clock_before_mhz": 1907,
+     "clock_after_mhz": 2019,
+     "clock_bracket_spread": 0.05705552725420275,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1963.0,
+     "window_ns": [
+      1435006101413800,
+      1435006140709723
+     ],
+     "window_ms": 39.295923,
+     "clock_bracket_lag_ns": [
+      176237,
+      1095341
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 113.020943,
+      "settle_iterations": 264,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 1758,
+      "settle_exit_mhz": 1907,
+      "settle_min_mhz": 1758,
+      "settle_max_mhz": 1909,
+      "settle_n_samples": 13,
+      "settle_stability_horizon_ms": 24.744725000000003
+     },
+     "clock_bracket_sampler_error": null
+    }
+   },
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 16,
+    "n_refused": 13,
+    "refusal_rate": 0.8125,
+    "refused_by_reason": {
+     "bracket_spread_above_threshold": 13
+    },
+    "thresholds_in_force": [
+     0.0078
+    ],
+    "spread_median": 0.032520325203252036,
+    "spread_max": 0.05705552725420275
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v2_compile": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": 1.2642645239830017,
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": 0.12468050047755241,
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": 2.48144793510437,
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": 0.09918000176548958,
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": 0.6818424761295319,
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": 0.4069010019302368,
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": 0.1852409988641739,
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": 0.4023614972829819,
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": 1.1083239912986755,
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": 0.6728820204734802,
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": 1.254704475402832,
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": 1.246564507484436,
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": 0.12078050151467323,
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": 0.963203489780426,
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": 0.30410100519657135,
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": 0.4114609956741333
+   },
+   "clock_bracket_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": {
+     "clock_before_mhz": 1833,
+     "clock_after_mhz": 1877,
+     "clock_bracket_spread": 0.02371967654986523,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1855.0,
+     "window_ns": [
+      1435013289185531,
+      1435013379289610
+     ],
+     "window_ms": 90.104079,
+     "clock_bracket_lag_ns": [
+      172277,
+      816996
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 328.69283,
+      "settle_iterations": 247,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2299,
+      "settle_exit_mhz": 1833,
+      "settle_min_mhz": 1831,
+      "settle_max_mhz": 2299,
+      "settle_n_samples": 34,
+      "settle_stability_horizon_ms": 74.680935
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": {
+     "clock_before_mhz": 1937,
+     "clock_after_mhz": 2017,
+     "clock_bracket_spread": 0.04046535154274153,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1977.0,
+     "window_ns": [
+      1435014675252737,
+      1435014698528286
+     ],
+     "window_ms": 23.275549,
+     "clock_bracket_lag_ns": [
+      173637,
+      524941
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1003.921565,
+      "settle_iterations": 7720,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2365,
+      "settle_exit_mhz": 1937,
+      "settle_min_mhz": 1899,
+      "settle_max_mhz": 2365,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.289771111111111
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": {
+     "clock_before_mhz": 1787,
+     "clock_after_mhz": 1801,
+     "clock_bracket_spread": 0.007803790412486065,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1794.0,
+     "window_ns": [
+      1435015926277329,
+      1435016090591180
+     ],
+     "window_ms": 164.313851,
+     "clock_bracket_lag_ns": [
+      166727,
+      604840
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 553.948713,
+      "settle_iterations": 212,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2287,
+      "settle_exit_mhz": 1787,
+      "settle_min_mhz": 1782,
+      "settle_max_mhz": 2287,
+      "settle_n_samples": 57,
+      "settle_stability_horizon_ms": 147.71505000000002
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": {
+     "clock_before_mhz": 2369,
+     "clock_after_mhz": 2375,
+     "clock_bracket_spread": 0.002529510961214165,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2372.0,
+     "window_ns": [
+      1435017406414068,
+      1435017428356710
+     ],
+     "window_ms": 21.942642,
+     "clock_bracket_lag_ns": [
+      175067,
+      851155
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1010.637562,
+      "settle_iterations": 9025,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2363,
+      "settle_exit_mhz": 2369,
+      "settle_min_mhz": 2326,
+      "settle_max_mhz": 2387,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 6.1921625
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": {
+     "clock_before_mhz": 1831,
+     "clock_after_mhz": 1903,
+     "clock_bracket_spread": 0.0385645420460632,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1867.0,
+     "window_ns": [
+      1435018096382780,
+      1435018151434553
+     ],
+     "window_ms": 55.051773,
+     "clock_bracket_lag_ns": [
+      170537,
+      771956
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 301.697126,
+      "settle_iterations": 418,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2323,
+      "settle_exit_mhz": 1831,
+      "settle_min_mhz": 1831,
+      "settle_max_mhz": 2324,
+      "settle_n_samples": 32,
+      "settle_stability_horizon_ms": 40.57940142857143
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": {
+     "clock_before_mhz": 2063,
+     "clock_after_mhz": 2128,
+     "clock_bracket_spread": 0.031018849916487713,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2095.5,
+     "window_ns": [
+      1435018621640598,
+      1435018660597568
+     ],
+     "window_ms": 38.95697,
+     "clock_bracket_lag_ns": [
+      170237,
+      673118
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 142.400918,
+      "settle_iterations": 330,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2345,
+      "settle_exit_mhz": 2063,
+      "settle_min_mhz": 2063,
+      "settle_max_mhz": 2345,
+      "settle_n_samples": 16,
+      "settle_stability_horizon_ms": 24.2371075
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": {
+     "clock_before_mhz": 2352,
+     "clock_after_mhz": 2363,
+     "clock_bracket_spread": 0.0046659597030752915,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2357.5,
+     "window_ns": [
+      1435020013807394,
+      1435020040790370
+     ],
+     "window_ms": 26.982976,
+     "clock_bracket_lag_ns": [
+      172787,
+      515411
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1006.864958,
+      "settle_iterations": 5311,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2349,
+      "settle_exit_mhz": 2352,
+      "settle_min_mhz": 2330,
+      "settle_max_mhz": 2356,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 10.798516363636365
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": {
+     "clock_before_mhz": 2040,
+     "clock_after_mhz": 2113,
+     "clock_bracket_spread": 0.035155309414880806,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2076.5,
+     "window_ns": [
+      1435020536696274,
+      1435020574957315
+     ],
+     "window_ms": 38.261041,
+     "clock_bracket_lag_ns": [
+      175397,
+      475612
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 174.177842,
+      "settle_iterations": 403,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2365,
+      "settle_exit_mhz": 2040,
+      "settle_min_mhz": 2040,
+      "settle_max_mhz": 2365,
+      "settle_n_samples": 19,
+      "settle_stability_horizon_ms": 23.9670875
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": {
+     "clock_before_mhz": 1839,
+     "clock_after_mhz": 1906,
+     "clock_bracket_spread": 0.03578104138851802,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1872.5,
+     "window_ns": [
+      1435021400871320,
+      1435021481711788
+     ],
+     "window_ms": 80.840468,
+     "clock_bracket_lag_ns": [
+      168127,
+      581510
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 326.109977,
+      "settle_iterations": 273,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2245,
+      "settle_exit_mhz": 1839,
+      "settle_min_mhz": 1838,
+      "settle_max_mhz": 2245,
+      "settle_n_samples": 36,
+      "settle_stability_horizon_ms": 66.66485250000001
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": {
+     "clock_before_mhz": 1837,
+     "clock_after_mhz": 1902,
+     "clock_bracket_spread": 0.034768654720513506,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1869.5,
+     "window_ns": [
+      1435022124626143,
+      1435022178861839
+     ],
+     "window_ms": 54.235696,
+     "clock_bracket_lag_ns": [
+      169967,
+      479662
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 265.602429,
+      "settle_iterations": 373,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2313,
+      "settle_exit_mhz": 1837,
+      "settle_min_mhz": 1837,
+      "settle_max_mhz": 2313,
+      "settle_n_samples": 28,
+      "settle_stability_horizon_ms": 40.040867142857145
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": {
+     "clock_before_mhz": 1811,
+     "clock_after_mhz": 1865,
+     "clock_bracket_spread": 0.029379760609358,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1838.0,
+     "window_ns": [
+      1435022987893055,
+      1435023077596231
+     ],
+     "window_ms": 89.703176,
+     "clock_bracket_lag_ns": [
+      166437,
+      907715
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 348.61782,
+      "settle_iterations": 266,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2291,
+      "settle_exit_mhz": 1811,
+      "settle_min_mhz": 1807,
+      "settle_max_mhz": 2293,
+      "settle_n_samples": 36,
+      "settle_stability_horizon_ms": 73.775025
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": {
+     "clock_before_mhz": 1814,
+     "clock_after_mhz": 1877,
+     "clock_bracket_spread": 0.03413709021945272,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1845.5,
+     "window_ns": [
+      1435024007816332,
+      1435024097117935
+     ],
+     "window_ms": 89.301603,
+     "clock_bracket_lag_ns": [
+      173617,
+      526661
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 364.936789,
+      "settle_iterations": 276,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2253,
+      "settle_exit_mhz": 1814,
+      "settle_min_mhz": 1814,
+      "settle_max_mhz": 2255,
+      "settle_n_samples": 39,
+      "settle_stability_horizon_ms": 75.40550571428571
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": {
+     "clock_before_mhz": 1917,
+     "clock_after_mhz": 1996,
+     "clock_bracket_spread": 0.04037822642473805,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1956.5,
+     "window_ns": [
+      1435025441297323,
+      1435025464637221
+     ],
+     "window_ms": 23.339898,
+     "clock_bracket_lag_ns": [
+      176667,
+      489321
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1003.752906,
+      "settle_iterations": 7682,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2373,
+      "settle_exit_mhz": 1917,
+      "settle_min_mhz": 1908,
+      "settle_max_mhz": 2373,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.316075853658537
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": {
+     "clock_before_mhz": 1870,
+     "clock_after_mhz": 1923,
+     "clock_bracket_spread": 0.027946216715001318,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1896.5,
+     "window_ns": [
+      1435026211710765,
+      1435026284162408
+     ],
+     "window_ms": 72.451643,
+     "clock_bracket_lag_ns": [
+      170057,
+      463342
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 244.279506,
+      "settle_iterations": 238,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2253,
+      "settle_exit_mhz": 1870,
+      "settle_min_mhz": 1870,
+      "settle_max_mhz": 2257,
+      "settle_n_samples": 26,
+      "settle_stability_horizon_ms": 56.884776
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": {
+     "clock_before_mhz": 2145,
+     "clock_after_mhz": 2203,
+     "clock_bracket_spread": 0.02667893284268629,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2174.0,
+     "window_ns": [
+      1435027675140903,
+      1435027707336909
+     ],
+     "window_ms": 32.196006,
+     "clock_bracket_lag_ns": [
+      176527,
+      465292
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1004.273459,
+      "settle_iterations": 3192,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2289,
+      "settle_exit_mhz": 2145,
+      "settle_min_mhz": 2132,
+      "settle_max_mhz": 2289,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 17.76216727272727
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": {
+     "clock_before_mhz": 2133,
+     "clock_after_mhz": 2185,
+     "clock_bracket_spread": 0.024085224641037517,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2159.0,
+     "window_ns": [
+      1435028141071965,
+      1435028180310820
+     ],
+     "window_ms": 39.238855,
+     "clock_bracket_lag_ns": [
+      176557,
+      519391
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 101.465494,
+      "settle_iterations": 236,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2361,
+      "settle_exit_mhz": 2133,
+      "settle_min_mhz": 2133,
+      "settle_max_mhz": 2361,
+      "settle_n_samples": 12,
+      "settle_stability_horizon_ms": 23.5981464
+     },
+     "clock_bracket_sampler_error": null
+    }
+   },
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 16,
+    "n_refused": 14,
+    "refusal_rate": 0.875,
+    "refused_by_reason": {
+     "bracket_spread_above_threshold": 14
+    },
+    "thresholds_in_force": [
+     0.0078
+    ],
+    "spread_median": 0.031018849916487713,
+    "spread_max": 0.04046535154274153
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v3_compile_max_autotune": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": 1.2524639964103699,
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": 0.12422000244259834,
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": 2.4902485609054565,
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": 0.09838049858808517,
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": 0.6818225085735321,
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": 0.4047214984893799,
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": 0.18480049818754196,
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": 0.4014820009469986,
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": 1.0990840196609497,
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": 0.6693419814109802,
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": 1.255024015903473,
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": 1.2578444480895996,
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": 0.12150000035762787,
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": 0.9447634816169739,
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": 0.3068009912967682,
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": 0.4014215022325516
+   },
+   "clock_bracket_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": {
+     "clock_before_mhz": 1820,
+     "clock_after_mhz": 1869,
+     "clock_bracket_spread": 0.026565464895635674,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1844.5,
+     "window_ns": [
+      1435039905379149,
+      1435039994853171
+     ],
+     "window_ms": 89.474022,
+     "clock_bracket_lag_ns": [
+      172107,
+      579860
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 341.90443,
+      "settle_iterations": 259,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2291,
+      "settle_exit_mhz": 1820,
+      "settle_min_mhz": 1820,
+      "settle_max_mhz": 2292,
+      "settle_n_samples": 35,
+      "settle_stability_horizon_ms": 74.1838425
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": {
+     "clock_before_mhz": 1900,
+     "clock_after_mhz": 1989,
+     "clock_bracket_spread": 0.045770120853689894,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1944.5,
+     "window_ns": [
+      1435042741522526,
+      1435042765233598
+     ],
+     "window_ms": 23.711072,
+     "clock_bracket_lag_ns": [
+      173317,
+      637079
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1005.200724,
+      "settle_iterations": 7745,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2321,
+      "settle_exit_mhz": 1900,
+      "settle_min_mhz": 1888,
+      "settle_max_mhz": 2321,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.296554634146342
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": {
+     "clock_before_mhz": 1759,
+     "clock_after_mhz": 1782,
+     "clock_bracket_spread": 0.012990680598700932,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1770.5,
+     "window_ns": [
+      1435047894979245,
+      1435048060268844
+     ],
+     "window_ms": 165.289599,
+     "clock_bracket_lag_ns": [
+      170587,
+      706078
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 676.088786,
+      "settle_iterations": 256,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2278,
+      "settle_exit_mhz": 1759,
+      "settle_min_mhz": 1755,
+      "settle_max_mhz": 2278,
+      "settle_n_samples": 72,
+      "settle_stability_horizon_ms": 148.56015
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": {
+     "clock_before_mhz": 2363,
+     "clock_after_mhz": 2369,
+     "clock_bracket_spread": 0.00253592561284869,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2366.0,
+     "window_ns": [
+      1435050533153101,
+      1435050555293070
+     ],
+     "window_ms": 22.139969,
+     "clock_bracket_lag_ns": [
+      183637,
+      529651
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1005.108671,
+      "settle_iterations": 9163,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2282,
+      "settle_exit_mhz": 2363,
+      "settle_min_mhz": 2259,
+      "settle_max_mhz": 2375,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 6.18963125
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": {
+     "clock_before_mhz": 1851,
+     "clock_after_mhz": 1921,
+     "clock_bracket_spread": 0.03711558854718982,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1886.0,
+     "window_ns": [
+      1435053138939558,
+      1435053194158599
+     ],
+     "window_ms": 55.219041,
+     "clock_bracket_lag_ns": [
+      180437,
+      605310
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 260.411014,
+      "settle_iterations": 362,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2255,
+      "settle_exit_mhz": 1851,
+      "settle_min_mhz": 1851,
+      "settle_max_mhz": 2257,
+      "settle_n_samples": 28,
+      "settle_stability_horizon_ms": 40.47118714285715
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": {
+     "clock_before_mhz": 2032,
+     "clock_after_mhz": 2102,
+     "clock_bracket_spread": 0.033865505563618774,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2067.0,
+     "window_ns": [
+      1435055448299155,
+      1435055486756694
+     ],
+     "window_ms": 38.457539,
+     "clock_bracket_lag_ns": [
+      169407,
+      428592
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 162.017796,
+      "settle_iterations": 382,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2279,
+      "settle_exit_mhz": 2032,
+      "settle_min_mhz": 2032,
+      "settle_max_mhz": 2279,
+      "settle_n_samples": 18,
+      "settle_stability_horizon_ms": 24.0017375
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": {
+     "clock_before_mhz": 2357,
+     "clock_after_mhz": 2366,
+     "clock_bracket_spread": 0.0038111369892017783,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2361.5,
+     "window_ns": [
+      1435058427158449,
+      1435058453706673
+     ],
+     "window_ms": 26.548224,
+     "clock_bracket_lag_ns": [
+      180067,
+      428983
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1007.402667,
+      "settle_iterations": 5309,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2278,
+      "settle_exit_mhz": 2357,
+      "settle_min_mhz": 2271,
+      "settle_max_mhz": 2357,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 10.793814545454545
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": {
+     "clock_before_mhz": 2045,
+     "clock_after_mhz": 2116,
+     "clock_bracket_spread": 0.034126411920211486,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2080.5,
+     "window_ns": [
+      1435060288221849,
+      1435060326132717
+     ],
+     "window_ms": 37.910868,
+     "clock_bracket_lag_ns": [
+      170447,
+      462983
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 140.997137,
+      "settle_iterations": 333,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2286,
+      "settle_exit_mhz": 2045,
+      "settle_min_mhz": 2045,
+      "settle_max_mhz": 2286,
+      "settle_n_samples": 16,
+      "settle_stability_horizon_ms": 23.665192500000003
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": {
+     "clock_before_mhz": 1829,
+     "clock_after_mhz": 1898,
+     "clock_bracket_spread": 0.03702709954386906,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1863.5,
+     "window_ns": [
+      1435063574684029,
+      1435063654773943
+     ],
+     "window_ms": 80.089914,
+     "clock_bracket_lag_ns": [
+      170097,
+      558630
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 303.960698,
+      "settle_iterations": 252,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2263,
+      "settle_exit_mhz": 1829,
+      "settle_min_mhz": 1829,
+      "settle_max_mhz": 2266,
+      "settle_n_samples": 33,
+      "settle_stability_horizon_ms": 66.9002775
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": {
+     "clock_before_mhz": 1831,
+     "clock_after_mhz": 1907,
+     "clock_bracket_spread": 0.04066345639379347,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1869.0,
+     "window_ns": [
+      1435064432405932,
+      1435064486434464
+     ],
+     "window_ms": 54.028532,
+     "clock_bracket_lag_ns": [
+      171837,
+      837155
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 290.379111,
+      "settle_iterations": 405,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2321,
+      "settle_exit_mhz": 1831,
+      "settle_min_mhz": 1831,
+      "settle_max_mhz": 2321,
+      "settle_n_samples": 31,
+      "settle_stability_horizon_ms": 40.57190142857143
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": {
+     "clock_before_mhz": 1781,
+     "clock_after_mhz": 1863,
+     "clock_bracket_spread": 0.04500548847420417,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1822.0,
+     "window_ns": [
+      1435067542546450,
+      1435067632407976
+     ],
+     "window_ms": 89.861526,
+     "clock_bracket_lag_ns": [
+      168987,
+      522371
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 367.788892,
+      "settle_iterations": 276,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2262,
+      "settle_exit_mhz": 1781,
+      "settle_min_mhz": 1781,
+      "settle_max_mhz": 2262,
+      "settle_n_samples": 39,
+      "settle_stability_horizon_ms": 75.5798025
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": {
+     "clock_before_mhz": 1793,
+     "clock_after_mhz": 1853,
+     "clock_bracket_spread": 0.03291278113000549,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1823.0,
+     "window_ns": [
+      1435071113251994,
+      1435071202436672
+     ],
+     "window_ms": 89.184678,
+     "clock_bracket_lag_ns": [
+      178247,
+      723367
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 375.822915,
+      "settle_iterations": 289,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2259,
+      "settle_exit_mhz": 1793,
+      "settle_min_mhz": 1788,
+      "settle_max_mhz": 2259,
+      "settle_n_samples": 39,
+      "settle_stability_horizon_ms": 73.566015
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": {
+     "clock_before_mhz": 1905,
+     "clock_after_mhz": 1989,
+     "clock_bracket_spread": 0.04314329738058552,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1947.0,
+     "window_ns": [
+      1435072658154269,
+      1435072681438809
+     ],
+     "window_ms": 23.28454,
+     "clock_bracket_lag_ns": [
+      181667,
+      460062
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1000.26568,
+      "settle_iterations": 7730,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2384,
+      "settle_exit_mhz": 1905,
+      "settle_min_mhz": 1898,
+      "settle_max_mhz": 2384,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.321403414634146
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": {
+     "clock_before_mhz": 1828,
+     "clock_after_mhz": 1892,
+     "clock_bracket_spread": 0.034408602150537634,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1860.0,
+     "window_ns": [
+      1435075825970734,
+      1435075897404107
+     ],
+     "window_ms": 71.433373,
+     "clock_bracket_lag_ns": [
+      172537,
+      725887
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 311.608359,
+      "settle_iterations": 309,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2264,
+      "settle_exit_mhz": 1828,
+      "settle_min_mhz": 1825,
+      "settle_max_mhz": 2264,
+      "settle_n_samples": 33,
+      "settle_stability_horizon_ms": 55.640046000000005
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": {
+     "clock_before_mhz": 2144,
+     "clock_after_mhz": 2199,
+     "clock_bracket_spread": 0.025328114206769514,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2171.5,
+     "window_ns": [
+      1435079006069424,
+      1435079038312391
+     ],
+     "window_ms": 32.242967,
+     "clock_bracket_lag_ns": [
+      181507,
+      613369
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1004.723188,
+      "settle_iterations": 3190,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2264,
+      "settle_exit_mhz": 2144,
+      "settle_min_mhz": 2117,
+      "settle_max_mhz": 2264,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 18.065373529411765
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": {
+     "clock_before_mhz": 2068,
+     "clock_after_mhz": 2126,
+     "clock_bracket_spread": 0.027658559847401048,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2097.0,
+     "window_ns": [
+      1435080868645213,
+      1435080906573212
+     ],
+     "window_ms": 37.927999,
+     "clock_bracket_lag_ns": [
+      169787,
+      423303
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 111.043813,
+      "settle_iterations": 260,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2282,
+      "settle_exit_mhz": 2068,
+      "settle_min_mhz": 2068,
+      "settle_max_mhz": 2282,
+      "settle_n_samples": 13,
+      "settle_stability_horizon_ms": 23.795184
+     },
+     "clock_bracket_sampler_error": null
+    }
+   },
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 16,
+    "n_refused": 14,
+    "refusal_rate": 0.875,
+    "refused_by_reason": {
+     "bracket_spread_above_threshold": 14
+    },
+    "thresholds_in_force": [
+     0.0078
+    ],
+    "spread_median": 0.034126411920211486,
+    "spread_max": 0.045770120853689894
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v4_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": 1.2567844986915588,
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": 0.12338049709796906,
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": 2.537829041481018,
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": 0.09888099879026413,
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": 0.6791419982910156,
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": 0.4062415063381195,
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": 0.18550100177526474,
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": 0.40884149074554443,
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": 1.117024004459381,
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": 0.682262510061264,
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": 1.2560244798660278,
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": 1.2485044598579407,
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": 0.12318050116300583,
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": 0.9549835026264191,
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": 0.31446100771427155,
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": 0.40658099949359894
+   },
+   "clock_bracket_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": {
+     "clock_before_mhz": 1814,
+     "clock_after_mhz": 1827,
+     "clock_bracket_spread": 0.007140895358418017,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 1820.5,
+     "window_ns": [
+      1435087532947163,
+      1435087628117519
+     ],
+     "window_ms": 95.170356,
+     "clock_bracket_lag_ns": [
+      163657,
+      745207
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 310.844965,
+      "settle_iterations": 237,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2159,
+      "settle_exit_mhz": 1814,
+      "settle_min_mhz": 1809,
+      "settle_max_mhz": 2159,
+      "settle_n_samples": 32,
+      "settle_stability_horizon_ms": 74.27414999999999
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": {
+     "clock_before_mhz": 1897,
+     "clock_after_mhz": 1987,
+     "clock_bracket_spread": 0.046343975283213185,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1942.0,
+     "window_ns": [
+      1435088723467897,
+      1435088746657519
+     ],
+     "window_ms": 23.189622,
+     "clock_bracket_lag_ns": [
+      166407,
+      589020
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1004.291681,
+      "settle_iterations": 7715,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2151,
+      "settle_exit_mhz": 1897,
+      "settle_min_mhz": 1897,
+      "settle_max_mhz": 2151,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.2857553658536585
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": {
+     "clock_before_mhz": 1749,
+     "clock_after_mhz": 1721,
+     "clock_bracket_spread": 0.016138328530259365,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1735.0,
+     "window_ns": [
+      1435089669504719,
+      1435089836537342
+     ],
+     "window_ms": 167.032623,
+     "clock_bracket_lag_ns": [
+      162957,
+      879565
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 497.592949,
+      "settle_iterations": 189,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2276,
+      "settle_exit_mhz": 1749,
+      "settle_min_mhz": 1745,
+      "settle_max_mhz": 2276,
+      "settle_n_samples": 53,
+      "settle_stability_horizon_ms": 149.506485
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": {
+     "clock_before_mhz": 2325,
+     "clock_after_mhz": 2337,
+     "clock_bracket_spread": 0.005148005148005148,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2331.0,
+     "window_ns": [
+      1435090925605990,
+      1435090947535804
+     ],
+     "window_ms": 21.929814,
+     "clock_bracket_lag_ns": [
+      176987,
+      472851
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1005.04947,
+      "settle_iterations": 8876,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2096,
+      "settle_exit_mhz": 2325,
+      "settle_min_mhz": 2096,
+      "settle_max_mhz": 2384,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 6.35075375
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": {
+     "clock_before_mhz": 1845,
+     "clock_after_mhz": 1916,
+     "clock_bracket_spread": 0.03775591597979261,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1880.5,
+     "window_ns": [
+      1435091351581899,
+      1435091406444717
+     ],
+     "window_ms": 54.862818,
+     "clock_bracket_lag_ns": [
+      166127,
+      551551
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 253.213904,
+      "settle_iterations": 354,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2304,
+      "settle_exit_mhz": 1845,
+      "settle_min_mhz": 1845,
+      "settle_max_mhz": 2304,
+      "settle_n_samples": 27,
+      "settle_stability_horizon_ms": 40.23475285714286
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": {
+     "clock_before_mhz": 2044,
+     "clock_after_mhz": 2114,
+     "clock_bracket_spread": 0.03367003367003367,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2079.0,
+     "window_ns": [
+      1435091617944947,
+      1435091656648173
+     ],
+     "window_ms": 38.703226,
+     "clock_bracket_lag_ns": [
+      165867,
+      747807
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 102.179376,
+      "settle_iterations": 239,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2195,
+      "settle_exit_mhz": 2044,
+      "settle_min_mhz": 2044,
+      "settle_max_mhz": 2195,
+      "settle_n_samples": 12,
+      "settle_stability_horizon_ms": 23.9530296
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": {
+     "clock_before_mhz": 2355,
+     "clock_after_mhz": 2365,
+     "clock_bracket_spread": 0.00423728813559322,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2360.0,
+     "window_ns": [
+      1435092734214549,
+      1435092761069869
+     ],
+     "window_ms": 26.85532,
+     "clock_bracket_lag_ns": [
+      168817,
+      457472
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1002.129601,
+      "settle_iterations": 5319,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2257,
+      "settle_exit_mhz": 2355,
+      "settle_min_mhz": 2249,
+      "settle_max_mhz": 2357,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 10.717266545454546
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": {
+     "clock_before_mhz": 2070,
+     "clock_after_mhz": 2126,
+     "clock_bracket_spread": 0.02669208770257388,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2098.0,
+     "window_ns": [
+      1435092997193166,
+      1435093040693420
+     ],
+     "window_ms": 43.500254,
+     "clock_bracket_lag_ns": [
+      164847,
+      842195
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 124.492763,
+      "settle_iterations": 282,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2346,
+      "settle_exit_mhz": 2070,
+      "settle_min_mhz": 2070,
+      "settle_max_mhz": 2346,
+      "settle_n_samples": 14,
+      "settle_stability_horizon_ms": 24.1314672
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": {
+     "clock_before_mhz": 1843,
+     "clock_after_mhz": 1900,
+     "clock_bracket_spread": 0.030456852791878174,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1871.5,
+     "window_ns": [
+      1435093574735065,
+      1435093656513841
+     ],
+     "window_ms": 81.778776,
+     "clock_bracket_lag_ns": [
+      163677,
+      580070
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 309.807643,
+      "settle_iterations": 259,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2271,
+      "settle_exit_mhz": 1843,
+      "settle_min_mhz": 1843,
+      "settle_max_mhz": 2273,
+      "settle_n_samples": 34,
+      "settle_stability_horizon_ms": 66.88105333333334
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": {
+     "clock_before_mhz": 1839,
+     "clock_after_mhz": 1906,
+     "clock_bracket_spread": 0.03578104138851802,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1872.5,
+     "window_ns": [
+      1435094058752008,
+      1435094113862593
+     ],
+     "window_ms": 55.110585,
+     "clock_bracket_lag_ns": [
+      162217,
+      733777
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 251.643021,
+      "settle_iterations": 350,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2208,
+      "settle_exit_mhz": 1839,
+      "settle_min_mhz": 1839,
+      "settle_max_mhz": 2208,
+      "settle_n_samples": 27,
+      "settle_stability_horizon_ms": 40.002385714285715
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": {
+     "clock_before_mhz": 1785,
+     "clock_after_mhz": 1859,
+     "clock_bracket_spread": 0.04061470911086718,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1822.0,
+     "window_ns": [
+      1435094682297198,
+      1435094771891000
+     ],
+     "window_ms": 89.593802,
+     "clock_bracket_lag_ns": [
+      170287,
+      624389
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 340.586956,
+      "settle_iterations": 240,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2236,
+      "settle_exit_mhz": 1785,
+      "settle_min_mhz": 1785,
+      "settle_max_mhz": 2239,
+      "settle_n_samples": 35,
+      "settle_stability_horizon_ms": 73.840215
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": {
+     "clock_before_mhz": 1755,
+     "clock_after_mhz": 1840,
+     "clock_bracket_spread": 0.04728789986091794,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1797.5,
+     "window_ns": [
+      1435095480850484,
+      1435095569846897
+     ],
+     "window_ms": 88.996413,
+     "clock_bracket_lag_ns": [
+      170257,
+      797976
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 471.523478,
+      "settle_iterations": 327,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2239,
+      "settle_exit_mhz": 1755,
+      "settle_min_mhz": 1752,
+      "settle_max_mhz": 2242,
+      "settle_n_samples": 48,
+      "settle_stability_horizon_ms": 74.1830657142857
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": {
+     "clock_before_mhz": 1920,
+     "clock_after_mhz": 1999,
+     "clock_bracket_spread": 0.04031640724674662,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1959.5,
+     "window_ns": [
+      1435096675805369,
+      1435096698972831
+     ],
+     "window_ms": 23.167462,
+     "clock_bracket_lag_ns": [
+      165037,
+      611610
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1008.20719,
+      "settle_iterations": 7781,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2172,
+      "settle_exit_mhz": 1920,
+      "settle_min_mhz": 1907,
+      "settle_max_mhz": 2172,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 7.294630975609756
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": {
+     "clock_before_mhz": 1851,
+     "clock_after_mhz": 1918,
+     "clock_bracket_spread": 0.03555319713451844,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1884.5,
+     "window_ns": [
+      1435097197109894,
+      1435097268482699
+     ],
+     "window_ms": 71.372805,
+     "clock_bracket_lag_ns": [
+      171157,
+      504691
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 304.83484,
+      "settle_iterations": 299,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2249,
+      "settle_exit_mhz": 1851,
+      "settle_min_mhz": 1851,
+      "settle_max_mhz": 2249,
+      "settle_n_samples": 32,
+      "settle_stability_horizon_ms": 57.985223999999995
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": {
+     "clock_before_mhz": 2152,
+     "clock_after_mhz": 2193,
+     "clock_bracket_spread": 0.018872266973532795,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2172.5,
+     "window_ns": [
+      1435098365241370,
+      1435098397995918
+     ],
+     "window_ms": 32.754548,
+     "clock_bracket_lag_ns": [
+      168087,
+      841275
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1000.6344,
+      "settle_iterations": 3204,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2185,
+      "settle_exit_mhz": 2152,
+      "settle_min_mhz": 2125,
+      "settle_max_mhz": 2185,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 17.878619999999998
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": {
+     "clock_before_mhz": 2053,
+     "clock_after_mhz": 2114,
+     "clock_bracket_spread": 0.02927765778737701,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2083.5,
+     "window_ns": [
+      1435098650206700,
+      1435098689482966
+     ],
+     "window_ms": 39.276266,
+     "clock_bracket_lag_ns": [
+      163887,
+      529911
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 133.481989,
+      "settle_iterations": 308,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2296,
+      "settle_exit_mhz": 2053,
+      "settle_min_mhz": 2053,
+      "settle_max_mhz": 2296,
+      "settle_n_samples": 15,
+      "settle_stability_horizon_ms": 24.160835
+     },
+     "clock_bracket_sampler_error": null
+    }
+   },
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 16,
+    "n_refused": 13,
+    "refusal_rate": 0.8125,
+    "refused_by_reason": {
+     "bracket_spread_above_threshold": 13
+    },
+    "thresholds_in_force": [
+     0.0078
+    ],
+    "spread_median": 0.03367003367003367,
+    "spread_max": 0.04728789986091794
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v5_compile_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 0,
+   "all_passed": false,
+   "latency_ms_by_workload": {},
+   "clock_bracket_by_workload": {},
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 0,
+    "n_refused": 0,
+    "refusal_rate": null,
+    "refused_by_reason": {},
+    "thresholds_in_force": [],
+    "spread_median": null,
+    "spread_max": null
+   },
+   "is_override": false,
+   "failures": [
+    {
+     "workload_uuid": "258bb593-e3d9-5846-87c5-8d9b0229da1b",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "e4abcf13-fb66-504d-a9a1-a0453da505ce",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "d1d64e14-7724-5e59-a655-8e8056ff5c2b",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "adb76181-ffee-52f7-9fd7-517dd3b29a22",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "4aa1734a-49d3-566a-a685-b971a2ea5f05",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "37cb25ac-2ad5-5d53-89e9-900f50c1273f",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "a0e7383c-0455-5eaf-a173-19b18dbbc152",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "c05af2f5-f018-56e0-b33e-8d7368e2dcf6",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "2a8ea019-f27d-5f15-8dd0-e9f3581b7300",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "cbc16461-98d9-56e3-a338-d9e0c088635b",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "08b22d16-bb19-54d3-92f2-c6790c631cff",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "8aed45db-d2ce-5521-8bfa-5571ff74646d",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "2da239e0-7465-562c-adb3-30f5b2484dc7",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "322e0425-97f7-5e60-acbb-4ca3d0c6810e",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    },
+    {
+     "workload_uuid": "0d5dcd0c-493b-5353-b184-ff45201b8e37",
+     "status": "RUNTIME_ERROR",
+     "log": ".py\", line 2711, in wrap_fx_proxy_cls\n    return _wrap_fx_proxy(\n           ^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py\", line 2809, in _wrap_fx_proxy\n    example_value = get_fake_value(proxy.node, tx, allow_non_graph_fake=True)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/utils.py\", line 3342, in get_fake_value\n    fake_mode = tx.fake_mode\n                ^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake_mode\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/torch/_dynamo/symbolic_convert.py\", line 4453, in fake_mode\n    return self.parent.fake"
+    }
+   ]
+  }
+ },
+ "winner_by_workload": {
+  "adb76181-ffee-52f7-9fd7-517dd3b29a22": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.09838049858808517,
+   "clock_before_mhz": 2363,
+   "clock_after_mhz": 2369,
+   "clock_bracket_spread": 0.00253592561284869,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 2366.0,
+   "window_ns": [
+    1435050533153101,
+    1435050555293070
+   ],
+   "window_ms": 22.139969,
+   "clock_bracket_lag_ns": [
+    183637,
+    529651
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": false,
+    "settle_capped": "max_ms",
+    "settle_ms": 1005.108671,
+    "settle_iterations": 9163,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2282,
+    "settle_exit_mhz": 2363,
+    "settle_min_mhz": 2259,
+    "settle_max_mhz": 2375,
+    "settle_n_samples": 98,
+    "settle_stability_horizon_ms": 6.18963125
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  },
+  "a0e7383c-0455-5eaf-a173-19b18dbbc152": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.18476049602031708,
+   "clock_before_mhz": 2355,
+   "clock_after_mhz": 2365,
+   "clock_bracket_spread": 0.00423728813559322,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 2360.0,
+   "window_ns": [
+    1435000571760831,
+    1435000598665257
+   ],
+   "window_ms": 26.904426,
+   "clock_bracket_lag_ns": [
+    164677,
+    742288
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": false,
+    "settle_capped": "max_ms",
+    "settle_ms": 1005.760873,
+    "settle_iterations": 5323,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2245,
+    "settle_exit_mhz": 2355,
+    "settle_min_mhz": 2236,
+    "settle_max_mhz": 2361,
+    "settle_n_samples": 99,
+    "settle_stability_horizon_ms": 10.715270181818182
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  },
+  "322e0425-97f7-5e60-acbb-4ca3d0c6810e": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.32802100479602814,
+   "clock_before_mhz": 2154,
+   "clock_after_mhz": 2159,
+   "clock_bracket_spread": 0.002318571759795966,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 2156.5,
+   "window_ns": [
+    1435005808131371,
+    1435005848884649
+   ],
+   "window_ms": 40.753278,
+   "clock_bracket_lag_ns": [
+    173527,
+    739588
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": true,
+    "settle_capped": null,
+    "settle_ms": 772.006623,
+    "settle_iterations": 2448,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2201,
+    "settle_exit_mhz": 2154,
+    "settle_min_mhz": 2120,
+    "settle_max_mhz": 2201,
+    "settle_n_samples": 76,
+    "settle_stability_horizon_ms": 31.43071272727273
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  },
+  "258bb593-e3d9-5846-87c5-8d9b0229da1b": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 1.2567844986915588,
+   "clock_before_mhz": 1814,
+   "clock_after_mhz": 1827,
+   "clock_bracket_spread": 0.007140895358418017,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 1820.5,
+   "window_ns": [
+    1435087532947163,
+    1435087628117519
+   ],
+   "window_ms": 95.170356,
+   "clock_bracket_lag_ns": [
+    163657,
+    745207
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": true,
+    "settle_capped": null,
+    "settle_ms": 310.844965,
+    "settle_iterations": 237,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2159,
+    "settle_exit_mhz": 1814,
+    "settle_min_mhz": 1809,
+    "settle_max_mhz": 2159,
+    "settle_n_samples": 32,
+    "settle_stability_horizon_ms": 74.27414999999999
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  }
+ },
+ "clock_basis": "unlocked",
+ "clock_bracket_threshold": 0.0078,
+ "clock_bracket_summary": {
+  "n_bracketed": 64,
+  "n_refused": 54,
+  "refusal_rate": 0.84375,
+  "refused_by_reason": {
+   "bracket_spread_above_threshold": 54
+  },
+  "thresholds_in_force": [
+   0.0078
+  ],
+  "spread_median": 0.03259726603575184,
+  "spread_max": 0.05705552725420275
+ },
+ "clock_bracket_refused_by_workload": {
+  "258bb593-e3d9-5846-87c5-8d9b0229da1b": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 1.2613645195960999,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.019661387220098307
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 1.2642645239830017,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.02371967654986523
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 1.2524639964103699,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.026565464895635674
+   }
+  ],
+  "e4abcf13-fb66-504d-a9a1-a0453da505ce": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.1242000013589859,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.042509603072983355
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.12468050047755241,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04046535154274153
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.12422000244259834,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.045770120853689894
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.12338049709796906,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.046343975283213185
+   }
+  ],
+  "d1d64e14-7724-5e59-a655-8e8056ff5c2b": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 2.4898685216903687,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.022123893805309734
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 2.48144793510437,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.007803790412486065
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 2.4902485609054565,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.012990680598700932
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 2.537829041481018,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.016138328530259365
+   }
+  ],
+  "4aa1734a-49d3-566a-a685-b971a2ea5f05": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.6814619898796082,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.030071221313637563
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.6818424761295319,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.0385645420460632
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.6818225085735321,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03711558854718982
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.6791419982910156,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03775591597979261
+   }
+  ],
+  "37cb25ac-2ad5-5d53-89e9-900f50c1273f": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.406700998544693,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.0331810531377735
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.4069010019302368,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.031018849916487713
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.4047214984893799,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.033865505563618774
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.4062415063381195,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03367003367003367
+   }
+  ],
+  "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.40834200382232666,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.023540489642184557
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.4023614972829819,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.035155309414880806
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.4014820009469986,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.034126411920211486
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.40884149074554443,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.02669208770257388
+   }
+  ],
+  "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 1.1126840114593506,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.036228023441662226
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 1.1083239912986755,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03578104138851802
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 1.0990840196609497,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03702709954386906
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 1.117024004459381,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.030456852791878174
+   }
+  ],
+  "cbc16461-98d9-56e3-a338-d9e0c088635b": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.6806830167770386,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03779611392068139
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.6728820204734802,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.034768654720513506
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.6693419814109802,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04066345639379347
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.682262510061264,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03578104138851802
+   }
+  ],
+  "08b22d16-bb19-54d3-92f2-c6790c631cff": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 1.2648650407791138,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.030095759233926128
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 1.254704475402832,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.029379760609358
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 1.255024015903473,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04500548847420417
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 1.2560244798660278,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04061470911086718
+   }
+  ],
+  "8aed45db-d2ce-5521-8bfa-5571ff74646d": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 1.260803997516632,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.032520325203252036
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 1.246564507484436,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03413709021945272
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 1.2578444480895996,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03291278113000549
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 1.2485044598579407,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04728789986091794
+   }
+  ],
+  "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.1237809993326664,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.044897959183673466
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.12078050151467323,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04037822642473805
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.12150000035762787,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04314329738058552
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.12318050116300583,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04031640724674662
+   }
+  ],
+  "2da239e0-7465-562c-adb3-30f5b2484dc7": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.9531230032444,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03259726603575184
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.963203489780426,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.027946216715001318
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.9447634816169739,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.034408602150537634
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.9549835026264191,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03555319713451844
+   }
+  ],
+  "0d5dcd0c-493b-5353-b184-ff45201b8e37": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.40696150064468384,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.05705552725420275
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.4114609956741333,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.024085224641037517
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.4014215022325516,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.027658559847401048
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.40658099949359894,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.02927765778737701
+   }
+  ],
+  "322e0425-97f7-5e60-acbb-4ca3d0c6810e": [
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.30410100519657135,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.02667893284268629
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.3068009912967682,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.025328114206769514
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.31446100771427155,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.018872266973532795
+   }
+  ]
+ },
+ "n_workloads_with_a_refusal": 14,
+ "n_workloads_with_no_anchor_due_to_clock": 12,
+ "n_workloads": 16,
+ "n_workloads_with_tb": 4,
+ "complete": false
+}
