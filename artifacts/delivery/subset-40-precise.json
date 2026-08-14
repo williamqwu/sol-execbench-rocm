@@ -1,31 +1,17 @@
 {
   "_provenance": {
     "task": "delivery-index",
-    "utc": "2026-08-14T21:51:57.838017+00:00",
-    "git_sha": "bd9309367aff0b57f4cf3710f0525ad845c34418-dirty",
+    "utc": "2026-08-14T22:34:05.139003+00:00",
+    "git_sha": "75ee7841ef494b8e0121d2ce81389ecc999004a6-dirty",
     "host": "mia1-p02-g46",
-    "python": "3.12.3",
+    "python": "3.10.12",
     "torch": {
-      "available": true,
-      "version": "2.9.1+rocm7.2.0.git7e1940d4",
-      "hip": "7.2.26015-fc0010cf6a",
-      "cuda": null,
-      "device_count": 8,
-      "devices": [
-        "AMD Instinct MI355X",
-        "AMD Instinct MI355X",
-        "AMD Instinct MI355X",
-        "AMD Instinct MI355X",
-        "AMD Instinct MI355X",
-        "AMD Instinct MI355X",
-        "AMD Instinct MI355X",
-        "AMD Instinct MI355X"
-      ]
+      "available": false
     },
     "rocm": {
-      "version": "7.2.0",
+      "version": "7.1.1",
       "driver": "6.16.6",
-      "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+      "amd_smi": "AMDSMI Tool: 26.2.0+021c61fc | AMDSMI Library version: 26.2.0 | ROCm version: 7.1.1 | amdgpu version: 6.16.6 | amd_hsmp version: N/A"
     },
     "f_lock_mhz": null,
     "visible_devices": null
@@ -40,10 +26,10 @@
       "FlashInfer-Bench": 4
     },
     "available_per_category": {
-      "L1": 55,
-      "L2": 50,
+      "L1": 54,
+      "L2": 47,
       "Quant": 13,
-      "FlashInfer-Bench": 12
+      "FlashInfer-Bench": 13
     },
     "rule": "proportional by category, first N sorted, largest-remainder apportionment"
   },
@@ -56,98 +42,103 @@
     "bound_reclockable": 40,
     "scoreable": 40
   },
-  "t_sol_source": "/work/artifacts/03-MI355X/t_sol.json",
+  "t_sol_source": "/var/tmp/solbench/m2/artifacts/03-MI355X/t_sol.json",
   "precision_filter": {
     "max_clock_span": 0.05,
     "rationale": "T_SOL's compute term goes as 1/f, so the in-window clock span bounds the width of the T_SOL interval. The anchor property is 0.5 +- 0.03, so a bound known to worse than about that is not usable for ranking. This threshold is the measured quantity, not a judgement about the problem.",
-    "n_excluded": 105,
+    "n_excluded": 108,
     "excluded": {
       "L1__071_kv_cache_update_with_rope": 1.0803108808290154,
-      "FlashInfer-Bench__008_gemm_n4096_k14336": 0.4388489208633093,
-      "FlashInfer-Bench__011_gemm_n28672_k4096": 0.4282310899344848,
-      "L2__005_swiglu_mlp_backward": 0.42793931731984824,
+      "FlashInfer-Bench__011_gemm_n28672_k4096": 0.45598057073466913,
+      "L2__005_swiglu_mlp_backward": 0.44160816847479256,
+      "FlashInfer-Bench__008_gemm_n4096_k14336": 0.4400479616306954,
       "L1__077_whisper_decoder_output_projection": 0.4186871673565937,
+      "FlashInfer-Bench__007_gemm_n4096_k4096": 0.41021126760563376,
+      "FlashInfer-Bench__010_gemm_n6144_k4096": 0.40997067448680347,
       "L1__003_lm_head_projection_with_logit_slicing": 0.39625949736995913,
       "FlashInfer-Bench__009_gemm_n5120_k2048": 0.3951191167925625,
-      "FlashInfer-Bench__010_gemm_n6144_k4096": 0.39085118702953103,
-      "FlashInfer-Bench__006_gemm_n2048_k4096": 0.3796668581275129,
-      "FlashInfer-Bench__007_gemm_n4096_k4096": 0.37471395881006875,
-      "L1__048_fused_gate_up_projection_with_swiglu": 0.3704974271012007,
-      "L1__063_attention_output_reshape_and_projection": 0.36348122866894195,
-      "L2__004_fused_residual_rms_mlp": 0.3583959899749374,
-      "L2__078_fused_final_layer_upsample_with_adaptive_norm": 0.33929569591950814,
+      "L1__048_fused_gate_up_projection_with_swiglu": 0.3811168681635002,
+      "FlashInfer-Bench__006_gemm_n2048_k4096": 0.38024124066628384,
+      "L1__063_attention_output_reshape_and_projection": 0.3720663995420721,
+      "L2__004_fused_residual_rms_mlp": 0.36238244514106577,
+      "L1__029_mamba_conv1d_with_gating": 0.3559705715902659,
+      "L2__078_fused_final_layer_upsample_with_adaptive_norm": 0.34380257992148056,
       "L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion": 0.33500278241513626,
-      "L1__029_mamba_conv1d_with_gating": 0.32532140860816106,
+      "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1": 0.33130530973451333,
       "L2__012_moe_expert_batched_execution_with_capacity_factor": 0.32433983926521237,
       "L2__053_text_decoder_layer_with_self_attention_and_mlp": 0.3192307692307692,
       "L2__020_decoder_layer_pre_post_norm_residual": 0.30451332245785756,
+      "L2__055_audio_encoder_conv_positional_layer_stack": 0.28563443264393507,
       "FlashInfer-Bench__005_gemm_n256_k7168": 0.27795527156549515,
       "L2__059_decoder_layer_full_block": 0.25984251968503935,
-      "L2__055_audio_encoder_conv_positional_layer_stack": 0.24482951369480155,
-      "L1__043_mla_fused_qkv_rope_split": 0.231006160164271,
+      "L1__043_mla_fused_qkv_rope_split": 0.23151950718685832,
       "L1__030_attention_output_projection_with_residual": 0.22165734621250643,
-      "L2__056_language_model_decoder_prenorm_attention_ffn_residual_backward": 0.21399594320486814,
+      "L2__056_language_model_decoder_prenorm_attention_ffn_residual_backward": 0.21894093686354377,
       "L1__092_gqa_attention_with_qk_norm": 0.2046254399195575,
       "L1__020_vision_patch_merger_spatial_shuffle_mlp": 0.1995,
+      "L2__029_moe_sparse_routing_and_dispatch": 0.1905978538579458,
       "L1__055_attention_qkv_projection_with_gqa_reshape": 0.19047619047619047,
       "L1__025_video_latent_gelu_activation": 0.18979187314172452,
       "L2__076_sam_hq_vision_attention_with_relative_position_backward": 0.1887072808320951,
       "L2__062_decoder_complete_layer": 0.18783984181908053,
       "L1__091_fused_gqa_qkv_rope_qk_norm_backward": 0.18410661401776895,
-      "L2__029_moe_sparse_routing_and_dispatch": 0.1834440470107308,
-      "L1__090_batched_2d_rope_position_encoding_backward": 0.18298081652729947,
+      "L1__090_batched_2d_rope_position_encoding_backward": 0.18347270044269548,
       "L2__028_gqa_rotary_attention_core_backward": 0.17172211350293543,
       "L1__005_conv_gated_projection_with_causal_conv": 0.16496846191169334,
       "L2__039_kv_shared_attention_with_rope": 0.1575903614457832,
       "L2__015_audio_sinusoidal_position_embedding_with_conv_projection": 0.15558766859344897,
       "L2__003_grouped_query_attention_with_rope_backward": 0.144423260247855,
-      "L1__010_attention_value_projection_with_transpose": 0.13933649289099526,
-      "L1__032_attention_weights_matmul_with_value_projection": 0.13851992409867164,
+      "L1__010_attention_value_projection_with_transpose": 0.13981042654028442,
+      "L1__032_attention_weights_matmul_with_value_projection": 0.13899430740037944,
+      "L1__035_flux_ada_layer_norm_zero_modulation_extraction": 0.1370317686107161,
       "L1__064_latent_kv_expansion_with_split": 0.13154172560113153,
       "L1__065_fused_statistics_projection_and_split": 0.12751992498827946,
-      "L1__035_flux_ada_layer_norm_zero_modulation_extraction": 0.11690731252911046,
-      "L1__002_vae_conv3x3_groupnorm_silu_residual_fused": 0.11416589002795896,
+      "L2__079_git_vision_encoder_layer": 0.11617100371747213,
+      "L1__002_vae_conv3x3_groupnorm_silu_residual_fused": 0.11602982292637476,
       "L1__026_video_patch_embedding_projection": 0.11416589002795896,
       "L2__070_basic_transformer_block": 0.11302325581395345,
       "L1__060_fused_attention_qk_matmul_scale_mask_softmax_backward": 0.11219286045433474,
+      "L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward": 0.11018518518518516,
+      "L1__046_attention_softmax_with_softcapping_and_dropout": 0.10982925703737889,
       "FlashInfer-Bench__026_rmsnorm_h7168": 0.10982925703737889,
       "L1__015_grouped_query_attention_with_rope_and_qk_norm": 0.10859519408502782,
-      "Quant__001_fp8_attention_output_projection": 0.1081330868761552,
-      "L1__046_attention_softmax_with_softcapping_and_dropout": 0.10752191970466085,
+      "Quant__001_fp8_attention_output_projection": 0.10859519408502782,
       "L1__081_joint_attention_context_projection": 0.10594196222938734,
       "L2__054_vision_encoder_layer_with_gated_residuals": 0.10441582336706534,
+      "L2__058_mamba2_selective_scan": 0.10365571494678383,
       "L1__041_strided_conv2d_downsampling": 0.1022935779816514,
-      "L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward": 0.10009182736455458,
       "L2__035_convnextv2_block_with_grn": 0.09995414947271897,
+      "L2__077_sam_hq_vision_encoder_window_partition_attention": 0.09547738693467345,
       "L2__007_multimodal_rotary_embedding_attention": 0.0948905109489051,
-      "L2__058_mamba2_selective_scan": 0.09403669724770647,
+      "L1__085_geglu_activation": 0.09443430656934315,
       "FlashInfer-Bench__003_fused_add_rmsnorm_h7168": 0.09107385591300399,
       "L2__017_fused_vision_cu_seqlens_attention_with_2d_rope_backward": 0.09057806099226218,
-      "L1__085_geglu_activation": 0.08958617553433368,
       "L2__027_grouped_query_attention_with_yarn_rope_and_qk_norm": 0.08843537414965996,
+      "L1__027_video_spatial_attention_with_rope_3d": 0.08601177003168847,
       "L2__023_video_latent_vae_encoder_downsampling": 0.08200455580865595,
+      "L1__072_cross_attention_qkv_projection_with_gqa_repeat_backward": 0.07668161434977572,
       "L1__088_rotary_position_embedding_application": 0.07657859381997323,
       "FlashInfer-Bench__004_gemm_n128_k2048": 0.07606263982102912,
-      "L1__027_video_spatial_attention_with_rope_3d": 0.07433945364979855,
       "L2__034_vision_language_cross_attention_fusion": 0.07059874888293116,
-      "L2__057_residual_coupling_flow_block": 0.06847487772343275,
-      "Quant__007_fp8_vision_attention_qkv_projection": 0.06809078771695587,
+      "Quant__007_fp8_vision_attention_qkv_projection": 0.06898086337338682,
+      "L2__057_residual_coupling_flow_block": 0.06891951978657174,
       "L1__076_batched_expert_forward": 0.06687472135532779,
+      "L2__071_edit_consistency_loss_with_perceptual_weighting": 0.06678539626001778,
+      "L2__046_conformer_relative_position_attention": 0.06666666666666665,
       "L2__080_moe_complete_layer_with_shared_expert_backward": 0.06474501108647446,
       "L1__013_fused_residual_rms_norm_backward": 0.06277630415561442,
+      "L2__030_flux_concatenated_sequence_processing_with_split": 0.060070671378091856,
       "Quant__022_fp8_mamba2_out_projection": 0.06001765225066191,
-      "L2__030_flux_concatenated_sequence_processing_with_split": 0.0596026490066226,
-      "L2__046_conformer_relative_position_attention": 0.05866784296426997,
       "Quant__002_fp8_attention_qkv_projection": 0.05817540766857654,
+      "Quant__010_fp8_attention_output_projection": 0.05817540766857654,
+      "L2__072_region_aware_self_attention_with_edit_bias_backward": 0.057709251101321524,
+      "L2__067_patch_embed_to_joint_attention_input": 0.057243505063848454,
+      "FlashInfer-Bench__017_gqa_ragged_prefill_causal_h32_kv8_d128": 0.05709266578831795,
+      "FlashInfer-Bench__016_gqa_ragged_prefill_causal_h32_kv4_d128": 0.057042562527424234,
       "L2__001_fused_vision_multihead_attention_with_norms_backward": 0.0567781690140845,
       "L1__007_hyena_fft_size_padding_rfft": 0.054824561403508776,
-      "FlashInfer-Bench__017_gqa_ragged_prefill_causal_h32_kv8_d128": 0.05477651183172649,
       "L1__014_rotary_embedding_with_attention_scaling_backward": 0.052861511577107834,
-      "L2__071_edit_consistency_loss_with_perceptual_weighting": 0.05272407732864681,
-      "L2__077_sam_hq_vision_encoder_window_partition_attention": 0.05221588415971912,
-      "Quant__010_fp8_attention_output_projection": 0.0521472392638036,
-      "FlashInfer-Bench__016_gqa_ragged_prefill_causal_h32_kv4_d128": 0.051505892623308513,
-      "L1__069_rms_norm": 0.051293292415607095,
+      "L1__069_rms_norm": 0.05260850504164849,
       "L1__052_altup_hidden_state_collapse_with_magnitude_normalization": 0.05032822757111588,
       "L1__094_time_decay_exponential_stabilization": null,
       "Quant__008_nvfp4_multimodal_embedding_projection": null,
@@ -164,9 +155,7 @@
       "Quant__030_nvfp4_fused_decoder_layer_pre_norm_attention": null,
       "Quant__031_nvfp4_grouped_query_attention_with_kv_repeat": null,
       "Quant__032_nvfp4_moe_expert_linear_with_gating": null,
-      "Quant__033_nvfp4_moe_routing_with_topk_selection": null,
-      "FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1": null,
-      "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1": null
+      "Quant__033_nvfp4_moe_routing_with_topk_selection": null
     }
   },
   "problems": [
@@ -196,7 +185,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -227,7 +216,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -258,7 +247,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -289,7 +278,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -320,7 +309,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -351,7 +340,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -382,7 +371,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -413,7 +402,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -444,7 +433,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -474,7 +463,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -505,7 +494,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -536,7 +525,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -567,7 +556,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -598,7 +587,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -629,7 +618,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -660,7 +649,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -691,7 +680,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -722,7 +711,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -753,7 +742,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -784,7 +773,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -815,7 +804,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -846,7 +835,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -877,7 +866,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -908,7 +897,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -939,7 +928,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -970,7 +959,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -1001,7 +990,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -1032,7 +1021,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -1063,7 +1052,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -1094,7 +1083,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -1125,7 +1114,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -1156,7 +1145,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -1187,7 +1176,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative-40"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -1218,7 +1207,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -1249,7 +1238,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative-40"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -1280,7 +1269,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -1311,7 +1300,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -1342,7 +1331,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -1373,7 +1362,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []
@@ -1404,7 +1393,7 @@
       "t_b": {
         "present": true,
         "tier": "authoritative",
-        "source": "authoritative"
+        "source": "authoritative-merged"
       },
       "scoreable": true,
       "not_scoreable_because": []

@@ -89,7 +89,9 @@ def clock_span(root: Path, key: str) -> float | None:
     from a span of zero and must not be conflated with it.
     """
     lo = hi = None
-    for sub in ("authoritative", "authoritative-40", "candidates"):
+    # Widest span wins, so every tree is read rather than the first hit. The
+    # merged tree leads because it is the published anchor.
+    for sub in TB_TREES:
         d = _loads(root / "artifacts" / "06-MI355X" / sub / f"{key}.json")
         if not d:
             continue
@@ -168,6 +170,18 @@ def stage_bound(t_sol: dict | None, key: str,
             "tiers": sorted(tiers)}
 
 
+# Every T_b tree, in the order a problem should be claimed from. The merged
+# tree is first because it is the published anchor -- the one the manifest
+# scores against. Listing them here rather than inline at each call site is the
+# point: this list was duplicated in two functions and grew a third tree
+# (merged) in only one of them, so the index would have reported a problem as
+# having no T_b while the manifest scored it. A candidate tier is last and is
+# NOT authoritative; the scoreability rule below rejects it by name.
+TB_TREES = ("authoritative-merged", "authoritative", "authoritative-g05",
+            "authoritative-g45", "authoritative-40", "authoritative-remeasure",
+            "candidates")
+
+
 def stage_tolerance(root: Path, key: str) -> dict:
     f = root / "artifacts" / "05-MI355X" / f"{key}.json"
     if not f.is_file():
@@ -176,7 +190,7 @@ def stage_tolerance(root: Path, key: str) -> dict:
 
 
 def stage_tb(root: Path, key: str) -> dict:
-    for sub in ("authoritative", "authoritative-40", "candidates"):
+    for sub in TB_TREES:
         f = root / "artifacts" / "06-MI355X" / sub / f"{key}.json"
         if f.is_file() and _loads(f) is not None:
             tier = "authoritative" if sub.startswith("authoritative") else sub

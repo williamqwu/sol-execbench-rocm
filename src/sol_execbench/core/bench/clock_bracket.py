@@ -156,6 +156,53 @@ def bracketing_enabled() -> bool:
     return clock_basis() == "unlocked"
 
 
+class ClockBasisUnsupported(RuntimeError):
+    """A measurement claimed ``locked`` on a part where no lock is achievable."""
+
+
+def checked_clock_basis(device_name: str | None) -> str:
+    """``clock_basis()``, but refusing a ``locked`` claim the part cannot support.
+
+    ``clock_basis()`` defaults to ``"locked"`` when the environment says
+    nothing, which is right for the parts that have an achieved F_LOCK and is a
+    **false provenance claim** on the ones that do not. On MI355X
+    ``--setperfdeterminism`` is a request the cards decline: 15 of 16
+    measurements landed at 0.795-0.864x of setpoint, so the preset carries
+    ``requested_is_achieved=False`` and ``f_lock_mhz`` is None.
+
+    Forgetting ``SOLEXBENCH_CLOCK_BASIS=unlocked`` on one launch therefore
+    produced a sweep that reported "6 ok, 0 failed", stamped ``locked`` on every
+    artifact, and was silently unusable -- the manifest dropped all six for
+    having no per-measurement clock, and the only visible symptom was the
+    problem count going *down*. That is the shape of defect this repo keeps
+    finding: it passes.
+
+    So the claim is checked where it is stamped. An unset environment on a part
+    with no achievable F_LOCK raises rather than defaulting, because the caller
+    genuinely has not said which basis they meant and either answer would be
+    invented. An explicit ``locked`` on such a part raises too: saying it does
+    not make it true.
+    """
+    basis = clock_basis()
+    if basis != "locked":
+        return basis
+    try:
+        from .config import get_clock_preset  # local: avoids an import cycle
+        preset = get_clock_preset(device_name) if device_name else None
+    except Exception:  # noqa: BLE001 -- absent config must not mask the check
+        preset = None
+    if preset is not None and preset.f_lock_mhz is not None:
+        return basis
+    raise ClockBasisUnsupported(
+        f"clock basis 'locked' is not supported on {device_name!r}: no preset "
+        f"with an achieved F_LOCK. Set {CLOCK_BASIS_ENV}=unlocked to measure "
+        f"against per-measurement bracketed clocks. Refusing rather than "
+        f"defaulting, because an artifact stamped 'locked' on a part that was "
+        f"never locked is a false provenance claim, and everything downstream "
+        f"that divides a bound by F_LOCK will silently drop it instead."
+    )
+
+
 def settle_enabled() -> bool:
     """Is the pre-window settle in force? Only ever when bracketing is."""
     if not bracketing_enabled():

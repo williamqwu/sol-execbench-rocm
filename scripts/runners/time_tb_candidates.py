@@ -199,11 +199,16 @@ def main() -> int:
         from sol_execbench.core.bench.clock_bracket import (
             bracket_threshold,
             bracketing_enabled,
-            clock_basis,
+            checked_clock_basis,
             summarize_brackets,
         )
 
         bracketing = bracketing_enabled()
+        # Resolved BEFORE any timing, so a basis this part cannot support costs
+        # nothing rather than a full sweep whose artifacts are all unusable.
+        import torch
+        basis = checked_clock_basis(
+            torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)
 
         definition, workloads = load_problem(a.problem)
         key = problem_key(a.problem)
@@ -301,7 +306,7 @@ def main() -> int:
             # First-class, not a log line: task 01's acceptance on an unlocked
             # part is "the bracket refusal rate is below a stated bound", and a
             # rate nobody can read from the artifact cannot gate anything.
-            "clock_basis": clock_basis(),
+            "clock_basis": basis,
             "clock_bracket_threshold": bracket_threshold() if bracketing else None,
             # Over every bracket considered, winners AND refusals, from the one
             # list `select_winners` built. Not over winners: see its comment.

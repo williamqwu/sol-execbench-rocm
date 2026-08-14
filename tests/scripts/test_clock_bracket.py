@@ -448,3 +448,51 @@ def test_settling_is_off_unless_bracketing_is(monkeypatch):
     monkeypatch.setenv("SOLEXBENCH_CLOCK_SETTLE", "1")
     monkeypatch.setenv("SOLEXBENCH_CLOCK_BASIS", "locked")
     assert settle_enabled() is False, "never on the locked basis, whatever the knob says"
+
+
+# --- checked_clock_basis: the "locked" claim must be supportable -------------
+#
+# Regression for a defect that cost a full re-measurement sweep. An
+# authoritative T_b pass was launched without SOLEXBENCH_CLOCK_BASIS=unlocked;
+# clock_basis() defaulted to "locked", the runner stamped that on six MI355X
+# artifacts, and the run reported "6 ok, 0 failed". The manifest then dropped
+# all six for having no per-measurement clock, and the only visible symptom was
+# the scoreable problem count going DOWN. Nothing failed anywhere.
+
+import pytest  # noqa: E402
+
+from sol_execbench.core.bench.clock_bracket import (  # noqa: E402
+    ClockBasisUnsupported,
+    checked_clock_basis,
+)
+
+
+def test_unlocked_is_returned_and_never_checked(monkeypatch):
+    """The unlocked basis needs no preset -- it carries its own clock evidence."""
+    monkeypatch.setenv("SOLEXBENCH_CLOCK_BASIS", "unlocked")
+    assert checked_clock_basis("AMD Instinct MI355X") == "unlocked"
+    assert checked_clock_basis(None) == "unlocked"
+
+
+def test_locked_survives_on_a_part_with_an_achieved_f_lock(monkeypatch):
+    monkeypatch.setenv("SOLEXBENCH_CLOCK_BASIS", "locked")
+    assert checked_clock_basis("NVIDIA B200") == "locked"
+
+
+def test_unset_env_raises_on_a_part_with_no_achieved_f_lock(monkeypatch):
+    """The silent default is the whole defect: no answer is better than a wrong one."""
+    monkeypatch.delenv("SOLEXBENCH_CLOCK_BASIS", raising=False)
+    with pytest.raises(ClockBasisUnsupported, match="unlocked"):
+        checked_clock_basis("AMD Instinct MI355X")
+
+
+def test_explicitly_saying_locked_does_not_make_it_true(monkeypatch):
+    monkeypatch.setenv("SOLEXBENCH_CLOCK_BASIS", "locked")
+    with pytest.raises(ClockBasisUnsupported):
+        checked_clock_basis("AMD Instinct MI355X")
+
+
+def test_unknown_device_is_refused_rather_than_assumed_locked(monkeypatch):
+    monkeypatch.delenv("SOLEXBENCH_CLOCK_BASIS", raising=False)
+    with pytest.raises(ClockBasisUnsupported):
+        checked_clock_basis("Some Accelerator Nobody Has Calibrated")
