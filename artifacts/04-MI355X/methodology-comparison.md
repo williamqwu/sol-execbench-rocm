@@ -1,10 +1,12 @@
 # Task 04 — `hip_events` vs `rocprof`
 
-<!-- {"task": "04-methodology-comparison", "utc": "2026-08-14T19:41:42.431561+00:00", "git_sha": "15f3c3ea23e5e580db0c5ed44267e60bcc5ba950-dirty", "host": "mia1-p02-g46", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X"]}, "rocm": {"version": "7.2.0", "driver": "6.16.6", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"}, "f_lock_mhz": null, "visible_devices": null} -->
+<!-- {"task": "04-methodology-comparison", "utc": "2026-08-14T20:42:36.520208+00:00", "git_sha": "a63ef836b2ab1edb301e5a1f2fb94db443b48992-dirty", "host": "mia1-p02-g46", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X"]}, "rocm": {"version": "7.2.0", "driver": "6.16.6", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"}, "f_lock_mhz": null, "visible_devices": null} -->
 
 Both methodologies time the same solution on the same inputs, back to back in one process, so this compares two ways of measuring and not two moments in the node's life. **Positive means `hip_events` read slower**, which is the expected direction: an event pair brackets the host launch and dispatch-level activity tracing does not.
 
 Problems compared: **94** of 94; workload pairs: **1452**.
+
+Conditions: arm order **hip_events,rocprof**. Settle state is not recorded in these artifacts; they predate the field.
 
 | group | n | median | p10 | p90 |
 |---|---|---|---|---|

@@ -35,6 +35,48 @@ def pct(xs: list[float], q: float) -> float:
     return s[min(len(s) - 1, int(q * len(s)))]
 
 
+def conditions_paragraph(orders: set[str], settle_on: int,
+                         settle_off: int) -> str:
+    """State the two confounds that decide whether this table means anything.
+
+    Arm ORDER, because both arms run back to back in one process and under an
+    unlocked clock basis the second one inherits a card the first heated -- so
+    a divergence taken in one order alone cannot separate "the methodologies
+    differ" from "the second slot is slower". And whether the card was SETTLED
+    before each window opened, which is what removes that difference.
+
+    Printed unconditionally, including when the answer is "not settled". A
+    report that mentions the settle only when it was on is a report whose
+    silence has to be interpreted.
+    """
+    order_txt = (f"arm order **{' / '.join(sorted(orders))}**" if orders
+                 else "arm order not recorded")
+    if settle_on and not settle_off:
+        settle_txt = (
+            "The card was **settled before every window, on both arms** "
+            "(`settle_clock`), so neither arm met its window in a thermal "
+            "state the other did not. This is what makes the number below a "
+            "comparison of methodologies rather than of positions in the run.")
+    elif settle_off and not settle_on:
+        settle_txt = (
+            "**No pre-window settle was in force** (locked basis, or "
+            "`SOLEXBENCH_CLOCK_SETTLE=0`). The arm that ran second therefore "
+            "met its window on a card the first arm had already heated, and "
+            "any systematic bias below includes that positional term. Treat "
+            "the median as an upper bound on the methodology difference, not "
+            "as a measurement of it.")
+    elif settle_on and settle_off:
+        settle_txt = (
+            f"**Mixed settle state across arms** ({settle_on} settled, "
+            f"{settle_off} not). The two arms are not comparable to each other "
+            f"and this report should not be used until the sweep is re-run "
+            f"uniformly.")
+    else:
+        settle_txt = ("Settle state is not recorded in these artifacts; they "
+                      "predate the field.")
+    return f"Conditions: {order_txt}. {settle_txt}"
+
+
 def sign_paragraph(median: float) -> str:
     """The sign discussion, DERIVED from this part's median.
 
@@ -73,6 +115,8 @@ def main() -> int:
 
     rows: list[tuple[float, float, bool, str]] = []
     failed: list[tuple[str, str]] = []
+    orders: set[str] = set()
+    settle_on = settle_off = 0
     files = sorted(glob.glob(f"{a.compare}/*.json"))
     for f in files:
         d = json.loads(Path(f).read_text())
@@ -80,6 +124,13 @@ def main() -> int:
             failed.append((d.get("problem") or Path(f).stem,
                            (d.get("error") or "")[:120]))
             continue
+        orders.add(",".join(d.get("arm_order") or ["hip_events", "rocprof"]))
+        for arm in (d.get("per_method") or {}).values():
+            s = arm.get("settle")
+            if s is None:
+                continue
+            settle_on += bool(s.get("enabled"))
+            settle_off += not s.get("enabled")
         for w in d.get("divergences") or []:
             rows.append((w["hip_events_ms"], w["divergence_pct"],
                          w["microsecond_scale"], d["problem"]))
@@ -118,6 +169,8 @@ def main() -> int:
         "",
         f"Problems compared: **{len(files) - len(failed)}** of {len(files)}; "
         f"workload pairs: **{len(rows)}**.",
+        "",
+        conditions_paragraph(orders, settle_on, settle_off),
         "",
         "| group | n | median | p10 | p90 |",
         "|---|---|---|---|---|",

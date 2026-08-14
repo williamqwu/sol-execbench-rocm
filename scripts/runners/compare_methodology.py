@@ -35,6 +35,37 @@ from _common import (  # noqa: E402
 )
 
 
+def _settle_digest(per_workload: list[dict]) -> dict:
+    """Per-arm summary of the pre-window settle, from the traces themselves.
+
+    Empty-ish under the locked basis, where the driver neither brackets nor
+    settles and `clock_bracket` is None -- which is itself the answer, so the
+    field is always present rather than omitted when off.
+    """
+    br = [w.get("clock_bracket") or {} for w in per_workload]
+    br = [b for b in br if b]
+    if not br:
+        return {"enabled": False, "n_with_bracket": 0}
+    # NESTED, not flat. `ClockBracket.settle` is the settle record or None; the
+    # flat keys on the bracket are the clock samples. Reading `settle_enabled`
+    # off the top level finds nothing and reports every arm as unsettled, which
+    # is the wrong answer in the direction that looks like a finding.
+    on = [b["settle"] for b in br if isinstance(b.get("settle"), dict)]
+    settled = [s for s in on if s.get("settled")]
+    capped = [s for s in on if s.get("settle_capped")]
+    refused = [b for b in br if b.get("clock_bracket_refused")]
+    ms = [s.get("settle_ms") for s in on if s.get("settle_ms") is not None]
+    return {
+        "enabled": bool(on),
+        "n_with_bracket": len(br),
+        "n_settle_enabled": len(on),
+        "n_settled": len(settled),
+        "n_settle_capped": len(capped),
+        "n_bracket_refused": len(refused),
+        "median_settle_ms": (sorted(ms)[len(ms) // 2] if ms else None),
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--problem", required=True, type=Path)
@@ -42,7 +73,20 @@ def main() -> int:
     ap.add_argument("--timeout", type=int, default=2400)
     ap.add_argument("--iterations", type=int, default=50)
     ap.add_argument("--warmup", type=int, default=10)
+    ap.add_argument("--order", default="hip_events,rocprof",
+                    help="comma-separated arm order. The DEFAULT is the "
+                         "original order and every existing artifact was taken "
+                         "under it; the flag exists so the order can be "
+                         "TESTED, not so it can be varied casually. Under an "
+                         "unlocked clock basis the second arm runs on a warmer "
+                         "card, so a divergence that flips sign when this is "
+                         "reversed is thermal and not a property of either "
+                         "methodology.")
     a = ap.parse_args()
+
+    order = tuple(x.strip() for x in a.order.split(",") if x.strip())
+    if sorted(order) != ["hip_events", "rocprof"]:
+        ap.error(f"--order must name both arms exactly once, got {order!r}")
 
     def body() -> dict:
         import os
@@ -55,7 +99,7 @@ def main() -> int:
                                  benchmark_reference=False)
 
         per_method: dict[str, dict] = {}
-        for methodology in ("hip_events", "rocprof"):
+        for methodology in order:
             # The eval driver resolves the methodology from the vendor
             # default, so it is selected by environment here rather than by
             # argument -- and the driver records what it used on every trace,
@@ -75,6 +119,13 @@ def main() -> int:
                         for w in summary["per_workload"]
                         if w["status"] == PASSED and w["latency_ms"]
                     },
+                    # Whether the card was settled before each window OPENED,
+                    # per arm. A comparison of two methodologies is only a
+                    # comparison of the methodologies if both arms met the
+                    # window in the same thermal state; recorded so that can be
+                    # checked from the artifact instead of assumed from the
+                    # command line that produced it.
+                    "settle": _settle_digest(summary["per_workload"]),
                 }
             except Exception as e:                    # noqa: BLE001
                 per_method[methodology] = {"ok": False,
@@ -101,6 +152,11 @@ def main() -> int:
         return {
             "problem": problem_key(a.problem),
             "definition": definition.name,
+            # Recorded because it is a confound, not a setting: under an
+            # unlocked clock basis the arm that runs second sees a warmer card.
+            # An artifact that does not say which arm went first cannot be
+            # compared against one taken the other way round.
+            "arm_order": list(order),
             "per_method": per_method,
             "divergences": divergences,
             "n_compared": len(divergences),

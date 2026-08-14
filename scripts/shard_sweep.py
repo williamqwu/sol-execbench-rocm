@@ -40,6 +40,40 @@ TASK_RUNNERS = {
 }
 
 
+def preflight(task: str) -> None:
+    """Refuse a sweep whose prerequisite will fail identically on every problem.
+
+    `methodology-compare` needs the rocprofiler shim. When `_rocprof_shim` is
+    not built, the eval driver raises inside each per-problem subprocess, the
+    runner catches it and records `per_method.rocprof.ok = false`, and
+    `shard_sweep` prints `ok` because the RUNNER succeeded. A whole sweep then
+    reports "93 ok, 0 failed" while containing zero comparisons -- and
+    `methodology_report.py` summarises the empty list as a median of +0.00%,
+    which PASSES the 2% acceptance gate.
+
+    That happened, on MI355X, and the artifact looked healthy from every angle
+    except opening one. The shim is a property of the node, not of a problem,
+    so it is checked once here where the failure is loud and costs nothing,
+    rather than 94 times where it is silent and costs half an hour.
+    """
+    if task != "methodology-compare":
+        return
+    shim_dir = ROOT / "src" / "solexbench_rocm" / "shim"
+    if list(shim_dir.glob("_rocprof_shim*.so")):
+        return
+    sys.exit(
+        f"PREFLIGHT FAILED: no _rocprof_shim*.so in {shim_dir}\n"
+        "  --task methodology-compare times every problem BOTH ways, and the "
+        "rocprof arm\n"
+        "  cannot run without the shim. Without this check the sweep would "
+        "complete, report\n"
+        "  every problem 'ok', and produce artifacts containing no comparison "
+        "at all.\n\n"
+        "  Build it (per node -- the .so is not tracked):\n"
+        "    env/solb python src/solexbench_rocm/shim/build.py\n"
+    )
+
+
 def parse_gpus(spec: str) -> list[int]:
     out: list[int] = []
     for part in spec.split(","):
@@ -144,6 +178,11 @@ def main():
     ap.add_argument("extra", nargs="*",
                     help="passed through to the runner (e.g. --seeds 10)")
     a = ap.parse_args()
+
+    # Before the output directory is created, so a refused sweep leaves no
+    # half-made artifact tree behind it.
+    if not a.dry_run:
+        preflight(a.task)
 
     gpus = parse_gpus(a.gpus)
     out_dir = Path(a.out); out_dir.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,69 @@
+{
+  "_provenance": {
+    "task": "04-arm-order-probe",
+    "utc": "2026-08-14T20:43:19.517287+00:00",
+    "git_sha": "a63ef836b2ab1edb301e5a1f2fb94db443b48992-dirty",
+    "host": "mia1-p02-g46",
+    "python": "3.12.3",
+    "torch": {
+      "available": true,
+      "version": "2.9.1+rocm7.2.0.git7e1940d4",
+      "hip": "7.2.26015-fc0010cf6a",
+      "cuda": null,
+      "device_count": 8,
+      "devices": [
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X"
+      ]
+    },
+    "rocm": {
+      "version": "7.2.0",
+      "driver": "6.16.6",
+      "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+    },
+    "f_lock_mhz": null,
+    "visible_devices": null
+  },
+  "paired_workloads": 258,
+  "problems": [
+    "L1__001_attention_softmax_dropout_value_matmul_backward",
+    "L1__007_hyena_fft_size_padding_rfft",
+    "L1__013_fused_residual_rms_norm_backward",
+    "L1__019_vision_3d_rotary_embedding_with_spatial_merge_indexing_backward",
+    "L1__025_video_latent_gelu_activation",
+    "L1__031_repeat_kv_attention_matmul",
+    "L1__037_flux_feedforward_gelu_approximate",
+    "L1__043_mla_fused_qkv_rope_split",
+    "L1__049_attention_qk_matmul_with_gqa_repeat_and_scaling",
+    "L1__055_attention_qkv_projection_with_gqa_reshape",
+    "L1__061_tanh_gated_residual_add_backward",
+    "L1__067_flash_attention_gqa_ultralong",
+    "L1__073_fused_encoder_final_norm_to_decoder_cross_attention_kv_projection",
+    "L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward",
+    "L1__085_geglu_activation",
+    "L1__091_fused_gqa_qkv_rope_qk_norm_backward"
+  ],
+  "median_A_hip_first": {
+    "all workloads": -0.7505829617425088,
+    "kernels >= 100 us": -0.537166348072173,
+    "kernels < 100 us": -7.215742168642973
+  },
+  "median_B_rocprof_first": {
+    "all workloads": -0.7316618637657968,
+    "kernels >= 100 us": -0.6019951064615588,
+    "kernels < 100 us": -9.911678457522482
+  },
+  "median_second_slot_penalty_pct": 0.02323737583388963,
+  "order_cancelled_median_pct": {
+    "all workloads": -0.664161927714326,
+    "kernels >= 100 us": -0.5022833442232325
+  },
+  "any_group_flipped_sign": false,
+  "verdict": "ORDER EFFECT NOT CONFIRMED \u2014 the divergence keeps its sign in both orders, so it is a property of the methodology pair and not of the card's thermal state when each arm ran"
+}
