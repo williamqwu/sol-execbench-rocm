@@ -65,19 +65,35 @@ def _use(monkeypatch, part: str, **kw) -> va.ArtifactTree:
 
 # -- the mapping -----------------------------------------------------------
 
-@pytest.mark.parametrize("task", ["02", "03", "04", "05", "06", "07", "08", "09", "10"])
+@pytest.mark.parametrize("task", ["02", "03", "04", "05", "06", "07", "08", "09"])
 def test_part_suffixed_directory_per_task(art, task):
-    """Every task but 00/01 lives in `artifacts/NN-<part>` for a non-default part."""
+    """Every measurement task lives in `artifacts/NN-<part>` for a non-default part."""
     assert va.ArtifactTree("MI350X").dir(task) == art / task
     assert va.ArtifactTree("MI355X").dir(task) == art / f"{task}-MI355X"
 
 
-@pytest.mark.parametrize("task", ["00", "01"])
-def test_tasks_00_and_01_share_one_directory(art, task):
-    """The exception: both parts' task-00/01 files sit in the same directory.
+@pytest.mark.parametrize("task", ["00", "01", "10"])
+def test_tasks_00_01_and_10_share_one_directory(art, task):
+    """The exceptions: these live in the shared `artifacts/NN/` for both parts.
 
-    Not normalised away by moving files -- the MI350X manifest cites
-    `artifacts/00` and `artifacts/01` by path.
+    00 and 01 are host-suffixed files, not normalised away by moving them --
+    the MI350X manifest cites `artifacts/00` and `artifacts/01` by path.
+
+    **10 was previously asserted to be part-suffixed and is not.** An agent run
+    is identified by its run-id; both parts' runs have always been written side
+    by side under `artifacts/10/`, and `artifacts/10-MI355X` has never existed.
+    This test asserted the general rule over a task that never followed it, so
+    task 03's check D resolved to an absent directory, saw zero submissions on
+    MI355X, and reported itself "untested" while 405 scored problems sat on
+    disk -- and that check is the only one that can falsify a bound which is too
+    SLOW, since the T_b variants share the reference's over-reading. When it was
+    pointed at the real directory it immediately found 102 workloads across 13
+    problems running faster than their own T_SOL.
+
+    Per-document part filtering is NOT available here yet: `_provenance.part`
+    is still not emitted by the scorer, so the only in-file evidence of the part
+    is the hostname inside `card_check.reason`. Run-ids are the discriminator in
+    practice, and nothing enforces that two parts cannot reuse one.
     """
     assert va.ArtifactTree("MI350X").dir(task) == art / task
     assert va.ArtifactTree("MI355X").dir(task) == art / task

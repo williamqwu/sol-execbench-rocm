@@ -57,7 +57,18 @@ KNOWN_PARTS = ("MI350X", "MI355X", "MI300X")
 #: normalise it: manifest v1 and STATE.md cite `artifacts/00` and `artifacts/01`
 #: by path, and a release record that no longer resolves is a worse defect than
 #: a convention with an exception in it. The exception is encoded here, once.
-SHARED_DIR_TASKS = frozenset({"00", "01"})
+#: Tasks whose artifacts live in the SHARED ``artifacts/NN/`` rather than a
+#: part-suffixed directory.
+#:
+#: 00 and 01 are host-suffixed files in the shared directory. **10 is here for a
+#: different reason**: an agent run is identified by its run-id, not by a part,
+#: and both parts' runs have always been written side by side under
+#: ``artifacts/10/``. Resolving it to ``artifacts/10-MI355X`` -- which has never
+#: existed -- made task 03's check D see zero submissions on this part and
+#: report itself "untested" while 405 scored problems sat on disk. That check is
+#: the only one able to falsify a bound that is too slow, so a silent zero there
+#: is the most expensive miss in the gate.
+SHARED_DIR_TASKS = frozenset({"00", "01", "10"})
 
 
 def artifact_part(doc) -> str | None:
@@ -878,6 +889,35 @@ def _check_d(c: Checks):
             n_measured += 1
             if lat < t_sol:
                 violations.append((r["problem"], lat / t_sol))
+
+    # The layout score_solutions.py actually writes:
+    # artifacts/10/scores/<run-id>/<harness>/<problem>.json, with one `records`
+    # list per problem, each entry a workload carrying `t_k_ms`. The loop above
+    # knew only the older artifacts/10/<run>/scored.json shape, so on MI355X
+    # this reported "no submissions on disk" while 405 scored problems sat in
+    # the tree. That is the worst available way to be wrong: check D is the
+    # ONLY check that can falsify a bound which is too SLOW, because the T_b
+    # variants share the reference's over-reading and so bound and anchor agree
+    # while both are wrong (CLAUDE.md §6). It was measuring nothing and saying
+    # so in words that read like a scheduling note rather than a blind spot.
+    for scored in TREE.glob("10", "scores/*/*/*.json"):
+        if scored.name == "summary.json":
+            continue
+        doc = load_json(scored) or {}
+        problem, recs = doc.get("problem"), doc.get("records") or []
+        if not problem or not recs:
+            continue
+        sources += 1
+        for r in recs:
+            if not isinstance(r, dict) or r.get("status") != "PASSED":
+                continue
+            t_sol = bounds.get((problem, r.get("workload_uuid")))
+            lat = r.get("t_k_ms")
+            if not t_sol or not lat:
+                continue
+            n_measured += 1
+            if lat < t_sol:
+                violations.append((problem, lat / t_sol))
 
     if not sources:
         c.add(JUDGE, "check D: T_SOL <= best measured",

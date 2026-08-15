@@ -1,6 +1,6 @@
 # Task 03 — T_SOL cross-checks
 
-<!-- {"task": "03-cross-checks", "utc": "2026-08-15T00:17:02.696142+00:00", "git_sha": "a5e5bcbd214288e7dd1165a310ee7fb9d447d921-dirty", "host": "mia1-p02-g46", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X"]}, "rocm": {"version": "7.2.0", "driver": "6.16.6", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"}, "f_lock_mhz": null, "visible_devices": null} -->
+<!-- {"task": "03-cross-checks", "utc": "2026-08-15T03:58:35.940899+00:00", "git_sha": "e974e70565a5e6a94874d11448d3bfaf6f889ee0-dirty", "host": "mia1-p02-g46", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X"]}, "rocm": {"version": "7.2.0", "driver": "6.16.6", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"}, "f_lock_mhz": null, "visible_devices": null} -->
 
 Upstream's B200 SOL times are not used as a comparison anywhere in this document. The shipped dataset carries no per-workload SOL figures, so there is nothing to compare against that was not invented here — and an invented comparison would be worse than none. The three checks below are internal to this platform and are stronger for it.
 
@@ -94,7 +94,7 @@ The shortfall is concentrated: **66 problems**, not a scatter across the set. Tw
 Arch config: DRAM 8.00 TB/s at 2.4 GHz.
 
 * checked: **2998** workloads
-* implied bandwidth above DRAM peak: **1327**
+* implied bandwidth above DRAM peak: **0**
 * implied FLOPS above the precision's peak: **0**
 
 ## C — hand-derived MAC counts
@@ -155,4 +155,40 @@ MISMATCHes: **0**
 | L1__035_flux_ada_layer_norm_zero_modulation_extraction | `8e261dd1` | 0.43104 | 0.389263 | v2_compile |
 | L1__035_flux_ada_layer_norm_zero_modulation_extraction | `51fef589` | 0.35808 | 0.321462 | v4_contiguous |
 | L1__035_flux_ada_layer_norm_zero_modulation_extraction | `2f570f4d` | 0.18432 | 0.164361 | v2_compile |
+
+## D-published — the bound a score is actually computed against
+
+Section D above audits the SOLAR tier alone. The manifest publishes
+max(SOLAR, declared-traffic) and rejects a tier that exceeds the
+measured T_b, so the tier count overstates the shipped damage.
+
+3660/3701 PUBLISHED workloads satisfy T_SOL <= T_b — **41 VIOLATIONS across 4 problems**. Scores on those problems are not results.
+
+| problem | workload | T_SOL ms | T_b ms | bound tier |
+|---|---|---|---|---|
+| L1__006_hyena_depthwise_conv1d_split_gate | `384d57b8` | 0.371216 | 0.091441 | declared_traffic |
+| L1__006_hyena_depthwise_conv1d_split_gate | `9cb591a3` | 0.372389 | 0.093221 | declared_traffic |
+| L1__006_hyena_depthwise_conv1d_split_gate | `8ce027b6` | 0.37194 | 0.0992805 | declared_traffic |
+| L1__006_hyena_depthwise_conv1d_split_gate | `b9d99d9d` | 0.185505 | 0.05304 | declared_traffic |
+| L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion | `9fec4efe` | 0.169873 | 0.0495 | solar_fused |
+| L1__029_mamba_conv1d_with_gating | `25cc310d` | 11.6768 | 3.83507 | declared_traffic |
+| L1__029_mamba_conv1d_with_gating | `1b0a2e46` | 11.6833 | 3.85063 | declared_traffic |
+| L1__029_mamba_conv1d_with_gating | `4d8dcc2c` | 2.79769 | 0.936326 | declared_traffic |
+| L1__029_mamba_conv1d_with_gating | `bc1dc4bf` | 11.6508 | 3.90895 | declared_traffic |
+| L1__006_hyena_depthwise_conv1d_split_gate | `efc0661b` | 0.186928 | 0.0634605 | declared_traffic |
+| L1__029_mamba_conv1d_with_gating | `5aafa38b` | 11.5355 | 4.15497 | declared_traffic |
+| L1__006_hyena_depthwise_conv1d_split_gate | `da31d8e3` | 0.0928683 | 0.03368 | declared_traffic |
+| L1__029_mamba_conv1d_with_gating | `ee62552e` | 1.32731 | 0.481423 | declared_traffic |
+| L1__029_mamba_conv1d_with_gating | `63f6f33c` | 11.6638 | 4.44283 | declared_traffic |
+| L1__029_mamba_conv1d_with_gating | `2e529adb` | 1.94675 | 0.747465 | declared_traffic |
+| L1__006_hyena_depthwise_conv1d_split_gate | `950dc0ec` | 0.0935426 | 0.03812 | declared_traffic |
+| L1__029_mamba_conv1d_with_gating | `bfb88d94` | 1.28502 | 0.542084 | declared_traffic |
+| L1__006_hyena_depthwise_conv1d_split_gate | `71d9a820` | 0.188141 | 0.08162 | declared_traffic |
+| L2__035_convnextv2_block_with_grn | `65bf886b` | 0.670879 | 0.304603 | declared_traffic |
+| L1__029_mamba_conv1d_with_gating | `088e7f41` | 2.62403 | 1.21407 | declared_traffic |
+| L1__029_mamba_conv1d_with_gating | `4a61237f` | 2.5488 | 1.23225 | declared_traffic |
+| L1__029_mamba_conv1d_with_gating | `e36c7969` | 0.730716 | 0.365762 | declared_traffic |
+| L1__006_hyena_depthwise_conv1d_split_gate | `63c2e8ad` | 0.0463568 | 0.0233605 | declared_traffic |
+| L1__006_hyena_depthwise_conv1d_split_gate | `d698ad85` | 0.0940704 | 0.0474805 | declared_traffic |
+| L1__029_mamba_conv1d_with_gating | `b2e443d9` | 2.68143 | 1.39301 | declared_traffic |
 

@@ -199,6 +199,12 @@ def main() -> int:
     ap.add_argument("--data", default="data/SOL-ExecBench/benchmark")
     ap.add_argument("--t-b", default=None,
                     help="artifacts/06 directory; enables check D")
+    ap.add_argument("--manifest", default=None,
+                    help="scoring manifest, e.g. artifacts/09-MI355X/"
+                         "manifest-v2.json. Enables D-published, which audits "
+                         "max(SOLAR, traffic) after the manifest's own tier "
+                         "rejection -- the bound a score is computed against. "
+                         "Without it only the SOLAR tier is audited.")
     ap.add_argument("--out", default="artifacts/03/cross-checks.md")
     a = ap.parse_args()
 
@@ -240,7 +246,22 @@ def main() -> int:
                     a_violation += 1
                     a_worst.append((ratio, key, uuid, declared, solar_bytes))
 
-            seconds = w["t_sol_cycles"] / freq_hz
+            # Compare in TIME, not by re-deriving time from cycles at the arch
+            # clock. `t_sol_cycles` is expressed at the bound's own reference
+            # clock -- the sibling field is literally `memory_cycles_at_f_ref`,
+            # and on MI355X f_ref is 1.8 GHz while the arch config declares
+            # 2.4. Dividing by the arch clock therefore inflated every
+            # memory-bound workload's implied bandwidth by exactly 2.4/1.8 =
+            # 1.3333, and this check reported 1327 workloads "over DRAM peak"
+            # when not one of them was: every reading was 1.33x, the same
+            # number, which is the signature of a constant, not of 1327
+            # independent bad bounds.
+            #
+            # `t_sol_ms` is the bound in time and is what the manifest
+            # publishes. Verified against the invariant: for a memory-bound
+            # workload, memory_bytes / t_sol_ms lands on DRAM peak exactly.
+            t_ms = w.get("t_sol_ms")
+            seconds = (t_ms / 1000.0) if t_ms else (w["t_sol_cycles"] / freq_hz)
             if seconds <= 0:
                 continue
             b_checked += 1
@@ -301,6 +322,47 @@ def main() -> int:
         d_status = (f"{checked - viol}/{checked} workloads satisfy "
                     f"T_SOL <= T_b" + ("" if not viol else
                     f" — **{viol} VIOLATIONS**, each one a config error"))
+
+    # -- D as PUBLISHED ----------------------------------------------------
+    # Everything above audits ONE tier: the SOLAR bound in --t-sol. That is not
+    # what a score is computed against. The manifest publishes max(SOLAR,
+    # declared-traffic) and, crucially, REJECTS a tier that exceeds the
+    # measured T_b (`solar_rejected_above_t_b`, `traffic_rejected_above_t_b`).
+    # So the tier-level count overstates the shipped damage -- 148 here against
+    # 41 in the manifest -- and a gate reading the tier count fails for
+    # something nobody publishes, the same way task 06's gate audited a T_b
+    # tree nobody published.
+    #
+    # The published bound is READ rather than recomputed. Re-deriving the
+    # max-and-reject rule here would duplicate build_manifest's selection and
+    # the two would drift, at which point the cross-check and the manifest
+    # would disagree with no way to tell which is right.
+    d_pub_status = ("not evaluated — pass --manifest to audit the bound that is "
+                    "actually published, not just the SOLAR tier")
+    d_pub_rows: list[tuple] = []
+    if a.manifest and Path(a.manifest).is_file():
+        man = json.loads(Path(a.manifest).read_text())
+        pchecked = pviol = 0
+        for key, entry in (man.get("problems") or {}).items():
+            wls = entry.get("workloads") or {}
+            for uuid, w in (wls.items() if isinstance(wls, dict) else []):
+                if not isinstance(w, dict) or not w.get("scoreable"):
+                    continue
+                ts = w.get("t_sol_ms_published") or w.get("t_sol_ms")
+                tb = w.get("t_b_ms")
+                if ts is None or tb is None:
+                    continue
+                pchecked += 1
+                if ts > tb * 1.0001:
+                    pviol += 1
+                    d_pub_rows.append((key, uuid, ts, tb,
+                                       w.get("t_sol_source")))
+        d_pub_status = (
+            f"{pchecked - pviol}/{pchecked} PUBLISHED workloads satisfy "
+            f"T_SOL <= T_b" + ("" if not pviol else
+            f" — **{pviol} VIOLATIONS across "
+            f"{len({r[0] for r in d_pub_rows})} problems**. Scores on those "
+            f"problems are not results."))
 
     # -- report -----------------------------------------------------------
     L = [
@@ -392,10 +454,23 @@ def main() -> int:
             L.append(f"| {p} | `{u[:8]}` | {ts:.6g} | {tb:.6g} | {v} |")
         L.append("")
 
+    L += ["## D-published — the bound a score is actually computed against", "",
+          "Section D above audits the SOLAR tier alone. The manifest publishes",
+          "max(SOLAR, declared-traffic) and rejects a tier that exceeds the",
+          "measured T_b, so the tier count overstates the shipped damage.", "",
+          d_pub_status, ""]
+    if d_pub_rows:
+        L += ["| problem | workload | T_SOL ms | T_b ms | bound tier |",
+              "|---|---|---|---|---|"]
+        for p, u, ts, tb, src in sorted(d_pub_rows, key=lambda r: -r[2] / r[3])[:25]:
+            L.append(f"| {p} | `{u[:8]}` | {ts:.6g} | {tb:.6g} | {src} |")
+        L.append("")
+
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text("\n".join(L) + "\n")
     print(f"wrote {a.out}")
     print(f"  A  {a_checked} checked, {a_violation} below declared minimum")
+    print(f"  D-pub  {d_pub_status}")
     print(f"  B  {b_checked} checked, {b_bw_violation} over BW peak, "
           f"{b_flops_violation} over FLOPS peak")
     print(f"  C  {len(c_rows)} rows, {c_bad} mismatches")
