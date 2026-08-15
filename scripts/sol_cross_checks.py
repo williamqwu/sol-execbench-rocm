@@ -195,6 +195,11 @@ def load_arch(path: Path) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--t-sol", default="artifacts/03/t_sol.json")
+    ap.add_argument("--t-sol-traffic", default=None,
+                    help="declared-traffic tier, e.g. artifacts/03-MI355X/"
+                         "t_sol_traffic.json. Supplies the declared byte "
+                         "totals for A-published; defaults to a t_sol_traffic"
+                         ".json beside --t-sol.")
     ap.add_argument("--arch", default="SOLAR/configs/arch/MI350X.yaml")
     ap.add_argument("--data", default="data/SOL-ExecBench/benchmark")
     ap.add_argument("--t-b", default=None,
@@ -207,6 +212,9 @@ def main() -> int:
                          "Without it only the SOLAR tier is audited.")
     ap.add_argument("--out", default="artifacts/03/cross-checks.md")
     a = ap.parse_args()
+    if a.t_sol_traffic is None:
+        sibling = Path(a.t_sol).with_name("t_sol_traffic.json")
+        a.t_sol_traffic = str(sibling) if sibling.is_file() else None
 
     doc = json.loads(Path(a.t_sol).read_text())
     arch = load_arch(Path(a.arch))
@@ -223,6 +231,7 @@ def main() -> int:
     b_checked = b_bw_violation = b_flops_violation = 0
     b_worst_bw: list[tuple] = []
     unresolved = 0
+    declared_by: dict[tuple[str, str], int] = {}
 
     for key, entry in sorted(problems.items()):
         category, name = key.split("__", 1)
@@ -240,6 +249,7 @@ def main() -> int:
             if declared is None or not solar_bytes:
                 unresolved += 1
             else:
+                declared_by[(key, uuid)] = declared
                 a_checked += 1
                 ratio = solar_bytes / declared
                 if ratio < 0.999:                # below the unavoidable minimum
@@ -364,6 +374,83 @@ def main() -> int:
             f"{len({r[0] for r in d_pub_rows})} problems**. Scores on those "
             f"problems are not results."))
 
+    # -- A as PUBLISHED ----------------------------------------------------
+    # Check A above audits ONE tier and is red by construction: 1021 of 2998
+    # SOLAR memory terms sit below the declared minimum, and on 1000 of them
+    # the manifest never publishes that number -- either the traffic tier wins
+    # the max, or SOLAR's *compute* term already puts the fused bound above the
+    # traffic floor. An always-red check cannot gate anything, so A stays a
+    # judgement item and this is the gate: does the bound a score is ACTUALLY
+    # computed against sit at or above the problem's own declared traffic?
+    #
+    # The one sanctioned exception, and the reason this is not simply
+    # `max(SOLAR, floor)`: where a definition declares a tensor the kernel
+    # INDEXES rather than streams -- a 131072-position KV cache -- the declared
+    # total is not a floor at all, and the measurement says so, because the
+    # floor lands ABOVE the measured T_b. A floor above a time that was
+    # actually achieved is refuted, not violated. Those are counted separately
+    # and named, never silently dropped: the excuse is a measurement, so if T_b
+    # is missing there is no excuse and the workload counts as a violation.
+    #
+    # Direction matters. A published T_SOL below the true floor makes
+    # `(T_k - T_SOL) / (T_b - T_SOL)` too small for any submission slower than
+    # T_b, which is most of them, so S is INFLATED. Nothing downstream can see
+    # it -- unlike T_SOL > T_b, which check D-published catches by comparison
+    # with a real measurement. That is why this one is a gate.
+    a_pub_status = ("not evaluated — pass --manifest to audit the published "
+                    "bound against the declared-traffic floor")
+    a_pub_rows: list[tuple] = []
+    a_pub_refuted: list[tuple] = []
+    if a.manifest and Path(a.manifest).is_file():
+        man_a = json.loads(Path(a.manifest).read_text())
+        # The traffic tier's `memory_bytes` IS the declared total, by
+        # construction, so it is read rather than re-derived -- and its
+        # `rejected` list carries the declared bytes for the workloads it
+        # dropped, which are precisely the ones this check must still see.
+        traffic_path = Path(a.t_sol_traffic) if a.t_sol_traffic else None
+        if traffic_path and traffic_path.is_file():
+            tdoc = json.loads(traffic_path.read_text())
+            for key, entry in (tdoc.get("problems") or {}).items():
+                for uuid, w in (entry.get("workloads") or {}).items():
+                    if w.get("memory_bytes"):
+                        declared_by[(key, uuid)] = w["memory_bytes"]
+            for r in (tdoc.get("rejected") or []):
+                if r.get("declared_bytes"):
+                    declared_by[(r["problem"], r["workload"])] = \
+                        r["declared_bytes"]
+        pchecked = pviol = prefuted = punknown = 0
+        for key, entry in (man_a.get("problems") or {}).items():
+            wls = entry.get("workloads") or {}
+            for uuid, w in (wls.items() if isinstance(wls, dict) else []):
+                if not isinstance(w, dict) or not w.get("scoreable"):
+                    continue
+                declared = declared_by.get((key, uuid))
+                ts = w.get("t_sol_ms_published") or w.get("t_sol_ms")
+                if declared is None or ts is None:
+                    punknown += 1
+                    continue
+                # Clock-invariant: bytes over a bandwidth fixed in bytes/second.
+                floor_ms = declared / dram_bw * 1e3
+                pchecked += 1
+                if ts >= floor_ms * 0.999:
+                    continue
+                tb = w.get("t_b_ms")
+                if tb is not None and floor_ms > tb:
+                    prefuted += 1
+                    a_pub_refuted.append((key, uuid, floor_ms, tb))
+                else:
+                    pviol += 1
+                    a_pub_rows.append((floor_ms / ts, key, uuid, declared,
+                                       ts, floor_ms, w.get("t_sol_source")))
+        a_pub_status = (
+            f"{pchecked - pviol - prefuted}/{pchecked} PUBLISHED workloads "
+            f"sit at or above their declared-traffic floor; {prefuted} have a "
+            f"floor refuted by measurement (floor > T_b); {punknown} not "
+            f"checkable" + ("" if not pviol else
+            f" — **{pviol} VIOLATIONS across "
+            f"{len({r[1] for r in a_pub_rows})} problems**. Those bounds are "
+            f"below the unavoidable minimum, so their scores are inflated."))
+
     # -- report -----------------------------------------------------------
     L = [
         "# Task 03 — T_SOL cross-checks",
@@ -423,6 +510,39 @@ def main() -> int:
         L.append("")
 
     L += [
+        "## A-published — the bound a score is computed against, vs that floor",
+        "",
+        "**This is the gate; A above is a judgement item.** A alone is red by "
+        "construction and cannot gate: on 1000 of its 1021 the SOLAR memory "
+        "term never reaches a score, because either the traffic tier wins the "
+        "`max` or SOLAR's compute term already lifts the fused bound above "
+        "the floor. What can be gated is the published number.",
+        "",
+        "A floor that lands ABOVE the measured T_b is refuted rather than "
+        "violated — the kernel demonstrably moved less than the definition "
+        "declares, which is what an indexed cache looks like. Refuted rows are "
+        "counted and listed, and a missing T_b is no excuse: without a "
+        "measurement to refute it, the floor stands.",
+        "",
+        a_pub_status,
+        "",
+    ]
+    if a_pub_rows:
+        L += ["| floor / published | problem | workload | declared bytes | "
+              "published T_SOL ms | floor ms | tier |",
+              "|---|---|---|---|---|---|---|"]
+        for r, key, u, dec, ts, fl, src in sorted(a_pub_rows, reverse=True)[:25]:
+            L.append(f"| {r:.3f}x | {key} | `{u[:8]}` | {dec:,} | {ts:.6g} | "
+                     f"{fl:.6g} | {src} |")
+        L.append("")
+    if a_pub_refuted:
+        by_p: dict[str, int] = {}
+        for key, _u, _f, _t in a_pub_refuted:
+            by_p[key] = by_p.get(key, 0) + 1
+        L += ["Floors refuted by measurement, by problem: "
+              + ", ".join(f"`{k}` ({n})" for k, n in sorted(by_p.items())), ""]
+
+    L += [
         "## B — rates implied by T_SOL",
         "",
         f"Arch config: DRAM {dram_bw/1e12:.2f} TB/s at {arch['freq_GHz']} GHz.",
@@ -469,13 +589,21 @@ def main() -> int:
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text("\n".join(L) + "\n")
     print(f"wrote {a.out}")
-    print(f"  A  {a_checked} checked, {a_violation} below declared minimum")
+    print(f"  A  {a_checked} checked, {a_violation} below declared minimum "
+          f"(judgement — see A-published for the gate)")
+    print(f"  A-pub  {a_pub_status}")
     print(f"  D-pub  {d_pub_status}")
     print(f"  B  {b_checked} checked, {b_bw_violation} over BW peak, "
           f"{b_flops_violation} over FLOPS peak")
     print(f"  C  {len(c_rows)} rows, {c_bad} mismatches")
     print(f"  D  {d_status}")
-    return 1 if (a_violation or b_bw_violation or b_flops_violation or c_bad) else 0
+    # A is NOT in the exit condition, and dropping it is the point of
+    # A-published. A counts SOLAR memory terms below the declared minimum; 1000
+    # of the 1021 on MI355X are never published, so a gate on A is red on every
+    # run and stops meaning anything. A-published counts the bounds that a
+    # score is actually computed against, which is the thing that can be wrong.
+    return 1 if (len(a_pub_rows) or b_bw_violation or b_flops_violation
+                 or c_bad) else 0
 
 
 if __name__ == "__main__":

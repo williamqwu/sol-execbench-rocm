@@ -150,6 +150,14 @@ Open right now, in the order they would mislead a reader:
    are one defect, the declared-traffic tier (D18), fixed per-problem in v1.1
    rather than at the tier; **328 workloads across 38 problems still rest on
    it.** Fixing the tier is the v1.3 item.
+   *2026-08-15: the tier IS fixed on MI355X* — `scripts/sol_gathered_traffic.py`
+   derives the gather pairing from each problem's own reference,
+   `sol_traffic_floor.py` uses it, and MI355X manifest v2 check D goes **102
+   violations across 13 problems → 28 across 11**, worst ratio 0.02 → 0.53. It
+   fires on 7 of 235 problems and moves 265 workloads; nothing else changes by
+   a byte. Not applied to the MI350X artifacts, and it does **not** cover the
+   SOLAR tier, which carries the same allocation over-count on
+   `FlashInfer-Bench__018` (47 workloads). See D18.
 4. **827 workloads (22.3%) sit above 100× headroom (D39)** — marked via
    `bound_quality`, not fixed, and `bound_quality` is not in the manifest.
 5. **Tolerances and goldens: code fixed, artifacts stale** — D52 (76

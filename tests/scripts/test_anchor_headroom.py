@@ -196,10 +196,13 @@ def test_missing_bound_is_adjudicated_not_exempted():
 # `verify_artifacts._check_headroom_exemption` is that bound.
 # ---------------------------------------------------------------------------
 
+import verify_artifacts  # noqa: E402
 from verify_artifacts import (  # noqa: E402
-    FAIL, MAX_EXEMPT_FRACTION, MAX_H_MIN, PASS, WARN, Checks,
+    FAIL, MAX_EXEMPT_FRACTION, MAX_H_MIN_BY_PART, PASS, WARN, Checks,
     _check_headroom_exemption,
 )
+
+MAX_H_MIN = MAX_H_MIN_BY_PART["MI350X"]  # the default part these cases assume
 
 
 def _statuses(ap: dict) -> list[str]:
@@ -243,7 +246,37 @@ def test_a_widened_threshold_fails_even_when_it_catches_nothing():
 def test_the_bounds_are_the_measured_ones():
     """Pinned so a future edit is deliberate. Both come from the headroom
     distribution of the manifest the gate reads, not from a preference."""
-    assert MAX_EXEMPT_FRACTION == 0.12 and MAX_H_MIN == 0.066
+    assert MAX_EXEMPT_FRACTION == 0.12
+    assert MAX_H_MIN_BY_PART == {"MI350X": 0.066, "MI355X": 0.20}
+
+
+def test_the_ceiling_is_per_part():
+    """MI350X holds a locked 1300 MHz; MI355X cannot be locked at all and
+    re-times 3x less precisely (artifacts/06-MI355X/retime-precision.json).
+    One part's ceiling applied to the other fails it for being the other."""
+    ap = {"undecidable_insufficient_headroom": 2, "checked": 310,
+          "min_headroom_for_tolerance": 0.175}
+    saved = verify_artifacts.TREE
+    try:
+        verify_artifacts.TREE = verify_artifacts.ArtifactTree(part="MI350X")
+        assert _statuses(ap) == [PASS, FAIL]
+        verify_artifacts.TREE = verify_artifacts.ArtifactTree(part="MI355X")
+        assert _statuses(ap) == [PASS, PASS]
+    finally:
+        verify_artifacts.TREE = saved
+
+
+def test_an_unmeasured_part_gets_no_ceiling_and_says_so():
+    """Borrowing a measured part's number for an unmeasured one is the mistake
+    the table exists to prevent, so absence warns instead of passing."""
+    ap = {"undecidable_insufficient_headroom": 2, "checked": 310,
+          "min_headroom_for_tolerance": 0.175}
+    saved = verify_artifacts.TREE
+    try:
+        verify_artifacts.TREE = verify_artifacts.ArtifactTree(part="MI300X")
+        assert _statuses(ap) == [PASS, WARN]
+    finally:
+        verify_artifacts.TREE = saved
 
 
 def test_an_artifact_without_the_fields_warns_rather_than_passing():

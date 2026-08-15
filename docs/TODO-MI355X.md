@@ -1191,3 +1191,77 @@ in every document; `db/solbench-MI355X.db` exists so the part switch lands on
 data; and every one of §10's ten open items is either resolved in writing or
 still listed there. Anything short of that is recorded as a blocker, not
 smoothed over.
+
+---
+
+## 12. Two bound defects found in `manifest-v2` (2026-08-15)
+
+Both are fixed in code / re-derived; **neither is in a published artifact yet.**
+`artifacts/09-MI355X/manifest-v2.json` still carries both.
+
+### 12.1 The `T_SOL <= T_b` gate had no effect under the unlocked basis
+
+41 workloads across 4 problems shipped in v2 with a **published T_SOL above
+their own measured T_b** — impossible for a lower bound, and it inverts the
+score: with `T_b - T_SOL < 0`, `S = 1/(1 + (T_k - T_SOL)/(T_b - T_SOL))` rises
+with `T_k`, so a slower kernel scores higher, with a pole at
+`T_k = 2*T_SOL - T_b`.
+
+| problem | workloads | worst `T_SOL/T_b` | tier rejected, and leaked |
+|---|---|---|---|
+| `L1__029_mamba_conv1d_with_gating` | 15/16 | 3.04 | solar_fused |
+| `L1__006_hyena_depthwise_conv1d_split_gate` | 12/16 | 4.06 | solar_fused |
+| `L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion` | 8/16 | 3.43 | declared_traffic |
+| `L2__035_convnextv2_block_with_grn` | 6/16 | 2.20 | declared_traffic |
+
+**Mechanism.** `combine_bounds` rejects a tier above T_b by setting its
+`t_sol_cycles` to `None` — but it then passed *both* raw tier records to
+`_reclock_terms`, which unions `max(compute_cycles)` and `max(memory_bytes)`.
+Under the unlocked basis the *published* bound is re-evaluated from that union
+at the bracket's minimum clock, so the rejected tier's term won and the shipped
+number **was the rejected bound**, wearing the surviving tier's `t_sol_source`
+label. That is why the records read `t_sol_source: declared_traffic` while
+`t_sol_cycles_published == compute_cycles` of the rejected SOLAR tier. Under the
+locked basis (MI350X v1/v1.1/v1.2) the point bound is taken from the surviving
+tier directly, so those manifests are not affected.
+
+**Fix.** `scripts/build_manifest.py`: a rejected tier's terms are dropped with
+it, and the record now carries `t_sol_tier_rejected_above_t_b`. Regression test:
+`tests/scripts/test_build_manifest_reject_leak.py`. Rebuild of v2 with the fix
+alone: **41 violations -> 0**, 173 workloads across 17 problems get a smaller
+(always smaller) bound, `219/235` problems and `3701` workloads unchanged,
+`no_valid_bound` still 0 — nothing loses scoreability.
+Candidate: `artifacts/09-MI355X/candidate-v3-gatefix.json`.
+
+### 12.2 `artifacts/03-MI355X/t_sol.json` is pre-D37: grouped conv priced as dense
+
+The SOLAR tier only sat above T_b on those conv-flavoured problems because it is
+the **uncorrected** arithmetic. `scripts/sol_bounds.py` applies
+`solexbench_rocm.solar.conv_groups`, but the artifact dated 2026-08-14T19:18
+does not carry the correction: its `macs` are identical to MI350X's pre-D37
+values. Re-running today's code on the same arch YAML reproduces exactly the
+corrected `macs` in `artifacts/11/d37/` (ratio 1.000000 on all 6 problems,
+96 workloads):
+
+| problem | `t_sol.json` / corrected macs |
+|---|---|
+| `L1__005_conv_gated_projection_with_causal_conv` | 1.999 |
+| `L1__006_hyena_depthwise_conv1d_split_gate` | 768.000 |
+| `L1__029_mamba_conv1d_with_gating` | 4.999 |
+| `L2__035_convnextv2_block_with_grn` | 6.698–7.069 |
+| `L2__051_...hyena_complete_forward_block` | 3.173–3.256 |
+| `L2__058_mamba2_selective_scan` | 4.663–4.754 |
+
+The declared-traffic tier is **not** implicated: it charges each declared tensor
+exactly once (`L1__029` at `batch=16, seq=512` sums to 1,208,205,312 B by hand,
+to the byte). No conv weight or state tensor is priced per timestep.
+
+Re-derived bounds: `artifacts/03-MI355X/d37/*.json` (CPU, `device="meta"`, no
+measurement), merged copy `artifacts/03-MI355X/t_sol-d37.json`, manifest
+candidate `artifacts/09-MI355X/candidate-v3-gatefix-d37.json` — also 0
+violations, and it moves bounds in *both* directions (SOLAR shrinks, but it now
+survives the gate and wins on problems where only the loose traffic tier had).
+
+**Owed:** decide whether v2 is withdrawn or superseded, then rebuild from
+`t_sol-d37.json` with the gate fix. Until then, treat scores on those 4 (bound
+inverted) + 6 (grouped conv) problems as not results.

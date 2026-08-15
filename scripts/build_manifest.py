@@ -266,16 +266,48 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
             # symmetric: reject any candidate that fails, take the max of what
             # survives, and if nothing survives the workload is not scoreable
             # and is counted as such rather than shipped with a bad anchor.
+            t_rejected = s_rejected = False
             if measured is not None:
                 if t_cyc is not None and t.get("t_sol_ms", 0) > measured:
                     stats["traffic_rejected_above_t_b"] += 1
-                    t_cyc = None
+                    t_cyc, t_rejected = None, True
                 if s_cyc is not None and s.get("t_sol_ms", 0) > measured:
                     stats["solar_rejected_above_t_b"] += 1
-                    s_cyc = None
+                    s_cyc, s_rejected = None, True
+            # A rejected tier is rejected for re-clocking too. Nulling only the
+            # cycle count left the tier's `compute_cycles`/`memory_bytes` in the
+            # union `_reclock_terms` builds, and under the unlocked basis the
+            # PUBLISHED bound is re-evaluated from that union -- so the rejected
+            # tier came back as the shipped number and the gate had no effect.
+            # On MI355X manifest-v2 that put 41 workloads across 4 problems above
+            # their own measured T_b, by up to 4.06x. The terms are a property of
+            # the tier that carries them: drop them with it.
+            s_terms = {} if s_rejected else s
+            t_terms = {} if t_rejected else t
             if s_cyc is not None and t_cyc is not None:
-                source = "max_of_both" if t_cyc > s_cyc else "solar_fused"
-                chosen = t if t_cyc > s_cyc else s
+                # In TIME, never in cycles. The two tiers count cycles at
+                # DIFFERENT reference clocks -- SOLAR at f_ref 1.8 GHz (4444.4
+                # DRAM bytes/cycle), the traffic tier at the arch config's 2.4
+                # GHz (3333.3) -- so `t_cyc > s_cyc` is a comparison between
+                # two units, biased 2.4/1.8 = 1.3333x in the traffic tier's
+                # favour. It picked the SMALLER of the two bounds on 255 of the
+                # 2796 MI355X workloads where both tiers survived, across 74
+                # problems, by up to 1.3312x: the max was not a max. And the
+                # error is in the invisible direction -- a T_SOL below the true
+                # bound inflates S for every submission slower than T_b, where
+                # a T_SOL above it is caught by the T_b gate right above.
+                # `t_sol_ms` is each tier's own cycles at its own clock, which
+                # is the only form in which they are comparable.
+                t_time = t.get("t_sol_ms")
+                s_time = s.get("t_sol_ms")
+                if t_time is None or s_time is None:
+                    raise ValueError(
+                        f"{key}/{u}: a surviving tier has no t_sol_ms, so the "
+                        "two cannot be compared in time; comparing cycles "
+                        "across tiers is a unit error, not a fallback")
+                traffic_wins = t_time > s_time
+                source = "max_of_both" if traffic_wins else "solar_fused"
+                chosen = t if traffic_wins else s
             elif s_cyc is not None:
                 source, chosen = "solar_fused", s
             elif t_cyc is not None:
@@ -295,7 +327,11 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
             merged[u] = {**base, "t_sol_source": source,
                          "t_sol_cycles_solar": s_cyc,
                          "t_sol_cycles_traffic": t.get("t_sol_cycles"),
-                         **_reclock_terms(s, t, source, stats)}
+                         "t_sol_tier_rejected_above_t_b": (
+                             [n for n, r in (("solar_fused", s_rejected),
+                                             ("declared_traffic", t_rejected))
+                              if r] or None),
+                         **_reclock_terms(s_terms, t_terms, source, stats)}
         if merged:
             out[key] = merged
     return out, stats

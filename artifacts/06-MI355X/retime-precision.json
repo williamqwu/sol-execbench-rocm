@@ -1,0 +1,67 @@
+{
+  "_provenance": {
+    "task": "06-retime-precision",
+    "utc": "2026-08-15T05:21:12.075106+00:00",
+    "git_sha": "bc326c84572ffd3ba8862435d393dcb84f92ac08-dirty",
+    "host": "mia1-p02-g46",
+    "python": "3.12.3",
+    "torch": {
+      "available": true,
+      "version": "2.9.1+rocm7.2.0.git7e1940d4",
+      "hip": "7.2.26015-fc0010cf6a",
+      "cuda": null,
+      "device_count": 8,
+      "devices": [
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X"
+      ]
+    },
+    "rocm": {
+      "version": "7.2.0",
+      "driver": "6.16.6",
+      "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+    },
+    "f_lock_mhz": null,
+    "visible_devices": null
+  },
+  "part": "MI355X",
+  "method": "paired re-measurement: every (problem, variant, workload) timed in both candidate campaigns is one repeat of the same quantity; eps = median |t_B/t_A - 1|. Independent of any anchor run, manifest t_b, score or bound.",
+  "campaigns": {
+    "a": "artifacts/06-MI355X/authoritative",
+    "b": "artifacts/06-MI355X/authoritative-repro"
+  },
+  "manifest_for_subset": "artifacts/09-MI355X/manifest-v2.json",
+  "tolerance": 0.03,
+  "h_min_formula": "eps * (0.5 + tol) / (2 * tol)",
+  "all_pairs": {
+    "n": 5126,
+    "eps_median": 0.012422309947472066,
+    "h_min": 0.10973040453600305
+  },
+  "comparable_subset": {
+    "n": 1567,
+    "n_problems": 87,
+    "criterion": "manifest winning variant, headroom >= 25%",
+    "eps_median": 0.012195072608021773,
+    "h_min": 0.10772314137085881
+  },
+  "sampling_distribution": {
+    "sample_problems": 20,
+    "resamples": 20000,
+    "note": "whole problems are resampled, not workloads: the re-timing error is clustered by problem, so resampling workloads would understate the spread the gate actually sees",
+    "h_min_percentiles": {
+      "p50": 0.10653216127629372,
+      "p75": 0.12334672210517177,
+      "p90": 0.14480849997264558,
+      "p95": 0.1615853390900233,
+      "p99": 0.19874517281735857
+    },
+    "h_min_max": 0.35260531362294656
+  }
+}

@@ -806,6 +806,27 @@ def check_03(c: Checks):
                   "check C: hand-derived MAC counts agree")
         c.add(JUDGE, "check A: 13 problems below declared traffic",
               "mechanism stated per problem in cross-checks.md")
+        # A-published is the gate; A is not. A counts SOLAR memory terms below
+        # the declared minimum, and on MI355X 1000 of those 1021 are never
+        # published — the traffic tier wins the max, or SOLAR's compute term
+        # already lifts the fused bound over the floor. A gate that is red on
+        # every run stops being read. What can be gated is the bound a score is
+        # computed against, and this is the UNDETECTABLE direction: a published
+        # T_SOL below the floor inflates S with nothing downstream to notice,
+        # where T_SOL > T_b is caught by D-published against a real measurement.
+        ap = re.search(r"sit at or above their declared-traffic floor", text)
+        av = re.search(r"A-published[\s\S]{0,4000}?\*\*(\d+) VIOLATIONS", text)
+        if ap:
+            c.require(av is None,
+                      "check A-published: no published bound is below the "
+                      "problem's own declared traffic",
+                      detail_bad=(f"{av.group(1)} published bounds sit below "
+                                  "the declared-traffic floor — those scores "
+                                  "are inflated") if av else "")
+        else:
+            c.add(JUDGE, "check A-published absent from this report",
+                  "predates the check — regenerate with sol_cross_checks.py "
+                  "--manifest to gate the published bound against the floor")
         _check_d(c)
     c.add(JUDGE, "V1/V2/V3 resolved (TF32, LLC bandwidth, MXFP4 dense)",
           "see STATE.md decisions")
@@ -1066,12 +1087,47 @@ def check_06(c: Checks):
 #: manifest, so a breach means the headroom distribution or the timing precision
 #: moved, which is the thing worth catching.
 #:
-#: MAX_H_MIN 0.066 bounds the mechanism rather than its effect, which is the
-#: tighter statement of the two: it is the top of the measured precision band, so
+#: MAX_H_MIN bounds the mechanism rather than its effect, which is the tighter
+#: statement of the two: it is the top of the measured precision band, so
 #: exceeding it means the run's own re-timing got noisier and widened its
 #: exemption, regardless of how many workloads that happened to catch.
+#:
+#: **It is PER PART, because re-timing precision is a property of the part and
+#: its chassis, not of the code.** 0.066 was derived on MI350X, which holds a
+#: locked 1300 MHz. MI355X cannot be clock-locked at all -- every measurement on
+#: it runs on the `unlocked` basis, bracketed rather than pinned -- and its
+#: re-timing precision is measurably 3x worse. Carrying 0.066 across parts is the
+#: same class of mistake as carrying an NVIDIA constant into an AMD artifact: the
+#: number would look like a threshold and behave like a transplant, and it fails
+#: MI355X for being MI355X.
+#:
+#: MI355X's value is derived, not chosen, by `scripts/derive_retime_precision.py`
+#: from an INDEPENDENT source -- the two full T_b candidate campaigns
+#: (`artifacts/06-MI355X/authoritative` and `authoritative-repro`, different
+#: GPUs, different times), whose 5126 overlapping (problem, variant, workload)
+#: measurements are genuine repeats of the same quantity, with no manifest, score
+#: or anchor run involved. On the subset the anchor run actually calibrates on
+#: (manifest winning variant, headroom >= 25%; 1567 pairs over 87 problems):
+#:
+#:   eps = 1.22%  ->  h_min = 10.77%
+#:
+#: The gate draws 20 problems and the error is clustered by problem, so the
+#: ceiling has to bound the 20-problem SAMPLING distribution of that median, not
+#: the median. Bootstrapping whole problems (artifacts/06-MI355X/
+#: retime-precision.json): p50 10.65%, p90 14.48%, p95 16.16%, p99 19.87%.
+#: 0.20 is that p99 rounded -- a 1-in-100 false alarm for a gate that runs on
+#: every release. Constructing it the way MI350X's was instead (band top ~1.7x
+#: the median, i.e. 2.1% -> 18.6%) lands in the same place, which is the reason
+#: to trust it.
+#:
+#: A part with no measured campaign pair gets no ceiling and a WARN. Defaulting
+#: an unmeasured part to another part's number is the failure this table exists
+#: to prevent.
 MAX_EXEMPT_FRACTION = 0.12
-MAX_H_MIN = 0.066
+MAX_H_MIN_BY_PART = {
+    "MI350X": 0.066,
+    "MI355X": 0.20,
+}
 
 
 def _check_headroom_exemption(c: Checks, ap: dict) -> None:
@@ -1099,13 +1155,21 @@ def _check_headroom_exemption(c: Checks, ap: dict) -> None:
               f"pass rate is not evidence of a better anchor")
     h_min = ap.get("min_headroom_for_tolerance")
     if h_min is not None:
-        c.require(h_min <= MAX_H_MIN,
+        ceiling = MAX_H_MIN_BY_PART.get(TREE.part)
+        if ceiling is None:
+            c.add(WARN, "exemption threshold within the measured precision band",
+                  f"h_min {h_min:.2%}, but no re-timing precision has been "
+                  f"measured for {TREE.part} — run "
+                  f"scripts/derive_retime_precision.py --part {TREE.part}; "
+                  f"another part's ceiling is not evidence about this one")
+            return
+        c.require(h_min <= ceiling,
                   "exemption threshold within the measured precision band",
-                  f"h_min {h_min:.2%} <= {MAX_H_MIN:.1%}",
-                  f"h_min {h_min:.2%} exceeds {MAX_H_MIN:.1%}, the top of the "
-                  f"measured re-timing precision band — the exemption widened "
-                  f"because this run was noisy, not because these workloads are "
-                  f"degenerate")
+                  f"h_min {h_min:.2%} <= {ceiling:.1%} ({TREE.part})",
+                  f"h_min {h_min:.2%} exceeds {ceiling:.1%}, the top of "
+                  f"{TREE.part}'s measured re-timing precision band — the "
+                  f"exemption widened because this run was noisy, not because "
+                  f"these workloads are degenerate")
 
 
 def check_07(c: Checks):

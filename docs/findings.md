@@ -530,6 +530,52 @@ is not fixed** — it was fixed per-problem, not at the tier — and
 [D42](#d42) measures what still rests on it: **328 workloads across 38
 problems**. That is the v1.3 item in `TODO.md`.
 
+**2026-08-15, MI355X: fixed at the tier.** `scripts/sol_gathered_traffic.py`,
+used by `scripts/sol_traffic_floor.py`. The pairing is now read out of each
+problem's own reference instead of being tabulated: an axis `A` is priced at
+axis `G` where the reference gathers `T[i]`, `T` deriving from an input whose
+leading dimension is `A` and `i` from a 1-D integer input of length `G`. A
+*slice* whose bounds come from an index vector is not a gather — reading
+`q_f32[q_start:q_end]` as one would price `total_q` at `len_indptr` — and an
+output is never repriced, because a scatter still writes every row of it.
+
+The rule fires on 7 of 235 problems and moves 265 workloads: the six paged
+FlashInfer problems, plus `L1__009`, whose `grad_output` really is only ever
+consumed through `token_indices`. Nothing else in the dataset changes by a
+byte, which was checked rather than assumed.
+
+Worked, on the workload that motivated it —
+`FlashInfer-Bench__015` / `934884ed`, `num_pages=552310`, `num_kv_indices=2`:
+
+```
+k_cache + v_cache at the allocation   2,262,241,280 B  (99.99% of the total)
+everything else (q, out, lse, ptrs)         301,208 B
+                              total  2,262,542,488 B / 7.99992e12 B/s
+                                   = 0.282821 ms   vs published 0.282820964
+priced at the 2 pages named          =   288,920 B = 0.0000361 ms
+```
+
+The bound WAS the allocation-streaming time to nine significant figures, and a
+Triton kernel ran it in 0.00664 ms — 43x under its own lower bound. Corrected,
+the measurement clears the bound by 184x. Check D on MI355X manifest v2:
+**102 violations across 13 problems → 28 across 11**, worst ratio 0.02 → 0.53.
+`019` 26 → 0, `013` 1 → 0, `015` 30 → 2, `014` 21 → 2.
+
+Two things it does NOT fix, both known and neither invented here:
+
+* **`018` again, for the same reason as on MI350X.** Its traffic tier drops to
+  14 cycles, and `max_of_both` then takes SOLAR's — whose `memory_bytes` is
+  **1,140,133,554**, the allocation to within 54 bytes of the tier's own
+  1,140,133,608. Subtracting the over-count, `solar_bytes − (allocation −
+  gathered)` = 44,082 against the tier's 44,136, so the same correction applies
+  exactly; it belongs in the SOLAR tier, not this one. 47 workloads, no
+  submission on MI355X contradicts them yet.
+* **The four residual paged workloads are not D18.** `015`/`a94c44ab` is now
+  270.5 MB of q and output at `total_q=16384`, and the kernel's implied
+  bandwidth is **10.09 TB/s against an 8.0 TB/s arch peak** (`014`/`3e553162`,
+  8.7). A working set that size fits the 268 MB LLC, so this is the V2
+  LLC-bandwidth question, not an allocation being priced.
+
 ### The five surviving bad bounds are two causes, and one is D18 again {#d42}
 
 **2026-08-10.** `scripts/bounds/diagnose_bad_bounds.py`,

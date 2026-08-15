@@ -358,3 +358,44 @@ def test_a_measured_f_lock_still_builds_on_the_locked_basis(tmp_path):
     assert doc["clock_basis"] == "locked"
     w = doc["problems"][KEY]["workloads"][UUID]
     assert w["scoreable"] is True and w["clock_mhz"] is None
+
+
+def test_the_tier_max_is_taken_in_time_not_in_cycles():
+    """The two tiers count cycles at different reference clocks.
+
+    SOLAR's `t_sol_cycles` is at f_ref 1.8 GHz (4444.4 DRAM bytes/cycle); the
+    declared-traffic tier's is at the arch config's 2.4 GHz (3333.3). So a
+    workload can have MORE traffic cycles and LESS time, and `t_cyc > s_cyc`
+    then picks the smaller of two lower bounds — the max is not a max. On
+    MI355X that happened on 255 of the 2796 workloads where both tiers
+    survived, and it is the invisible direction: a T_SOL below the true bound
+    inflates S for every submission slower than T_b.
+
+    Same bytes, both tiers, is the sharpest case: 16384 B is 3.69 SOLAR cycles
+    (-> 4) and 4.92 traffic cycles (-> 5), so cycles say traffic wins while
+    time says SOLAR does, by the full 2.4/1.8.
+    """
+    solar = {KEY: {UUID: {"t_sol_cycles": 4, "t_sol_ms": 2.222e-6,
+                          "compute_cycles": 0.0, "memory_bytes": 16384,
+                          "dram_byte_per_sec": DRAM_BPS,
+                          "mac_per_cycle": 4096.0}}}
+    traffic = {KEY: {UUID: {"t_sol_cycles": 5, "t_sol_ms": 2.083e-6,
+                            "compute_cycles": 0.0, "memory_bytes": 16384,
+                            "dram_byte_per_sec": DRAM_BPS,
+                            "mac_per_cycle": None}}}
+    rec = bm.combine_bounds(solar, traffic, {})[0][KEY][UUID]
+    assert rec["t_sol_source"] == "solar_fused"
+    assert rec["t_sol_ms"] == 2.222e-6, "the larger bound in TIME must win"
+
+
+def test_a_surviving_tier_without_a_time_is_refused_rather_than_compared():
+    """Falling back to a cycle comparison would reintroduce the unit error on
+    exactly the records that cannot be checked. Raise instead."""
+    solar = {KEY: {UUID: {"t_sol_cycles": 4, "compute_cycles": 0.0,
+                          "memory_bytes": 16384,
+                          "dram_byte_per_sec": DRAM_BPS}}}
+    traffic = {KEY: {UUID: {"t_sol_cycles": 5, "t_sol_ms": 2.083e-6,
+                            "compute_cycles": 0.0, "memory_bytes": 16384,
+                            "dram_byte_per_sec": DRAM_BPS}}}
+    with pytest.raises(ValueError, match="no t_sol_ms"):
+        bm.combine_bounds(solar, traffic, {})

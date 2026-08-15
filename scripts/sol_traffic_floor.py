@@ -29,10 +29,20 @@ produces carries `t_sol_source: "declared_traffic"`; SOLAR's carry
 are not equally strong: SOLAR's accounts for the arithmetic and this does not,
 so this tier is a bound only for kernels whose arithmetic is genuinely free.
 
+**A tensor the kernel GATHERS is priced at what it gathers (D18).** Where the
+problem's own reference reads a declared tensor only through an index vector --
+a paged KV cache read through `kv_indices` -- pricing the allocation is not
+loose, it is wrong: on `FlashInfer-Bench__015` it put the bound 43x above a
+real kernel's measured time. `scripts/sol_gathered_traffic.py` derives that
+pairing from the definition and the reference, per problem, and the dimension
+is priced at the rows the workload names. Every record carries the uncorrected
+`allocation_bytes` beside `memory_bytes` so the correction stays auditable.
+
 **It is gated on being a bound at all.** Where a problem declares a tensor it
-indexes rather than streams -- a 131072-position KV cache, an embedding table
--- the declared total is above the traffic any kernel performs, and the
-"bound" would land above the measured time. Those are dropped: any workload
+indexes rather than streams and no gather pairing is derivable -- a
+131072-position KV cache, an embedding table -- the declared total is still
+above the traffic any kernel performs, and the "bound" would land above the
+measured time. Those are dropped: any workload
 whose derived T_SOL exceeds its measured T_b is rejected, with the pair
 recorded. A lower bound above a measured time is not a loose bound, it is a
 wrong one, and it would push scores above 1.
@@ -54,6 +64,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from provenance import write_artifact  # noqa: E402
 from sol_cross_checks import declared_traffic, load_arch, resolved_axes  # noqa: E402
+from sol_gathered_traffic import gathered_axes, gathered_traffic  # noqa: E402
 
 
 def main() -> int:
@@ -110,6 +121,7 @@ def main() -> int:
 
     out: dict[str, dict] = {}
     n_workloads = n_rejected = n_unresolved = 0
+    n_gathered_problems = n_gathered_workloads = 0
     rejected: list[dict] = []
 
     for key, entry in sorted(problems.items()):
@@ -119,11 +131,21 @@ def main() -> int:
         if not defn_path.exists():
             continue
         definition = json.loads(defn_path.read_text())
+        # D18: which declared axes this problem's reference only ever GATHERS
+        # from. Derived once per problem from the definition and its reference,
+        # never tabulated per problem -- see scripts/sol_gathered_traffic.py.
+        gather = gathered_axes(definition)
+        if gather:
+            n_gathered_problems += 1
 
         got: dict[str, dict] = {}
         for uuid, w in workloads.items():
             axes = resolved_axes(definition, w.get("axes") or {})
-            declared = declared_traffic(definition, axes)
+            allocation = declared_traffic(definition, axes)
+            declared = (gathered_traffic(definition, axes, gather) if gather
+                        else allocation)
+            if gather and declared and declared != allocation:
+                n_gathered_workloads += 1
             if not declared:
                 n_unresolved += 1
                 continue
@@ -134,7 +156,8 @@ def main() -> int:
                 n_rejected += 1
                 rejected.append({"problem": key, "workload": uuid,
                                  "t_sol_ms": ms, "t_b_ms": measured,
-                                 "declared_bytes": declared})
+                                 "declared_bytes": declared,
+                                 "allocation_bytes": allocation})
                 continue
             got[uuid] = {
                 "solar_t_sol_cycles": w.get("t_sol_cycles"),
@@ -143,6 +166,11 @@ def main() -> int:
                 "t_sol_ms": ms,
                 "bottleneck": "memory",
                 "memory_bytes": declared,
+                # The uncorrected number, kept so the correction stays auditable
+                # rather than silently replacing the artifact's history: equal
+                # to `memory_bytes` wherever no gather was found.
+                "allocation_bytes": allocation,
+                "gathered_axes": gather or None,
                 "macs": None,
                 # -- The fields `t_sol_at` needs to re-max at another clock
                 # (docs/TODO-MI355X.md §4.2(b)). Without them this whole tier
@@ -195,6 +223,8 @@ def main() -> int:
             "workloads_recovered": n_workloads,
             "workloads_rejected_above_measured": n_rejected,
             "workloads_unresolvable_shape": n_unresolved,
+            "problems_with_gathered_axis": n_gathered_problems,
+            "workloads_repriced_from_allocation_to_gather": n_gathered_workloads,
         },
         "rejected": rejected[:200],
     })
