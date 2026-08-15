@@ -3419,3 +3419,39 @@ mistake to make from an archive:
    grid-ramp section's 12,883 is the one that is still stale downstream.
 10. **[D31c](#d31c)**'s "the count going up is the finding" is narrowed by
     [D37](#d37): the worst bounds are the ones nothing can reach.
+
+## D63 — the two T_SOL tiers were compared at different clocks
+
+`combine_bounds` picked the binding tier by comparing `t_sol_cycles`. The two
+tiers do not express cycles at the same clock: `artifacts/03-MI355X/t_sol.json`
+carries `t_sol_ms` at **f_ref = 1.8 GHz** (its sibling field is named
+`memory_cycles_at_f_ref`) while `t_sol_traffic.json` converts at the arch's
+2.4 GHz — and `t_sol.json`'s own header declares `f_lock_mhz: 2400`, so nothing
+in either file says they disagree.
+
+Comparing them by cycles therefore compared two numbers on different clocks,
+systematically favouring one tier by 2.4/1.8 = 1.333. This is the same root
+cause as the check-B defect that reported 1327 phantom "bandwidth above peak"
+violations: cycles on this part are only meaningful next to the clock they were
+expressed at.
+
+The comparison is now in time. Measured consequence, manifest v2 -> v3:
+
+    bound source    solar_fused 1541 -> 2282,  max_of_both 1292 -> 589
+    published bound 475 moved DOWN (looser), 0 moved UP, 3226 unchanged
+
+**All movement is in the loosening direction, which is the undetectable one**
+(a looser bound inflates S and no measurement contradicts it). Most of the 475
+is the D18 paged correction, where the old bound was up to 43x too slow and the
+drop is the fix. The remainder is the tier swap.
+
+The swap was shipped as a side effect of the rejected-tier leak fix and was not
+stated in the commit that carried it (8be475d0); this entry is that statement.
+An adversarial reviewer found it, not the author, and found it by diffing
+`bound_sources` rather than by reading the change.
+
+**Still falsified after all of it**: 5 workloads across 3 problems have a real
+agent kernel faster than the published bound —
+`L2__050_vae_decoder_mid_block_attention_resnet` at 0.706x (solar_fused),
+`FlashInfer-Bench__015` at 0.792x and 0.840x, `FlashInfer-Bench__014` at 0.920x
+and 0.971x (declared_traffic). Their scores are not results.
