@@ -802,6 +802,19 @@ def main():
             "headline_count": len(scoreable_problems),
         },
         "stats": stats,
+        # Which trees this manifest was actually built from. Not decoration:
+        # task 06's gate used to read `artifacts/06-MI355X/authoritative` by
+        # assumption while the manifest was built from `authoritative-merged`,
+        # so the gate reported "T_b covers only 208 of 220" against a manifest
+        # that had 219. The gate was auditing a tree nobody published. A gate
+        # must verify what was shipped, and it can only do that if what was
+        # shipped says so.
+        "sources": {
+            "t_b": str(a.t_b),
+            "t_sol": str(a.t_sol),
+            "t_sol_traffic": str(a.t_sol_traffic),
+            "tolerances": str(a.tolerances),
+        },
         "bound_sources": bound_sources,
         # AMD: what a T_SOL in this manifest is expressed at.
         #

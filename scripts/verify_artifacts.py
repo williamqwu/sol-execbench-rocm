@@ -254,6 +254,35 @@ def load_json(p: Path):
         return None
 
 
+#: Which manifest the gates audit. ``--manifest`` sets it; the default is v1.
+#:
+#: Deliberately NOT "the highest version present". That was the first attempt
+#: and it broke MI350X: v1 there is the FROZEN release artifact and task 03's
+#: check D is meant to go on reporting what v1 shipped, so silently promoting
+#: the gate to v1.2 took task 09 from 0 failed to 2 and would have read as a
+#: regression in the data rather than in the gate. Which manifest is under
+#: audit is a decision, and a decision belongs in an argument.
+MANIFEST_NAME = "manifest-v1.json"
+
+
+def published_manifest_path() -> Path | None:
+    p = TREE.path("09", MANIFEST_NAME)
+    return p if p and p.is_file() else None
+
+
+def published_manifest():
+    p = published_manifest_path()
+    return load_json(p) if p else None
+
+
+def _published_tb_subdir() -> str | None:
+    """The T_b tree the published manifest says it was built from, e.g.
+    ``authoritative-merged``. None when the manifest predates ``sources``."""
+    m = published_manifest() or {}
+    src = ((m.get("sources") or {}).get("t_b") or "").rstrip("/")
+    return src.rsplit("/", 1)[-1] if src else None
+
+
 def has_provenance(doc) -> bool:
     if not isinstance(doc, dict):
         return False
@@ -826,9 +855,9 @@ def _check_d(c: Checks):
     alone cannot falsify a bound that is too slow, because the reference
     over-reads the same way T_SOL does; agent submissions can, and do.
     """
-    manifest = load_json(TREE.path("09", "manifest-v1.json"))
+    manifest = published_manifest()
     if not c.require(manifest is not None, "check D: manifest available",
-                     detail_bad=f"missing {TREE.searched('09', 'manifest-v1.json')}"):
+                     detail_bad=f"missing {TREE.searched('09', 'manifest-v*.json')}"):
         return
 
     bounds = {}
@@ -878,8 +907,15 @@ def check_06(c: Checks):
     check that could not fail, but one that could not pass. Both report
     something other than the state of the work.
     """
-    auth = TREE.path("06", "authoritative")
-    docs = TREE.glob("06", "authoritative/*.json")
+    # Audit the tree the MANIFEST was built from, not a tree named by
+    # assumption. The authoritative pass runs on several nodes and its results
+    # are merged, so the published anchor is `authoritative-merged`; this check
+    # read `authoritative` regardless and reported "T_b covers only 208 of 220"
+    # against a manifest that had 219 anchored. A gate that audits something
+    # nobody published cannot fail for the right reason or pass for one.
+    sub = _published_tb_subdir() or "authoritative"
+    auth = TREE.path("06", sub)
+    docs = TREE.glob("06", f"{sub}/*.json")
     if not c.require(bool(docs), "authoritative T_b artifacts exist",
                      f"{len(docs)} problems",
                      f"{auth} is empty or absent — no problem has an "
@@ -1110,7 +1146,7 @@ def check_08(c: Checks):
 
 
 def check_09(c: Checks, full=False):
-    m = load_json(TREE.path("09", "manifest-v1.json"))
+    m = published_manifest()
     if not c.require(m is not None, "scoring manifest exists",
                      detail_bad=f"missing {TREE.searched('09', 'manifest-v1.json')}"):
         return
@@ -1148,8 +1184,27 @@ def check_09(c: Checks, full=False):
     prov = m.get("_provenance") or {}
     c.require(m.get("methodology"), "manifest records the timing methodology",
               str(m.get("methodology")))
-    c.require(prov.get("f_lock_mhz"), "manifest records f_lock_mhz",
-              f"{prov.get('f_lock_mhz')} MHz")
+    # What a manifest owes is a STATED clock basis, not a locked one. Under the
+    # unlocked basis there is no single F_LOCK to record -- the clock spread
+    # across kernel shapes on this part is 36.8%, so any one number would be
+    # invented -- and each measurement instead carries its own bracketed clock.
+    # Demanding f_lock_mhz here fails a manifest that is MORE honest than one
+    # that would pass, and the fix a tired engineer reaches for at that point is
+    # to write a plausible number into provenance. That is prime directive 1
+    # with extra steps. So ask the question the declared basis actually implies.
+    if (m.get("clock_basis") or "locked") == "unlocked":
+        iv = m.get("t_sol_interval") or {}
+        c.require(iv.get("n_problems_with_interval"),
+                  "unlocked manifest carries a per-measurement clock interval",
+                  f"{iv.get('n_problems_with_interval')} problems, halfwidth "
+                  f"median {iv.get('halfwidth_median')} / max "
+                  f"{iv.get('halfwidth_max')}",
+                  "clock_basis is 'unlocked' but no workload carries a T_SOL "
+                  "interval — with neither an F_LOCK nor a bracketed clock "
+                  "there is nothing to express a bound against")
+    else:
+        c.require(prov.get("f_lock_mhz"), "manifest records f_lock_mhz",
+                  f"{prov.get('f_lock_mhz')} MHz")
     c.require((prov.get("rocm") or {}).get("version"),
               "manifest records rocm_version",
               str((prov.get("rocm") or {}).get("version")))
@@ -1254,8 +1309,14 @@ def main():
                     help="pin the host-suffixed task-00/01 artifacts to one node "
                          "(substring of the filename or of _provenance.host). "
                          "Without it the most recent matching-part file wins.")
+    ap.add_argument("--manifest", default="manifest-v1.json", metavar="FILENAME",
+                    help="which manifest under artifacts/09*/ the gates audit. "
+                         "Default %(default)s. MI350X's v1 is frozen and its "
+                         "gates are meant to keep reporting on it; a part in "
+                         "bring-up passes its current one, e.g. manifest-v2.json.")
     a = ap.parse_args()
 
+    globals()["MANIFEST_NAME"] = a.manifest
     TREE = ArtifactTree(part=a.part, root=a.artifacts_root, host=a.host)
 
     c = Checks()
