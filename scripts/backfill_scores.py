@@ -193,6 +193,22 @@ def _assert_comparable(score_files: list[Path], manifest: Path) -> None:
             f"from a manifest measured under the same conditions.")
 
 
+def _same_card(anchor: dict, actual: dict) -> bool:
+    """Is this anchor off the same physical card as this T_k?
+
+    uuid first because it is the only identifier that survives a PCI
+    renumbering; BDF plus hostname as the fallback for artifacts written before
+    the uuid was recorded. A missing identifier is never a match -- an unknown
+    card is not the same card.
+    """
+    au, bu = anchor.get("uuid"), (actual or {}).get("uuid")
+    if au and bu:
+        return au == bu
+    ab, bb = anchor.get("bdf"), (actual or {}).get("bdf")
+    ah, bh = anchor.get("hostname"), (actual or {}).get("hostname")
+    return bool(ab and bb and ab == bb and ah and bh and ah == bh)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -202,9 +218,13 @@ def main() -> int:
     ap.add_argument("--part", choices=list(KNOWN_PARTS), default=None,
                     help="which part's artifact tree the anchors live in; "
                          "default is the part the manifest declares")
-    ap.add_argument("--tb-artifacts", default=None, type=Path,
+    ap.add_argument("--tb-artifacts", default=None, type=Path, action="append",
                     help="the authoritative T_b pass output, whose per-problem "
                          "card_identity blocks the raise is checked against. "
+                         "REPEATABLE: the authoritative pass runs on several "
+                         "nodes and each writes its own tree, so pass every "
+                         "tree and the anchor is taken from whichever one holds "
+                         "the card this record's T_k was measured on. "
                          "default: artifacts/06[-<part>]/authoritative")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
@@ -225,7 +245,8 @@ def main() -> int:
     part = (args.part or manifest_doc.get("part") or artifact_part(manifest_doc)
             or DEFAULT_PART)
     tree = ArtifactTree(part)
-    tb_artifacts = args.tb_artifacts or tree.dir("06") / "authoritative"
+    tb_trees = args.tb_artifacts or [tree.dir("06") / "authoritative"]
+    tb_artifacts = tb_trees[0]
 
     # The pre-4.4 single-card regime, recognised by what the manifest itself
     # declares rather than by the part name: one authoritative GPU at one
@@ -234,7 +255,7 @@ def main() -> int:
     # else is checked per problem, against the card the anchor records.
     single_card = (m_prov.get("authoritative_gpu") is not None
                    and m_prov.get("f_lock_mhz") is not None)
-    print(f"part {part}; anchors {tb_artifacts}; "
+    print(f"part {part}; anchors {', '.join(str(t) for t in tb_trees)}; "
           + ("single-card manifest: the per-problem card check does not apply"
              if single_card else
              "per-problem card check ON (STATE.md 4.4)"))
@@ -253,13 +274,29 @@ def main() -> int:
         problem_key = doc.get("problem")
         check = None
         if not single_card:
-            anchor, note = anchor_card(tb_artifacts, problem_key)
             # The card the T_k on disk was measured on, as `score_solutions`
             # recorded it. Absent on a score file written before that field
             # existed -- which is itself a refusal, not a pass: an unrecorded
             # card is an unknown card.
             actual = ((doc.get("card_check") or {}).get("actual")
                       or doc.get("scoring_card"))
+            # Search the trees for the one holding THIS record's card. §4.4
+            # requires T_b and T_k to share a card, and the authoritative pass
+            # is 8-way card-pinned across three nodes, so a problem is commonly
+            # anchored on several cards and only one of them is the right
+            # partner for this T_k. Handing the merged tree to this check
+            # refused 178 of 220 problems -- not because the anchors were
+            # missing, but because the merge had legitimately picked another
+            # node's replicate, which is exactly what merge_authoritative_tb's
+            # docstring says the merged tree must NOT be used for. Falls back to
+            # the first tree so the refusal still names a concrete path.
+            anchor, note = anchor_card(tb_artifacts, problem_key)
+            if actual:
+                for cand in tb_trees:
+                    c_anchor, c_note = anchor_card(cand, problem_key)
+                    if c_anchor and _same_card(c_anchor, actual):
+                        anchor, note = c_anchor, c_note
+                        break
             check = card_verdict(anchor, actual, anchor_note=note,
                                  t_b_in_scope=bool(t_b.get(problem_key)))
             if check["ok"] and check["state"] == "matched":

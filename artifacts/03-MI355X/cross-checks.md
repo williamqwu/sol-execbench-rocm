@@ -1,6 +1,6 @@
 # Task 03 — T_SOL cross-checks
 
-<!-- {"task": "03-cross-checks", "utc": "2026-08-15T03:58:35.940899+00:00", "git_sha": "e974e70565a5e6a94874d11448d3bfaf6f889ee0-dirty", "host": "mia1-p02-g46", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X"]}, "rocm": {"version": "7.2.0", "driver": "6.16.6", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"}, "f_lock_mhz": null, "visible_devices": null} -->
+<!-- {"task": "03-cross-checks", "utc": "2026-08-15T06:17:26.377576+00:00", "git_sha": "0a03b6903d23a035fe7027f391ae774aeef5dbeb-dirty", "host": "mia1-p02-g46", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X"]}, "rocm": {"version": "7.2.0", "driver": "6.16.6", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"}, "f_lock_mhz": null, "visible_devices": null} -->
 
 Upstream's B200 SOL times are not used as a comparison anywhere in this document. The shipped dataset carries no per-workload SOL figures, so there is nothing to compare against that was not invented here — and an invented comparison would be worse than none. The three checks below are internal to this platform and are stronger for it.
 
@@ -89,6 +89,16 @@ The shortfall is concentrated: **66 problems**, not a scatter across the set. Tw
 | 0.9985 | 15 | Quant__013_fp8_mla_kv_compression_projection | 1,353,450,496 | 1,351,353,344 |
 | 0.9987 | 16 | FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1 | 1,142,631,848 | 1,141,186,140 |
 
+## A-published — the bound a score is computed against, vs that floor
+
+**This is the gate; A above is a judgement item.** A alone is red by construction and cannot gate: on 1000 of its 1021 the SOLAR memory term never reaches a score, because either the traffic tier wins the `max` or SOLAR's compute term already lifts the fused bound above the floor. What can be gated is the published number.
+
+A floor that lands ABOVE the measured T_b is refuted rather than violated — the kernel demonstrably moved less than the definition declares, which is what an indexed cache looks like. Refuted rows are counted and listed, and a missing T_b is no excuse: without a measurement to refute it, the floor stands.
+
+3688/3717 PUBLISHED workloads sit at or above their declared-traffic floor; 29 have a floor refuted by measurement (floor > T_b); 0 not checkable
+
+Floors refuted by measurement, by problem: `L1__018_fused_rope_with_qk_norm_and_kv_cache_update` (13), `L1__042_moe_expert_load_balancing_and_token_capacity_backward` (1), `L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion` (9), `Quant__023_fp8_mamba2_ssm_discretization` (6)
+
 ## B — rates implied by T_SOL
 
 Arch config: DRAM 8.00 TB/s at 2.4 GHz.
@@ -126,35 +136,35 @@ MISMATCHes: **0**
 
 ## D — T_SOL <= best measured time
 
-2546/2694 workloads satisfy T_SOL <= T_b — **148 VIOLATIONS**, each one a config error
+2574/2694 workloads satisfy T_SOL <= T_b — **120 VIOLATIONS**, each one a config error
 
 | problem | workload | T_SOL ms | T_b ms | variant |
 |---|---|---|---|---|
-| L1__006_hyena_depthwise_conv1d_split_gate | `ec71ab53` | 0.01542 | 0.0132 | v2_compile |
-| L1__006_hyena_depthwise_conv1d_split_gate | `b9d99d9d` | 0.246 | 0.05304 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `71d9a820` | 0.2496 | 0.08162 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `62d61aa9` | 0.03078 | 0.01688 | v2_compile |
-| L1__006_hyena_depthwise_conv1d_split_gate | `9cb591a3` | 0.49176 | 0.093221 | v2_compile |
-| L1__006_hyena_depthwise_conv1d_split_gate | `efc0661b` | 0.24768 | 0.0634605 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `8ce027b6` | 0.49344 | 0.0992805 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `63c2e8ad` | 0.0615 | 0.0233605 | v2_compile |
-| L1__006_hyena_depthwise_conv1d_split_gate | `384d57b8` | 0.49248 | 0.091441 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `66b15fa6` | 0.0177 | 0.01552 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `d698ad85` | 0.1248 | 0.0474805 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `da31d8e3` | 0.12336 | 0.03368 | v2_compile |
-| L1__006_hyena_depthwise_conv1d_split_gate | `950dc0ec` | 0.12384 | 0.03812 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `7de2c122` | 0.06192 | 0.02566 | v2_compile |
-| L1__029_mamba_conv1d_with_gating | `71b7f4bc` | 0.182044 | 0.168441 | v1_eager |
-| L1__029_mamba_conv1d_with_gating | `b2e443d9` | 3.07769 | 1.39301 | v4_contiguous |
-| L1__029_mamba_conv1d_with_gating | `4a61237f` | 2.91271 | 1.23225 | v4_contiguous |
-| L1__029_mamba_conv1d_with_gating | `5aafa38b` | 11.6508 | 4.15497 | v3_compile_max_autotune |
-| L1__029_mamba_conv1d_with_gating | `1b0a2e46` | 11.6508 | 3.85063 | v3_compile_max_autotune |
-| L1__029_mamba_conv1d_with_gating | `63f6f33c` | 11.6508 | 4.44283 | v3_compile_max_autotune |
 | L1__035_flux_ada_layer_norm_zero_modulation_extraction | `81f42cda` | 0.49152 | 0.417123 | v4_contiguous |
 | L1__035_flux_ada_layer_norm_zero_modulation_extraction | `2879d7a9` | 0.20256 | 0.201601 | v2_compile |
 | L1__035_flux_ada_layer_norm_zero_modulation_extraction | `8e261dd1` | 0.43104 | 0.389263 | v2_compile |
 | L1__035_flux_ada_layer_norm_zero_modulation_extraction | `51fef589` | 0.35808 | 0.321462 | v4_contiguous |
 | L1__035_flux_ada_layer_norm_zero_modulation_extraction | `2f570f4d` | 0.18432 | 0.164361 | v2_compile |
+| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `86be6fd8` | 0.88224 | 0.763586 | v2_compile |
+| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `02c5c53b` | 0.81888 | 0.709765 | v1_eager |
+| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `9321a236` | 0.74208 | 0.628505 | v1_eager |
+| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `7566ad2e` | 0.36864 | 0.307722 | v2_compile |
+| L1__037_flux_feedforward_gelu_approximate | `57dc7d04` | 10.4858 | 8.22321 | v4_contiguous |
+| L1__037_flux_feedforward_gelu_approximate | `50759521` | 1.31072 | 1.04681 | v1_eager |
+| L1__037_flux_feedforward_gelu_approximate | `9dd71680` | 10.4858 | 8.20161 | v1_eager |
+| L1__037_flux_feedforward_gelu_approximate | `b9ec5b01` | 2.62144 | 2.09445 | v1_eager |
+| L1__037_flux_feedforward_gelu_approximate | `4c9ed02f` | 2.62144 | 2.09681 | v1_eager |
+| L1__037_flux_feedforward_gelu_approximate | `c2f3a701` | 10.4858 | 8.22699 | v1_eager |
+| L1__037_flux_feedforward_gelu_approximate | `00cab3cd` | 20.9715 | 16.3796 | v1_eager |
+| L1__037_flux_feedforward_gelu_approximate | `af446463` | 5.24288 | 4.13483 | v4_contiguous |
+| L1__037_flux_feedforward_gelu_approximate | `1d8480f2` | 2.76992 | 2.36402 | v1_eager |
+| L1__037_flux_feedforward_gelu_approximate | `81aa984f` | 20.9715 | 16.3689 | v1_eager |
+| L1__037_flux_feedforward_gelu_approximate | `fe659ef7` | 1.31072 | 1.04805 | v4_contiguous |
+| L1__037_flux_feedforward_gelu_approximate | `e2c20da2` | 10.4858 | 8.22309 | v4_contiguous |
+| L1__037_flux_feedforward_gelu_approximate | `66594740` | 0.65536 | 0.543004 | v1_eager |
+| L1__037_flux_feedforward_gelu_approximate | `4141ed64` | 5.24288 | 4.13155 | v4_contiguous |
+| L1__037_flux_feedforward_gelu_approximate | `472b1f68` | 15.8157 | 12.8978 | v4_contiguous |
+| L1__054_audio_attention_qkv_projection_with_normalization | `89cf6db6` | 0.218453 | 0.210641 | v2_compile |
 
 ## D-published — the bound a score is actually computed against
 
@@ -162,33 +172,5 @@ Section D above audits the SOLAR tier alone. The manifest publishes
 max(SOLAR, declared-traffic) and rejects a tier that exceeds the
 measured T_b, so the tier count overstates the shipped damage.
 
-3660/3701 PUBLISHED workloads satisfy T_SOL <= T_b — **41 VIOLATIONS across 4 problems**. Scores on those problems are not results.
-
-| problem | workload | T_SOL ms | T_b ms | bound tier |
-|---|---|---|---|---|
-| L1__006_hyena_depthwise_conv1d_split_gate | `384d57b8` | 0.371216 | 0.091441 | declared_traffic |
-| L1__006_hyena_depthwise_conv1d_split_gate | `9cb591a3` | 0.372389 | 0.093221 | declared_traffic |
-| L1__006_hyena_depthwise_conv1d_split_gate | `8ce027b6` | 0.37194 | 0.0992805 | declared_traffic |
-| L1__006_hyena_depthwise_conv1d_split_gate | `b9d99d9d` | 0.185505 | 0.05304 | declared_traffic |
-| L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion | `9fec4efe` | 0.169873 | 0.0495 | solar_fused |
-| L1__029_mamba_conv1d_with_gating | `25cc310d` | 11.6768 | 3.83507 | declared_traffic |
-| L1__029_mamba_conv1d_with_gating | `1b0a2e46` | 11.6833 | 3.85063 | declared_traffic |
-| L1__029_mamba_conv1d_with_gating | `4d8dcc2c` | 2.79769 | 0.936326 | declared_traffic |
-| L1__029_mamba_conv1d_with_gating | `bc1dc4bf` | 11.6508 | 3.90895 | declared_traffic |
-| L1__006_hyena_depthwise_conv1d_split_gate | `efc0661b` | 0.186928 | 0.0634605 | declared_traffic |
-| L1__029_mamba_conv1d_with_gating | `5aafa38b` | 11.5355 | 4.15497 | declared_traffic |
-| L1__006_hyena_depthwise_conv1d_split_gate | `da31d8e3` | 0.0928683 | 0.03368 | declared_traffic |
-| L1__029_mamba_conv1d_with_gating | `ee62552e` | 1.32731 | 0.481423 | declared_traffic |
-| L1__029_mamba_conv1d_with_gating | `63f6f33c` | 11.6638 | 4.44283 | declared_traffic |
-| L1__029_mamba_conv1d_with_gating | `2e529adb` | 1.94675 | 0.747465 | declared_traffic |
-| L1__006_hyena_depthwise_conv1d_split_gate | `950dc0ec` | 0.0935426 | 0.03812 | declared_traffic |
-| L1__029_mamba_conv1d_with_gating | `bfb88d94` | 1.28502 | 0.542084 | declared_traffic |
-| L1__006_hyena_depthwise_conv1d_split_gate | `71d9a820` | 0.188141 | 0.08162 | declared_traffic |
-| L2__035_convnextv2_block_with_grn | `65bf886b` | 0.670879 | 0.304603 | declared_traffic |
-| L1__029_mamba_conv1d_with_gating | `088e7f41` | 2.62403 | 1.21407 | declared_traffic |
-| L1__029_mamba_conv1d_with_gating | `4a61237f` | 2.5488 | 1.23225 | declared_traffic |
-| L1__029_mamba_conv1d_with_gating | `e36c7969` | 0.730716 | 0.365762 | declared_traffic |
-| L1__006_hyena_depthwise_conv1d_split_gate | `63c2e8ad` | 0.0463568 | 0.0233605 | declared_traffic |
-| L1__006_hyena_depthwise_conv1d_split_gate | `d698ad85` | 0.0940704 | 0.0474805 | declared_traffic |
-| L1__029_mamba_conv1d_with_gating | `b2e443d9` | 2.68143 | 1.39301 | declared_traffic |
+3717/3717 PUBLISHED workloads satisfy T_SOL <= T_b
 

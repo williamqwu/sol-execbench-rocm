@@ -33,16 +33,16 @@ Selection: proportional by category, first N sorted, largest-remainder apportion
 | 27 | L2 | `018_cu_seqlens_variable_length_vision_attention` | yes | yes | yes | yes | yes |
 | 28 | L2 | `019_decoder_layer_fused_attention_mlp` | yes | yes | yes | yes | yes |
 | 29 | L2 | `021_cross_attention_text_video_conditioning_backward` | yes | yes | yes | yes | yes |
-| 30 | L2 | `022_video_latent_denoising_unet_block` | yes | yes | yes | yes | yes |
-| 31 | L2 | `024_moe_expert_parallel_execution` | yes | yes | yes | yes | yes |
-| 32 | L2 | `025_moe_expert_parallel_execution_backward` | yes | yes | yes | yes | yes |
+| 30 | L2 | `024_moe_expert_parallel_execution` | yes | yes | yes | yes | yes |
+| 31 | L2 | `025_moe_expert_parallel_execution_backward` | yes | yes | yes | yes | yes |
+| 32 | L2 | `026_moe_expert_parallel_execution_with_weighted_aggregation` | yes | yes | yes | yes | yes |
 | 33 | Quant | `003_fp8_mlp_gate_up_projection` | yes | yes | yes | yes | yes |
 | 34 | Quant | `004_fp8_moe_expert_linear` | yes | yes | yes | yes | yes |
 | 35 | Quant | `005_fp8_moe_router_projection` | yes | yes | yes | yes | yes |
 | 36 | Quant | `006_fp8_vision_attention_output_projection` | yes | yes | yes | yes | yes |
-| 37 | FlashInfer-Bench | `001_fused_add_rmsnorm_h2048` | yes | yes | yes | yes | yes |
-| 38 | FlashInfer-Bench | `002_fused_add_rmsnorm_h4096` | yes | yes | yes | yes | yes |
-| 39 | FlashInfer-Bench | `012_gqa_paged_decode_h32_kv4_d128_ps1` | yes | yes | yes | yes | yes |
-| 40 | FlashInfer-Bench | `013_gqa_paged_decode_h32_kv8_d128_ps1` | yes | yes | yes | yes | yes |
+| 37 | FlashInfer-Bench | `002_fused_add_rmsnorm_h4096` | yes | yes | yes | yes | yes |
+| 38 | FlashInfer-Bench | `012_gqa_paged_decode_h32_kv4_d128_ps1` | yes | yes | yes | yes | yes |
+| 39 | FlashInfer-Bench | `013_gqa_paged_decode_h32_kv8_d128_ps1` | yes | yes | yes | yes | yes |
+| 40 | FlashInfer-Bench | `014_gqa_paged_prefill_causal_h32_kv4_d128_ps1` | yes | yes | yes | yes | yes |
 
 Counts: reference 40/40, tolerance 40/40, bound 40/40, t_b 40/40, t_b_authoritative 40/40, bound_reclockable 40/40, scoreable 40/40

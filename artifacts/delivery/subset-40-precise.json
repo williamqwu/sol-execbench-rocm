@@ -1,8 +1,8 @@
 {
   "_provenance": {
     "task": "delivery-index",
-    "utc": "2026-08-14T22:34:05.139003+00:00",
-    "git_sha": "75ee7841ef494b8e0121d2ce81389ecc999004a6-dirty",
+    "utc": "2026-08-15T06:17:28.204480+00:00",
+    "git_sha": "0a03b6903d23a035fe7027f391ae774aeef5dbeb-dirty",
     "host": "mia1-p02-g46",
     "python": "3.10.12",
     "torch": {
@@ -26,10 +26,10 @@
       "FlashInfer-Bench": 4
     },
     "available_per_category": {
-      "L1": 54,
-      "L2": 47,
+      "L1": 53,
+      "L2": 46,
       "Quant": 13,
-      "FlashInfer-Bench": 13
+      "FlashInfer-Bench": 11
     },
     "rule": "proportional by category, first N sorted, largest-remainder apportionment"
   },
@@ -46,101 +46,105 @@
   "precision_filter": {
     "max_clock_span": 0.05,
     "rationale": "T_SOL's compute term goes as 1/f, so the in-window clock span bounds the width of the T_SOL interval. The anchor property is 0.5 +- 0.03, so a bound known to worse than about that is not usable for ranking. This threshold is the measured quantity, not a judgement about the problem.",
-    "n_excluded": 108,
+    "n_excluded": 112,
     "excluded": {
       "L1__071_kv_cache_update_with_rope": 1.0803108808290154,
+      "L1__077_whisper_decoder_output_projection": 0.46280487804878057,
       "FlashInfer-Bench__011_gemm_n28672_k4096": 0.45598057073466913,
       "L2__005_swiglu_mlp_backward": 0.44160816847479256,
       "FlashInfer-Bench__008_gemm_n4096_k14336": 0.4400479616306954,
-      "L1__077_whisper_decoder_output_projection": 0.4186871673565937,
+      "FlashInfer-Bench__010_gemm_n6144_k4096": 0.4369396294082486,
+      "FlashInfer-Bench__009_gemm_n5120_k2048": 0.4360812425328555,
+      "L1__003_lm_head_projection_with_logit_slicing": 0.42541766109785195,
+      "L2__063_encoder_layer_dual_residual_norm_chain": 0.4142604596346493,
       "FlashInfer-Bench__007_gemm_n4096_k4096": 0.41021126760563376,
-      "FlashInfer-Bench__010_gemm_n6144_k4096": 0.40997067448680347,
-      "L1__003_lm_head_projection_with_logit_slicing": 0.39625949736995913,
-      "FlashInfer-Bench__009_gemm_n5120_k2048": 0.3951191167925625,
       "L1__048_fused_gate_up_projection_with_swiglu": 0.3811168681635002,
       "FlashInfer-Bench__006_gemm_n2048_k4096": 0.38024124066628384,
       "L1__063_attention_output_reshape_and_projection": 0.3720663995420721,
       "L2__004_fused_residual_rms_mlp": 0.36238244514106577,
       "L1__029_mamba_conv1d_with_gating": 0.3559705715902659,
       "L2__078_fused_final_layer_upsample_with_adaptive_norm": 0.34380257992148056,
+      "L2__053_text_decoder_layer_with_self_attention_and_mlp": 0.3420905533817775,
       "L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion": 0.33500278241513626,
       "FlashInfer-Bench__019_mla_paged_prefill_causal_h16_ckv512_kpe64_ps1": 0.33130530973451333,
       "L2__012_moe_expert_batched_execution_with_capacity_factor": 0.32433983926521237,
-      "L2__053_text_decoder_layer_with_self_attention_and_mlp": 0.3192307692307692,
       "L2__020_decoder_layer_pre_post_norm_residual": 0.30451332245785756,
-      "L2__055_audio_encoder_conv_positional_layer_stack": 0.28563443264393507,
-      "FlashInfer-Bench__005_gemm_n256_k7168": 0.27795527156549515,
+      "FlashInfer-Bench__005_gemm_n256_k7168": 0.2784877529286476,
       "L2__059_decoder_layer_full_block": 0.25984251968503935,
-      "L1__043_mla_fused_qkv_rope_split": 0.23151950718685832,
-      "L1__030_attention_output_projection_with_residual": 0.22165734621250643,
+      "L2__055_audio_encoder_conv_positional_layer_stack": 0.24482951369480155,
+      "L1__043_mla_fused_qkv_rope_split": 0.23468862583633565,
+      "L1__030_attention_output_projection_with_residual": 0.22216573462125067,
       "L2__056_language_model_decoder_prenorm_attention_ffn_residual_backward": 0.21894093686354377,
+      "L2__029_moe_sparse_routing_and_dispatch": 0.20976116303219117,
+      "L2__076_sam_hq_vision_attention_with_relative_position_backward": 0.20481927710843384,
       "L1__092_gqa_attention_with_qk_norm": 0.2046254399195575,
+      "L1__090_batched_2d_rope_position_encoding_backward": 0.20300000000000007,
       "L1__020_vision_patch_merger_spatial_shuffle_mlp": 0.1995,
-      "L2__029_moe_sparse_routing_and_dispatch": 0.1905978538579458,
-      "L1__055_attention_qkv_projection_with_gqa_reshape": 0.19047619047619047,
-      "L1__025_video_latent_gelu_activation": 0.18979187314172452,
-      "L2__076_sam_hq_vision_attention_with_relative_position_backward": 0.1887072808320951,
+      "L1__025_video_latent_gelu_activation": 0.1945273631840796,
+      "L1__055_attention_qkv_projection_with_gqa_reshape": 0.19097222222222232,
       "L2__062_decoder_complete_layer": 0.18783984181908053,
-      "L1__091_fused_gqa_qkv_rope_qk_norm_backward": 0.18410661401776895,
-      "L1__090_batched_2d_rope_position_encoding_backward": 0.18347270044269548,
+      "L1__091_fused_gqa_qkv_rope_qk_norm_backward": 0.1846001974333662,
       "L2__028_gqa_rotary_attention_core_backward": 0.17172211350293543,
       "L1__005_conv_gated_projection_with_causal_conv": 0.16496846191169334,
+      "L1__010_attention_value_projection_with_transpose": 0.16239729337844366,
       "L2__039_kv_shared_attention_with_rope": 0.1575903614457832,
       "L2__015_audio_sinusoidal_position_embedding_with_conv_projection": 0.15558766859344897,
+      "L1__035_flux_ada_layer_norm_zero_modulation_extraction": 0.1501199040767387,
       "L2__003_grouped_query_attention_with_rope_backward": 0.144423260247855,
-      "L1__010_attention_value_projection_with_transpose": 0.13981042654028442,
+      "L1__026_video_patch_embedding_projection": 0.14020028612303292,
+      "L1__065_fused_statistics_projection_and_split": 0.13981042654028442,
       "L1__032_attention_weights_matmul_with_value_projection": 0.13899430740037944,
-      "L1__035_flux_ada_layer_norm_zero_modulation_extraction": 0.1370317686107161,
+      "FlashInfer-Bench__001_fused_add_rmsnorm_h2048": 0.134180790960452,
       "L1__064_latent_kv_expansion_with_split": 0.13154172560113153,
-      "L1__065_fused_statistics_projection_and_split": 0.12751992498827946,
-      "L2__079_git_vision_encoder_layer": 0.11617100371747213,
-      "L1__002_vae_conv3x3_groupnorm_silu_residual_fused": 0.11602982292637476,
-      "L1__026_video_patch_embedding_projection": 0.11416589002795896,
+      "L1__002_vae_conv3x3_groupnorm_silu_residual_fused": 0.12971698113207553,
       "L2__070_basic_transformer_block": 0.11302325581395345,
       "L1__060_fused_attention_qk_matmul_scale_mask_softmax_backward": 0.11219286045433474,
-      "L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward": 0.11018518518518516,
+      "L1__079_ImageNet_83.6_ssm_output_projection_gate_multiply_backward": 0.11203703703703694,
+      "L2__027_grouped_query_attention_with_yarn_rope_and_qk_norm": 0.11111111111111116,
+      "L1__015_grouped_query_attention_with_rope_and_qk_norm": 0.10998151571164505,
       "L1__046_attention_softmax_with_softcapping_and_dropout": 0.10982925703737889,
       "FlashInfer-Bench__026_rmsnorm_h7168": 0.10982925703737889,
-      "L1__015_grouped_query_attention_with_rope_and_qk_norm": 0.10859519408502782,
-      "Quant__001_fp8_attention_output_projection": 0.10859519408502782,
+      "Quant__001_fp8_attention_output_projection": 0.10951940850277264,
       "L1__081_joint_attention_context_projection": 0.10594196222938734,
+      "L2__030_flux_concatenated_sequence_processing_with_split": 0.1054813450023031,
+      "FlashInfer-Bench__003_fused_add_rmsnorm_h7168": 0.1045871559633027,
       "L2__054_vision_encoder_layer_with_gated_residuals": 0.10441582336706534,
       "L2__058_mamba2_selective_scan": 0.10365571494678383,
+      "L1__085_geglu_activation": 0.10298850574712648,
       "L1__041_strided_conv2d_downsampling": 0.1022935779816514,
       "L2__035_convnextv2_block_with_grn": 0.09995414947271897,
       "L2__077_sam_hq_vision_encoder_window_partition_attention": 0.09547738693467345,
       "L2__007_multimodal_rotary_embedding_attention": 0.0948905109489051,
-      "L1__085_geglu_activation": 0.09443430656934315,
-      "FlashInfer-Bench__003_fused_add_rmsnorm_h7168": 0.09107385591300399,
       "L2__017_fused_vision_cu_seqlens_attention_with_2d_rope_backward": 0.09057806099226218,
-      "L2__027_grouped_query_attention_with_yarn_rope_and_qk_norm": 0.08843537414965996,
-      "L1__027_video_spatial_attention_with_rope_3d": 0.08601177003168847,
+      "L1__027_video_spatial_attention_with_rope_3d": 0.08946412352406896,
+      "L2__046_conformer_relative_position_attention": 0.08695652173913038,
       "L2__023_video_latent_vae_encoder_downsampling": 0.08200455580865595,
+      "FlashInfer-Bench__018_mla_paged_decode_h16_ckv512_kpe64_ps1": 0.08064516129032251,
       "L1__072_cross_attention_qkv_projection_with_gqa_repeat_backward": 0.07668161434977572,
       "L1__088_rotary_position_embedding_application": 0.07657859381997323,
       "FlashInfer-Bench__004_gemm_n128_k2048": 0.07606263982102912,
-      "L2__034_vision_language_cross_attention_fusion": 0.07059874888293116,
+      "L2__034_vision_language_cross_attention_fusion": 0.07149240393208212,
       "Quant__007_fp8_vision_attention_qkv_projection": 0.06898086337338682,
       "L2__057_residual_coupling_flow_block": 0.06891951978657174,
       "L1__076_batched_expert_forward": 0.06687472135532779,
-      "L2__071_edit_consistency_loss_with_perceptual_weighting": 0.06678539626001778,
-      "L2__046_conformer_relative_position_attention": 0.06666666666666665,
+      "L2__022_video_latent_denoising_unet_block": 0.06569019085663563,
       "L2__080_moe_complete_layer_with_shared_expert_backward": 0.06474501108647446,
+      "L2__067_patch_embed_to_joint_attention_input": 0.06285967242142543,
       "L1__013_fused_residual_rms_norm_backward": 0.06277630415561442,
-      "L2__030_flux_concatenated_sequence_processing_with_split": 0.060070671378091856,
       "Quant__022_fp8_mamba2_out_projection": 0.06001765225066191,
       "Quant__002_fp8_attention_qkv_projection": 0.05817540766857654,
       "Quant__010_fp8_attention_output_projection": 0.05817540766857654,
       "L2__072_region_aware_self_attention_with_edit_bias_backward": 0.057709251101321524,
-      "L2__067_patch_embed_to_joint_attention_input": 0.057243505063848454,
+      "FlashInfer-Bench__016_gqa_ragged_prefill_causal_h32_kv4_d128": 0.05750658472344172,
       "FlashInfer-Bench__017_gqa_ragged_prefill_causal_h32_kv8_d128": 0.05709266578831795,
-      "FlashInfer-Bench__016_gqa_ragged_prefill_causal_h32_kv4_d128": 0.057042562527424234,
       "L2__001_fused_vision_multihead_attention_with_norms_backward": 0.0567781690140845,
-      "L1__007_hyena_fft_size_padding_rfft": 0.054824561403508776,
+      "L1__007_hyena_fft_size_padding_rfft": 0.0552631578947369,
+      "L1__069_rms_norm": 0.054920913884006994,
+      "L1__067_flash_attention_gqa_ultralong": 0.05309346204475651,
       "L1__014_rotary_embedding_with_attention_scaling_backward": 0.052861511577107834,
-      "L1__069_rms_norm": 0.05260850504164849,
+      "L2__071_edit_consistency_loss_with_perceptual_weighting": 0.05272407732864681,
+      "L1__047_attention_with_qk_norm_and_rope": 0.05263157894736836,
       "L1__052_altup_hidden_state_collapse_with_magnitude_normalization": 0.05032822757111588,
-      "L1__094_time_decay_exponential_stabilization": null,
       "Quant__008_nvfp4_multimodal_embedding_projection": null,
       "Quant__009_nvfp4_vision_temporal_patch_merge_with_projection": null,
       "Quant__018_nvfp4_attention_output_projection_with_residual": null,
@@ -1059,37 +1063,6 @@
     },
     {
       "category": "L2",
-      "problem": "022_video_latent_denoising_unet_block",
-      "key": "L2__022_video_latent_denoising_unet_block",
-      "reference": {
-        "present": true,
-        "workloads": 16,
-        "passed": 16,
-        "all_passed": true
-      },
-      "tolerance": {
-        "present": true
-      },
-      "bound": {
-        "present": true,
-        "workloads": 16,
-        "reclockable": 16,
-        "all_reclockable": true,
-        "tiers": [
-          "solar",
-          "traffic"
-        ]
-      },
-      "t_b": {
-        "present": true,
-        "tier": "authoritative",
-        "source": "authoritative-merged"
-      },
-      "scoreable": true,
-      "not_scoreable_because": []
-    },
-    {
-      "category": "L2",
       "problem": "024_moe_expert_parallel_execution",
       "key": "L2__024_moe_expert_parallel_execution",
       "reference": {
@@ -1123,6 +1096,37 @@
       "category": "L2",
       "problem": "025_moe_expert_parallel_execution_backward",
       "key": "L2__025_moe_expert_parallel_execution_backward",
+      "reference": {
+        "present": true,
+        "workloads": 16,
+        "passed": 16,
+        "all_passed": true
+      },
+      "tolerance": {
+        "present": true
+      },
+      "bound": {
+        "present": true,
+        "workloads": 16,
+        "reclockable": 16,
+        "all_reclockable": true,
+        "tiers": [
+          "solar",
+          "traffic"
+        ]
+      },
+      "t_b": {
+        "present": true,
+        "tier": "authoritative",
+        "source": "authoritative-merged"
+      },
+      "scoreable": true,
+      "not_scoreable_because": []
+    },
+    {
+      "category": "L2",
+      "problem": "026_moe_expert_parallel_execution_with_weighted_aggregation",
+      "key": "L2__026_moe_expert_parallel_execution_with_weighted_aggregation",
       "reference": {
         "present": true,
         "workloads": 16,
@@ -1276,37 +1280,6 @@
     },
     {
       "category": "FlashInfer-Bench",
-      "problem": "001_fused_add_rmsnorm_h2048",
-      "key": "FlashInfer-Bench__001_fused_add_rmsnorm_h2048",
-      "reference": {
-        "present": true,
-        "workloads": 7,
-        "passed": 7,
-        "all_passed": true
-      },
-      "tolerance": {
-        "present": true
-      },
-      "bound": {
-        "present": true,
-        "workloads": 7,
-        "reclockable": 7,
-        "all_reclockable": true,
-        "tiers": [
-          "solar",
-          "traffic"
-        ]
-      },
-      "t_b": {
-        "present": true,
-        "tier": "authoritative",
-        "source": "authoritative-merged"
-      },
-      "scoreable": true,
-      "not_scoreable_because": []
-    },
-    {
-      "category": "FlashInfer-Bench",
       "problem": "002_fused_add_rmsnorm_h4096",
       "key": "FlashInfer-Bench__002_fused_add_rmsnorm_h4096",
       "reference": {
@@ -1384,6 +1357,37 @@
         "present": true,
         "workloads": 48,
         "reclockable": 48,
+        "all_reclockable": true,
+        "tiers": [
+          "solar",
+          "traffic"
+        ]
+      },
+      "t_b": {
+        "present": true,
+        "tier": "authoritative",
+        "source": "authoritative-merged"
+      },
+      "scoreable": true,
+      "not_scoreable_because": []
+    },
+    {
+      "category": "FlashInfer-Bench",
+      "problem": "014_gqa_paged_prefill_causal_h32_kv4_d128_ps1",
+      "key": "FlashInfer-Bench__014_gqa_paged_prefill_causal_h32_kv4_d128_ps1",
+      "reference": {
+        "present": true,
+        "workloads": 30,
+        "passed": 30,
+        "all_passed": true
+      },
+      "tolerance": {
+        "present": true
+      },
+      "bound": {
+        "present": true,
+        "workloads": 30,
+        "reclockable": 30,
         "all_reclockable": true,
         "tiers": [
           "solar",
