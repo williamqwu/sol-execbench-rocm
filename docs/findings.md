@@ -3358,6 +3358,17 @@ this file (notably D29), which is why `TODO.md` keeps its filename.
 | D59 | A T_b re-sweep, and what it does and does not establish | [#d59](#d59) |
 | D60 | What the T_b non-reproduction is NOT | [#d60](#d60) |
 | D61 | CORRECTION: the re-measurements were not on an exclusive card | [#d61](#d61) |
+| D62 | *— no entry; a gap in the numbering, cited from nowhere* | — |
+| D63 | The two T_SOL tiers were compared at different clocks | [#d63](#d63) |
+| D64 | D18's second guise: a masked STREAM, not a gathered ALLOCATION | [#d64](#d64) |
+| D65 | The tier judged impossible at the wrong clock: 127 bounds 4.58x–249x too small | [#d65](#d65) |
+| D66 | `FlashInfer-Bench__018`: SOLAR is gather-aware; the cast is the over-count | [#d66](#d66) |
+| D67 | The achievable-bandwidth curve, and the Infinity-Cache hypothesis refuted | [#d67](#d67) |
+| D68 | The "120 workloads below their floor" never existed — a regex past its section | [#d68](#d68) |
+| D69 | `dS/dT_SOL`, stated correctly and once | [#d69](#d69) |
+| D70 | The board lost 63% of its scored records, and it was right to (then recovered past its start) | [#d70](#d70) |
+| D71 | The shipped manifest is no longer a function of the tier it names | [#d71](#d71) |
+| D72 | The tier's rejection gate never ran against the release's anchors | [#d72](#d72) |
 
 **F-numbers** (fixes to scripts on first contact). F1–F11 are session-1 fixes on
 MI355X; they all still hold and their detail is in git history.
@@ -3393,7 +3404,7 @@ MI355X; they all still hold and their detail is in git history.
 
 ## Where the retractions are
 
-Nine places in this file print a claim next to the evidence that withdrew it.
+Fifteen places in this file print a claim next to the evidence that withdrew it.
 They are listed here because quoting the withdrawn half is the single easiest
 mistake to make from an archive:
 
@@ -3419,8 +3430,26 @@ mistake to make from an archive:
    grid-ramp section's 12,883 is the one that is still stale downstream.
 10. **[D31c](#d31c)**'s "the count going up is the finding" is narrowed by
     [D37](#d37): the worst bounds are the ones nothing can reach.
+11. **[D63](#d63)**'s closing list of "5 workloads still falsified" is superseded
+    by [D64](#d64): four are deleted by the causal-mask correction and only
+    `L2__050` survives. D63's own framing that "all movement is in the loosening
+    direction" is about v2→v3 and must not be carried onto v3→v4, where 127
+    bounds moved **up**.
+12. **[D66](#d66)** retracts the standing hypothesis that the SOLAR tier resolves
+    a gathered input at its allocation. SOLAR is gather-aware, measured. The
+    *number* survives; the mechanism does not, and so does the fix site.
+13. **[D67](#d67)** retracts the Infinity-Cache explanation of the
+    `FlashInfer-Bench__014/__015` violations, by measurement, in the inconvenient
+    direction — and supersedes `roofline-gpu0-llc.json` in both directions.
+14. **[D68](#d68)** retracts "120 published bounds sit below their declared-traffic
+    floor". That population never existed; A-published's real verdict was 0. It
+    also retracts the "73-row difference" between the 120 and the 193 — those two
+    sets are disjoint.
+15. **[D69](#d69)** retracts every unqualified claim in this repository that a
+    smaller `T_SOL` inflates `S`. It does so for 25.5% of the measured corpus and
+    deflates it for the other 74.5%.
 
-## D63 — the two T_SOL tiers were compared at different clocks
+## D63 — the two T_SOL tiers were compared at different clocks {#d63}
 
 `combine_bounds` picked the binding tier by comparing `t_sol_cycles`. The two
 tiers do not express cycles at the same clock: `artifacts/03-MI355X/t_sol.json`
@@ -3455,3 +3484,842 @@ agent kernel faster than the published bound —
 `L2__050_vae_decoder_mid_block_attention_resnet` at 0.706x (solar_fused),
 `FlashInfer-Bench__015` at 0.792x and 0.840x, `FlashInfer-Bench__014` at 0.920x
 and 0.971x (declared_traffic). Their scores are not results.
+
+**Superseded in part, 2026-08-15.** Four of those five falsifications are
+deleted by [D64](#d64); the survivor is `L2__050`, and its diagnosis is in
+[D64](#d64)'s sibling entry and `TODO.md`. The *enforcement* half of D63 — the
+tier comparison itself — landed the same day and is [D65](#d65), which is where
+D63's largest measured consequence is written down.
+
+---
+
+# 9. The MI355X bound corrections of 2026-08-15
+
+Seven findings from one day of work on the MI355X bounds: three investigations
+that each refuted the hypothesis they were given, three corrections that shipped
+as `artifacts/09-MI355X/manifest-v4.json`, and one arithmetic statement that the
+repository had been making in both directions at once.
+
+Read them with [D63](#d63) (the root of D65) and [D18](#d18) (the root of D64).
+
+## D64 — D18's second guise: a masked STREAM, not a gathered ALLOCATION {#d64}
+
+**64 published bounds, 2 problems, all DOWN by ~1.96x. It deleted 4 of the 5
+real check-D falsifications on this part.**
+
+D18 was an *allocation* over-counted: the declared-traffic tier priced a paged KV
+cache at `num_pages` rows when the workload names `num_kv_indices` of them. This
+is the same class one step further out. On causal paged prefill the tier charged
+a full read of `q` (`total_q × 32 × 128 × 2 B`, about half the whole bound) on
+workloads whose own reference skips nearly every query row:
+
+```python
+delta = num_kv_tokens - num_q_tokens
+for q_idx in range(num_q_tokens):
+    max_kv_idx = min(q_idx + 1 + delta, num_kv_tokens)
+    if max_kv_idx <= 0:
+        continue          # output row stays 0, lse row stays -inf
+```
+
+`output` is pre-filled with zeros and `lse` with `-inf`, so for a row with an
+empty causal window the correct answer is `(0, -inf)` **independently of what `q`
+contains**. Live rows per sequence are exactly `min(q_len, kv_len)`. Read out of
+the workloads' own `qo_indptr`/`kv_indptr` trace blobs:
+
+```
+014 d14e12cc  B=28  total_q=15783  live q rows=25   (0.158 %)
+014 3e553162  B=1   total_q=16384  live q rows=2    (0.012 %)
+015 a94c44ab  B=1   total_q=16384  live q rows=3    (0.018 %)
+015 3b672ff1  B=1   total_q=10447  live q rows=1    (0.010 %)
+```
+
+**The rule now implemented** charges the streamed input at its *live* rows and
+goes on charging the **full** `output` and `lse` writes. The strict reading —
+which also discounts the dead output rows, and is 125x rather than 2x — was
+deliberately **not** taken: a correct kernel really does have to write `(0,
+-inf)` into every row. `causal_masked_axis()` in `scripts/sol_gathered_traffic.py`
+derives the masked axis, the streamed tensor and which of two same-shaped `int32`
+vectors segments which extent by AST from the problem's own reference. There is
+no problem-name allowlist; run over all 235 definitions it fires on exactly
+`FlashInfer-Bench__014` and `__015`. `__016`/`__017` mask with `masked_fill_` and
+emit **NaN** on an empty window — a dead row there is not free — and `__019` has
+no skip at all; all three are pinned out by test.
+
+**Measured effect.** 68 tier records carry `masked_axis`, 64 were repriced, 4 are
+unchanged at exactly 1.0 (degenerate `total_q ∈ {1,2}`), 0 unresolved. Published
+bounds: 64 of 3717 move, `FlashInfer-Bench__015` 36 and `__014` 28, ratio new/old
+0.5039 … 0.5103 (p50) … 0.8081, **0 UP**.
+
+**Verified by an adversary who recomputed rather than accepted it.** `sum_b
+min(q_len_b, kv_len_b)` recomputed from the raw safetensors matches `masked_rows`
+on **68 of 68**. The byte identity `memory_bytes = gathered_bytes − (total_q −
+masked_rows)·8192` holds exactly on all 68, which is the proof that only `q` was
+repriced and output/lse/KV/indptrs keep full price. Worked example (`__014`,
+`total_q` 9277, live 100): 153,422,420 → 78,244,436 B, decomposing exactly as
+output 75,997,184 + lse 1,187,456 + live q 819,200 + KV 239,616 + indptrs 980.
+
+**Direction.** Down is the *undetectable* direction for a bound — but see
+[D69](#d69): on this corpus it **deflates** `S`. Measured on all 68 correct
+measured records, `dS ≤ 0` on every one, max `dS = 0.0`; the four falsified
+workloads move from 1.000014/1.000400/1.000729/1.000903 to
+0.999782/0.997943/0.998990/0.998108.
+
+**What it does not have.** No independent *measurement* of the corrected byte
+count exists. `rocprofv3 --pmc` is closed ([D43](#d43)) and the counter-free
+probe — time a kernel that only fills `output` with 0 and `lse` with `-inf`, and
+compare against the recorded `t_k` — **has not been run**. The nearest thing is
+a harness-shaped control ([D67](#d67) §3.4) showing a pure copy of the *declared*
+268.4 MB takes 71.9 µs where the kernel is credited with 26.8 µs, which refutes
+the old byte count without confirming the new one.
+
+**Still owed, and it is a correctness-gate problem rather than a bound problem.**
+On these workloads `required_matched_ratio = 0.99` against 0.010–0.158% live
+rows, so a kernel that wrote `(0, -inf)` everywhere and computed nothing would
+miss at most 0.16% of elements and pass. The only thing in its way is the
+all-zeros guard at `correctness.py:77`, which one nonzero element defeats.
+**Lowering these bounds makes such a kernel score better.** Raised three times
+now; unaddressed.
+
+**MI350X carries the same defect on the same two problems.** The tier code is
+fixed for both parts; the frozen MI350X artifact deliberately is not, and must
+not be without a version cut.
+
+```bash
+SOLEXBENCH_CLOCK_BASIS=unlocked env/solb python scripts/sol_traffic_floor.py \
+  --t-sol artifacts/03-MI355X/t_sol.json --arch SOLAR/configs/arch/MI355X.yaml \
+  --t-b artifacts/06-MI355X/authoritative \
+  --out artifacts/03-MI355X/t_sol_traffic.json --part MI355X
+env/solb python -m pytest tests/scripts/test_masked_stream_traffic.py -q
+```
+
+**Defect in that very command, found by the audit and NOT fixed.** The shipped
+tier was gated against `artifacts/06-MI355X/authoritative`, not the
+`authoritative-merged` tree the manifest declares as `sources.t_b` and is built
+from. 237 records shipped ungated that the release tree would have gated, and
+`L1__057/650d87fb` ships a tier bound of 0.17040 ms against a published anchor of
+0.10150 ms inside an artifact whose own `--t-b` help says such a bound "is
+rejected, not shipped". **No published bound is wrong** — the manifest re-applies
+the gate and publishes `solar_fused` — so the safety net is the manifest, not the
+tier that claims to be the gate. The remedy was measured: rebuilding the tier
+against `authoritative-merged` and rebuilding the manifest moves **0** published
+bounds across 3957 workloads. It is a version cut, not an auditor's edit.
+
+## D65 — the tier that was judged impossible at the wrong clock: 127 bounds, 4.58x to 249x too small {#d65}
+
+**The largest correction of the session, and it ran entirely in the undetectable
+direction until it was found.** This is the enforcement half of [D63](#d63).
+
+`build_manifest.combine_bounds` rejects a tier whose `T_SOL` exceeds the measured
+`T_b`, on the grounds that a lower bound above a measured time is physically
+impossible. It made that comparison using each tier's own stored `t_sol_ms` —
+and the SOLAR tier's is expressed at **f_ref = 1.8 GHz** while `T_b` on this part
+is measured near **2.4 GHz**. The SOLAR tier therefore read 1.333x too slow,
+was judged impossible, and was dropped; the published bound fell back to the
+declared-traffic floor alone.
+
+```
+127 workloads, 13 problems (L1 037/074/081/076/035/072/067/054, L2 030/002/019/068, …)
+ratio new/old   4.576 … 39.47 (p50) … 249.07,  127 UP, 0 DOWN
+bound_sources   solar_rejected_above_t_b  127 -> 0,  one for one
+tier selection  solar_fused 2282->2533, declared_traffic 1086->959, max_of_both 589->402
+```
+
+**1.8 GHz is refuted by the measurements themselves, on exactly the population it
+damaged.** For a compute-bound workload the measured `T_b` puts a hard floor
+under the clock the card sustained: `f ≥ compute_cycles / T_b`. Over the 127 that
+floor is **1809–2306 MHz, median 2032** — every one above 1800. The card cannot
+have been at 1.8 GHz while producing those anchors.
+
+The comparison is now made in time, at the measurement's own clock bracket, from
+clock-free terms (`compute_cycles`, `memory_bytes`, `dram_byte_per_sec`).
+
+**What this correction is NOT: 127 independent findings.** An adversarial audit
+established that it is one selection band the acceptance inequality forces. A
+record joins the set iff `solar@1800 > T_b` and `solar@bracket ≈ 0.7547 ·
+solar@1800 ≤ T_b`, so every member must land in `(1800/f_pub, 1.0]` of `T_b`.
+Measured: the analytic predicate is satisfied by 127 of 127; `published/T_b`
+0.7592–0.9641 against a forced lower edge of 0.7503–0.7923; headroom `T_b/published`
+1.037–1.317, i.e. **"narrow" (<2x) on 127 of 127** under the manifest's own
+`BOUND_QUALITY_BANDS`. Corpus context: `published/T_b` has p50 **0.082** over all
+3717 scoreable workloads, and only 162 exceed 0.75 — 127 of which are these. All
+127 ride `MAC_per_cycle_fp32_sm = 32768`. The correct release-note sentence is
+*"127 bounds the rejection gate was filtering are now published, every one
+landing at 76–96% of `T_b` — a band the inequality forces, not a property
+discovered about the workloads."*
+
+**Live consequence — fixed in code, NOT in the shipped artifact.** As shipped,
+`bound_quality` / `bound_headroom` are emitted on **0 of the 127**, while all 63
+much-looser `*_gathered` records are marked, so the manifest's own annotation
+reads as a census of loose bounds and is not one. Banding all 3717 scoreable
+workloads under the manifest's own `BOUND_QUALITY_BANDS` gives **vacuous 398,
+loose 322, ok 2482, narrow 515**; the 127 are `narrow` on 127 of 127 and the 111
+downward moves are `vacuous` 106 / `loose` 5.
+
+Later on 2026-08-15 `_bound_quality` was moved out of the `if gathered_applied:`
+block so it applies to every published bound, with five corpus counters beside
+`bound_sources`, and a new `_published_bound_ms` that bands the *published* number
+— verified `bound_headroom == t_b_ms / t_sol_ms_published` on 3717 of 3717,
+0 mismatches at 1e-12. A scratch rebuild from the same inputs changed **not one
+existing field on any of the 3957 records**; the only additions are the
+annotations and the counters. **`artifacts/09-MI355X/manifest-v4.json` was not
+rebuilt**, so the artifact on disk still carries the 63. Rebuilding it is a
+version cut and carries an ordering requirement — see [D68](#d68).
+
+**Second live consequence:** these bounds now sit within 4.8% of a real
+measurement — `L1__035` min `t_k/T_SOL` 1.5130 → **1.0477**, `L2__002` 1.2951 →
+1.0781, `L2__019` 1.2855 → 1.0858 — and on **MI350X the same `L1__035` SOLAR
+bound is already falsified by 6 kernels at worst 0.985x**. A tighter bound is the
+right direction and it moves this problem close to the edge on both parts.
+
+**Score effect, and a figure the integration report got wrong by measuring the
+wrong population.** That report stated "manifest v3 → v4 alone: 36 records move,
+all `FlashInfer-Bench__015`, all DOWN, max −0.0028". Holding `T_b` and `T_k`
+fixed and swapping only the published bound, over the full measured corpus:
+**127 records move, 43 UP, dS −0.049489 … +0.162928**. Worst is
+`L1__035_flux_ada_layer_norm…/81f42cda`, `S` 0.51174 → **0.67466** (bound
+×11.33), plus `L2__002` (13 up), `L2__019` (13 up), `L1__067` (3 up). The 36-record
+figure was taken over the 594-record post-card-fix population, which card-refuses
+every one of those problems. **This correction inflates `S` on 43 records** and
+the release note must say so.
+
+**A statistic about this correction was published inverted, and is fixed.**
+`tier_compared_at_reference_clock: 348` was incremented inside the `except`
+branch of `_tier_times_ms`, so it counted the records that could **not** be put
+on one clock. A reader sizing remaining exposure would have read 8.8% coverage
+as 85% and been pointed at the still-exposed population under a name saying it
+was the fixed one. The three outcomes are now counted under names that match
+what they count and sum to 3957:
+
+```
+tier_compared_at_reference_clock  3369
+tier_fell_back_to_stored_clock     348
+tier_no_measurement_clock          240
+```
+
+Nothing read the old field (`grep` found only the two lines that wrote it), so no
+bound moved; regenerating the manifest left all 3957 workload records
+byte-identical. `tests/scripts/test_build_manifest_tier_clock_stats.py` pins it.
+
+## D66 — FlashInfer-Bench__018: SOLAR is gather-aware, and the over-count is the reference's own cast {#d66}
+
+**The number was confirmed and the stated mechanism was refuted.** The standing
+hypothesis was that the SOLAR tier resolves a gathered/paged input at its full
+allocation, the way the declared-traffic tier did before D18. It does not.
+
+`solar/analysis/graph_analyzer.py` charges a `__getitem__` its **output** size;
+there is no path in SOLAR that charges a gather its source allocation. Measured
+on the traced graph for `018`, workload `00cb2bc2` (the probe reproduces the
+shipped `memory_bytes` 1,140,133,554 byte-identically):
+
+| layer | op | source shape | read elems |
+|---|---|---|---:|
+| `Model.to` | `to` | `[989669, 512]` | **506,710,528** |
+| `Model.__getitem___6` | `__getitem__` | `[989669, 512], [8]` | **4,096** |
+
+**The gather reads 8 rows.** The allocation enters through `Model.to` —
+`Kc_all = ckv_cache.squeeze(1).to(torch.float32)` on line 24 of the problem's own
+reference, a real op that really does materialise a 1.14 GB fp32 copy before
+selecting 8 rows from it. A cast is in SOLAR's `_ZERO_COMPUTE_OPS` but not in
+`_ZERO_COPY_VIEW_OPS`, so it keeps the whole source read.
+
+Controlled falsification, four bodies through the same pipeline over one
+`[1000000, 512]` bf16 table:
+
+```
+gather_only          table[idx]                     fused =         8,192   <- the 8 rows
+gather_then_cast     table[idx].to(float32)         fused =        16,384
+cast_then_gather     table.to(float32)[idx]         fused = 1,024,000,000   <- the allocation
+squeeze_cast_gather  table.reshape(...).to(f32)[idx] fused = 1,024,000,000
+```
+
+Negative control from the shipped artifacts: on `L1__009`, which gathers first
+and never materialises the cast, `solar.memory_bytes / traffic.memory_bytes(gathered)`
+is 0.99998–0.999999. SOLAR lands on the gathered floor there, not the allocation.
+
+**So the bound is a correct roofline for the reference's algorithm and a wrong
+one for the problem.** `T_SOL` must bound *any* correct kernel, and only
+`num_kv_indices` rows can affect the output.
+
+The 54-byte gap between SOLAR (1,140,133,554) and the tier's allocation
+(1,140,133,608) is not a coincidence to explain away — it is exactly the three
+non-bf16 tensors priced at SOLAR's single `bytes_per_element = 2`: `kv_indptr`
+−6, `kv_indices` −16, `lse` −32. Both tiers count both caches in full; they share
+a fact, not a code path.
+
+**What shipped (e), and what did not (d).** The durable fix is a slice pushdown
+in `graph_analyzer` — propagate a gather's demand backwards through a
+shape-preserving elementwise producer — which changes how a bound is derived and
+was **recommended, not enacted** (prime directive 7). What shipped is MI350X
+v1.1 parity, which is not an improvisation because that part already ships it:
+on workloads carrying a derived `gathered_axes`, discard SOLAR's **memory** term
+and keep only its **arithmetic** term. It subtracts no bytes from SOLAR.
+
+```
+47 of 3717 bounds, 1 problem: FlashInfer-Bench__018
+ratio new/old 3.872e-05 … 0.00785 (p50) … 0.0781   (12.8x to 25,832x smaller)
+```
+
+The rule fired on 63 records across 2 problems; on `L1__009`'s 16 the traffic
+tier already bound, so **none of them moved a published bound**. "It fired" and
+"it changed the answer" are different claims.
+
+**Honest accounting of the trade, corrected from the integration report.** That
+report said "`018` has zero MI355X measurements, so nothing on this part
+falsifies the old bound or the new one — the argument is semantic, not
+empirical." The first clause is true; the conclusion overstates. **36 real
+MI350X kernels falsify the old bound** (manifest-v1, `n=36`, worst 0.2693x), and
+it is the first-named of the 15 problems in MI350X check D's 144-of-7840 failure.
+Conversely, that falsification justifies lowering the bound by at most **3.7x**,
+while the correction lowers it by 12.8x to 25,832x: against the same 94 real
+MI350X measurements, `t_k/T_SOL` goes from min 0.2693 / p50 2.662 / max 13.17 to
+min **97.5** / p50 241 / max 1.284e4. **The best kernel anyone has written for
+this problem is 97.5x slower than the new bound.** This trades a detectable error
+for an undetectable one, which is the same trade MI350X v1.1 accepted; the 47
+records carry `bound_quality` (46 vacuous, 1 loose) and `bound_headroom`
+(977 … 2974 … 1.614e5) so the looseness is at least visible downstream.
+
+**The timeout is no longer load-bearing.** Five of the six paged FlashInfer
+problems (`012/013/014/015/019`, 202 workloads) have no SOLAR tier at all — the
+pipeline timed out at 900 s — so `combine_bounds` had nothing to max and the
+corrected traffic tier binds. Before this rule, raising that timeout would have
+silently undone D18 on five more problems: measured, supplying those five records
+moves **200** bounds by up to 14,821.9x without the rule and **0** with it.
+
+**It shipped unguarded, and the guard landed the same day — in code.**
+`_solar_arithmetic_only` keyed on `bool(gathered_axes)` and zeroed SOLAR's memory
+term with no check that SOLAR saw nothing beyond the allocation. On all 63 records
+where it fires, `solar_memory_bytes / allocation_bytes` is 0.9609–0.99999995 and
+never reaches 1 — so nothing real is lost today, but **that is a property of the
+data, not of the rule**, and a future problem with both a gathered axis and real
+streaming traffic would be silently under-counted.
+
+Two counted guards now exist: a missing `allocation_bytes` refuses
+(`gathered_solar_allocation_unknown`, inert today), and SOLAR's memory term more
+than `SOLAR_MEMORY_ABOVE_ALLOCATION_REL = 0.01` above the allocation falls back to
+ordinary max-of-both (`gathered_solar_memory_above_allocation`). 1% is two orders
+of magnitude above the largest deviation measured today (5e-8 relative — the 54 B
+of `__018` under 1,140,133,608) and far below the smallest thing that could be an
+extra stream. **Both refusals leave the allocation-priced bound in place, which is
+the *detectable* way to be wrong.** The labelling artefact — three `L1__009`
+records labelled `solar_arithmetic_gathered` beside a null `gathered_axes`,
+because the audit trail is written by the traffic tier while the record is built
+from whichever tier won — is fixed by carrying those fields onto the merged
+record. **None of this is in the shipped `manifest-v4.json`**, which was not
+rebuilt.
+
+## D67 — the achievable-bandwidth curve, and the Infinity-Cache hypothesis refuted {#d67}
+
+**MI355X does not deliver more than 8 TB/s at an LLC-sized working set.** The
+hypothesis on record — that the four `FlashInfer-Bench__014/__015` violations
+were a bandwidth-model problem, because a ~270 MB working set "fits inside the
+268 MB Infinity Cache" and can legitimately exceed the 8.0 TB/s DRAM constant —
+is **falsified by measurement**, and in the inconvenient direction.
+
+Artifact: `artifacts/03-MI355X/llc/llc-bandwidth-gpu0.json` (GPU 0 exclusive,
+host `mia1-p02-g46`, `SOLEXBENCH_CLOCK_BASIS=unlocked`, 276 points bracketed,
+0 refused, mean 2394.6 MHz, max bracket spread 0.34%). Six access patterns × 46
+working-set sizes, 1 MiB to 16 GiB.
+
+Streaming envelope `B_max(W)`, max over the five streaming patterns:
+
+```
+W ≤ 4 MiB       8.36 – 17.95 TB/s      (aggregate L2, 8 XCD × 4 MiB)
+4 – 32 MiB      8.26 – 13.77
+32 – 64 MiB     7.77 –  9.56
+64 – 128 MiB    7.35 –  7.61
+128 – 256 MiB   7.24 –  7.30
+256 MiB – 2 GiB 6.91 –  7.38
+> 2 GiB         6.38 –  6.55           (DRAM asymptote, 82% of the 8.0 spec)
+```
+
+At the size the hypothesis is about:
+
+```
+W = 240 MiB  7.254   248 MiB  7.275   256 MiB  7.284   264 MiB  7.247   272 MiB  7.306 TB/s
+```
+
+**No pattern comes within 28% of the 10.09 TB/s required, there is no knee at
+256 MiB, and >8 TB/s appears only below ~64 MiB.** The measured achievable
+ceiling at the LLC-sized working set is **below** the 8.0 TB/s constant already
+in use, so re-pricing those bounds at a measured LLC bandwidth would make `T_SOL`
+*larger* and the violations *worse*. Issue 6's premise is true below ~64 MiB and
+false in the band it was raised about.
+
+**The decisive control is harness-shaped, not a warm loop.** A kernel of exactly
+the same declared traffic (268.4 MB) run through the repo's own `time_runnable`
+— same allocator, same 512 MiB flush, same event pair, production
+`warmup=10, rep=50` — takes **71.9 µs median / 68.4 µs best** (3.73 TB/s). The
+suspect kernel is credited with 270.5 MB in **26.8 µs**. A no-op through the same
+path reads 6.60 µs, and the same copy warm without the flush reads 45.9 µs. **A
+kernel cannot be 2.6x faster than a pure copy of its own declared bytes measured
+the same way — it did not move them.** That is what made [D64](#d64), not a cache
+story.
+
+### Three measurement traps the probe caught in itself
+
+These are reusable warnings, not incidents. Every one *passed*, every one
+produced a curve that looked like hardware, and the third revealed itself only
+under a knob that should have changed nothing.
+
+1. **Loop-invariant hoisting — inflates by exactly `N_PASSES`.** Re-reading the
+   same addresses to lengthen the kernel is loop-invariant; LLVM hoists the loads
+   and the kernel reports exactly `N_PASSES` times the real bandwidth. 8 MiB pure
+   read read **"116.3 TB/s"**; 256 MiB read 27.4 TB/s against 7.29 for the
+   identical 1-pass kernel, ratio 3.76 against `N_PASSES = 4`. This is
+   "counts that look like independent evidence but are one constant" in bandwidth
+   form.
+2. **Reuse distance measuring the wrong cache — produces a flat curve, i.e. no
+   signal.** Shifting each pass by two cache lines defeats the hoist and is still
+   wrong: a program re-reads *its own* 16 KiB chunk back to back, served from its
+   CU's L1. The curve read **~35 TB/s flat from 8 to 128 MiB with no dependence
+   on working-set size**, which is the signature. An LLC question needs a reuse
+   distance equal to the **working set**.
+3. **Rotation degeneracy — inflates only the "clean" sizes.** Rotating the grid
+   by `rot = N/n_passes` gives `gcd(rot, N) = n_passes`, so the chunk space splits
+   into orbits of `n_passes` chunks and the programs sharing an orbit cycle
+   through a few hundred KiB — L1 again, and only at sizes whose arithmetic
+   divides evenly. Falsified by changing **only** `--min-launch-mib`, which
+   changes no bytes: 64 MiB pure read went **9.35 → 19.85 → 24.16 → 27.27 TB/s**
+   at 256/512/1024/2048. After forcing `gcd(rot, N) = 1` the same sweep is
+   7.04–7.68 flat.
+
+Two more, recorded because they cost time: int32 overflow at exactly 2^31 offsets
+(8 GiB — the least dangerous, it crashed instead of lying), and a float32
+accumulate over fp16 loads that was ~89% ALU-bound and reported the ALU's rate as
+bandwidth. The probe reduces with an int32 XOR for that reason.
+
+**A trap in the artifact itself.** `llc-bandwidth-gpu0.json`'s `ceiling` field is
+the global max over *all* patterns, which is `local` at **32.34 TB/s at
+W = 24 MiB**. `local` re-reads a 32 KiB per-workgroup chunk and is an **L1**
+number; it is in the set only so that "does anything reach 10.09 TB/s?" is asked
+of the most favourable pattern that exists. Reading `ceiling` as a cache
+bandwidth is wrong by 4x. The proof it is not a capacity number: `local` still
+reads 13 TB/s on a 1536 MiB buffer that cannot be resident anywhere.
+
+**Supersedes** `artifacts/03-MI355X/llc/roofline-gpu0-llc.json` in both
+directions: its HBM figure of 4.886 TB/s under-reads the DRAM asymptote by 25%
+(measured here 6.55 TB/s at 8 GiB), and its sub-128 MiB `llc_sweep` points
+(2.40 / 4.66 / 5.29 TB/s) are launch-limited, not bandwidth-limited. Its
+`cliff: null` is therefore not evidence about the LLC.
+
+**Not established, and it matters beyond the roofline.** Why there is no knee at
+256 MiB. Either the Infinity Cache gives little streaming-read uplift on this
+part, or `llc_capacity = 256 MiB` / `llc_bytes_per_sec = 17.0e12` in
+`src/solexbench_rocm/parts.py` — **byte-identical to the MI300X row**, and marked
+`[PLACEHOLDER - verify]` in `SOLAR/configs/arch/MI355X.yaml` — do not describe
+MI355X. Both would produce this curve and `rocprofv3 --pmc` is closed
+([D43](#d43)), so there is no hit-rate confirmation. `flush_buffer_bytes` derives
+from the same table, so if the capacity is wrong the production cache flush is
+mis-sized too.
+
+**Nothing was enacted.** `SOLAR/configs/arch/MI355X.yaml` and
+`src/solexbench_rocm/parts.py` are untouched. A bound must divide by the
+*maximum* achievable bandwidth, and for the `declared_traffic` tier — whose
+premise is "every input read once" — the relevant rate is the **cold** one, which
+§3.4 measures at 2.6–4.7 TB/s across 33.6–536.9 MB. On that reading 8.0 TB/s is
+conservative everywhere and never unsafe. A capacity-keyed model would need a
+working-set definition the bound builder can compute; SOLAR's traced graph does
+not obviously have one, and keying a bandwidth off a quantity that is not well
+defined per tier is how [D63](#d63) happened.
+
+```bash
+HIP_VISIBLE_DEVICES=0 SOLEXBENCH_CLOCK_BASIS=unlocked \
+env/solb python scripts/llc_bandwidth_probe.py --gpu 0 \
+  --patterns read,read2,copy,stride,gather,local \
+  --min-launch-mib 2048 --page-kib 4 --block 8192 --num-warps 4 \
+  --reps 5 --target-ms 20 --harness-shaped 16,32,64,128,256 \
+  --out artifacts/03-MI355X/llc/llc-bandwidth-gpu0.json
+```
+
+## D68 — the "120 workloads below their floor" never existed: a regex that ran past its section {#d68}
+
+Task 03 on MI355X reported two failures for a day. One of them was not a defect
+in any bound.
+
+`verify_artifacts.py` read the A-published verdict out of `cross-checks.md` with
+
+```python
+av = re.search(r"A-published[\s\S]{0,4000}?\*\*(\d+) VIOLATIONS", text)
+```
+
+and `sol_cross_checks.py` appends the `— **N VIOLATIONS**` clause **only when
+`N > 0`**. With zero violations there is nothing to match inside the section, and
+the 4000-character window runs 3123 characters past the end of A-published,
+through sections B and C, and matches section **D**'s number instead:
+
+```
+A-published at 8684   "**120 VIOLATIONS" at 11807   distance 3123
+any VIOLATIONS inside the A-published section?  False
+```
+
+**A-published's real verdict on the shipped artifact was 0 violations**:
+3688/3717 published bounds sit at or above their declared-traffic floor and the
+other 29 have a floor that measurement refutes. And zero is *structural*, not a
+coincidence of this corpus — `published < floor` iff the traffic tier was
+dropped, and the traffic tier is dropped by exactly one rule (`traffic t_sol_ms >
+measured T_b`) which is A-published's excusal condition verbatim.
+
+**The 120 it actually matched was section D tier-level** — SOLAR's stored
+`t_sol_ms` against `T_b` — reproduced exactly at 120 of 2694 across 13 problems.
+It is the opposite error direction (bound too *large*), and **120 of 120 are
+[D63](#d63) clock phantoms**: re-derived at each measurement's own bracket the
+count is **0 of 2694**, with 2694/2694 winners carrying a usable bracket and 0
+falling back. Same problems as [D65](#d65)'s population.
+
+**The separately-reported "193" is real and almost entirely spurious**, and is a
+different set again — the intersection of the 120-set and the 193-set is
+**empty**, so the "73-row difference" that was on record does not exist. 185 of
+the 193 are integer-cycle quantization at two different clocks (the tier ceils at
+2.4 GHz, the published bound at the measurement's own 2380–2410 MHz); 182 of 193
+are above 0.99x. The remaining 8 are `L1__057`, whose traffic tier was correctly
+rejected for exceeding `T_b`. **Do not "fix" the 193.** A standing check of this
+kind needs a tolerance of at least one cycle at the comparison clock, not 1e-4.
+
+Fixed: the search is scoped to the section, and `sol_cross_checks.py` now always
+emits an explicit `0 VIOLATIONS` so that "no match" stops meaning two different
+things. `tests/scripts/test_verify_artifacts_task03.py` pins it.
+
+**The gate is now bound to its evidence, and that creates an ordering rule you
+will trip over.** `sol_cross_checks.py` writes a machine-readable
+`sol-cross-checks-inputs` record naming the manifest, both T_SOL tiers, the T_b
+tree and the arch config, with a `sha256` on each file (the T_b tree carries a
+weaker `(name, size, mtime_ns)` digest that declares its own weakness, because
+re-reading 231 files on every report would make the report expensive enough to
+skip). Task 03 gained *check A-published is bound to the manifest under audit*,
+which FAILs on a missing record or a digest mismatch, and A-published itself
+REFUSES rather than passing when the binding fails — unbound outranks a dirty
+count, so a violation number read out of a report about a different manifest is
+reported as refused, not as findings.
+
+**It binds by digest, not by path.** A manifest rebuilt in place keeps its
+filename and is a different manifest. So: **regenerate `cross-checks.md` after
+any manifest rebuild, or task 03 goes red.** A companion check, *cross-checks
+report's other inputs are the ones on disk*, is a **WARN** rather than a FAIL on
+purpose — `artifacts/03-MI355X/t_sol.json` is a known-broken artifact awaiting
+re-derivation, and failing the part's gate the moment that repair lands would
+report a fix as a regression.
+
+**Three things the audit found. Two were closed the same day; the third is still
+live**, which is why this entry is not a closed one:
+
+* `artifacts/03-MI355X/cross-checks.md` went on publishing section D's
+  **"120 VIOLATIONS, each one a config error"** for most of the day *after* the
+  gate that read it went green — a false claim, published, watched by nothing.
+  **Closed 2026-08-15 09:40 UTC**: section D now re-derives at each anchor's own
+  clock bracket and reads `2694/2694 workloads satisfy T_SOL <= T_b`, with 0
+  anchors carrying no usable bracket and 0 records carrying no separable terms.
+  Keep the lesson, which the fix does not retire: **a gate turning green does not
+  retract the artifact it was reading.**
+* **check A-published was not bound to the manifest it is asked about.** It read
+  a count out of `cross-checks.md`, which recorded no manifest/`t_sol`/`t_b` path
+  anywhere, so it PASSed for *any* `--manifest` while check D correctly tracked
+  the one under audit. Demonstrated at the time: `--manifest manifest-v1.json` →
+  A-published PASS, check D 54 of 1801; `--manifest manifest-v2.json` →
+  A-published PASS, check D 10 of 2078. Before the parser fix this was masked by
+  the check being red anyway — **a green light from an unpinned artifact is the
+  failure mode a parser fix creates.** **Closed 2026-08-15**: the report now
+  records its manifest and the gate carries two binding guards (*check A-published
+  is bound to the manifest under audit*, by sha256, and *cross-checks report's
+  other inputs are the ones on disk*); A-published REFUSES rather than passing
+  when either fails.
+* **On exactly the workloads this session corrected, it is a self-comparison.**
+  The floor it compares against is read straight out of `t_sol_traffic.json`'s own
+  `memory_bytes` — the field [D64](#d64) halved on 64 workloads — so bound and
+  floor moved together and identical before/after counts are guaranteed by
+  construction. The traffic-causal-mask report's "the fix does not ratify itself"
+  is backwards as evidence. Independent verification of those bytes exists
+  ([D64](#d64)); this check is not it.
+
+## D69 — dS/dT_SOL, stated correctly and once {#d69}
+
+The repository stated the direction rule **both ways, in the same file**, and the
+wrong form propagated into three agents' task briefs on 2026-08-15.
+
+With `S = (T_b − T_SOL) / (T_b + T_k − 2·T_SOL)`,
+
+```
+dS/dT_SOL = (T_b − T_k) / (T_b + T_k − 2·T_SOL)²
+```
+
+So the sign is decided by `T_b − T_k` alone:
+
+* a bound that moves **DOWN deflates `S`** for any kernel **faster** than `T_b`,
+  and inflates it only for a kernel slower than `T_b`;
+* a bound that moves **UP** does the reverse.
+
+**Measured** over `artifacts/10` on MI355X: **1549 of 2078 PASSED records (74.5%)
+have `t_k < t_b`**, so lowering a bound deflates `S` for three quarters of the
+corpus. Confirmed empirically in both directions in the same tree: the ~2x
+[D64](#d64) reduction moved `S` **DOWN on 68 of 68** measured records (max
+`dS = 0.0`), and [D65](#d65)'s 11.3x upward move on `L1__035/81f42cda` moved `S`
+**UP**, 0.51174 → 0.67466.
+
+Where it was wrong: `sol_cross_checks.py:397` had the conditional right but said
+"most of them" of the slower-than-`T_b` case, which is **25.5%**; `:461` emitted
+the unqualified "so their scores are inflated"; `:508` and
+`artifacts/03-MI355X/cross-checks.md:21` said the *opposite* in the same document
+("understated, not inflated … the safe direction — no kernel is flattered by
+it"); and `docs/issues/mi355x-bound-quality.md:54` carried the unqualified
+"`S` is inflated for everyone", which is where this session's briefs inherited it.
+All are corrected; the `:461` clause is unreached today (0 violations) and no
+test asserts the generator's wording.
+
+**What does not change.** The too-small direction is still the dangerous one, and
+the reason is **detectability, not the sign of `dS`**: nothing is supposed to be
+faster than a bound, so nothing contradicts a bound that is too small. A
+too-large bound is falsified by the first good kernel. Every statement in this
+repository about "the undetectable direction" is about that asymmetry and remains
+correct; only the claims about which way `S` moves were wrong.
+
+## D70 — the board lost 63% of its scored records, and it was right to {#d70}
+
+**This is the thing that got worse.** After the session's recompute — no
+re-measurement, nothing re-timed — the `full-01` agent run went:
+
+| | before | after |
+|---|---|---|
+| `sol_score_v1` | 1619 | **594** |
+| `sol_headroom` | 229 | 1254 |
+| `correctness_only` | 139 | 139 |
+| mean `S` over records that have one | 0.6565 (n=1619) | 0.6495 (n=594) |
+| `bound_violation` | 102 | **1** |
+| `S` outside [0,1] | 54 | **0** |
+
+`quant-fill`: `sol_score_v1` 230 → 70, mean `S` 0.3785 → 0.4397, `t_sol_ms` moved
+on **0** records — that drop is *entirely* the card check.
+
+**Recovered the same day, on-card, to more than it started with.** Re-scoring
+each affected problem on the card `artifacts/06-MI355X/card-assignment.json`
+assigns needs no new anchor. Run across g46, g45 and g05, finished 09:59 UTC
+(0 workers left, census stable over a re-check):
+
+| `full-01` | before | after the card fix | after re-scoring |
+|---|---:|---:|---:|
+| `sol_score_v1` | 1619 | 594 | **1750** |
+| `sol_headroom` | 229 | 1254 | **100** |
+| `correctness_only` | 139 | 139 | 137 |
+| mean `S` | 0.6565 | 0.6495 | **0.6584** |
+
+`quant-fill`: 230 → 70 → **230**, mean `S` 0.3785 → 0.4397 → **0.3787**.
+
+**Three things about that end state, and the third is the one that matters.**
+(1) The board now carries *more* scored records than before the session at
+essentially the same mean, so the loss was a floor and not an outcome. (2) The
+594 was never a result. (3) **Every one of the 1750 now has its `T_b` and its
+`T_k` measured on the same physical card**, which was not true of the 1619 — that
+is what the exercise bought, and it is not visible in either headline. 100 records
+remain `sol_headroom` and stay there.
+
+This was a **re-measurement**, not an arithmetic recompute: the kernels really ran
+again on their assigned cards, so the correctness verdicts moved a little too
+(PASSED 1850 / INCORRECT_NUMERICAL 96 / RUNTIME_ERROR 41 at the end, against the
+audit's pre-re-score 1960 / 98 / 41 over a different population). **Re-derive the
+census rather than quoting any of these**: count `score_basis` over
+`artifacts/10/scores/*/*/*.json`.
+
+**None of it is the manifest.** A control backfill with HEAD code and manifest-v3
+collapses identically. 1025 records lost their score because their `T_b` and
+their `T_k` were measured on **different physical cards**, which `STATE.md` §4.4
+forbids with no bypass; every one carries `t_b_refused` naming both cards.
+Publish this as *"these records cannot support the claim they make"*, **not** as
+*"undoing inflation"* — the repeatable-`--tb-artifacts` workaround that used to
+paper over it yields a **lower** `S` on 543 of 831 records. The remedy is
+measured and cheap: **45 problems / 90 session files ≈ 2.1 card-hours** re-scored
+on the assigned card (`artifacts/06-MI355X/card-assignment.json`), and **0
+anchors need re-measuring**.
+
+**"bound_violation 102 → 1" is 84% population removal, not correction.** Of the
+101 cleared record-instances, **85 lost their `sol_score` entirely to the card
+refusal** and only 16 were cleared by a corrected bound. No live violation is
+hidden: re-deriving each of the 85 bounds at its own clock bracket from
+manifest-v4, **0 of 85 still beat it**.
+
+**Two defects in `scripts/backfill_scores.py` were found and fixed doing this**,
+and both are the same class — a score computed against a column or a tree that is
+not the one it names:
+
+1. **The wrong bound column.** It took `t_sol_ms` straight from the manifest.
+   Under the unlocked basis that is `T_SOL` at the *reference* clock, while the
+   bound a `T_k` is judged against is `T_SOL` over `T_k`'s own clock window. On
+   manifest-v4 the two differ by >1% on **1622 of 3717** scoreable workloads and
+   >30% on **1084**, in **both** directions (max 1.3367, min 0.7479 — the 2.4/1.8
+   of [D63](#d63)). Fixed by importing `score_solutions._interval_score` rather
+   than reimplementing it. Confirmed independently: backfilling `full-01` against
+   manifest-v3 reports 12 records faster than their own bound before the fix and
+   5 after — the same 5 that task 03's check D reports once it re-derives at the
+   bracket.
+2. **The wrong anchor tree.** It defaulted to
+   `artifacts/06-MI355X/authoritative` while every MI355X manifest is built from
+   `authoritative-merged`, so it compared one measurement's card against a
+   *different* measurement of the same problem. 126 records keep `sol_score_v1`
+   under the wrong tree, 594 under the manifest's own. The default is now the
+   manifest's `sources.t_b`. Both frozen MI350X manifests have no `sources` block,
+   so their backfills are unchanged.
+
+**A third driver of the reported `S` deltas was never named in the write-up.**
+Correcting the anchor tree moved `T_b` on **592** published score records
+(new/old 0.848863 … 0.996223 … 1.248996) and dropped it on **1222** more. Nothing
+was invented — all 594 survivors match manifest-v4 exactly, 0 mismatch, 0 absent
+— and no measurement was touched: `t_k_ms` moved on 0 records and the status
+census is identical before and after (PASSED 1960, INCORRECT_NUMERICAL 98,
+RUNTIME_ERROR 41). But the anchor is a third cause of the `S` movement alongside
+the bound column and the manifest version, and the delta section said "same
+anchor tree throughout".
+
+**Rewritten score artifacts carry a provenance header attesting to a different
+run**, which is prime directive 5 violated in the way that matters, because the
+artifact *looks* stamped. 417 files at the time the integrator found it; measured
+again at 09:58 UTC while the on-card re-scoring was landing, **385 of 435 score
+files carry `backfilled_from_manifest` while their `_provenance.utc` still reads
+`2026-08-14`** — and the 31 that read `2026-08-15` are the ones
+`score_solutions.py` genuinely re-wrote on a card, which stamps correctly. So
+re-scoring a file fixes its stamp as a side effect and backfilling one does not,
+which means the population shrinks for a reason that has nothing to do with the
+defect. `backfill_scores.py:389` writes
+`json.dumps({**stamp('10-backfill'), **doc})` and `doc` already holds the original
+`_provenance`, so the fresh stamp is silently discarded; `summary.json`'s write
+path never calls `stamp()` at all. Files rewritten at 08:51 today still read
+`utc 2026-08-14T22:03:21`, `git_sha 9b7e8435…-dirty`; the only marker of the
+rewrite is `backfilled_from_manifest: "v4"`. The line is pre-existing in HEAD, so
+no agent introduced it. **Not fixed deliberately**: letting the stamp win would
+destroy the provenance recording the host and cards `T_k` was measured on, which
+is strictly worse. The correct shape is a separate `_backfill_provenance` key — a
+schema change `verify_artifacts.py` and `leaderboard/ingest.py` may read, and it
+needs a backfill re-run to take effect on disk.
+
+## D71 — the shipped manifest is no longer a function of the tier it names {#d71}
+
+Recorded at the very end of 2026-08-15, because it is the state the tree was left
+in and nothing else says so.
+
+`artifacts/09-MI355X/manifest-v4.json` was built from an
+`artifacts/03-MI355X/t_sol.json` that **no longer exists on disk.** That artifact
+was the known-broken one — 2902 records at a 1.8 GHz reference clock and 96 at
+2.4, under a header naming a clock this part can never be locked to ([D63](#d63))
+— and it was re-derived late the same day. It is now clean:
+
+```
+header f_ref_mhz 2400.0 | f_lock_mhz absent | f_ref_mhz_observed [2400.0]
+f_ref_mhz_unstamped_records 0 | 2998 of 2998 records stamped 2400.0
+```
+
+**Rebuilding the manifest from it is not free, and the earlier "0 bounds move"
+measurement does not cover this.** That measurement was about supplying the five
+*timed-out* FlashInfer SOLAR records; this is the whole tier re-derived. Measured
+here, building to a scratch path from exactly the inputs manifest-v4 declares:
+
+```
+records 3957, 0 missing
+t_sol_ms_published   15 moved   compute_cycles 15 moved
+t_sol_ms           2242 moved   t_sol_cycles  955 moved
+tier_compared_at_reference_clock 3369 -> 3360, tier_fell_back_to_stored_clock 348 -> 357
+```
+
+The 2242 and the 955 are the legacy columns restating themselves at 2.4 GHz,
+which is the whole point of the re-derivation. **The 15 are real**: all 15 are
+`L1__021_vision_cu_seqlens_variable_length_attention`, all `solar_fused` before
+and after, all scoreable, moving **×0.9501 to ×1.0789 — 8 up, 7 down** — off a
+changed `compute_cycles`. That is a content change in SOLAR's arithmetic for that
+problem, not a clock restatement, and **nobody has explained it.**
+
+So the tree currently holds a published manifest, a tier artifact it was not
+built from, and a 15-bound delta between them. Three consequences, none of them
+addressed:
+
+1. **Rebuilding is a version cut**, not a refresh — it moves 15 published bounds
+   on a scoreable problem and would also pick up the `bound_quality`-on-every-bound
+   change and the `_solar_arithmetic_only` guards, neither of which is in the
+   shipped artifact.
+2. **Task 03 already says so**, and this is the ordering rule in [D68](#d68)
+   working as designed: `cross-checks report's other inputs are the ones on disk`
+   went **WARN**, naming `t_sol`.
+3. **Diagnose `L1__021` before shipping the rebuild.** A ±5–8% two-directional
+   move on one problem's compute term is small enough to ship silently and is
+   exactly the shape of the errors this project keeps finding after the fact.
+
+### Closed as a state the same day, still open as a diagnosis {#d71-closeout}
+
+The close-out rebuilt the chain once, in order — traffic tier gated against
+`authoritative-merged`, then `manifest-v4.json` in place, then `cross-checks.md`
+— so the manifest is a function of its own declared sources again, and task 03's
+binding and input checks are both PASS (18 checks, 1 failed: `L2__050` only). The
+rebuild was proved deterministic **first**: two tier builds and two manifest
+builds from identical inputs are byte-identical apart from the provenance
+timestamp. The delta landed exactly as measured above, plus
+`traffic_rejected_above_t_b` 8 → 7 (the tier's own gate finally running against
+the release's anchors, [D72](#d72)) and `bound_quality` / `bound_headroom`
+appearing on 3894 more records. Point 2 is now a FAIL rather than a WARN, since
+the artifact that made it a WARN has been repaired.
+
+**Point 3 was not done, and the cause is now known and worse than "unexplained".**
+`L1__021`'s reference takes the `cpu_real` tier and generates its `cu_seqlens`
+index vectors **unseeded**, so SOLAR traces a different graph on each derivation:
+two runs at the same 2400 MHz give different `macs` on 15 of 16 workloads while
+`memory_bytes` is identical every time. The bound for this problem is therefore
+**not reproducible**; any future re-derivation moves it by up to ±8%, and no gate
+can see it — `T_SOL <= T_b` holds either way, with all 15 at least 4.65× below
+their own anchor, and `check D-terms` only asks whether the published column
+matches the terms *recorded beside it*, which it does. The fix is a seed, or
+recording the drawn index vectors beside the bound; both are methodology changes
+and neither was improvised. Top item of `docs/TODO-MI355X.md` §13 M8.
+
+```bash
+SOLEXBENCH_CLOCK_BASIS=unlocked env/solb python scripts/build_manifest.py \
+  --version v4chk --out /tmp/manifest-v4-newtsol.json \
+  --t-sol artifacts/03-MI355X/t_sol.json \
+  --t-sol-traffic artifacts/03-MI355X/t_sol_traffic.json \
+  --t-b artifacts/06-MI355X/authoritative-merged \
+  --tolerances artifacts/05-MI355X --force
+# then diff t_sol_ms_published record by record against artifacts/09-MI355X/manifest-v4.json
+```
+
+## D72 — the tier's rejection gate never ran against the release's anchors {#d72}
+
+`scripts/sol_traffic_floor.py` takes `--t-b` and uses it for one thing: refusing
+to publish a declared-traffic bound that is **above** the anchor it is supposed
+to be a lower bound for. Its own `--t-b` help says such a bound "is rejected, not
+shipped". On 2026-08-15 the MI355X tier was regenerated with
+`--t-b artifacts/06-MI355X/authoritative`, while every manifest built from it
+declares `sources.t_b = artifacts/06-MI355X/authoritative-merged`. The gate ran,
+and it ran against a tree the release does not use.
+
+Measured by rebuilding the tier from its stated inputs at four anchor trees:
+
+```
+--t-b authoritative        -> 3936 recovered / 21 rejected   (matches what shipped)
+--t-b authoritative-merged -> 3935 / 22
+--t-b authoritative-g45    -> 3935 / 22
+--t-b authoritative-repro  -> 3940 / 17
+```
+
+**237 records shipped ungated** that the release tree would have gated, and 14
+were gated that it would not have; `gated_against_t_b` differs on 251 records
+between the shipped tier and a merged-gated rebuild. The concrete escape is
+`L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion/650d87fb`, whose tier
+bound of 0.17040 ms sits at **1.68× its published anchor of 0.10150 ms** inside
+an artifact that claims to reject exactly that.
+
+**No published bound was ever wrong**, which is the uncomfortable part. The
+manifest re-applies the gate itself, so `L1__057/650d87fb` carries
+`t_sol_tier_rejected_above_t_b: ["declared_traffic"]` and publishes `solar_fused`
+0.013991460290350128 ms either way. The safety net was the manifest, not the
+artifact whose entire purpose is to be the gate — and nothing in the tier said
+which tree its verdict was about, so the mismatch was invisible in the file.
+
+**Fixed in code, not by remembering.** `sol_traffic_floor.py` now reads every
+`artifacts/09*/manifest-*.json`, and if any manifest built from this `--out`
+declares a different `sources.t_b`, it exits 2 **before any write**, naming the
+manifests. MI350X manifests carry `sources: null` and so constrain nothing;
+`candidate-*.json` is ignored; an unreadable manifest is reported on stderr
+rather than skipped silently. `--allow-anchor-mismatch` is the deliberate escape
+and records `t_b_manifest_mismatch` in the artifact. The tier also now records
+`t_b` — the tree its `gated_against_t_b` column is a verdict about.
+
+The close-out rebuilt the tier against `authoritative-merged` and rebuilt the
+manifest on it. Effect on the release: `bound_sources.traffic_rejected_above_t_b`
+**8 → 7**, one label `['declared_traffic'] → None`, and **0 published bounds
+move** across all 3957 workload records.
+
+The general shape is worth keeping: *a gate parameterised by a path, in a repo
+with four plausible paths, is not a gate until something checks the path.* The
+same class was found the same day in `backfill_scores.py`'s default anchor tree.

@@ -10,17 +10,29 @@ there would be no way to tell that drift from the intended change.
 from __future__ import annotations
 
 import math
+import sys
+
+from pathlib import Path
 
 import pytest
 
 from solexbench_rocm.t_sol_at import (
     INTERVAL_FIELDS,
     MissingBoundTerms,
+    MissingReferenceClock,
+    REFERENCE_CLOCK_FIELD,
     bottleneck_at,
+    bound_ms,
+    reference_clock_mhz,
     t_sol_cycles_at,
     t_sol_interval,
     t_sol_ms_at,
 )
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import sol_bounds  # noqa: E402  -- the writer half of the same contract
 
 F_REF = 1650.0
 DRAM_BPS = 8.0e12          # 8 TB/s, as in SOLAR/configs/arch/MI355X.yaml
@@ -252,3 +264,175 @@ def test_interval_refuses_a_record_it_cannot_re_clock():
     old = {"t_sol_cycles_exact": 31142.6, "bottleneck": "memory"}
     with pytest.raises(MissingBoundTerms):
         t_sol_interval(old, *WIDE_BRACKET)
+
+
+# ---------------------------------------------------------------------------
+# D63: a stored cycle count is only legible next to the clock it was expressed
+# at, and nothing enforced that.
+#
+# `artifacts/03-MI355X/t_sol.json` holds 2902 records at 1.8 GHz and 96 at
+# 2.4 GHz under a header declaring 2400, and two consumers read the column as
+# if one clock described it. These pin both halves of the fix: the reader that
+# refuses a record which does not say (`bound_ms`), and the writer rule that
+# stops a header describing a body it did not compute.
+# ---------------------------------------------------------------------------
+
+#: A record in the shape `sol_bounds.py` writes today, stamped with its clock.
+def _stamped(compute_cycles: float, memory_bytes: int, f_ref_mhz: float) -> dict:
+    w = _record(compute_cycles, memory_bytes)
+    w["f_ref_mhz"] = f_ref_mhz
+    w["t_sol_cycles"] = t_sol_cycles_at(w, f_ref_mhz)
+    w["t_sol_ms"] = w["t_sol_cycles"] / (f_ref_mhz * 1e3)
+    return w
+
+
+def test_bound_ms_refuses_a_record_that_names_no_clock():
+    """The whole point. An unstamped ms column is a number with no unit."""
+    legacy = _record(1e7, 1024)
+    legacy["t_sol_cycles"], legacy["t_sol_ms"] = 10_000_000, 5.5555
+    assert reference_clock_mhz(legacy) is None
+    with pytest.raises(MissingReferenceClock, match="D63"):
+        bound_ms(legacy)
+
+
+@pytest.mark.parametrize("stamp", [None, 0, 0.0, -1800.0, "", "fast"])
+def test_a_stamp_that_names_no_clock_is_absent_not_repaired(stamp):
+    """`f_ref_mhz: 0` is as uninterpretable as no key at all -- refuse both."""
+    w = _stamped(1e7, 1024, 1800.0)
+    w["f_ref_mhz"] = stamp
+    assert reference_clock_mhz(w) is None
+    with pytest.raises(MissingReferenceClock):
+        bound_ms(w)
+
+
+def test_bound_ms_round_trips_the_clock_it_was_written_at():
+    """A stamped record's stored ms must be its own bound at its own clock.
+
+    This is the identity that makes the stamp worth having: with it, a reader
+    can re-derive the column and check it; without it, the column can only be
+    believed.
+    """
+    for f_ref in (1800.0, 2400.0):
+        for compute_cycles, memory_bytes in [(1e7, 1024), (1.0, 8_000_000),
+                                             (0.0, 4096), (31142.6, 150994944)]:
+            w = _stamped(compute_cycles, memory_bytes, f_ref)
+            assert bound_ms(w) == t_sol_ms_at(w, w["f_ref_mhz"])
+
+
+def test_bound_ms_returns_the_stored_column_and_does_not_re_clock_it():
+    """Reading is not converting. `bound_ms` hands back what the file says.
+
+    And the file may well say 1.8 GHz: 2902 of 2998 MI355X records do. A reader
+    that "helpfully" evaluated at the arch peak instead would shrink a
+    compute-bound bound by exactly the 1.333x that is D63, in the undetectable
+    direction.
+    """
+    at18 = _stamped(1e7, 1024, 1800.0)                 # compute-bound
+    assert bound_ms(at18) == at18["t_sol_ms"]
+    assert bound_ms(at18) == pytest.approx(
+        t_sol_ms_at(at18, 2400.0) * (2400.0 / 1800.0), rel=1e-9)
+
+
+def test_two_records_on_two_clocks_are_each_legible_and_do_not_average():
+    """The mixed file, in miniature: same workload, two f_ref, both readable."""
+    at18 = _stamped(1e7, 1024, 1800.0)
+    at24 = _stamped(1e7, 1024, 2400.0)
+    assert reference_clock_mhz(at18) == 1800.0
+    assert reference_clock_mhz(at24) == 2400.0
+    assert bound_ms(at18) / bound_ms(at24) == pytest.approx(4 / 3, rel=1e-9)
+    # ...and the clock-free re-derivation agrees with both, which is why the
+    # published bound never carried the defect.
+    assert t_sol_ms_at(at18, 2000.0) == t_sol_ms_at(at24, 2000.0)
+
+
+def test_bound_ms_distinguishes_no_clock_from_no_bound():
+    """A stamped record with no `t_sol_ms` is not a bounded workload.
+
+    Different failure, different exception: conflating them would let a caller
+    "handle" a missing clock by skipping records that simply have no bound.
+    """
+    unbounded = {"f_ref_mhz": 2400.0, "error": "SOLAR stage 1 produced nothing"}
+    with pytest.raises(KeyError) as e:
+        bound_ms(unbounded)
+    assert not isinstance(e.value, MissingReferenceClock)
+
+
+def test_the_field_name_is_shared_with_the_writers():
+    """One spelling, so the two tier writers and every reader cannot drift."""
+    assert REFERENCE_CLOCK_FIELD == "f_ref_mhz"
+    # Comparable for equality across writers -- `1.005 * 1000` is not.
+    assert sol_bounds._mhz(2.4) == 2400.0
+    assert sol_bounds._mhz(1.8) == 1800.0
+    assert sol_bounds._mhz(1.005) == 1005.0
+
+
+# ---- the writer side of the same contract: scripts/sol_bounds.py -----------
+
+def _problem(*f_refs) -> dict:
+    """A per-problem result whose bounded workloads carry *f_refs* in order.
+
+    `None` stands for a record written before the field existed -- the shape
+    every cached result on disk has today.
+    """
+    workloads = {}
+    for i, f in enumerate(f_refs):
+        w = {"t_sol_cycles": 100, "t_sol_ms": 0.001}
+        if f is not None:
+            w["f_ref_mhz"] = f
+        workloads[f"uuid-{i}"] = w
+    workloads["uuid-failed"] = {"error": "RuntimeError: traced nothing"}
+    return {"status": "ok", "workloads": workloads}
+
+
+def test_header_states_the_arch_clock_when_every_record_agrees():
+    results = {"L1__001": _problem(2400.0, 2400.0), "L2__002": _problem(2400.0)}
+    assert sol_bounds._header_f_ref(results, 2400.0) == (2400.0, [2400.0], 0)
+
+
+def test_header_refuses_to_pick_when_the_body_holds_two_clocks():
+    """The mixed file: 96 records at 2.4 GHz among 2902 at 1.8, header 2400."""
+    results = {"L1__005": _problem(2400.0), "L1__037": _problem(1800.0, 1800.0)}
+    header, observed, unstamped = sol_bounds._header_f_ref(results, 2400.0)
+    assert header is None
+    assert observed == [1800.0, 2400.0] and unstamped == 0
+
+
+def test_header_refuses_a_body_that_is_uniform_but_not_at_the_arch_clock():
+    """D63 exactly: one clock throughout the body, another one in the header.
+
+    The file was not internally inconsistent when it first shipped -- it was
+    uniformly at 1.8 GHz under a header of 2400, because the header came from
+    `--freq-mhz` and the body came from a resumed cache. Deriving the header
+    from the arch config the run actually used is what makes this detectable.
+    """
+    results = {"L1__037": _problem(1800.0, 1800.0, 1800.0)}
+    assert sol_bounds._header_f_ref(results, 2400.0) == (None, [1800.0], 0)
+
+
+def test_header_refuses_a_body_with_unstamped_records():
+    """Silence is not agreement, however plausible the header's number is."""
+    results = {"L1__037": _problem(2400.0, None, None)}
+    assert sol_bounds._header_f_ref(results, 2400.0) == (None, [2400.0], 2)
+
+
+def test_a_file_with_no_bounds_at_all_may_still_state_its_derivation_clock():
+    """Nothing to contradict the arch config, and the gap is reported elsewhere."""
+    results = {"L1__037": {"status": "failed", "workloads": {}}}
+    assert sol_bounds._header_f_ref(results, 2400.0) == (2400.0, [], 0)
+
+
+def test_resume_reuses_a_cache_only_at_the_clock_it_was_computed_at():
+    """The root cause: the per-problem cache is keyed by problem, not by clock.
+
+    A resume that serves a 1.8 GHz body to a 2.4 GHz run is how a header came
+    to describe an invocation while the body described a cache. Both the
+    wrong-clock and the does-not-say cases must miss.
+    """
+    assert sol_bounds._resume_clock_mismatch(_problem(2400.0, 2400.0), 2400.0) is None
+    assert "1800" in sol_bounds._resume_clock_mismatch(_problem(1800.0), 2400.0)
+    assert "before" in sol_bounds._resume_clock_mismatch(_problem(None), 2400.0)
+    # A cached failure has no bounds to be at the wrong clock, and re-running it
+    # is already what resume does -- so this must not be reported as a clock
+    # mismatch on top.
+    assert sol_bounds._resume_clock_mismatch(
+        {"status": "failed", "workloads": {}}, 2400.0) is None

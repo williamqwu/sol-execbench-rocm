@@ -43,9 +43,30 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "scripts"))
 
 import inputs  # noqa: E402
 from sol_execbench.sol_score import sol_score  # noqa: E402
+
+# WHICH T_SOL COLUMN THE BOARD IS A VIEW OF (D63).
+#
+# A manifest carries two millisecond columns. `t_sol_ms` is a cycle count over
+# whatever reference clock the tier that wrote it used -- 1.8 GHz for one MI355X
+# tier and 2.4 GHz for the other. `t_sol_ms_published` is the bound the manifest
+# publishes and the one every score is computed against, re-derived at the
+# minimum of the T_b measurement's own clock bracket.
+#
+# The board was reading the first. Over `artifacts/09-MI355X/manifest-v4.json`
+# the two differ on 3685 of 3717 scoreable workloads (0.7481x - 1.3370x), which
+# moves 147 workloads into a different `bound_quality` band and 214 into a
+# different headroom band -- board-visible, in the one column whose whole
+# purpose is to tell a reader how much a score means.
+#
+# Imported from the D39 report rather than reimplemented here, for the same
+# reason `sol_score` is imported from the harness: the board is a VIEW, and a
+# view that re-derives its source's rules stops being one. Two consumers quietly
+# disagreeing about which column a millisecond lives in is how D63 happened.
+from bound_headroom import PUBLISHED, published_bound_ms  # noqa: E402
 
 DATASET = ROOT / "data" / "SOL-ExecBench" / "benchmark"
 # NVIDIA's published B200 figures, if they have been fetched. Optional: absent
@@ -292,21 +313,30 @@ def bound_quality(t_sol: float | None, t_b: float | None) -> tuple[str | None,
 
 
 def headroom_bands(manifest: dict) -> dict:
-    """Count scoreable workloads per `T_b / T_SOL` band."""
+    """Count scoreable workloads per `T_b / T_SOL` band.
+
+    `T_SOL` is the published bound; see `published_bound_ms` and the note at the
+    top of this file. `bases` says which column each one came out of, so a
+    reader of `/methodology` can tell a distribution taken against the published
+    bound from one taken against a legacy column with no clock on it.
+    """
     counts = {label: 0 for _, label in HEADROOM_BANDS}
+    bases: dict[str, int] = {}
     total = 0
     for prob in manifest["problems"].values():
         for w in prob.get("workloads", {}).values():
-            t_sol, t_b = w.get("t_sol_ms"), w.get("t_b_ms")
-            if not t_sol or not t_b or t_sol <= 0:
+            t_sol, basis = published_bound_ms(w)
+            t_b = w.get("t_b_ms")
+            if not t_sol or not t_b:
                 continue
+            bases[basis] = bases.get(basis, 0) + 1
             h = t_b / t_sol
             total += 1
             for lo, label in HEADROOM_BANDS:
                 if h >= lo:
                     counts[label] += 1
                     break
-    return {"total": total, "bands": counts}
+    return {"total": total, "bands": counts, "bound_basis": dict(sorted(bases.items()))}
 
 
 def ingest_meta(conn, manifest: dict, part: str,
@@ -567,6 +597,7 @@ def ingest_problems(conn, manifest: dict) -> None:
     exported = dataset_meta()
     n_axes = n_b200 = n_defn = 0
     sources: dict[str, int] = {}
+    bound_bases: dict[str, int] = {}
     for key, p in manifest["problems"].items():
         category, name = key.split("__", 1)
         defn, wl_pairs, src = problem_source(key, exported)
@@ -576,8 +607,13 @@ def ingest_problems(conn, manifest: dict) -> None:
         b200_index = b200_by_axes(published, key)
 
         wls = p.get("workloads", {})
-        heads = [w["t_b_ms"] / w["t_sol_ms"] for w in wls.values()
-                 if w.get("scoreable") and w.get("t_sol_ms") and w.get("t_b_ms")]
+        # Against the published bound, so the figure on `/problems` and the one
+        # in each row's `bound_headroom` are the same number.
+        heads = []
+        for w in wls.values():
+            t_sol = published_bound_ms(w)[0]
+            if w.get("scoreable") and t_sol and w.get("t_b_ms"):
+                heads.append(w["t_b_ms"] / t_sol)
 
         info = deferred_info.get(key) or {}
         conn.execute(
@@ -597,6 +633,22 @@ def ingest_problems(conn, manifest: dict) -> None:
 
         for uuid, w in wls.items():
             tol = w.get("tolerance") or {}
+            # The T_SOL this row IS, throughout: the ms column, the cycle
+            # column, the headroom and the quality word all come from the
+            # published bound, so a reader who divides the two printed numbers
+            # gets the printed headroom. `t_sol_cycles` has to move with it --
+            # the memory term is a fixed TIME, so its cycle count is a function
+            # of the clock, and a millisecond at the bracket minimum beside a
+            # cycle count at a reference clock is a pair that describes no
+            # frequency at all. `schema.sql` names these columns `t_sol_ms` /
+            # `t_sol_cycles` without qualification, which is what the board's
+            # T_SOL means; where the manifest publishes no bound (both frozen
+            # MI350X manifests) these are the legacy columns exactly as before.
+            t_sol_ms, t_sol_basis = published_bound_ms(w)
+            bound_bases[t_sol_basis] = bound_bases.get(t_sol_basis, 0) + 1
+            t_sol_cycles = (w.get("t_sol_cycles_published")
+                            if t_sol_basis == PUBLISHED
+                            else None) or w.get("t_sol_cycles")
             # The manifest has no axes; the dataset does. Manifest first only
             # so that a future manifest which grows the field wins over a
             # dataset that may not be checked out.
@@ -615,13 +667,13 @@ def ingest_problems(conn, manifest: dict) -> None:
                     b200_baseline_ms,b200_sol_ms,dataset_index)
                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (key, uuid, json.dumps(axes),
-                 w.get("t_sol_cycles"), w.get("t_sol_ms"), w.get("t_sol_source"),
+                 t_sol_cycles, t_sol_ms, w.get("t_sol_source"),
                  w.get("t_sol_cycles_solar"), w.get("t_sol_cycles_traffic"),
                  w.get("sol_bottleneck"), w.get("t_b_ms"), w.get("t_b_variant"),
                  tol.get("max_atol"), tol.get("max_rtol"),
                  tol.get("required_matched_ratio"), tol.get("_derivation"),
                  1 if w.get("scoreable") else 0,
-                 *bound_quality(w.get("t_sol_ms"), w.get("t_b_ms")),
+                 *bound_quality(t_sol_ms, w.get("t_b_ms")),
                  b200_baseline, b200_sol, from_dataset.get("i")))
 
     # Counted and stated, not silently partial. The B200 overlay covers all but
@@ -648,6 +700,14 @@ def ingest_problems(conn, manifest: dict) -> None:
         # the normal state of a deploy and is not a defect; "" is the state
         # that loses five sections of every problem page.
         ("dataset_source", max(sources, key=sources.get) if sources else ""),
+        # Which T_SOL column every workload row on this board came out of.
+        # `published` is the manifest's own bound; `legacy_unstamped` is
+        # `t_sol_ms` with no `f_ref_mhz` on the record, which is all 3717 of
+        # both frozen MI350X manifests and is a fact a reader comparing the two
+        # parts' headroom distributions needs. Counted, never assumed -- the
+        # difference between a board that is a view of the published bound and
+        # one that is not is otherwise invisible.
+        ("bound_basis", json.dumps(dict(sorted(bound_bases.items())))),
     ])
     if published:
         meta_src = json.loads(NVIDIA_B200.read_text())
@@ -673,12 +733,23 @@ def ingest_problems(conn, manifest: dict) -> None:
 
 
 def bounds(manifest: dict) -> dict:
-    """(problem, uuid) -> (t_sol_ms, t_b_ms) for every scoreable workload."""
+    """(problem, uuid) -> (T_SOL_ms, t_b_ms) for every scoreable workload.
+
+    T_SOL is the PUBLISHED bound (`published_bound_ms`), because these pairs are
+    fed to `sol_score` for the four PyTorch variants and a score against the
+    legacy reference-clock column is a score against a bound nothing else on the
+    board uses. Not the same thing as the per-measurement bound
+    `score_solutions.py` computes -- that one is re-derived at each submission's
+    OWN bracket and this manifest cannot supply it -- but the published bound is
+    the closest thing a manifest reader has, and it is what the agent
+    submissions were scored against.
+    """
     out = {}
     for key, p in manifest["problems"].items():
         for uuid, w in p.get("workloads", {}).items():
-            if w.get("scoreable") and w.get("t_sol_ms") and w.get("t_b_ms"):
-                out[(key, uuid)] = (w["t_sol_ms"], w["t_b_ms"])
+            t_sol = published_bound_ms(w)[0]
+            if w.get("scoreable") and t_sol and w.get("t_b_ms"):
+                out[(key, uuid)] = (t_sol, w["t_b_ms"])
     return out
 
 

@@ -25,7 +25,15 @@ directions that do not share an implementation with the SOLAR bridge:
      the check that catches a graph extracted from the wrong shapes.
 
   D  T_SOL <= best measured.  Requires task 06. Reported as pending until
-     `--t-b` is supplied.
+     `--t-b` is supplied. T_SOL is re-derived at the clock bracket the anchor
+     measurement itself recorded -- never read off the stored reference-clock
+     column, which is what published 120 phantom violations (D63).
+
+Every count below is a claim about specific input files, so the report records
+what it was generated from -- manifest, T_SOL tiers, T_b tree, arch config, each
+with a digest -- in a machine-readable comment near the top. `verify_artifacts.py`
+refuses to read the A-published count out of a report that record does not bind
+to the manifest under audit. Before that, the gate passed for any manifest.
 
 Upstream's B200 SOL times are NOT a source here: the shipped dataset carries no
 per-workload SOL figures, and a comparison number invented for the occasion
@@ -37,9 +45,11 @@ would be worse than no comparison at all. Checks A-C are internal and stronger.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -47,6 +57,36 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "src"))
 
 from provenance import stamp  # noqa: E402
+
+# The bound library, for section D. Imported at module level and guarded,
+# because if it is unavailable section D must say so and evaluate NOTHING --
+# falling back to the stored `t_sol_ms` column is the D63 read this whole file
+# now exists to stop doing.
+try:                                                       # pragma: no cover
+    from sol_execbench.core.bench.clock_bracket import clock_interval
+    from solexbench_rocm.t_sol_at import (
+        MissingBoundTerms, MissingReferenceClock, bound_ms, t_sol_interval,
+    )
+except ImportError:                                        # pragma: no cover
+    clock_interval = None
+
+    class MissingBoundTerms(KeyError):
+        pass
+
+    class MissingReferenceClock(KeyError):
+        pass
+
+    def bound_ms(w):                                       # noqa: D103
+        raise MissingReferenceClock("solexbench_rocm.t_sol_at unavailable")
+
+    def t_sol_interval(w, a, b):                           # noqa: D103
+        raise MissingBoundTerms("solexbench_rocm.t_sol_at unavailable")
+
+
+#: Marker for the machine-readable record of what this report was generated
+#: FROM. `verify_artifacts.py` refuses to read a count out of this report
+#: unless the record names the manifest it is gating -- see `input_bindings`.
+INPUTS_MARKER = "sol-cross-checks-inputs"
 
 DTYPE_BYTES = {
     "float64": 8, "float32": 4, "float16": 2, "bfloat16": 2,
@@ -178,6 +218,104 @@ def definition_of(data_root: str, key: str) -> dict:
                        "definition.json").read_text())
 
 
+def _sha256_of_file(p: Path) -> str:
+    h = hashlib.sha256()
+    with p.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def file_binding(path) -> dict:
+    """Identity of one input file: its path, its size, its mtime, its sha256.
+
+    `present: False` for a path that was not supplied or does not exist, which
+    is a *statement* -- "this report was generated without that input" -- and is
+    what lets a gate refuse instead of assuming.
+    """
+    if not path:
+        return {"path": None, "present": False}
+    p = Path(path)
+    if not p.is_file():
+        return {"path": str(path), "present": False}
+    st = p.stat()
+    return {
+        "path": str(path),
+        "abspath": str(p.resolve()),
+        "present": True,
+        "bytes": st.st_size,
+        "mtime_utc": datetime.fromtimestamp(st.st_mtime,
+                                            timezone.utc).isoformat(),
+        "sha256": _sha256_of_file(p),
+        "digest_kind": "sha256-of-contents",
+    }
+
+
+def dir_binding(path, pattern: str = "*.json") -> dict:
+    """Identity of an input DIRECTORY -- the T_b tree.
+
+    Digested over each file's `(name, size, mtime_ns)` rather than its bytes:
+    `artifacts/06-MI355X/authoritative-merged` is 235 files and hundreds of
+    megabytes, and re-reading all of it on every report would make the report
+    expensive enough to skip. That is a weaker digest than sha256-of-contents
+    and it says so in `digest_kind`, so nobody reads more into it than it
+    carries: it detects a different tree, a re-measured tree and a re-merged
+    tree, and it does not detect an edit that preserves size and mtime.
+    """
+    if not path:
+        return {"path": None, "present": False}
+    p = Path(path)
+    if not p.is_dir():
+        return {"path": str(path), "present": False}
+    files = sorted(f for f in p.glob(pattern) if f.is_file())
+    h = hashlib.sha256()
+    total = 0
+    for f in files:
+        st = f.stat()
+        total += st.st_size
+        h.update(f"{f.name}\0{st.st_size}\0{st.st_mtime_ns}\n".encode())
+    return {
+        "path": str(path),
+        "abspath": str(p.resolve()),
+        "present": True,
+        "n_files": len(files),
+        "bytes": total,
+        "sha256": h.hexdigest(),
+        "digest_kind": "sha256-of-name+size+mtime-per-file",
+    }
+
+
+def input_bindings(a) -> dict:
+    """What this report was generated FROM, as a machine-readable record.
+
+    **Why a report has to carry this.** Every count below is a claim about
+    specific input files, and the report used to name none of them. Task 03's
+    gate then read the A-published count out of whichever `cross-checks.md`
+    happened to be on disk and compared it against whichever manifest was passed
+    to `verify_artifacts.py --manifest`: measured on this tree, a report
+    generated against `manifest-v4.json` produced `[PASS] check A-published`
+    while `--manifest manifest-v1.json` and `--manifest manifest-v2.json` were
+    under audit -- and check D, which reads the manifest directly, failed on 54
+    of 1801 and 10 of 2078 respectively. A gate that cannot fail must not be
+    able to pass either, so the gate now refuses a report it cannot bind to the
+    manifest in front of it.
+
+    The digest is the binding, not the path: a manifest rebuilt in place at the
+    same path is a different manifest, and a report generated against the old
+    one is stale evidence about the new one.
+    """
+    return {
+        "manifest": file_binding(a.manifest),
+        "t_sol": file_binding(a.t_sol),
+        "t_sol_traffic": file_binding(a.t_sol_traffic),
+        "t_b": dir_binding(a.t_b),
+        "arch": file_binding(a.arch),
+        # Path only: the dataset is thousands of files, it is not an artifact of
+        # this repo, and no count here is read out of it by a gate.
+        "data": {"path": str(a.data), "digest_kind": "path-only"},
+    }
+
+
 def load_arch(path: Path) -> dict:
     out: dict[str, float] = {}
     for line in path.read_text().splitlines():
@@ -229,6 +367,7 @@ def main() -> int:
     a_checked = a_violation = 0
     a_worst: list[tuple] = []
     b_checked = b_bw_violation = b_flops_violation = 0
+    b_clocked = b_unclocked = 0
     b_worst_bw: list[tuple] = []
     unresolved = 0
     declared_by: dict[tuple[str, str], int] = {}
@@ -270,7 +409,28 @@ def main() -> int:
             # `t_sol_ms` is the bound in time and is what the manifest
             # publishes. Verified against the invariant: for a memory-bound
             # workload, memory_bytes / t_sol_ms lands on DRAM peak exactly.
-            t_ms = w.get("t_sol_ms")
+            #
+            # Read through `t_sol_at.bound_ms` -- the choke point -- rather than
+            # off the record, so that a record which does not say what clock its
+            # column is on is COUNTED as such instead of being read anyway.
+            # Today every record in `artifacts/03-MI355X/t_sol.json` is
+            # unstamped, so the count is the whole population and the check
+            # keeps its coverage; when the tier is re-derived with `f_ref_mhz`
+            # the count goes to zero and the check becomes a clock-attributed
+            # one without any other change here. Falling back is deliberate and
+            # is not a silent one: an unstamped column still catches a units
+            # slip, which is what B is for, and dropping those records would
+            # take this check from 2998 workloads to 0 -- a gate that cannot
+            # fail, which is worse than one reading an ambiguous column in the
+            # open.
+            try:
+                t_ms = bound_ms(w)
+                b_clocked += 1
+            except MissingReferenceClock:
+                t_ms = w.get("t_sol_ms")
+                b_unclocked += 1
+            except KeyError:
+                t_ms = None
             seconds = (t_ms / 1000.0) if t_ms else (w["t_sol_cycles"] / freq_hz)
             if seconds <= 0:
                 continue
@@ -312,26 +472,66 @@ def main() -> int:
     c_bad = sum(1 for _, _, _, v in c_rows if v == "MISMATCH")
 
     # -- D ----------------------------------------------------------------
+    # T_SOL is re-derived at the clock bracket the ANCHOR MEASUREMENT recorded,
+    # exactly as `verify_artifacts._bound_for` does for the submissions. It used
+    # to read `w["t_sol_ms"]` -- the stored reference-clock column -- and on
+    # MI355X that column is written at 1.8 GHz while the anchors were measured
+    # near 2.4, so this section published "**120 VIOLATIONS**, each one a config
+    # error" for the length of the D63 correction that removed them. Re-derived
+    # at each winner's own bracket the same 2694 workloads give 0; at a flat
+    # 2400 MHz they also give 0. The 120 were clock arithmetic, all on the same
+    # 13 problems the D63 tier fix moved (L1__035, L1__037, L1__054, L2__002,
+    # L2__019 among them), and the only gate that had been red because of that
+    # number went green in the same session -- so the claim went on being
+    # published with nothing watching it.
+    #
+    # A winner with no usable bracket, or a T_SOL record with no terms, is
+    # counted as NOT CHECKABLE and named in the status line. It is not silently
+    # compared against the stored column: that is the read this correction
+    # exists to retire, and a fallback would quietly reintroduce it for exactly
+    # the records least able to survive it.
     d_rows: list[tuple] = []
     d_status = "PENDING — needs task 06 (`--t-b artifacts/06/authoritative`)"
-    if a.t_b:
+    if a.t_b and clock_interval is None:
+        d_status = ("NOT EVALUATED — `solexbench_rocm.t_sol_at` is not "
+                    "importable here, and this section will not fall back to "
+                    "the stored reference-clock column to produce a number")
+    elif a.t_b:
         tb_dir = Path(a.t_b)
-        checked = viol = 0
+        checked = viol = no_bracket = no_terms = 0
         for f in sorted(tb_dir.glob("*.json")):
             tb = json.loads(f.read_text())
             entry = problems.get(tb.get("problem", ""), {})
             for uuid, win in (tb.get("winner_by_workload") or {}).items():
                 w = (entry.get("workloads") or {}).get(uuid)
-                if not w or w.get("t_sol_ms") is None:
+                # Bounded-ness is the cycles column, not the millisecond one:
+                # `t_sol_ms` is the ambiguous column this section stopped
+                # reading, and it should not go on deciding what gets read.
+                if not w or w.get("t_sol_cycles") is None:
+                    continue
+                span = clock_interval(win)
+                if span is None:
+                    no_bracket += 1
+                    continue
+                try:
+                    t_sol = t_sol_interval(w, *span)["t_sol_ms_published"]
+                except (MissingBoundTerms, ValueError):
+                    no_terms += 1
                     continue
                 checked += 1
-                if w["t_sol_ms"] > win["t_b_ms"] * 1.0001:
+                if t_sol > win["t_b_ms"] * 1.0001:
                     viol += 1
-                    d_rows.append((tb["problem"], uuid, w["t_sol_ms"],
+                    d_rows.append((tb["problem"], uuid, t_sol,
                                    win["t_b_ms"], win["variant"]))
-        d_status = (f"{checked - viol}/{checked} workloads satisfy "
-                    f"T_SOL <= T_b" + ("" if not viol else
-                    f" — **{viol} VIOLATIONS**, each one a config error"))
+        d_status = (
+            f"{checked - viol}/{checked} workloads satisfy T_SOL <= T_b, with "
+            f"T_SOL re-derived at each anchor's own clock bracket (minimum-clock "
+            f"end, the tightest); {no_bracket} anchors carry no usable bracket "
+            f"and {no_terms} T_SOL records carry no separable terms, so those "
+            f"are NOT CHECKABLE rather than compared against the stored "
+            f"reference-clock column"
+            + ("" if not viol else
+               f" — **{viol} VIOLATIONS**, each one a config error"))
 
     # -- D as PUBLISHED ----------------------------------------------------
     # Everything above audits ONE tier: the SOLAR bound in --t-sol. That is not
@@ -392,11 +592,36 @@ def main() -> int:
     # and named, never silently dropped: the excuse is a measurement, so if T_b
     # is missing there is no excuse and the workload counts as a violation.
     #
-    # Direction matters. A published T_SOL below the true floor makes
-    # `(T_k - T_SOL) / (T_b - T_SOL)` too small for any submission slower than
-    # T_b, which is most of them, so S is INFLATED. Nothing downstream can see
-    # it -- unlike T_SOL > T_b, which check D-published catches by comparison
-    # with a real measurement. That is why this one is a gate.
+    # Direction matters, and it is CONDITIONAL. This comment used to state it
+    # as though it were not ("too small for any submission slower than T_b,
+    # which is most of them, so S is INFLATED"), the emitted violation line
+    # below inherited the unqualified form, and so did
+    # `docs/issues/mi355x-bound-quality.md` ("S is inflated for everyone") --
+    # while this same file's check-A report body says the opposite of all three
+    # ("understated, not inflated ... the safe direction"). Differentiating the
+    # score settles it:
+    #
+    #     S = (T_b - T_SOL) / (T_b + T_k - 2*T_SOL)
+    #     dS/dT_SOL = (T_b - T_k) / (T_b + T_k - 2*T_SOL)^2
+    #
+    # so a published T_SOL below the true floor DEFLATES S for a submission
+    # FASTER than T_b and inflates it only for one SLOWER than T_b. "Most of
+    # them" was wrong on this corpus: measured over `artifacts/10`, 1549 of
+    # 2078 PASSED MI355X records (74.5%) are faster than their own T_b, so the
+    # majority effect of a too-small bound is deflation.
+    #
+    # It is still a gate, and the reason is unchanged and is not the sign of
+    # dS: a bound below the unavoidable minimum is not a bound, and NOTHING
+    # downstream can see it -- unlike T_SOL > T_b, which check D-published
+    # catches by comparison with a real measurement.
+    #
+    # Know what this check cannot see. The floor is READ from the traffic
+    # tier's own `memory_bytes` (below), so it moves whenever that tier's byte
+    # count moves -- the D18 gather correction (264 workloads) and the causal
+    # mask (64) each lowered the published bound and its floor together, and
+    # this check reported the same counts before and after by construction. It
+    # gates the published bound against the traffic tier; it does not audit the
+    # traffic tier.
     a_pub_status = ("not evaluated — pass --manifest to audit the published "
                     "bound against the declared-traffic floor")
     a_pub_rows: list[tuple] = []
@@ -442,20 +667,46 @@ def main() -> int:
                     pviol += 1
                     a_pub_rows.append((floor_ms / ts, key, uuid, declared,
                                        ts, floor_ms, w.get("t_sol_source")))
+        # The zero is STATED, not implied by the absence of a clause. While it
+        # was implied, "no VIOLATIONS string in this section" and "no
+        # A-published section at all" were the same observation, and
+        # `verify_artifacts.py`'s unanchored search for that string ran 3123
+        # characters past this section into section D and gated on D's count --
+        # reporting "120 published bounds below the floor" against a report
+        # whose own A-published line says 3688/3717 sit at or above it. A
+        # reader is owed what the parser is owed: the number this section
+        # found, whatever it is.
         a_pub_status = (
             f"{pchecked - pviol - prefuted}/{pchecked} PUBLISHED workloads "
             f"sit at or above their declared-traffic floor; {prefuted} have a "
             f"floor refuted by measurement (floor > T_b); {punknown} not "
-            f"checkable" + ("" if not pviol else
+            f"checkable" + (" — **0 VIOLATIONS**." if not pviol else
             f" — **{pviol} VIOLATIONS across "
             f"{len({r[1] for r in a_pub_rows})} problems**. Those bounds are "
-            f"below the unavoidable minimum, so their scores are inflated."))
+            f"below the unavoidable minimum, so they are not bounds: S is "
+            f"deflated for every submission faster than its T_b and inflated "
+            f"for every one slower, and no measurement can detect either."))
 
     # -- report -----------------------------------------------------------
+    bindings = input_bindings(a)
+    man_b = bindings["manifest"]
+    man_line = (
+        f"Generated against manifest `{man_b['path']}` "
+        f"(sha256 `{man_b['sha256'][:16]}`, {man_b['bytes']:,} bytes, mtime "
+        f"{man_b['mtime_utc']}). Every count in this section is a claim about "
+        f"THAT file and about no other."
+        if man_b.get("present") else
+        "Generated with **no --manifest**, so this section makes no claim about "
+        "any published bound.")
     L = [
         "# Task 03 — T_SOL cross-checks",
         "",
         f"<!-- {json.dumps(stamp('03-cross-checks')['_provenance'], default=str)} -->",
+        "",
+        # Machine-readable, and load-bearing: verify_artifacts.py refuses to
+        # read the A-published count out of this report unless this record
+        # binds it to the manifest under audit.
+        f"<!-- {INPUTS_MARKER} {json.dumps(bindings, default=str)} -->",
         "",
         "Upstream's B200 SOL times are not used as a comparison anywhere in "
         "this document. The shipped dataset carries no per-workload SOL "
@@ -524,6 +775,8 @@ def main() -> int:
         "counted and listed, and a missing T_b is no excuse: without a "
         "measurement to refute it, the floor stands.",
         "",
+        man_line,
+        "",
         a_pub_status,
         "",
     ]
@@ -550,6 +803,10 @@ def main() -> int:
         f"* checked: **{b_checked}** workloads",
         f"* implied bandwidth above DRAM peak: **{b_bw_violation}**",
         f"* implied FLOPS above the precision's peak: **{b_flops_violation}**",
+        f"* read through `t_sol_at.bound_ms` at the record's own stated clock: "
+        f"**{b_clocked}**",
+        f"* read off an unstamped `t_sol_ms` column (no `f_ref_mhz`, so the "
+        f"clock is the file's word and not the record's): **{b_unclocked}**",
         "",
         "## C — hand-derived MAC counts",
         "",

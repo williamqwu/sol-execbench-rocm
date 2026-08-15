@@ -1,6 +1,8 @@
 # Task 03 — T_SOL cross-checks
 
-<!-- {"task": "03-cross-checks", "utc": "2026-08-15T06:17:26.377576+00:00", "git_sha": "0a03b6903d23a035fe7027f391ae774aeef5dbeb-dirty", "host": "mia1-p02-g46", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X"]}, "rocm": {"version": "7.2.0", "driver": "6.16.6", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"}, "f_lock_mhz": null, "visible_devices": null} -->
+<!-- {"task": "03-cross-checks", "utc": "2026-08-15T10:20:25.134972+00:00", "git_sha": "7e751eccb8e45a0d0efbcb8c0db8f6eac57a837e-dirty", "host": "mia1-p02-g46", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X"]}, "rocm": {"version": "7.2.0", "driver": "6.16.6", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"}, "f_lock_mhz": null, "visible_devices": null, "part": "MI355X", "part_source": "detected", "part_detected": "MI355X"} -->
+
+<!-- sol-cross-checks-inputs {"manifest": {"path": "artifacts/09-MI355X/manifest-v4.json", "abspath": "/work/artifacts/09-MI355X/manifest-v4.json", "present": true, "bytes": 11650652, "mtime_utc": "2026-08-15T10:20:02.000390+00:00", "sha256": "a8d32614bd18cd2c177a8db6f783df3e04a78114c2feb5f4ea408d8d7c1165d6", "digest_kind": "sha256-of-contents"}, "t_sol": {"path": "artifacts/03-MI355X/t_sol.json", "abspath": "/work/artifacts/03-MI355X/t_sol.json", "present": true, "bytes": 3867935, "mtime_utc": "2026-08-15T09:55:49.673383+00:00", "sha256": "80b18a8d07abf334900558da40d2aee7d2d6f861cd7fa2bb256a777d5d4a78b5", "digest_kind": "sha256-of-contents"}, "t_sol_traffic": {"path": "artifacts/03-MI355X/t_sol_traffic.json", "abspath": "/work/artifacts/03-MI355X/t_sol_traffic.json", "present": true, "bytes": 3502720, "mtime_utc": "2026-08-15T10:19:53.450541+00:00", "sha256": "5dde25751bd548b2b0260afea34a3d6f2797bec7ec695dc1696fd54fa016b074", "digest_kind": "sha256-of-contents"}, "t_b": {"path": "artifacts/06-MI355X/authoritative-merged", "abspath": "/work/artifacts/06-MI355X/authoritative-merged", "present": true, "n_files": 231, "bytes": 15999212, "sha256": "74a45663a8d2ef7be3db2e48a85b6fb827a2626d3426a219bdd6af4b07c9456d", "digest_kind": "sha256-of-name+size+mtime-per-file"}, "arch": {"path": "SOLAR/configs/arch/MI355X.yaml", "abspath": "/work/SOLAR/configs/arch/MI355X.yaml", "present": true, "bytes": 1314, "mtime_utc": "2026-08-14T17:03:23.734249+00:00", "sha256": "857ed3e37f325ad25fe824c5f014683d6760bfe31a65c915caee226ea18cc96e", "digest_kind": "sha256-of-contents"}, "data": {"path": "data/SOL-ExecBench/benchmark", "digest_kind": "path-only"}} -->
 
 Upstream's B200 SOL times are not used as a comparison anywhere in this document. The shipped dataset carries no per-workload SOL figures, so there is nothing to compare against that was not invented here — and an invented comparison would be worse than none. The three checks below are internal to this platform and are stronger for it.
 
@@ -95,7 +97,9 @@ The shortfall is concentrated: **66 problems**, not a scatter across the set. Tw
 
 A floor that lands ABOVE the measured T_b is refuted rather than violated — the kernel demonstrably moved less than the definition declares, which is what an indexed cache looks like. Refuted rows are counted and listed, and a missing T_b is no excuse: without a measurement to refute it, the floor stands.
 
-3688/3717 PUBLISHED workloads sit at or above their declared-traffic floor; 29 have a floor refuted by measurement (floor > T_b); 0 not checkable
+Generated against manifest `artifacts/09-MI355X/manifest-v4.json` (sha256 `a8d32614bd18cd2c`, 11,650,652 bytes, mtime 2026-08-15T10:20:02.000390+00:00). Every count in this section is a claim about THAT file and about no other.
+
+3688/3717 PUBLISHED workloads sit at or above their declared-traffic floor; 29 have a floor refuted by measurement (floor > T_b); 0 not checkable — **0 VIOLATIONS**.
 
 Floors refuted by measurement, by problem: `L1__018_fused_rope_with_qk_norm_and_kv_cache_update` (13), `L1__042_moe_expert_load_balancing_and_token_capacity_backward` (1), `L1__057_mtp_shifted_embedding_with_dual_rms_norm_fusion` (9), `Quant__023_fp8_mamba2_ssm_discretization` (6)
 
@@ -106,6 +110,8 @@ Arch config: DRAM 8.00 TB/s at 2.4 GHz.
 * checked: **2998** workloads
 * implied bandwidth above DRAM peak: **0**
 * implied FLOPS above the precision's peak: **0**
+* read through `t_sol_at.bound_ms` at the record's own stated clock: **2998**
+* read off an unstamped `t_sol_ms` column (no `f_ref_mhz`, so the clock is the file's word and not the record's): **0**
 
 ## C — hand-derived MAC counts
 
@@ -136,35 +142,7 @@ MISMATCHes: **0**
 
 ## D — T_SOL <= best measured time
 
-2574/2694 workloads satisfy T_SOL <= T_b — **120 VIOLATIONS**, each one a config error
-
-| problem | workload | T_SOL ms | T_b ms | variant |
-|---|---|---|---|---|
-| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `81f42cda` | 0.49152 | 0.417123 | v4_contiguous |
-| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `2879d7a9` | 0.20256 | 0.201601 | v2_compile |
-| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `8e261dd1` | 0.43104 | 0.389263 | v2_compile |
-| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `51fef589` | 0.35808 | 0.321462 | v4_contiguous |
-| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `2f570f4d` | 0.18432 | 0.164361 | v2_compile |
-| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `86be6fd8` | 0.88224 | 0.763586 | v2_compile |
-| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `02c5c53b` | 0.81888 | 0.709765 | v1_eager |
-| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `9321a236` | 0.74208 | 0.628505 | v1_eager |
-| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `7566ad2e` | 0.36864 | 0.307722 | v2_compile |
-| L1__037_flux_feedforward_gelu_approximate | `57dc7d04` | 10.4858 | 8.22321 | v4_contiguous |
-| L1__037_flux_feedforward_gelu_approximate | `50759521` | 1.31072 | 1.04681 | v1_eager |
-| L1__037_flux_feedforward_gelu_approximate | `9dd71680` | 10.4858 | 8.20161 | v1_eager |
-| L1__037_flux_feedforward_gelu_approximate | `b9ec5b01` | 2.62144 | 2.09445 | v1_eager |
-| L1__037_flux_feedforward_gelu_approximate | `4c9ed02f` | 2.62144 | 2.09681 | v1_eager |
-| L1__037_flux_feedforward_gelu_approximate | `c2f3a701` | 10.4858 | 8.22699 | v1_eager |
-| L1__037_flux_feedforward_gelu_approximate | `00cab3cd` | 20.9715 | 16.3796 | v1_eager |
-| L1__037_flux_feedforward_gelu_approximate | `af446463` | 5.24288 | 4.13483 | v4_contiguous |
-| L1__037_flux_feedforward_gelu_approximate | `1d8480f2` | 2.76992 | 2.36402 | v1_eager |
-| L1__037_flux_feedforward_gelu_approximate | `81aa984f` | 20.9715 | 16.3689 | v1_eager |
-| L1__037_flux_feedforward_gelu_approximate | `fe659ef7` | 1.31072 | 1.04805 | v4_contiguous |
-| L1__037_flux_feedforward_gelu_approximate | `e2c20da2` | 10.4858 | 8.22309 | v4_contiguous |
-| L1__037_flux_feedforward_gelu_approximate | `66594740` | 0.65536 | 0.543004 | v1_eager |
-| L1__037_flux_feedforward_gelu_approximate | `4141ed64` | 5.24288 | 4.13155 | v4_contiguous |
-| L1__037_flux_feedforward_gelu_approximate | `472b1f68` | 15.8157 | 12.8978 | v4_contiguous |
-| L1__054_audio_attention_qkv_projection_with_normalization | `89cf6db6` | 0.218453 | 0.210641 | v2_compile |
+2694/2694 workloads satisfy T_SOL <= T_b, with T_SOL re-derived at each anchor's own clock bracket (minimum-clock end, the tightest); 0 anchors carry no usable bracket and 0 T_SOL records carry no separable terms, so those are NOT CHECKABLE rather than compared against the stored reference-clock column
 
 ## D-published — the bound a score is actually computed against
 

@@ -31,6 +31,30 @@ too loose (wrong kernels score well); a copied `T_SOL` or `T_b` rescales every
 score by a constant nobody can see. All three failure modes produce output
 that looks entirely reasonable.
 
+### Which way a wrong bound moves the score
+
+Stated once, here, because this repository stated it both ways for a week and
+the wrong form propagated into working briefs. Writing `S` as
+`(T_b − T_SOL) / (T_b + T_k − 2·T_SOL)`,
+
+```
+dS/dT_SOL = (T_b − T_k) / (T_b + T_k − 2·T_SOL)²
+```
+
+The denominator is a square, so **the sign is decided by `T_b − T_k` alone**: a
+bound that moves **down deflates `S`** for any kernel faster than the anchor and
+inflates it only for one slower; a bound that moves **up** does the reverse.
+Measured on MI355X, **1549 of 2078 PASSED records (74.5%) are faster than their
+own `T_b`** — so lowering a bound deflates the score for three quarters of the
+corpus, and "a looser bound flatters everyone" is false.
+
+What is true, and is the reason the two directions are not symmetric, is
+**detectability**: a bound that is too *large* is falsified by the first correct
+kernel that beats it and `check D` fires, while a bound that is too *small* is
+contradicted by nothing, because nothing is supposed to be faster than a bound.
+Every claim in this repository about "the undetectable direction" is about that
+asymmetry and is correct. `docs/findings.md` D69.
+
 ## 2. The cross-vendor caveat — read this before comparing anything
 
 > An AMD SOL score and an NVIDIA SOL score are each **within-platform**
@@ -333,6 +357,71 @@ measured time is not loose, it is wrong, and it would push scores past 1. Every
 traffic bound is therefore gated against the measured `T_b` and falls back to
 SOLAR's value when it fails the gate, with the fallback counted.
 
+#### What "declared traffic" means now, and what changed on 2026-08-15
+
+Three refinements to the two paragraphs above. Each changes what a published
+number *means*, so each is stated here rather than only in a commit. All three
+shipped in `artifacts/09-MI355X/manifest-v4.json`; the frozen MI350X artifacts
+still carry the pre-correction numbers and must not be regenerated outside a
+version cut.
+
+**1. The tier prices live rows, not declared rows.** Its premise used to be
+"every declared input is read at least once". That is false for an input whose
+rows the workload's own index metadata makes **dead**. On causal paged prefill
+the reference skips every query row with an empty causal window, leaving the
+output at `0` and the `lse` at `-inf` regardless of what `q` holds — measured, as
+few as **1 live row out of 10,447**. The tier now charges the streamed input at
+its live rows and goes on charging the **full** `output` and `lse` writes,
+because a correct kernel really must write `(0, -inf)` into every row. The rule
+is derived by AST from each problem's own reference and fires on exactly two of
+the 235 problems. `docs/findings.md` D64.
+
+This is the same generalisation D18 made from an allocation to a gather, made
+again from a gather to a **masked stream**. Both times it was found by a real
+kernel beating the bound, and both times the `T_SOL ≤ T_b` gate had passed —
+because `T_b` is measured from the same reference that does the dead work.
+
+**2. On a gathered workload the published bound discards SOLAR's memory term.**
+SOLAR traces the problem's reference faithfully, and a reference that
+materialises a full-tensor cast *before* indexing it therefore gets a memory term
+equal to the whole allocation. That is a correct roofline for the reference's
+algorithm and a wrong one for the problem, since `T_SOL` must bound *any* correct
+kernel. Where an independent derived signal (`gathered_axes`) says the problem
+indexes rather than streams, the manifest keeps SOLAR's **arithmetic** term — the
+only part the traffic tier cannot supply — and takes the memory term from the
+corrected traffic tier. No bytes are subtracted from SOLAR. `docs/findings.md`
+D66. Be clear about the trade: it moves those bounds from *too large*
+(detectable) to *very loose* (undetectable), which is why every affected record
+now carries `bound_quality` and `bound_headroom`.
+
+**3. The two tiers are compared at the measurement's own clock.** This is the
+change a reader judging the numbers most needs, and it is invisible in any single
+published millisecond. The `max` and the `T_SOL ≤ T_b` rejection used to be
+decided on each tier's own stored `t_sol_ms`, and the two tiers did not express
+those at the same clock — SOLAR at a 1.8 GHz reference, the traffic tier at the
+arch's 2.4 GHz. The SOLAR tier therefore read 1.333× too slow, was judged
+physically impossible against a `T_b` measured near 2.4 GHz, and was **dropped**:
+**127 published bounds across 13 problems fell back to the declared-traffic floor
+alone, 4.58× to 249× too small.** Both tiers are now put on the measurement's own
+bracket clock, from the clock-free terms below, before either the comparison or
+the rejection. `docs/findings.md` D63 and D65.
+
+**Consequently a published `T_SOL` on this part is not one number.** Under
+`SOLEXBENCH_CLOCK_BASIS=unlocked` the bound a score is computed against is
+re-derived per measurement at the minimum clock of that measurement's own
+bracket (`t_sol_ms_published`), while the manifest's legacy `t_sol_ms` column is
+the winning tier's value at its own reference clock. On manifest-v4 those two
+**differ by more than 1% on 1622 of 3717 scoreable workloads and by more than 30%
+on 1084, in both directions.** `score_solutions.py` and task 03's `check D` read
+the published bound. `bound_headroom.published_bound_ms` is the single place the
+choice is made for everything else — it prefers `t_sol_ms_published` and falls
+back to the legacy column only through `t_sol_at.bound_ms`, which refuses a
+millisecond that carries no clock — and `leaderboard/ingest.py` and
+`scripts/score_distribution.py` read through it. **`scripts/agent_score.py` still
+reads the legacy column raw**, which is an open defect and is the submission path
+(`docs/TODO-MI355X.md` §13 M8). **Quote `t_sol_ms_published`, and say which one
+you quoted.**
+
 ### Rounding, and the eight bounds that were zero
 
 SOLAR emits `total_cycles` already wrapped in `int()`. At 1.3 GHz a cycle is
@@ -393,12 +482,31 @@ is left visibly un-re-clockable rather than quietly half-right.
   than guessed. A missing key raises; a wrong key computes a plausible bound.
   No problem in the dataset resolved to `tf32`, so nothing depended on it.
 * **V2 — Infinity Cache bandwidth.** The 17 TB/s figure in the generator is a
-  placeholder and is **wrong**: measured cache-resident bandwidth peaks at
-  5.2 TB/s (64 MiB working set) against 4.5 TB/s from DRAM, a ratio of 1.15×,
-  not 3.8×. It is also **inert**: `SRAM_byte_per_cycle` and `SRAM_capacity` are
-  referenced nowhere in SOLAR's perf model, which applies DRAM bandwidth to all
-  three memory models. Recorded as both wrong and harmless rather than quietly
-  left alone.
+  placeholder and is **wrong**. It is also **inert**: `SRAM_byte_per_cycle` and
+  `SRAM_capacity` are referenced nowhere in SOLAR's perf model, which applies
+  DRAM bandwidth to all three memory models. Recorded as both wrong and harmless
+  rather than quietly left alone.
+
+  **Measured on MI355X, 2026-08-15** (`docs/findings.md` D67). A dedicated probe
+  on an exclusive GPU 0 — six access patterns × 46 working-set sizes, 276
+  bracketed points, artifact `artifacts/03-MI355X/llc/llc-bandwidth-gpu0.json` —
+  puts the streaming envelope at **7.24–7.31 TB/s at a ~258 MiB working set**,
+  with **no knee at the 256 MiB cache capacity**, and above 8 TB/s only below
+  ~64 MiB (8.3–18.0 TB/s in the aggregate-L2 band; 6.4–6.6 TB/s beyond 2 GiB).
+  So **the measured achievable ceiling at LLC-sized working sets is *below* the
+  8.0 TB/s DRAM constant already in use** — 8.0 is conservative there and never
+  unsafe. It is *not* conservative below ~64 MiB, where it is 1.2–2.25× too
+  small and a bound priced with it is beatable.
+
+  This retires the 5.2 / 4.5 TB/s pair this bullet used to quote: they came from
+  `roofline_probe.py --llc-sweep`, whose sub-128 MiB points are launch-limited
+  rather than bandwidth-limited and whose HBM figure under-reads the real
+  asymptote by 25%. **Nothing was enacted** — the arch config and `parts.py` are
+  untouched (prime directive 7). What V2 now turns on is narrower and is **not
+  measured**: whether `llc_capacity = 256 MiB` and `llc_bytes_per_sec = 17.0e12`,
+  both byte-identical to the MI300X row, describe this part at all.
+  `flush_buffer_bytes` is sized from the same table, so it is not a
+  roofline-only question.
 * **V3 — MXFP4 dense vs sparsity.** The table uses AMD's **dense** MXFP4/MXFP6
   row. AMD separately quotes 10.1 PFLOPS for FP8 *with sparsity*; they are
   different rows and are not conflated.
@@ -932,3 +1040,42 @@ that *avoids* the traffic to separate them. That is a general property, not a
 one-off: a self-consistent bound and anchor cannot detect a shared error, and
 only an independent implementation can. It is the strongest argument in this
 repo for running an agent against a benchmark before publishing it.
+
+### The same section for MI355X, manifest v4 (2026-08-15)
+
+A separate part, separate anchors, and a separate list. Nothing here transfers to
+MI350X and nothing above transfers to here.
+
+**One published bound on MI355X is falsified by a real kernel**, and it is not a
+byte-counting error: `L2__050_vae_decoder_mid_block_attention_resnet` at
+**0.69×**. SOLAR's compute count is exactly right — 118,382,133,248 MACs,
+re-derived by hand — and is priced at the fp32 **vector** rate while the
+submission runs the graph under `torch.autocast(float16)` on the matrix cores, a
+datapath 16× faster, which the workload's `max_rtol = 0.5583` admits. **Its
+scores are not results.** Whether the bound should price the fastest precision
+the tolerance admits, or the correctness gate should enforce the declared dtype,
+is an open methodology decision (`docs/TODO-MI355X.md` §13 M1); 22 workloads
+across 5 problems are exposed to the same pairing.
+
+**Four more were falsified until 2026-08-15** — two workloads each of
+`FlashInfer-Bench__014` and `__015`, at 0.79×–0.97× — and are corrected, not
+excused: the declared-traffic tier was charging a full read of `q` on workloads
+whose causal mask leaves 1–25 query rows live out of 10,447–16,384. See *What
+"declared traffic" means now* in §5.
+
+**And 127 bounds were wrong in the direction nothing can detect**, which no
+kernel would ever have revealed: a SOLAR tier stored at a 1.8 GHz reference was
+judged impossible against a `T_b` measured near 2.4 GHz, dropped, and the
+published bound fell back to the declared-traffic floor **4.58× to 249× too
+small**. It was found by diffing `bound_sources` between two manifests, not by
+any check. That is worth stating in a methodology document: **the largest bound
+error this project has found on either part was found by an adversarial diff, not
+by a gate**, and the gate that exists (`check D`) is structurally incapable of
+seeing it.
+
+**What is still not established on either part.** No independent *measurement* of
+any corrected traffic exists. Every byte count above is derived from the
+problem's source and semantics; `rocprofv3 --pmc` hangs in this container
+(`docs/findings.md` D43), and the counter-free alternative — time a kernel that
+does nothing but write the mandatory outputs, and compare against the recorded
+`t_k` — is specified and **has not been run**.

@@ -1245,12 +1245,20 @@ def problem_detail(conn, key: str) -> dict:
                (key,))
     for w in wls:
         w["axes"] = json.loads(w.pop("axes_json") or "{}")
-        # Both, not just t_sol_ms. A deferred problem has a T_SOL (it is
-        # architectural and needs no GPU) but no T_b (nothing ran), so guarding
-        # only the divisor left None/float and 500'd every one of the 15
-        # deferred problem pages -- the exact pages a reader follows to find out
-        # why the row shows 0.
-        w["headroom"] = (w["t_b_ms"] / w["t_sol_ms"]) if (w["t_sol_ms"] and w["t_b_ms"]) else None
+        # Read, not recomputed. `workload.bound_headroom` is `T_b / T_SOL`
+        # against the PUBLISHED bound, written at ingest by the same call that
+        # assigns `bound_quality`. Dividing the two columns here produced a
+        # SECOND answer to the same question, and the two disagreed wherever the
+        # manifest's legacy `t_sol_ms` and its published bound do -- 3685 of
+        # 3717 workloads on MI355X manifest-v4 -- so one row could print a
+        # headroom and a quality word derived from different bounds (D63; see
+        # `published_bound_ms` in ingest.py).
+        #
+        # NULL rather than a division also carries the old guard forward: a
+        # deferred problem has a T_SOL (architectural, needs no GPU) and no T_b,
+        # and `bound_quality` returns (None, None) there -- which is what stops
+        # a None/float from 500'ing all 15 deferred problem pages.
+        w["headroom"] = w["bound_headroom"]
         # Off-board submissions are included here, and carry the flag that says
         # so. `board_visible=0` takes a run out of the RANKING; its per-workload
         # timings are still measurements that happened, and dropping them from
@@ -1443,7 +1451,7 @@ def run_detail(conn, slug: str, key: str) -> dict:
 
     wls = rows(conn, """
         SELECT w.uuid, w.axes_json, w.scoreable, w.t_sol_ms, w.t_sol_source,
-               w.sol_bottleneck, w.t_b_ms, w.t_b_variant,
+               w.sol_bottleneck, w.t_b_ms, w.t_b_variant, w.bound_headroom,
                r.status, r.latency_ms, r.score, r.flagged, r.note
           FROM workload w
           LEFT JOIN result r ON r.problem_key = w.problem_key
@@ -1481,8 +1489,10 @@ def run_detail(conn, slug: str, key: str) -> dict:
         w["speedup_vs_tb"] = ((w["t_b_ms"] / w["latency_ms"])
                               if w["passed"] and w["t_b_ms"] and w["latency_ms"]
                               else None)
-        w["headroom"] = ((w["t_b_ms"] / w["t_sol_ms"])
-                         if w["t_b_ms"] and w["t_sol_ms"] else None)
+        # The ingest's figure, against the published bound -- same reason as on
+        # the problem page: one question, one answer, and no page recomputing a
+        # ratio the database already holds against a different T_SOL column.
+        w["headroom"] = w["bound_headroom"]
         # A score present on a row whose bound was beaten is impossible by
         # construction: ingest stores NULL there. Surface the reason instead of
         # an empty cell, or the page reads as a missing measurement.

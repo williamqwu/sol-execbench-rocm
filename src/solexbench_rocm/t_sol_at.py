@@ -111,6 +111,26 @@ reader recomputes from the endpoints.
 It says nothing about the short-window timing bias on the measurement it will be
 compared against (``docs/methodology.md`` §7, up to +106.9%), which is a separate,
 larger and non-clock effect. A narrow interval is not a small error bar on the score.
+
+--------------------------------------------------------------------------------
+A STORED T_SOL IS ONLY READABLE NEXT TO THE CLOCK IT WAS EXPRESSED AT (D63)
+--------------------------------------------------------------------------------
+
+Everything above is about the bound a *measurement* is scored against, which is
+re-derived here from clock-free terms and never divides a stored cycle count by a
+stored frequency. The tier artifacts on disk also carry a plain ``t_sol_cycles`` /
+``t_sol_ms`` pair, and that pair is the one that went wrong: ``artifacts/03-MI355X``
+shipped 2902 of 2998 records expressed at 1.8 GHz under a header declaring 2400,
+and a second tier expressed uniformly at 2.4 GHz beside it. Two consumers then read
+those columns as if one clock described them -- a gate that reported 1327 phantom
+bandwidth violations, and a tier-selection rule that favoured one tier by 1.333x.
+Both are D63 in ``docs/findings.md``.
+
+Nothing refused either read, because the record did not say what clock it was on.
+``bound_ms`` is that refusal: the stored millisecond column is legible only when
+the record carries its own ``f_ref_mhz``, so a third consumer cannot repeat this
+by accident. It is the choke point every consumer already imports, which is why
+the accessor lives here rather than in one of the scripts that reads a tier.
 """
 
 from __future__ import annotations
@@ -122,15 +142,33 @@ __all__ = [
     "t_sol_cycles_at",
     "bottleneck_at",
     "t_sol_interval",
+    "bound_ms",
+    "reference_clock_mhz",
     "INTERVAL_FIELDS",
     "REQUIRED_FIELDS",
+    "REFERENCE_CLOCK_FIELD",
+    "MissingBoundTerms",
+    "MissingReferenceClock",
 ]
 
 REQUIRED_FIELDS = ("compute_cycles", "memory_bytes", "dram_byte_per_sec")
 
+#: The clock a stored ``t_sol_ms``/``t_sol_cycles`` pair was expressed at, named
+#: once so the two tier writers and every reader spell it the same way.
+REFERENCE_CLOCK_FIELD = "f_ref_mhz"
+
 
 class MissingBoundTerms(KeyError):
     """A T_SOL record predates the split into separately-scalable terms."""
+
+
+class MissingReferenceClock(KeyError):
+    """A stored T_SOL names no clock, so its millisecond column is uninterpretable.
+
+    Not the same failure as ``MissingBoundTerms``: that record cannot be evaluated
+    at a *new* clock, this one cannot be read at its *own*. A record can raise this
+    and still be perfectly usable through ``t_sol_ms_at``.
+    """
 
 
 def _terms(w: dict) -> tuple[float, int, float]:
@@ -177,6 +215,76 @@ def bottleneck_at(w: dict, f_mhz: float) -> str:
     memory_cycles = (memory_bytes * f_mhz * 1e6 / dram_byte_per_sec
                      if dram_byte_per_sec > 0 else 0.0)
     return "memory" if memory_cycles >= compute_cycles else "compute"
+
+
+def reference_clock_mhz(w: dict) -> float | None:
+    """The clock *w*'s own ``t_sol_ms``/``t_sol_cycles`` were expressed at, or None.
+
+    ``None`` means the record does not say -- which is a fact about the record, not
+    a default to be filled in. A caller that has to handle both shapes asks here and
+    decides in the open; a caller that needs the guarantee calls ``bound_ms``.
+
+    A non-positive or non-numeric stamp is treated as absent rather than repaired:
+    ``f_ref_mhz: 0`` names no clock any more than a missing key does.
+    """
+    value = w.get(REFERENCE_CLOCK_FIELD)
+    if value is None:
+        return None
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return None
+    return f if f > 0 else None
+
+
+def bound_ms(w: dict) -> float:
+    """*w*'s stored bound in ms -- but only if *w* says which clock that is.
+
+    The stored millisecond column is a display of a cycle count at some reference
+    frequency. Read without that frequency it is a number with no unit: on
+    ``artifacts/03-MI355X/t_sol.json`` the same column holds 2902 records at 1.8 GHz
+    and 96 at 2.4 GHz, and every consumer that read it whole was off by 1.333x on
+    one of the two groups (D63). So this refuses rather than returns.
+
+    Raises ``MissingReferenceClock`` when the record carries no usable
+    ``f_ref_mhz``. **The refusal is the feature and there is deliberately no
+    override**, because every available way to fill the gap is wrong:
+
+    * *assume the header's clock* -- exactly the D63 defect. The header of the file
+      this rule exists for said 2400 while 2902 of its 2998 records were at 1800.
+    * *assume the arch config's peak* -- the same guess by another route, and it is
+      the guess that makes a compute-bound bound 33% too small: the undetectable
+      direction (CLAUDE.md §6).
+    * *solve for it* as ``t_sol_cycles / t_sol_ms`` -- contaminated by the ``ceil``
+      on the cycle column, which is not a rounding nuisance at the small end but
+      the normal case there (see ``t_sol_cycles_at``).
+
+    **What a legacy record should do instead.** Every artifact written before the
+    field existed lacks it, and none of them are being rewritten -- the MI350X
+    release artifacts are frozen. Such a record is still fully usable, just not
+    through this column: ``t_sol_ms_at(w, f)`` re-derives the bound from the
+    clock-free terms at a clock the caller can name, which is what the published
+    bound (``t_sol_ms_published``, evaluated at the measurement's own bracket
+    minimum) already is. A consumer that genuinely wants the raw column may still
+    read ``w["t_sol_ms"]`` directly -- and then owns the ambiguity in the open,
+    which is the whole difference.
+    """
+    f_ref = reference_clock_mhz(w)
+    if f_ref is None:
+        raise MissingReferenceClock(
+            f"T_SOL record carries no usable {REFERENCE_CLOCK_FIELD}, so its "
+            f"t_sol_ms is a cycle count divided by an unknown clock and cannot be "
+            f"compared with anything (docs/findings.md D63). Evaluate it with "
+            f"t_sol_ms_at(record, f_mhz) at a clock you can name, or re-derive the "
+            f"artifact with scripts/sol_bounds.py, which now stamps it."
+        )
+    ms = w.get("t_sol_ms")
+    if ms is None:
+        raise KeyError(
+            f"T_SOL record is stamped {REFERENCE_CLOCK_FIELD}={f_ref} but has no "
+            f"t_sol_ms; it is not a bounded workload."
+        )
+    return float(ms)
 
 
 #: Every field ``t_sol_interval`` emits, listed once so the manifest builder, the

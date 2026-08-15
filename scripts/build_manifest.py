@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -44,6 +45,7 @@ from solexbench_rocm.t_sol_at import (  # noqa: E402
     INTERVAL_FIELDS,
     MissingBoundTerms,
     t_sol_interval,
+    t_sol_ms_at,
 )
 
 EXPECTED = {"L1": 94, "L2": 82, "Quant": 33, "FlashInfer-Bench": 26}
@@ -68,8 +70,29 @@ def collect_t_sol(path: Path) -> dict[str, dict]:
 #: The terms `solexbench_rocm.t_sol_at` needs to re-evaluate a bound at the clock
 #: a measurement actually ran at. `mac_per_cycle` is carried alongside for
 #: provenance; the arithmetic uses the other three.
-RECLOCK_FIELDS = ("compute_cycles", "memory_bytes", "dram_byte_per_sec",
-                  "mac_per_cycle")
+RECLOCK_TERM_FIELDS = ("compute_cycles", "memory_bytes", "dram_byte_per_sec",
+                       "mac_per_cycle")
+
+#: The clock each tier's OWN `t_sol_ms`/`t_sol_cycles` column was converted at.
+#: Not an input to the arithmetic -- the four terms above are clock-free, which is
+#: the whole reason a bound can be re-evaluated per measurement -- but the only
+#: thing that makes those columns readable.
+#:
+#: D63: `artifacts/03-MI355X/t_sol.json` states `f_lock_mhz: 2400` in its header
+#: while 2902 of its 2998 records are converted at 1.8 GHz and 96 at 2.4 GHz, and
+#: nothing anywhere said so. A cycle count on this part is meaningless without the
+#: clock beside it, so the clock travels in the record, per record.
+#:
+#: `f_ref_mhz` on a merged record is the CHOSEN tier's -- it describes the
+#: `t_sol_ms` column the record actually carries. The two suffixed fields keep both
+#: tiers' clocks visible, because a merged record genuinely has two and collapsing
+#: them to one is how the mixture hid in the first place.
+CLOCK_PROVENANCE_FIELDS = ("f_ref_mhz", "f_ref_mhz_solar", "f_ref_mhz_traffic")
+
+#: What is stripped off the winning tier's record before merge, and what is copied
+#: back out of the merged record into the manifest entry. The two lists have to be
+#: the same list, or a field is dropped on one side and read as None on the other.
+RECLOCK_FIELDS = RECLOCK_TERM_FIELDS + CLOCK_PROVENANCE_FIELDS
 
 #: The bracket a T_b measurement carries into the manifest. `clock_mhz` is the
 #: mean of the two samples and the only one a bound may be divided by; the rest
@@ -155,7 +178,9 @@ def _one_bandwidth(values: set) -> bool:
     return lo > 0 and (hi - lo) / hi <= BANDWIDTH_IDENTICAL_REL
 
 
-def _reclock_terms(s: dict, t: dict, source: str, stats: dict) -> dict:
+def _reclock_terms(s: dict, t: dict, source: str, stats: dict,
+                   compared_at_mhz: float | None = None,
+                   unioned: bool | None = None) -> dict:
     """The re-clocking terms for a merged bound, correct for BOTH tiers.
 
     docs/TODO-MI355X.md §4.2(b) names this as a real gap and it is: taking the
@@ -183,8 +208,47 @@ def _reclock_terms(s: dict, t: dict, source: str, stats: dict) -> dict:
     the two tiers sharing a bandwidth figure; they are generated from the same
     arch YAML, but if they ever disagree the merge is unsound, so the disagreement
     is detected and the record is left un-re-clockable rather than silently wrong.
+
+    **The reference clocks (D63).** The bandwidth guard above provably cannot see
+    a clock mismatch, and it is worth being exact about why: `DRAM_byte_per_cycle`
+    is *defined* in the arch YAML as `bytes_per_sec / freq`, so the two printings
+    of the same 8.0 TB/s are `4444.4 * 1.8e9` and `3333.3 * 2.4e9`, which are the
+    same number -- 7,999,920,000,000 -- to the last bit. A tier at f_ref 1.8 GHz
+    and a tier at 2.4 GHz agree on `dram_byte_per_sec` exactly, and that is how
+    `artifacts/03-MI355X/t_sol.json` (1.8 GHz body, 2400 header) merged with a
+    2.4 GHz traffic tier for three manifest versions without a word.
+
+    So `f_ref_mhz` gets its own guard -- but only over the ground it can be right
+    about, and *compared_at_mhz* is what says which ground that is:
+
+    * ``compared_at_mhz`` set: `combine_bounds` evaluated BOTH tiers at one clock
+      (the T_b measurement's own bracket minimum) before the rejection gate and the
+      tier comparison, so no comparison in this build read either tier's stored
+      `t_sol_ms`, and a difference between the two stored f_refs entered nothing.
+      Refusing the merge there would delete the published bound from **2826 of the
+      3717 scoreable MI355X workloads across 181 problems** -- measured, by the
+      adversarial review of the D63 write-up, which forced the existing bandwidth
+      refusal on that corpus and counted the result -- and would send exactly those
+      workloads back to being scored against the mixed-clock legacy column this
+      guard exists to condemn. A guard that costs 76% of the corpus to catch a
+      difference that changed no number is not a guard.
+    * ``compared_at_mhz`` None: there was no measurement clock to evaluate at, so
+      the tiers were compared by their own `t_sol_ms` columns. THAT comparison is
+      a unit error whenever the two f_refs differ -- it is D63's original defect,
+      biased by 2.4/1.8 = 1.3333x in the traffic tier's favour -- and the record is
+      left un-re-clockable so that the conflict is visible rather than shipped.
+
+    *unioned* overrides how the `reclock_terms_unioned` count is taken. It defaults
+    to `source == "max_of_both"`, which is the same thing everywhere except on the
+    gathered labels, where the source is named for the term that binds and both
+    tiers still contribute one.
     """
     have = [d for d in (s, t) if d]
+    f_refs = {d.get("f_ref_mhz") for d in have if d.get("f_ref_mhz") is not None}
+    if len(f_refs) > 1 and compared_at_mhz is None:
+        stats["reclock_terms_conflicting_f_ref"] = (
+            stats.get("reclock_terms_conflicting_f_ref", 0) + 1)
+        return {}
     bps = {d.get("dram_byte_per_sec") for d in have
            if d.get("dram_byte_per_sec") is not None}
     if len(bps) > 1 and _one_bandwidth(bps):
@@ -214,7 +278,7 @@ def _reclock_terms(s: dict, t: dict, source: str, stats: dict) -> dict:
         return {}
 
     stats["reclock_terms_present"] = stats.get("reclock_terms_present", 0) + 1
-    if source == "max_of_both":
+    if unioned if unioned is not None else source == "max_of_both":
         stats["reclock_terms_unioned"] = stats.get("reclock_terms_unioned", 0) + 1
     return {
         "compute_cycles": max(compute),
@@ -226,7 +290,273 @@ def _reclock_terms(s: dict, t: dict, source: str, stats: dict) -> dict:
         "mac_per_cycle": (s.get("mac_per_cycle")
                           if s.get("mac_per_cycle") is not None
                           else t.get("mac_per_cycle")),
+        # Both tiers' reference clocks, side by side and un-collapsed. A merged
+        # record has two of them and a single field would have to pick one; the
+        # picking is what nobody wrote down for three manifest versions.
+        "f_ref_mhz_solar": s.get("f_ref_mhz"),
+        "f_ref_mhz_traffic": t.get("f_ref_mhz"),
     }
+
+
+def _record_f_ref_mhz(rec: dict) -> float | None:
+    """The clock *rec*'s own `t_sol_ms` column was converted at.
+
+    Stated by the record when the tier writer emits `f_ref_mhz`. Where it does not
+    -- every artifact written before that field existed, which is all of the ones
+    on disk today -- it is RECOVERED by algebra over two numbers in the same
+    record, `t_sol_cycles / (t_sol_ms * 1e3)`, which is the divisor the writer used
+    and nothing else. That is a reading of the artifact, not an assumption about
+    it: it is how D63 established that 2902 of `t_sol.json`'s 2998 records are at
+    1.8 GHz while the header says 2400.
+
+    It is used only to restate a *display* column. No bound is ever divided by it
+    -- bounds come from the clock-free terms at the clock the measurement ran at.
+    """
+    f = rec.get("f_ref_mhz")
+    if f:
+        return float(f)
+    cycles, ms = rec.get("t_sol_cycles"), rec.get("t_sol_ms")
+    if cycles and ms and ms > 0:
+        return float(cycles) / (float(ms) * 1e3)
+    return None
+
+
+def _tier_times_ms(s: dict, t: dict, f_mhz: float | None,
+                   stats: dict) -> tuple[float | None, float | None,
+                                         float | None]:
+    """Both tiers' bounds in ms on ONE clock, and which clock that was.
+
+    At *f_mhz* -- the measurement's own clock -- from the clock-free terms, which
+    is the form in which the two are actually comparable. Both or neither: 572
+    SOLAR records on this corpus predate the term split and cannot be evaluated at
+    any clock, and evaluating only the tier that can would compare a stored
+    reference-clock column against a re-evaluated one, which is the same unit error
+    in new clothes. Those fall back to both tiers' stored columns, exactly as
+    before, and the third return value is None to say the comparison was not made
+    on one clock.
+
+    **Every outcome is counted, and each counter is named for what it counts.**
+    An earlier version incremented a single `tier_compared_at_reference_clock`
+    inside the `except` branch alone, so the manifest published 348 -- the number
+    of records that could NOT be put on one clock -- under a name asserting they
+    had been. The true count was 3369. The inversion was worse than a mislabel:
+    those 348 are exactly the records still being compared through the mixed-clock
+    stored column that this correction (D63) exists to retire, so the one
+    statistic a reader would use to size the remaining exposure named it
+    backwards, and 8.8% coverage read as if it were 85%.
+
+    **"Compared" with only one tier present is counted separately.** A record
+    with no SOLAR entry at all cannot raise `MissingBoundTerms` -- there is
+    nothing to raise about -- so it takes the success branch, while a record with
+    a SOLAR *error* entry falls back. Both are SOLAR failures and the split
+    between them would otherwise track which flavour occurred rather than what
+    the counter names. `tier_compared_one_tier_only` says how much of
+    `tier_compared_at_reference_clock` is a comparison of one tier against
+    nothing. Measured on MI355X manifest-v4 (instrumented build, all 3957
+    records): both tiers 3360, one tier 0, fell back 357, no measurement clock
+    240 -- so the main counter is honest on this corpus today, and this exists so
+    that stays checkable rather than assumed.
+    """
+    if f_mhz is not None:
+        try:
+            on_one_clock = (t_sol_ms_at(s, f_mhz) if s else None,
+                            t_sol_ms_at(t, f_mhz) if t else None,
+                            f_mhz)
+        except (MissingBoundTerms, ValueError):
+            # Terms too old to re-evaluate: falls through to the stored columns.
+            stats["tier_fell_back_to_stored_clock"] = (
+                stats.get("tier_fell_back_to_stored_clock", 0) + 1)
+        else:
+            stats["tier_compared_at_reference_clock"] = (
+                stats.get("tier_compared_at_reference_clock", 0) + 1)
+            if s is None or t is None:
+                stats["tier_compared_one_tier_only"] = (
+                    stats.get("tier_compared_one_tier_only", 0) + 1)
+            return on_one_clock
+    else:
+        # No measurement clock to compare at -- not a defect in the T_SOL record.
+        stats["tier_no_measurement_clock"] = (
+            stats.get("tier_no_measurement_clock", 0) + 1)
+    return (s.get("t_sol_ms") if s else None,
+            t.get("t_sol_ms") if t else None,
+            None)
+
+
+#: How far SOLAR's memory term may sit ABOVE the declared allocation before
+#: `_solar_arithmetic_only` refuses to discard it.
+#:
+#: The rule's whole premise is that SOLAR's memory term IS the allocation --
+#: measured, on the 63 records where it fires on MI355X manifest-v4, the ratio
+#: `solar_memory_bytes / allocation_bytes` spans **0.9609 .. 0.99999995** and never
+#: reaches 1. SOLAR lands slightly UNDER because its count is a deduplicated per-op
+#: sum at a single `bytes_per_element` (54 B under on `FlashInfer-Bench__018`), so
+#: the interesting direction is the other one: a term materially ABOVE the
+#: allocation is SOLAR reporting traffic the allocation does not contain -- a real
+#: second stream -- and discarding the whole term would delete it.
+#:
+#: 1% is two orders of magnitude above the largest deviation measured today (5e-8
+#: relative, on 018) and far below the smallest thing that could plausibly be an
+#: extra stream, so it can neither fire on rounding nor miss a tensor. It is a
+#: guard, not a tolerance on the physics.
+SOLAR_MEMORY_ABOVE_ALLOCATION_REL = 0.01
+
+#: The declared-traffic tier's own evidence for the gathered correction: what the
+#: declaration allocated, which axes the workload indexes rather than streams, and
+#: what those indices actually name. Carried onto the merged record whenever the
+#: correction fires, including when SOLAR wins the comparison and the traffic tier's
+#: record is not the one the manifest entry is built from.
+GATHERED_AUDIT_FIELDS = ("allocation_bytes", "gathered_axes", "gathered_bytes")
+
+
+def _solar_arithmetic_only(s: dict, t: dict, stats: dict) -> dict:
+    """SOLAR's record with its MEMORY term discarded and its arithmetic kept.
+
+    D18, one tier over. Where a problem *indexes* a tensor rather than streaming it
+    -- a 989,669-page KV cache read at 8 pages -- `sol_gathered_traffic` reprices
+    the declared-traffic tier at the rows the workload names. SOLAR's memory term
+    is then the only allocation-priced number left, and `max` in time hands the
+    bound straight back to it: on `FlashInfer-Bench__018` all 47 workloads publish
+    SOLAR's 1,140,133,554 B streaming time, 12.8x to 24,432x (p50 127.4x) above
+    their own corrected floor.
+
+    **Why the memory term and not the bytes.** SOLAR is not naively pricing the
+    gather -- measured, a bare `table[idx]` is charged the gathered rows exactly
+    (8,192 B out of a 1,024,000,000 B table). The allocation enters through the
+    reference's own `cache.squeeze(1).to(torch.float32)`, a real full-tensor cast
+    that runs BEFORE the gather and that SOLAR traces faithfully. So the bound is a
+    correct roofline for the REFERENCE'S ALGORITHM and a wrong one for the PROBLEM,
+    and there is no byte subtraction that is a derivation rather than a coincidence:
+    SOLAR's count is a deduplicated per-op sum at a single `bytes_per_element`,
+    which is why it lands 54 B off the allocation on 018 rather than on it.
+
+    **This is not a new rule.** MI350X v1.1 shipped exactly it --
+    `scripts/rebuild_manifest_v11.py:246-270`, whose comment names this very byte
+    count -- and MI350X v1.2 publishes all 47 of 018 at `declared_traffic_gathered`.
+    The rule was never carried across to this builder, so the MI355X manifest
+    reinstated the v1 number. Restoring it is cross-part parity, not a methodology
+    change; the durable fix (teach the graph analyzer to push a gather back through
+    an elementwise producer) is recommended in `docs/issues/` and not enacted here.
+
+    The arithmetic term is carried rather than assumed to be negligible. On 018 it
+    binds on 0 of 47 -- so the corrected bound IS the gathered floor -- but "it was
+    small last time" is not a derivation.
+
+    **The premise is now checked rather than assumed.** The rule used to key on the
+    mere presence of `gathered_axes` and discard SOLAR's memory term whole, with
+    nothing asking whether that term was in fact the allocation. On today's corpus
+    it always is -- `solar_memory_bytes / allocation_bytes` is 0.9609..0.99999995
+    over all 63 records where this fires, never above 1 -- but that is a property of
+    the data, not of the rule, and the uncovered case fails in the direction nothing
+    downstream can see: a problem with both a gathered axis and a real streaming
+    tensor would have the stream deleted along with the allocation, and the
+    resulting bound would be too SMALL, which no measurement can contradict.
+
+    So two things now stop the discard, and each is counted rather than silent:
+
+    * `allocation_bytes` absent -- there is no number to check the premise against.
+      Refusing leaves the allocation-priced bound in place, which is the *detectable*
+      way to be wrong: a real kernel beats it and task 03's check D fires. Applying
+      the correction unverified would be the undetectable way.
+    * SOLAR's memory term above the allocation by more than
+      `SOLAR_MEMORY_ABOVE_ALLOCATION_REL` -- SOLAR saw traffic the allocation does
+      not contain, so the term is not purely the mispricing this rule exists to
+      remove. The record falls back to the ordinary max-of-both behaviour.
+
+    Neither guard fires on the MI355X corpus: all 63 gathered records carry
+    `allocation_bytes` and none exceeds it. This moves no bound today, which is the
+    point -- it is here for the corpus that has not been measured yet.
+    """
+    allocation = t.get("allocation_bytes")
+    solar_memory = s.get("memory_bytes")
+    if not allocation or allocation <= 0:
+        # The traffic tier repriced a gather but did not say what the declaration
+        # allocated, so "SOLAR is pricing the allocation" is unverifiable here.
+        stats["gathered_solar_allocation_unknown"] = (
+            stats.get("gathered_solar_allocation_unknown", 0) + 1)
+        return s
+    if (solar_memory is not None
+            and solar_memory > allocation * (1.0 + SOLAR_MEMORY_ABOVE_ALLOCATION_REL)):
+        stats["gathered_solar_memory_above_allocation"] = (
+            stats.get("gathered_solar_memory_above_allocation", 0) + 1)
+        return s
+    compute = s.get("compute_cycles")
+    if compute is None:
+        # Nothing to keep and nothing safe to drop: leave the record alone and
+        # count it, rather than publishing a bound with no memory term and no
+        # arithmetic one either.
+        stats["gathered_solar_not_correctable"] = (
+            stats.get("gathered_solar_not_correctable", 0) + 1)
+        return s
+    stats["gathered_solar_memory_discarded"] = (
+        stats.get("gathered_solar_memory_discarded", 0) + 1)
+    cycles = max(1, math.ceil(float(compute)))
+    f_ref = _record_f_ref_mhz(s)
+    return {**s,
+            # Zero, not absent: `_reclock_terms` maxes the two tiers' memory terms
+            # and a missing one would leave the record un-re-clockable instead of
+            # leaving the gathered floor to supply it.
+            "memory_bytes": 0,
+            "memory_cycles_at_f_ref": 0.0,
+            "t_sol_cycles": cycles,
+            "t_sol_cycles_exact": float(compute),
+            "t_sol_ms": (cycles / (f_ref * 1e3)) if f_ref else None,
+            "bottleneck": "compute"}
+
+
+#: The bands `leaderboard/ingest.py::bound_quality` already sorts published bounds
+#: into (D39). Duplicated rather than imported because that module is a FastAPI
+#: application in its own venv and this script must run without it; the vocabulary
+#: is what has to match, and a value written here is read there under the same name.
+BOUND_QUALITY_BANDS = ((1000.0, "vacuous"), (100.0, "loose"), (2.0, "ok"),
+                       (0.0, "narrow"))
+
+
+def _bound_quality(t_sol_ms: float | None,
+                   t_b_ms: float | None) -> tuple[str | None, float | None]:
+    """(band, headroom) for one bound. (None, None) when there is nothing to band."""
+    if not t_sol_ms or not t_b_ms or t_sol_ms <= 0:
+        return None, None
+    h = t_b_ms / t_sol_ms
+    for lo, label in BOUND_QUALITY_BANDS:
+        if h >= lo:
+            return label, h
+    return None, h
+
+
+def _published_bound_ms(terms: dict, chosen: dict, bracket: tuple | None,
+                        gate_mhz: float | None) -> float | None:
+    """The bound this manifest will PUBLISH for one workload, in ms.
+
+    Not `chosen["t_sol_ms"]`, except in the one case where it is. Which number a
+    manifest publishes depends on the clock basis, and this reads the basis off the
+    anchor rather than being told it, because the anchor is what decides:
+
+    * **bracketed anchor** (the unlocked basis): the published bound is T_SOL
+      re-evaluated at the MINIMUM of the measurement's own bracket -- exactly what
+      `_interval_fields` emits as `t_sol_ms_published`, from the same terms at the
+      same clock, so the two agree by construction rather than by coincidence.
+    * **no bracket** (the locked basis): there is one F_LOCK, `_interval_fields`
+      returns nothing, and `t_sol_ms` *is* the published bound.
+
+    The two cases cannot be confused, and that is worth stating because getting it
+    wrong is D63 again: under the unlocked basis `t_sol_ms` is a cycle count divided
+    by whichever REFERENCE clock its tier happened to use (1.8 GHz for SOLAR, 2.4
+    GHz for the traffic tier), and banding that column would compare a 2.4 GHz
+    number against a 2.0 GHz measurement. `collect_t_b` is what makes the split
+    safe: on the unlocked basis it admits **no** anchor without a clock interval, so
+    a workload that has a T_b to band against always has a bracket, and the
+    stored-column branch is unreachable there. `tests/scripts/
+    test_build_manifest_bound_quality.py` pins that invariant.
+
+    None is returned for a bracketed record whose terms `_reclock_terms` declined to
+    merge: it has a published bound in the manifest only as `t_sol_interval_absent`,
+    and inventing one from the stored column to get a band is the same unit error.
+    """
+    if bracket is None:
+        return chosen.get("t_sol_ms")
+    if not terms or gate_mhz is None:
+        return None
+    return t_sol_ms_at(terms, gate_mhz)
 
 
 def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
@@ -248,9 +578,30 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
     the declared total is above any real kernel's traffic and the "bound" would
     sit above the measured time. Those are caught by comparing against T_b and
     fall back to SOLAR's value, with the fallback recorded.
+
+    **Both tiers are evaluated at ONE clock before either comparison** -- the
+    minimum of the T_b measurement's own clock bracket, which is the clock the
+    published bound is taken at (`t_sol_at`, and `_interval_fields` below). D63's
+    two earlier corrections were both "compare in time, not in cycles"; this is the
+    same correction one level up, because on this part a time is not a unit either
+    until it says which clock it was converted at. The rejection gate is where it
+    mattered: SOLAR's tier at a stored f_ref of 1.8 GHz reads 1.333x too slow on a
+    compute-bound workload, which pushed it above the measured T_b on 127 workloads
+    across 13 problems, the gate dropped the tier, and the published bound fell to
+    the declared-traffic floor -- 4.58x to 249x TOO SMALL, median 39.5x, in the
+    undetectable direction. 1.8 GHz is refuted on exactly that population by the
+    measurements themselves: `compute_cycles / T_b` puts a floor of 1809-2306 MHz
+    under the clock the card sustained on all 127.
+
+    Where there is no measurement clock -- the locked basis, a workload with no
+    T_b, a bracket with no samples -- the tiers' own `t_sol_ms` columns are the
+    only comparands there are, and the build says so by passing
+    `compared_at_mhz=None` down to `_reclock_terms`, which then refuses to merge
+    two tiers whose reference clocks disagree.
     """
     out: dict[str, dict] = {}
     stats = {"solar_fused": 0, "declared_traffic": 0, "max_of_both": 0,
+             "solar_arithmetic_gathered": 0, "declared_traffic_gathered": 0,
              "traffic_rejected_above_t_b": 0, "solar_rejected_above_t_b": 0,
              "no_valid_bound": 0}
     for key in set(solar) | set(traffic):
@@ -258,8 +609,27 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
         merged: dict[str, dict] = {}
         for u in set(s_w) | set(t_w):
             s, t = s_w.get(u) or {}, t_w.get(u) or {}
+            anchor = (tb.get(key) or {}).get(u) or {}
+            measured = anchor.get("t_b_ms")
+            # The clock BOTH tiers are compared at: the minimum of the T_b
+            # bracket, i.e. the clock the published bound is taken at, so the gate
+            # asks the one question it means to ask -- "is the number this manifest
+            # would publish above the time that was measured?"
+            bracket = clock_interval(anchor)
+            gate_mhz = bracket[0] if bracket else None
+            # --- D18, on the SOLAR tier. The signal is the traffic tier's own
+            # `gathered_axes`, derived per workload from the problem's reference by
+            # `sol_gathered_traffic`; where it is set, SOLAR's memory term prices an
+            # allocation the problem only indexes into. Discard that term, keep the
+            # arithmetic one. Done BEFORE the gate and the comparison, because it
+            # changes both.
+            gathered = bool(t.get("gathered_axes"))
+            solar_uncorrected = s
+            if gathered and s:
+                s = _solar_arithmetic_only(s, t, stats)
+            gathered_applied = s is not solar_uncorrected
             s_cyc, t_cyc = s.get("t_sol_cycles"), t.get("t_sol_cycles")
-            measured = ((tb.get(key) or {}).get(u) or {}).get("t_b_ms")
+            s_time, t_time, compared_at = _tier_times_ms(s, t, gate_mhz, stats)
             # A candidate bound above the measured time is not a loose lower
             # bound, it is not a lower bound at all -- it would make
             # (T_b - T_SOL) negative and push scores past 1. The rule is
@@ -268,10 +638,10 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
             # and is counted as such rather than shipped with a bad anchor.
             t_rejected = s_rejected = False
             if measured is not None:
-                if t_cyc is not None and t.get("t_sol_ms", 0) > measured:
+                if t_cyc is not None and (t_time or 0) > measured:
                     stats["traffic_rejected_above_t_b"] += 1
                     t_cyc, t_rejected = None, True
-                if s_cyc is not None and s.get("t_sol_ms", 0) > measured:
+                if s_cyc is not None and (s_time or 0) > measured:
                     stats["solar_rejected_above_t_b"] += 1
                     s_cyc, s_rejected = None, True
             # A rejected tier is rejected for re-clocking too. Nulling only the
@@ -296,10 +666,11 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
                 # error is in the invisible direction -- a T_SOL below the true
                 # bound inflates S for every submission slower than T_b, where
                 # a T_SOL above it is caught by the T_b gate right above.
-                # `t_sol_ms` is each tier's own cycles at its own clock, which
-                # is the only form in which they are comparable.
-                t_time = t.get("t_sol_ms")
-                s_time = s.get("t_sol_ms")
+                #
+                # `s_time`/`t_time` are both at `gate_mhz` where the measurement
+                # supplied one, and each tier's own cycles at its own clock where
+                # it did not -- which is the only OTHER form in which they are
+                # comparable, and only when the two clocks agree.
                 if t_time is None or s_time is None:
                     raise ValueError(
                         f"{key}/{u}: a surviving tier has no t_sol_ms, so the "
@@ -315,6 +686,15 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
             else:
                 stats["no_valid_bound"] += 1
                 continue
+            if gathered_applied:
+                # Named for the term that binds, as MI350X v1.1/v1.2 named them,
+                # so the label says what the bound IS rather than which tier the
+                # comparison happened to pick. Only records this build actually
+                # corrected are relabelled: a gathered workload with no SOLAR tier
+                # (the five paged problems SOLAR timed out on) is unchanged, and
+                # saying otherwise would advertise a correction that did not run.
+                source = ("solar_arithmetic_gathered" if source == "solar_fused"
+                          else "declared_traffic_gathered")
             stats[source] += 1
             # The re-clocking terms are recomputed from BOTH tiers, never
             # inherited from the winner: `chosen` is one tier's record, and for
@@ -324,14 +704,82 @@ def combine_bounds(solar: dict, traffic: dict, tb: dict) -> tuple[dict, dict]:
             # un-re-clockable (t_sol_at raises) rather than quietly carrying one
             # tier's half of the answer.
             base = {k: v for k, v in chosen.items() if k not in RECLOCK_FIELDS}
-            merged[u] = {**base, "t_sol_source": source,
-                         "t_sol_cycles_solar": s_cyc,
-                         "t_sol_cycles_traffic": t.get("t_sol_cycles"),
-                         "t_sol_tier_rejected_above_t_b": (
-                             [n for n, r in (("solar_fused", s_rejected),
-                                             ("declared_traffic", t_rejected))
-                              if r] or None),
-                         **_reclock_terms(s_terms, t_terms, source, stats)}
+            if gathered_applied:
+                # The D18 audit trail lives on the TRAFFIC tier's record, and `base`
+                # is the CHOSEN tier's. Where SOLAR won the comparison -- three
+                # L1__009 workloads on MI355X manifest-v4 -- the record shipped
+                # labelled `solar_arithmetic_gathered` with `gathered_axes` null and
+                # `allocation_bytes`/`gathered_bytes` absent, i.e. a label naming a
+                # correction beside no evidence that it happened. The label was
+                # right and the evidence was on the tier that lost. Carry it.
+                for k in GATHERED_AUDIT_FIELDS:
+                    if k not in base and t.get(k) is not None:
+                        base[k] = t[k]
+            terms = _reclock_terms(s_terms, t_terms, source, stats,
+                                   compared_at_mhz=compared_at,
+                                   unioned=(bool(s_terms and t_terms)
+                                            if gathered_applied else None))
+            rec = {**base, "t_sol_source": source,
+                   "t_sol_cycles_solar": s_cyc,
+                   "t_sol_cycles_traffic": t.get("t_sol_cycles"),
+                   "t_sol_tier_rejected_above_t_b": (
+                       [n for n, r in (("solar_fused", s_rejected),
+                                       ("declared_traffic", t_rejected))
+                        if r] or None),
+                   # The clock the `t_sol_ms`/`t_sol_cycles` columns just above are
+                   # in, taken from the tier they came from. Null where that tier
+                   # never stated one -- which is a statement, and the one
+                   # `t_sol_at.bound_ms` refuses on.
+                   "f_ref_mhz": chosen.get("f_ref_mhz"),
+                   **terms}
+            # --- D39, on EVERY published bound.
+            #
+            # Nothing may beat a bound; nothing checks that a bound is tight. This
+            # band is the only statement the manifest makes in the loose direction,
+            # and it used to be made on the 63 records this build had just corrected
+            # and on nothing else -- which read as a census of the loose bounds and
+            # was not one. Banding all 3717 scoreable MI355X workloads by
+            # `T_b / t_sol_ms_published` under these same bands gives vacuous 398,
+            # loose 322, ok 2482, narrow 515; 63 carried a mark. The two populations
+            # the same session moved were both outside it:
+            #
+            # * the 127 records the clock-correct tier comparison rescued from the
+            #   rejection gate (D63) land at 0.7592..0.9641 of T_b -- headroom
+            #   1.037..1.317, `narrow` on 127 of 127. That band is not a discovery
+            #   about those workloads, it is what the acceptance inequality forces:
+            #   a record joins that population only if SOLAR's bound at the stored
+            #   1.8 GHz sits above T_b while the same bound at the measurement's own
+            #   clock does not, which pins it into (1800/f_published, 1.0] of T_b.
+            #   For scale, `published/T_b` has p50 0.082 over the whole corpus.
+            # * the causal-mask records on FlashInfer-Bench 014/015 reach headroom
+            #   1.113e6 -- larger than anything on 018, which WAS marked.
+            #
+            # Both are visible now for the same reason 018 was: this is one call
+            # against `t_sol_ms_published`, so it moves no bound and hides no
+            # trade. It is the manifest saying how much room it left, on every row.
+            published = _published_bound_ms(terms, chosen, bracket, gate_mhz)
+            quality, headroom = _bound_quality(published, measured)
+            rec["bound_quality"] = quality
+            rec["bound_headroom"] = headroom
+            k = f"bound_quality_{quality or 'unbanded'}"
+            stats[k] = stats.get(k, 0) + 1
+            if gathered_applied:
+                # The correction moves these from "bound too large" -- detectable,
+                # a real kernel falsifies it -- to "bound very loose", which is the
+                # direction nothing downstream can contradict. On 018 the arithmetic
+                # term binds on none of the 47, so the corrected bound IS the
+                # gathered floor, as low as 5.83e-06 ms, and T_b/T_SOL lands near
+                # 1.5e5x. D39's threshold is 100x. The band above says so for every
+                # bound; these two fields say what this build did to THIS one, so
+                # the trade stays legible after the band stops being unusual.
+                rec["solar_memory_bytes_at_allocation"] = (
+                    solar_uncorrected.get("memory_bytes"))
+                rec["t_sol_cycles_solar_uncorrected"] = (
+                    solar_uncorrected.get("t_sol_cycles"))
+                if quality:
+                    k = f"gathered_bound_quality_{quality}"
+                    stats[k] = stats.get(k, 0) + 1
+            merged[u] = rec
         if merged:
             out[key] = merged
     return out, stats
@@ -644,6 +1092,61 @@ def collect_tolerances(directory: Path) -> dict[str, dict]:
     return out
 
 
+#: Every part this tree has artifacts for, so an inference from a device name is
+#: a lookup rather than a substring guess. Kept beside `verify_artifacts.py`'s
+#: list of the same name -- duplicated, not imported, because that module is the
+#: gate and this one is the builder, and a build must not depend on its own gate.
+KNOWN_PARTS = ("MI355X", "MI350X", "MI300X")
+
+
+def _doc_part(doc: dict | None) -> str | None:
+    """The part *doc* is about: what it SAYS first, what it shows second.
+
+    A union of three places, in decreasing order of how much of a statement each
+    one is: the top-level `part` key `sol_bounds.py` writes, `_provenance.part`
+    which `provenance.stamp()` now emits, and finally the torch device names,
+    which are evidence about the node the file was written on rather than a
+    claim about what is in it. The last is why this returns something at all for
+    `artifacts/03-MI355X/t_sol_traffic.json`, which states nothing.
+    """
+    if not doc:
+        return None
+    prov = doc.get("_provenance") or {}
+    for named in (doc.get("part"), prov.get("part")):
+        if isinstance(named, str) and named:
+            return named
+    for dev in (prov.get("torch") or {}).get("devices") or []:
+        for part in KNOWN_PARTS:
+            if part in str(dev):
+                return part
+    return None
+
+
+def _inputs_part(*paths: Path) -> str | None:
+    """The one part every input agrees on, or a refusal.
+
+    None when no input says -- which is the MI350X release inputs, whose
+    `t_sol.json` predates device names in provenance -- and that is a legible
+    absence, not a guess. Two different answers is a build error: a manifest
+    pairing one part's bounds with another part's anchors would be scored
+    against silently, exactly the way MI350X bounds were nearly used to score
+    MI355X kernels.
+    """
+    seen: dict[str, str] = {}
+    for p in paths:
+        part = _doc_part(_load(p))
+        if part:
+            seen[part] = str(p)
+    if len(seen) > 1:
+        raise SystemExit(
+            "the inputs to this manifest are not all about the same part:\n  "
+            + "\n  ".join(f"{v}: {k}" for k, v in sorted(seen.items()))
+            + "\nA manifest is one part's bounds against that part's anchors. "
+              "Rebuild the odd one out, or pass --part if you are certain the "
+              "attribution rather than the data is wrong.")
+    return next(iter(seen), None)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="artifacts/09/manifest-v1.json")
@@ -657,6 +1160,12 @@ def main():
     ap.add_argument("--force", action="store_true",
                     help="overwrite an existing manifest (do not do this to a "
                          "published one -- cut a new version instead)")
+    ap.add_argument("--part", default=None,
+                    help="e.g. MI355X. Declares what this manifest is about. "
+                         "Default: taken from the inputs, which must agree.")
+    ap.add_argument("--allow-cross-part", action="store_true",
+                    help="permit building a manifest for a part this node does "
+                         "not have. Only for re-deriving a frozen release.")
     a = ap.parse_args()
 
     out = Path(a.out)
@@ -725,6 +1234,15 @@ def main():
             f"  Re-run the task 06 sweep with SOLEXBENCH_CLOCK_BASIS=unlocked so "
             f"the eval driver brackets each timed window, or build on the locked "
             f"basis with a measured SOLEXBENCH_F_LOCK_MHZ.")
+    # Which part this manifest is about, DECLARED rather than left to be
+    # inferred downstream. manifest-v2 and v3 shipped with no part at all, and
+    # every consumer that needed one recovered it from the torch device names in
+    # the provenance block -- inference that happens to be right, in a tree that
+    # holds two parts' artifacts side by side (Issue 7). The inputs know: take
+    # the part from them and refuse if they disagree, in the same shape as the
+    # bandwidth-disagreement refusal above, because a manifest built from one
+    # part's bounds and another part's anchors is not a manifest.
+    part = a.part or _inputs_part(Path(a.t_sol), Path(a.t_sol_traffic))
     t_sol, bound_sources = combine_bounds(
         collect_t_sol(Path(a.t_sol)),
         collect_t_sol(Path(a.t_sol_traffic)),
@@ -783,6 +1301,38 @@ def main():
                 "t_sol_cycles_solar": s.get("t_sol_cycles_solar"),
                 "t_sol_cycles_traffic": s.get("t_sol_cycles_traffic"),
                 "sol_bottleneck": s.get("bottleneck"),
+                # -- D39, on every row. `bound_quality` bands `T_b / T_SOL` for the
+                # bound this manifest publishes, and `bound_headroom` is that ratio.
+                # Present on every workload with a bound and an anchor, not only on
+                # the ones this build corrected: a mark that appears solely where
+                # something was loosened reads as a census of the loose bounds and
+                # is not one (see `combine_bounds`). Null means "no band could be
+                # taken" -- no T_b, or a bracketed record whose terms would not
+                # merge -- and is a stated absence, not a claim of quality.
+                "bound_quality": s.get("bound_quality"),
+                "bound_headroom": s.get("bound_headroom"),
+                # -- Set only where this build discarded SOLAR's allocation-priced
+                # memory term on a gathered workload (D18, `_solar_arithmetic_only`):
+                # what that term was, and what the uncorrected bound would have been.
+                **{k: s[k] for k in ("solar_memory_bytes_at_allocation",
+                                     "t_sol_cycles_solar_uncorrected") if k in s},
+                # -- Which tier, if either, `combine_bounds` refused because its
+                # candidate sat above the measured T_b. `combine_bounds` has always
+                # computed this and a test has always asserted it, but it stopped
+                # here: the manifest could not say which workloads publish on one
+                # tier because the OTHER was thrown out, as against publishing on
+                # one tier because the other was smaller. Those are different
+                # claims and half of why "120 vs 193" (Issue 3) was arguable.
+                "t_sol_tier_rejected_above_t_b": s.get(
+                    "t_sol_tier_rejected_above_t_b"),
+                # -- The declared-traffic tier's own audit trail for D18 and its
+                # second guise, carried through so the correction is checkable from
+                # the published artifact instead of only from the tier file:
+                # what the declaration allocated, what the workload's own index
+                # vectors name, and which axis a causal mask left partly dead.
+                **{k: s[k] for k in ("allocation_bytes", "gathered_axes",
+                                     "gathered_bytes", "masked_axis",
+                                     "masked_rows") if k in s},
                 "t_b_ms": b.get("t_b_ms"),
                 # "Optimized PyTorch" is not reproducible; a named variant is.
                 "t_b_variant": b.get("variant"),
@@ -821,6 +1371,14 @@ def main():
     scoreable_problems = [k for k, v in problems.items() if v["n_scoreable"]]
     payload = {
         "manifest_version": a.version,
+        # Which part these bounds are for, as a statement. Every consumer that
+        # needs it -- the scorer's part guard, the leaderboard's ingest, task
+        # 03's check D -- previously recovered it from the torch device names in
+        # the provenance block, i.e. from where the file was WRITTEN rather than
+        # from what is in it. `_provenance.part` carries the same value; both,
+        # because `verify_artifacts.artifact_part()` reads the provenance one and
+        # `agent_score.py` unions all three.
+        "part": part,
         # Stated at the top level, not buried in provenance: a manifest built
         # from hip_events traces and one built from rocprof traces are not
         # comparable, and the whole point of recording the methodology per
@@ -889,7 +1447,8 @@ def main():
         },
         "problems": problems,
     }
-    write_artifact(out, f"09-manifest-{a.version}", payload)
+    write_artifact(out, f"09-manifest-{a.version}", payload, part=part,
+                   allow_cross_part=a.allow_cross_part)
 
     print(f"manifest {a.version} -> {out}")
     print(f"  problems scoreable   {len(scoreable_problems)}/{len(census)}")

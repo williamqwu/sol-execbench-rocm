@@ -19,6 +19,18 @@ column is one scalar division away instead of a full re-run — and the cycle
 column is directly comparable between MI350X and MI355X, which differ only in
 clock.
 
+**Every record states the clock its millisecond column was expressed at**, in
+`f_ref_mhz`, and the header states it too — derived from the arch config that
+was actually used, not from `--freq-mhz`. The two are not the same claim: a
+`--resume` reuses a cached per-problem result computed at whatever clock that
+run used, so an invocation's `--freq-mhz` describes the invocation and the
+records describe the cache. `artifacts/03-MI355X/t_sol.json` shipped with those
+two disagreeing — a header of 2400 over 2902 records at 1800 — and two later
+consumers read the column as if one clock described it (docs/findings.md D63).
+A body this script did not recompute can no longer be restamped: a cached
+result at another clock is not a cache hit, and a body that still ends up mixed
+leaves the header `null` rather than picking one of its clocks.
+
 **Workloads are deduplicated by shape signature.** SOLAR's answer depends only
 on shapes and dtypes, so two workloads that resolve to the same signature get
 one pipeline run and share the result. Across the dataset this is roughly a 2x
@@ -108,6 +120,87 @@ def get_inputs():
 def get_init_inputs():
     return []
 '''
+
+
+def _mhz(freq_ghz: float) -> float:
+    """GHz -> MHz as a float, rounded so the value can be compared for equality.
+
+    The clocks in use here happen to survive a bare `* 1000` intact (`2.4` and
+    `1.8` both land exactly on 2400.0 and 1800.0), but that is a property of
+    those two numbers and not of the operation: `1.005 * 1000` is
+    `1004.9999999999999`. This field is compared for EQUALITY -- header against
+    every record, and one tier's stamp against the other's -- so two spellings
+    of one frequency reading as two clocks would invent exactly the disagreement
+    the field exists to detect.
+    """
+    return round(float(freq_ghz) * 1000.0, 6)
+
+
+def _record_f_refs(result: dict) -> set:
+    """Every distinct `f_ref_mhz` among *result*'s bounded workloads.
+
+    `None` is a member like any other and means "this record does not say" —
+    which is the state that produced D63 and must not collapse into agreement
+    with whatever the caller believes the clock to be.
+    """
+    return {w.get("f_ref_mhz")
+            for w in (result.get("workloads") or {}).values()
+            if w.get("t_sol_ms") is not None}
+
+
+def _resume_clock_mismatch(prior: dict, f_ref_mhz: float) -> str | None:
+    """Why *prior* cannot be reused at *f_ref_mhz*, or None if it can.
+
+    The per-problem cache is keyed by PROBLEM, not by problem-and-clock, so a
+    resume happily hands back a body computed at another frequency and the run
+    that reused it goes on to describe the whole file with its own `--freq-mhz`.
+    That is the mechanism on record for `artifacts/03-MI355X/t_sol.json` (D63),
+    and it is cheap to close: a cached result at a different clock is simply not
+    a hit, and neither is one that does not say. Both re-run — SOLAR is CPU work
+    on `device="meta"`, and a wrong bound is not recoverable while a repeated
+    derivation is only slow.
+    """
+    seen = _record_f_refs(prior)
+    if not seen or seen == {f_ref_mhz}:
+        return None
+    if None in seen:
+        return "cached before f_ref_mhz was recorded"
+    return f"cached at {sorted(v for v in seen if v is not None)} MHz"
+
+
+def _header_f_ref(results: dict,
+                  arch_f_ref_mhz: float) -> tuple[float | None, list, int]:
+    """(header `f_ref_mhz`, distinct stamps found, count of unstamped records).
+
+    The header is allowed to state a clock only when every bounded record in
+    the file agrees with the arch config the run derived against. Anything else
+    -- two clocks, or a record that does not say -- and it states `null`, which
+    the task-03 gate reads as a failure. That is the point: the alternative is a
+    header that describes the invocation while the body describes a cache, which
+    is what shipped (docs/findings.md D63) and which no reader could detect.
+
+    Deriving it from the arch YAML rather than from `--freq-mhz` matters for the
+    same reason. `--freq-mhz` is what this run asked for; the arch config is what
+    the numbers were actually computed from, and the two are checked against each
+    other in `main` before anything runs.
+    """
+    # Counted over RECORDS, not problems: 96 of 2998 was the whole of the
+    # internal split that went unnoticed, and a per-problem count would have
+    # reported it as six.
+    stamps: set = set()
+    unstamped = 0
+    for r in results.values():
+        for w in (r.get("workloads") or {}).values():
+            if w.get("t_sol_ms") is None:
+                continue
+            f = w.get("f_ref_mhz")
+            if f is None:
+                unstamped += 1
+            else:
+                stamps.add(f)
+    observed = sorted(stamps)
+    ok = not unstamped and set(observed) <= {arch_f_ref_mhz}
+    return (arch_f_ref_mhz if ok else None), observed, unstamped
 
 
 def _torch_dtype_str(dtype) -> str:
@@ -408,6 +501,15 @@ def do_problem(args) -> tuple[str, dict]:
                     # how much of a small bound is rounding.
                     "t_sol_cycles_exact": exact_cycles,
                     "t_sol_ms": cycles / (freq_ghz * 1e6),
+                    # The clock the two columns above were expressed at, on the
+                    # record rather than only in the header. A cycle count is
+                    # meaningless next to any other frequency, and a header is
+                    # a claim about a whole file that a resume can make about a
+                    # body it did not compute -- which is how one file came to
+                    # hold two clocks under one header (docs/findings.md D63).
+                    # `src/solexbench_rocm/t_sol_at.bound_ms` refuses a record
+                    # without it.
+                    "f_ref_mhz": _mhz(freq_ghz),
                     "bottleneck": fused["bottleneck"],
                     # Frequency-independent bound terms, for re-evaluating T_SOL at
                     # the clock a measurement actually ran at.
@@ -456,6 +558,9 @@ def _fanout(problems, arch_yaml, scratch, freq_ghz, jobs, timeout, resume=False,
     import subprocess
     from concurrent.futures import ThreadPoolExecutor
 
+    f_ref_mhz = _mhz(freq_ghz)
+    rejected: list[tuple[str, str]] = []
+
     def one(problem: Path):
         key = f"{problem.parent.name}__{problem.name}"
         out_file = scratch / "per-problem" / f"{key}.json"
@@ -465,10 +570,18 @@ def _fanout(problems, arch_yaml, scratch, freq_ghz, jobs, timeout, resume=False,
             # because the common reason to re-run at all is a longer timeout,
             # and skipping recorded failures would silently freeze the gap in
             # place while looking like a completed sweep.
+            #
+            # ...and only problems whose bounds are already at THIS clock. The
+            # cache is keyed by problem alone, so without this a resume at one
+            # frequency serves a body derived at another and the run stamps its
+            # own frequency over the file (D63).
             try:
                 prior = json.loads(out_file.read_text())
                 if prior.get("status") == "ok":
-                    return key, prior
+                    why = _resume_clock_mismatch(prior, f_ref_mhz)
+                    if why is None:
+                        return key, prior
+                    rejected.append((key, why))
             except Exception:                          # noqa: BLE001
                 pass
         if only_status is not None:
@@ -489,6 +602,7 @@ def _fanout(problems, arch_yaml, scratch, freq_ghz, jobs, timeout, resume=False,
             "--one", str(problem), "--out", str(out_file),
             "--arch-yaml", str(arch_yaml), "--part", "x",
             "--freq-mhz", str(int(round(freq_ghz * 1000))),
+            "--scratch", str(scratch),
         ]
         try:
             subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
@@ -506,6 +620,14 @@ def _fanout(problems, arch_yaml, scratch, freq_ghz, jobs, timeout, resume=False,
             if i % 25 == 0:
                 print(f"  {i}/{len(problems)}", flush=True)
             yield key, res
+
+    if rejected:
+        print(f"\n{len(rejected)} cached result(s) re-run rather than resumed: "
+              f"their bounds are not at {f_ref_mhz} MHz", file=sys.stderr)
+        for key, why in rejected[:10]:
+            print(f"  {key}: {why}", file=sys.stderr)
+        if len(rejected) > 10:
+            print(f"  ... and {len(rejected) - 10} more", file=sys.stderr)
 
 
 def main():
@@ -533,20 +655,18 @@ def main():
     ap.add_argument("--arch-yaml", default=None,
                     help="default: SOLAR/configs/arch/<part>.yaml, generated")
     ap.add_argument("--jobs", type=int, default=32)
+    ap.add_argument("--scratch", type=Path,
+                    default=Path("/var/tmp/solbench/sol-scratch"),
+                    help="per-problem result cache (what --resume reads). Point "
+                         "it elsewhere for a trial run: the default holds the "
+                         "cache a real sweep resumes from, and overwriting that "
+                         "is how a body ends up at a clock nobody chose.")
     ap.add_argument("--category", nargs="+",
                     default=["L1", "L2", "Quant", "FlashInfer-Bench"])
     a = ap.parse_args()
 
     freq_ghz = a.freq_mhz / 1000.0
-    scratch = Path("/var/tmp/solbench/sol-scratch")
-
-    if a.one is not None:
-        key, res = do_problem(
-            (a.one, Path(a.arch_yaml), scratch, freq_ghz)
-        )
-        Path(a.out).parent.mkdir(parents=True, exist_ok=True)
-        Path(a.out).write_text(json.dumps(res, default=str))
-        return
+    scratch = Path(a.scratch)
 
     arch_yaml = Path(a.arch_yaml) if a.arch_yaml else (
         ROOT / "SOLAR" / "configs" / "arch" / f"{a.part}.yaml")
@@ -568,6 +688,17 @@ def main():
             f"would leave the bandwidth terms at the old clock and corrupt "
             f"every memory-bound T_SOL."
         )
+    # Checked before the `--one` branch as well as the sweep: a single-problem
+    # run writes records stamped `f_ref_mhz` from `--freq-mhz` while their
+    # memory term comes from the arch YAML, so the two disagreeing would make
+    # the stamp itself a false statement.
+    arch_f_ref_mhz = _mhz(arch["freq_GHz"])
+
+    if a.one is not None:
+        key, res = do_problem((a.one, arch_yaml, scratch, freq_ghz))
+        Path(a.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(a.out).write_text(json.dumps(res, default=str))
+        return
 
     data = Path(a.data)
     problems = [p for c in a.category for p in sorted((data / c).glob("*"))
@@ -582,9 +713,26 @@ def main():
 
     n_wl = sum(r.get("n_workloads", 0) for r in results.values())
     n_ok = sum(r.get("n_ok", 0) for r in results.values())
+    header_f_ref, observed, unstamped = _header_f_ref(results, arch_f_ref_mhz)
+    if header_f_ref is None:
+        print(f"\nWARNING: this file's bounds are not all on one clock, so its "
+              f"header states none. Records at {observed} MHz"
+              + (f", {unstamped} with no f_ref_mhz at all" if unstamped else "")
+              + f"; the arch config used is at {arch_f_ref_mhz} MHz. Re-derive "
+              f"without --resume/--only-status before publishing it: a mixed "
+              f"file is what docs/findings.md D63 is about.", file=sys.stderr)
     payload = {
         "part": a.part,
-        "f_lock_mhz": a.freq_mhz,
+        # NOT `f_lock_mhz`. This is the clock the millisecond column was
+        # expressed at, which is a property of the derivation and of the arch
+        # config it used -- not a claim that a clock was pinned. MI355X cannot
+        # pin one at all, and the old name asserted otherwise on every artifact
+        # derived for it. `null` here means the body holds more than one clock
+        # and the header refuses to pick; the per-record `f_ref_mhz` is then
+        # the only truthful reading.
+        "f_ref_mhz": header_f_ref,
+        "f_ref_mhz_observed": observed,
+        "f_ref_mhz_unstamped_records": unstamped,
         "arch_yaml": str(arch_yaml),
         "sol_model": "fused",
         "n_problems": len(results),
@@ -593,7 +741,14 @@ def main():
         "n_workloads_ok": n_ok,
         "problems": results,
     }
-    write_artifact(a.out, "03-sol-bounds", payload)
+    # `--part` is required above and already selects the arch YAML, so it is the
+    # part this file's every byte is about. Declaring it to the stamper as well
+    # gets the cross-check against the visible cards for free: a `--part MI350X`
+    # run on this node now raises instead of writing MI350X rooflines into an
+    # artifact that every inference path would read as MI355X. Pass
+    # `allow_cross_part=True` only if deriving one part's bounds on the other's
+    # node is genuinely what is meant.
+    write_artifact(a.out, "03-sol-bounds", payload, part=a.part)
     print(f"\n{n_ok}/{n_wl} workload bounds, "
           f"{payload['n_problems_ok']}/{len(results)} problems -> {a.out}")
     if n_ok < n_wl:
