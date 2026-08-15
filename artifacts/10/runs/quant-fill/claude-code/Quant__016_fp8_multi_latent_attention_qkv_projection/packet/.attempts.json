@@ -1,0 +1,51 @@
+{
+  "used": 4,
+  "log": [
+    {
+      "attempt": 1,
+      "utc": 1786746573.4484546,
+      "languages": [
+        "pytorch"
+      ],
+      "ok": true,
+      "passed": 16,
+      "workloads": 16,
+      "all_passed": true,
+      "elapsed_s": 23.466477394104004
+    },
+    {
+      "attempt": 2,
+      "utc": 1786746653.686981,
+      "languages": [
+        "pytorch"
+      ],
+      "ok": true,
+      "passed": 16,
+      "workloads": 16,
+      "all_passed": true,
+      "elapsed_s": 23.709095001220703
+    },
+    {
+      "attempt": 3,
+      "utc": 1786746734.2157516,
+      "languages": [
+        "pytorch"
+      ],
+      "ok": false,
+      "error": "RuntimeError: no traces produced (rc=1)\nstderr:\n1.3222 seconds precompiling for 30 choices\nAutotune Choices Stats:\n{\"num_choices\": 30, \"num_triton_choices\": 29, \"best_kernel\": \"mm\", \"best_time\": 2.080008029937744, \"best_triton_pos\": 1, \"best_triton_time\": 3.586293935775757, \"best_triton_kernel\": \"triton_mm_50\", \"best_triton_kernel_desc\": \"ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=32, BLOCK_M=128, BLOCK_N=128, EVEN_K=False, GROUP_M=16, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=8\"}\nAUTOTUNE mm(4096x1536, 1536x24576)\nstrides: [128*(((((s27//128))*((s27//((s27//128)))))//128)), 1], [1, 128*(((((s85//128))*((s85//((s85//128)))))//128))]\ndtypes: torch.float32, torch.float32\n  mm 2.0800 ms 100.0% \n  triton_mm_50 3.5863 ms 58.0% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=32, BLOCK_M=128, BLOCK_N=128, EVEN_K=False, GROUP_M=16, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=8\n  triton_mm_51 3.5866 ms 58.0% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=32, BLOCK_M=128, BLOCK_N=128, EVEN_K=False, GROUP_M=16, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=1, num_stages=2, num_warps=8\n  triton_mm_49 3.6213 ms 57.4% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=32, BLOCK_M=128, BLOCK_N=128, EVEN_K=False, GROUP_M=16, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=2, num_stages=2, num_warps=4\n  triton_mm_57 3.7411 ms 55.6% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=32, BLOCK_M=256, BLOCK_N=128, EVEN_K=False, GROUP_M=16, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=8\n  triton_mm_53 3.9735 ms 52.3% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=64, BLOCK_M=128, BLOCK_N=128, EVEN_K=False, GROUP_M=8, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=8\n  triton_mm_43 4.0163 ms 51.8% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=32, BLOCK_M=64, BLOCK_N=128, EVEN_K=False, GROUP_M=8, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=8\n  triton_mm_44 4.0287 ms 51.6% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=64, BLOCK_M=64, BLOCK_N=128, EVEN_K=False, GROUP_M=4, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=0, num_stages=2, num_warps=8\n  triton_mm_47 4.2132 ms 49.4% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=32, BLOCK_M=128, BLOCK_N=64, EVEN_K=False, GROUP_M=8, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=2, num_stages=2, num_warps=4\n  triton_mm_42 4.2586 ms 48.8% ACC_TYPE='tl.float32', ALLOW_TF32=False, BLOCK_K=32, BLOCK_M=64, BLOCK_N=128, EVEN_K=False, GROUP_M=4, USE_FAST_ACCUM=False, kpack=2, matrix_instr_nonkdim=16, waves_per_eu=2, num_stages=2, num_warps=4\nSingleProcess AUTOTUNE benchmarking takes 2.6433 seconds and 0.5173 seconds precompiling for 30 choices\nTraceback (most recent call last):\n  File \"/var/tmp/solbench/solb_run_qg2boqa7/eval_driver.py\", line 678, in <module>\n    _c, _exceeds = compute_error_stats(_usr_out, _ref_out, _workload.tolerance)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/work/src/sol_execbench/core/bench/correctness.py\", line 163, in compute_error_stats\n    x = output.to(torch.float32)\n        ^^^^^^^^^^^^^^^^^^^^^^^^\nRuntimeError: Error: accessing tensor output of CUDAGraphs that has been overwritten by a subsequent run. Stack trace: File \"/var/tmp/solbench/solb_run_qg2boqa7/kernel.py\", line 230, in _fp8_linear_compiled\n    output = gemm_ref.scaled_mm(\n  File \"/var/tmp/solbench/solb_run_qg2boqa7/kernel.py\", line 135, in scaled_mm\n    return y.to(output_dtype). To prevent overwriting, clone the tensor outside of torch.compile() or call torch.compiler.cudagraph_mark_step_begin() before each model invocation.\n[W814 22:32:40.723224331 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())\n\nstdout:\n",
+      "elapsed_s": 27.111329555511475
+    },
+    {
+      "attempt": 4,
+      "utc": 1786746837.5936706,
+      "languages": [
+        "pytorch"
+      ],
+      "ok": true,
+      "passed": 16,
+      "workloads": 16,
+      "all_passed": true,
+      "elapsed_s": 23.718791723251343
+    }
+  ]
+}

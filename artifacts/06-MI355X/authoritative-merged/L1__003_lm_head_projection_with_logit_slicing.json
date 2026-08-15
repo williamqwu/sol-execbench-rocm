@@ -1,0 +1,2996 @@
+{
+ "_provenance": {
+  "task": "06-tb-candidates",
+  "utc": "2026-08-14T21:17:35.165645+00:00",
+  "git_sha": "9b7e84352dde9e6dc5ddae5097171fa614b2785f-dirty",
+  "host": "mia1-p02-g45",
+  "python": "3.12.3",
+  "torch": {
+   "available": true,
+   "version": "2.9.1+rocm7.2.0.git7e1940d4",
+   "hip": "7.2.26015-fc0010cf6a",
+   "cuda": null,
+   "device_count": 1,
+   "devices": [
+    "AMD Instinct MI355X"
+   ]
+  },
+  "rocm": {
+   "version": "7.2.0",
+   "driver": "6.16.6",
+   "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+  },
+  "f_lock_mhz": null,
+  "visible_devices": "6"
+ },
+ "ok": true,
+ "clock_bracket_fatal": null,
+ "problem": "L1__003_lm_head_projection_with_logit_slicing",
+ "definition": "003_lm_head_projection_with_logit_slicing",
+ "workloads_from": "artifacts/05-MI355X/workloads/L1/003_lm_head_projection_with_logit_slicing/workload.jsonl",
+ "gpu": "6",
+ "variants": {
+  "v1_eager": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": 1.2425875067710876,
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": 0.12374100089073181,
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": 2.5312554836273193,
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": 0.09876050055027008,
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": 0.676364004611969,
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": 0.40820249915122986,
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": 0.1859010010957718,
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": 0.4055425077676773,
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": 1.1164469718933105,
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": 0.6612640023231506,
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": 1.262108027935028,
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": 1.2516480088233948,
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": 0.12180100008845329,
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": 0.9343854784965515,
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": 0.30744150280952454,
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": 0.40712249279022217
+   },
+   "clock_bracket_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": {
+     "clock_before_mhz": 1737,
+     "clock_after_mhz": 1799,
+     "clock_bracket_spread": 0.03506787330316742,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1768.0,
+     "window_ns": [
+      1442123107032416,
+      1442123202137062
+     ],
+     "window_ms": 95.104646,
+     "clock_bracket_lag_ns": [
+      191099,
+      468916
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 420.424532,
+      "settle_iterations": 317,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2181,
+      "settle_exit_mhz": 1737,
+      "settle_min_mhz": 1729,
+      "settle_max_mhz": 2183,
+      "settle_n_samples": 44,
+      "settle_stability_horizon_ms": 76.01276999999999
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": {
+     "clock_before_mhz": 1940,
+     "clock_after_mhz": 2020,
+     "clock_bracket_spread": 0.04040404040404041,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1980.0,
+     "window_ns": [
+      1442124294756750,
+      1442124318264428
+     ],
+     "window_ms": 23.507678,
+     "clock_bracket_lag_ns": [
+      188899,
+      695215
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1003.845395,
+      "settle_iterations": 7751,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2135,
+      "settle_exit_mhz": 1940,
+      "settle_min_mhz": 1933,
+      "settle_max_mhz": 2135,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.19228074074074
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": {
+     "clock_before_mhz": 1742,
+     "clock_after_mhz": 1718,
+     "clock_bracket_spread": 0.013872832369942197,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1730.0,
+     "window_ns": [
+      1442125200874358,
+      1442125368554265
+     ],
+     "window_ms": 167.679907,
+     "clock_bracket_lag_ns": [
+      182568,
+      915653
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 462.480526,
+      "settle_iterations": 175,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2282,
+      "settle_exit_mhz": 1742,
+      "settle_min_mhz": 1738,
+      "settle_max_mhz": 2282,
+      "settle_n_samples": 51,
+      "settle_stability_horizon_ms": 148.42971999999997
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": {
+     "clock_before_mhz": 2383,
+     "clock_after_mhz": 2386,
+     "clock_bracket_spread": 0.0012581253931641854,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2384.5,
+     "window_ns": [
+      1442126441631646,
+      1442126463498916
+     ],
+     "window_ms": 21.86727,
+     "clock_bracket_lag_ns": [
+      182839,
+      521546
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1009.730373,
+      "settle_iterations": 9061,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2029,
+      "settle_exit_mhz": 2383,
+      "settle_min_mhz": 2029,
+      "settle_max_mhz": 2386,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 6.172618762886598
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": {
+     "clock_before_mhz": 1860,
+     "clock_after_mhz": 1930,
+     "clock_bracket_spread": 0.036939313984168866,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1895.0,
+     "window_ns": [
+      1442126879693969,
+      1442126934463990
+     ],
+     "window_ms": 54.770021,
+     "clock_bracket_lag_ns": [
+      177618,
+      563466
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 264.955637,
+      "settle_iterations": 374,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2323,
+      "settle_exit_mhz": 1860,
+      "settle_min_mhz": 1859,
+      "settle_max_mhz": 2323,
+      "settle_n_samples": 28,
+      "settle_stability_horizon_ms": 39.707151428571436
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": {
+     "clock_before_mhz": 2029,
+     "clock_after_mhz": 2092,
+     "clock_bracket_spread": 0.030575103130308177,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2060.5,
+     "window_ns": [
+      1442127141828567,
+      1442127180566494
+     ],
+     "window_ms": 38.737927,
+     "clock_bracket_lag_ns": [
+      182239,
+      470747
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 112.739927,
+      "settle_iterations": 264,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2175,
+      "settle_exit_mhz": 2029,
+      "settle_min_mhz": 2029,
+      "settle_max_mhz": 2175,
+      "settle_n_samples": 13,
+      "settle_stability_horizon_ms": 24.1179
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": {
+     "clock_before_mhz": 2345,
+     "clock_after_mhz": 2358,
+     "clock_bracket_spread": 0.005528386136508611,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2351.5,
+     "window_ns": [
+      1442128239628107,
+      1442128266205773
+     ],
+     "window_ms": 26.577666,
+     "clock_bracket_lag_ns": [
+      181249,
+      468737
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1005.821941,
+      "settle_iterations": 5301,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2208,
+      "settle_exit_mhz": 2345,
+      "settle_min_mhz": 2205,
+      "settle_max_mhz": 2354,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 10.770216
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": {
+     "clock_before_mhz": 2053,
+     "clock_after_mhz": 2118,
+     "clock_bracket_spread": 0.031167585710860705,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2085.5,
+     "window_ns": [
+      1442128515240386,
+      1442128554253471
+     ],
+     "window_ms": 39.013085,
+     "clock_bracket_lag_ns": [
+      179729,
+      474737
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 153.810408,
+      "settle_iterations": 361,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2345,
+      "settle_exit_mhz": 2053,
+      "settle_min_mhz": 2053,
+      "settle_max_mhz": 2345,
+      "settle_n_samples": 17,
+      "settle_stability_horizon_ms": 24.080824800000002
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": {
+     "clock_before_mhz": 1784,
+     "clock_after_mhz": 1790,
+     "clock_bracket_spread": 0.003357582540570789,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 1787.0,
+     "window_ns": [
+      1442129035840458,
+      1442129116868796
+     ],
+     "window_ms": 81.028338,
+     "clock_bracket_lag_ns": [
+      181479,
+      712325
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 285.533267,
+      "settle_iterations": 242,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2233,
+      "settle_exit_mhz": 1784,
+      "settle_min_mhz": 1784,
+      "settle_max_mhz": 2233,
+      "settle_n_samples": 30,
+      "settle_stability_horizon_ms": 65.6167275
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": {
+     "clock_before_mhz": 1815,
+     "clock_after_mhz": 1883,
+     "clock_bracket_spread": 0.03677663601946998,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1849.0,
+     "window_ns": [
+      1442129478902365,
+      1442129532908291
+     ],
+     "window_ms": 54.005926,
+     "clock_bracket_lag_ns": [
+      191019,
+      793894
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 228.125335,
+      "settle_iterations": 324,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2163,
+      "settle_exit_mhz": 1815,
+      "settle_min_mhz": 1815,
+      "settle_max_mhz": 2163,
+      "settle_n_samples": 24,
+      "settle_stability_horizon_ms": 39.12228428571429
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": {
+     "clock_before_mhz": 1745,
+     "clock_after_mhz": 1769,
+     "clock_bracket_spread": 0.013659647125782584,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1757.0,
+     "window_ns": [
+      1442130171784949,
+      1442130261790193
+     ],
+     "window_ms": 90.005244,
+     "clock_bracket_lag_ns": [
+      184978,
+      856354
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 387.007037,
+      "settle_iterations": 291,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2167,
+      "settle_exit_mhz": 1745,
+      "settle_min_mhz": 1735,
+      "settle_max_mhz": 2168,
+      "settle_n_samples": 41,
+      "settle_stability_horizon_ms": 73.6472925
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": {
+     "clock_before_mhz": 1736,
+     "clock_after_mhz": 1758,
+     "clock_bracket_spread": 0.012593016599885518,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1747.0,
+     "window_ns": [
+      1442130855771149,
+      1442130944994028
+     ],
+     "window_ms": 89.222879,
+     "clock_bracket_lag_ns": [
+      182199,
+      671075
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 351.138468,
+      "settle_iterations": 266,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2229,
+      "settle_exit_mhz": 1736,
+      "settle_min_mhz": 1736,
+      "settle_max_mhz": 2232,
+      "settle_n_samples": 37,
+      "settle_stability_horizon_ms": 74.339535
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": {
+     "clock_before_mhz": 1931,
+     "clock_after_mhz": 2012,
+     "clock_bracket_spread": 0.04108546791782906,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1971.5,
+     "window_ns": [
+      1442132006914520,
+      1442132030200100
+     ],
+     "window_ms": 23.28558,
+     "clock_bracket_lag_ns": [
+      192289,
+      465297
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1004.227343,
+      "settle_iterations": 7678,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2026,
+      "settle_exit_mhz": 1931,
+      "settle_min_mhz": 1922,
+      "settle_max_mhz": 2026,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.264739268292684
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": {
+     "clock_before_mhz": 1841,
+     "clock_after_mhz": 1874,
+     "clock_bracket_spread": 0.017765814266487216,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1857.5,
+     "window_ns": [
+      1442132524922081,
+      1442132595925032
+     ],
+     "window_ms": 71.002951,
+     "clock_bracket_lag_ns": [
+      183389,
+      914644
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 291.574733,
+      "settle_iterations": 289,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2246,
+      "settle_exit_mhz": 1841,
+      "settle_min_mhz": 1841,
+      "settle_max_mhz": 2246,
+      "settle_n_samples": 31,
+      "settle_stability_horizon_ms": 55.39315199999999
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": {
+     "clock_before_mhz": 2113,
+     "clock_after_mhz": 2163,
+     "clock_bracket_spread": 0.023386342376052385,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2138.0,
+     "window_ns": [
+      1442133163640740,
+      1442133196652829
+     ],
+     "window_ms": 33.012089,
+     "clock_bracket_lag_ns": [
+      192428,
+      712775
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 462.233088,
+      "settle_iterations": 1435,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2193,
+      "settle_exit_mhz": 2113,
+      "settle_min_mhz": 2107,
+      "settle_max_mhz": 2193,
+      "settle_n_samples": 46,
+      "settle_stability_horizon_ms": 28.3712625
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": {
+     "clock_before_mhz": 1973,
+     "clock_after_mhz": 2056,
+     "clock_bracket_spread": 0.041201290642839415,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2014.5,
+     "window_ns": [
+      1442133353211797,
+      1442133392334312
+     ],
+     "window_ms": 39.122515,
+     "clock_bracket_lag_ns": [
+      195058,
+      645475
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 30.912245,
+      "settle_iterations": 68,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 1988,
+      "settle_exit_mhz": 1973,
+      "settle_min_mhz": 1973,
+      "settle_max_mhz": 1988,
+      "settle_n_samples": 5,
+      "settle_stability_horizon_ms": 24.669370000000004
+     },
+     "clock_bracket_sampler_error": null
+    }
+   },
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 16,
+    "n_refused": 13,
+    "refusal_rate": 0.8125,
+    "refused_by_reason": {
+     "bracket_spread_above_threshold": 13
+    },
+    "thresholds_in_force": [
+     0.0078
+    ],
+    "spread_median": 0.030575103130308177,
+    "spread_max": 0.041201290642839415
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v2_compile": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": 1.2620880007743835,
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": 0.1221809983253479,
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": 2.5326149463653564,
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": 0.09848000109195709,
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": 0.6764239966869354,
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": 0.4032224863767624,
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": 0.1861409991979599,
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": 0.4062020033597946,
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": 1.1117064952850342,
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": 0.6653240025043488,
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": 1.2562274932861328,
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": 1.2439075112342834,
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": 0.12093999981880188,
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": 0.9406055212020874,
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": 0.306441992521286,
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": 0.4098224937915802
+   },
+   "clock_bracket_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": {
+     "clock_before_mhz": 1739,
+     "clock_after_mhz": 1762,
+     "clock_bracket_spread": 0.013139103113396172,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1750.5,
+     "window_ns": [
+      1442140057377413,
+      1442140147415066
+     ],
+     "window_ms": 90.037653,
+     "clock_bracket_lag_ns": [
+      186099,
+      708335
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 468.615961,
+      "settle_iterations": 346,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2295,
+      "settle_exit_mhz": 1739,
+      "settle_min_mhz": 1734,
+      "settle_max_mhz": 2297,
+      "settle_n_samples": 49,
+      "settle_stability_horizon_ms": 75.71262
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": {
+     "clock_before_mhz": 1933,
+     "clock_after_mhz": 2015,
+     "clock_bracket_spread": 0.04154002026342452,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1974.0,
+     "window_ns": [
+      1442141420370479,
+      1442141443804998
+     ],
+     "window_ms": 23.434519,
+     "clock_bracket_lag_ns": [
+      194159,
+      482646
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1006.557206,
+      "settle_iterations": 7692,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 1538,
+      "settle_exit_mhz": 1933,
+      "settle_min_mhz": 1538,
+      "settle_max_mhz": 1968,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.578507600000001
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": {
+     "clock_before_mhz": 1745,
+     "clock_after_mhz": 1716,
+     "clock_bracket_spread": 0.016758162380814793,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1730.5,
+     "window_ns": [
+      1442142781399489,
+      1442142948709218
+     ],
+     "window_ms": 167.309729,
+     "clock_bracket_lag_ns": [
+      185579,
+      512876
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 713.788922,
+      "settle_iterations": 254,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2245,
+      "settle_exit_mhz": 1745,
+      "settle_min_mhz": 1742,
+      "settle_max_mhz": 2245,
+      "settle_n_samples": 78,
+      "settle_stability_horizon_ms": 152.660775
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": {
+     "clock_before_mhz": 2372,
+     "clock_after_mhz": 2378,
+     "clock_bracket_spread": 0.0025263157894736842,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2375.0,
+     "window_ns": [
+      1442144221551931,
+      1442144243421062
+     ],
+     "window_ms": 21.869131,
+     "clock_bracket_lag_ns": [
+      191908,
+      800084
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1003.785027,
+      "settle_iterations": 8917,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 1086,
+      "settle_exit_mhz": 2372,
+      "settle_min_mhz": 1086,
+      "settle_max_mhz": 2380,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 6.197610625
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": {
+     "clock_before_mhz": 1883,
+     "clock_after_mhz": 1941,
+     "clock_bracket_spread": 0.030334728033472803,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1912.0,
+     "window_ns": [
+      1442144805021874,
+      1442144859758645
+     ],
+     "window_ms": 54.736771,
+     "clock_bracket_lag_ns": [
+      197288,
+      611175
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 212.763368,
+      "settle_iterations": 299,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2328,
+      "settle_exit_mhz": 1883,
+      "settle_min_mhz": 1883,
+      "settle_max_mhz": 2328,
+      "settle_n_samples": 23,
+      "settle_stability_horizon_ms": 39.951388
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": {
+     "clock_before_mhz": 2083,
+     "clock_after_mhz": 2136,
+     "clock_bracket_spread": 0.025124437070395828,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2109.5,
+     "window_ns": [
+      1442145286725650,
+      1442145325140419
+     ],
+     "window_ms": 38.414769,
+     "clock_bracket_lag_ns": [
+      204419,
+      518867
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 122.397387,
+      "settle_iterations": 283,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2343,
+      "settle_exit_mhz": 2083,
+      "settle_min_mhz": 2083,
+      "settle_max_mhz": 2343,
+      "settle_n_samples": 14,
+      "settle_stability_horizon_ms": 23.864375
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": {
+     "clock_before_mhz": 2340,
+     "clock_after_mhz": 2355,
+     "clock_bracket_spread": 0.006389776357827476,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2347.5,
+     "window_ns": [
+      1442146578904282,
+      1442146605493448
+     ],
+     "window_ms": 26.589166,
+     "clock_bracket_lag_ns": [
+      193899,
+      901514
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1002.374087,
+      "settle_iterations": 5259,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2371,
+      "settle_exit_mhz": 2340,
+      "settle_min_mhz": 2336,
+      "settle_max_mhz": 2371,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 10.843732363636363
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": {
+     "clock_before_mhz": 2026,
+     "clock_after_mhz": 2098,
+     "clock_bracket_spread": 0.03491755577109602,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2062.0,
+     "window_ns": [
+      1442147081855583,
+      1442147120812658
+     ],
+     "window_ms": 38.957075,
+     "clock_bracket_lag_ns": [
+      186989,
+      535986
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 184.175356,
+      "settle_iterations": 427,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2362,
+      "settle_exit_mhz": 2026,
+      "settle_min_mhz": 2026,
+      "settle_max_mhz": 2362,
+      "settle_n_samples": 20,
+      "settle_stability_horizon_ms": 24.1921225
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": {
+     "clock_before_mhz": 1771,
+     "clock_after_mhz": 1781,
+     "clock_bracket_spread": 0.00563063063063063,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 1776.0,
+     "window_ns": [
+      1442147906884813,
+      1442147987762703
+     ],
+     "window_ms": 80.87789,
+     "clock_bracket_lag_ns": [
+      184668,
+      699445
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 393.228291,
+      "settle_iterations": 332,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2301,
+      "settle_exit_mhz": 1771,
+      "settle_min_mhz": 1770,
+      "settle_max_mhz": 2301,
+      "settle_n_samples": 41,
+      "settle_stability_horizon_ms": 65.73198666666667
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": {
+     "clock_before_mhz": 1853,
+     "clock_after_mhz": 1924,
+     "clock_bracket_spread": 0.03759597564204395,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1888.5,
+     "window_ns": [
+      1442148605728955,
+      1442148660014798
+     ],
+     "window_ms": 54.285843,
+     "clock_bracket_lag_ns": [
+      187829,
+      500657
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 276.597732,
+      "settle_iterations": 387,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2308,
+      "settle_exit_mhz": 1853,
+      "settle_min_mhz": 1851,
+      "settle_max_mhz": 2308,
+      "settle_n_samples": 29,
+      "settle_stability_horizon_ms": 39.650032
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": {
+     "clock_before_mhz": 1766,
+     "clock_after_mhz": 1759,
+     "clock_bracket_spread": 0.003971631205673759,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 1762.5,
+     "window_ns": [
+      1442149440052797,
+      1442149529752973
+     ],
+     "window_ms": 89.700176,
+     "clock_bracket_lag_ns": [
+      196448,
+      799974
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 358.784312,
+      "settle_iterations": 270,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2285,
+      "settle_exit_mhz": 1766,
+      "settle_min_mhz": 1759,
+      "settle_max_mhz": 2287,
+      "settle_n_samples": 38,
+      "settle_stability_horizon_ms": 74.33676000000001
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": {
+     "clock_before_mhz": 1752,
+     "clock_after_mhz": 1775,
+     "clock_bracket_spread": 0.01304224553444854,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1763.5,
+     "window_ns": [
+      1442150357008187,
+      1442150445414702
+     ],
+     "window_ms": 88.406515,
+     "clock_bracket_lag_ns": [
+      197348,
+      449737
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 405.015705,
+      "settle_iterations": 307,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2280,
+      "settle_exit_mhz": 1752,
+      "settle_min_mhz": 1751,
+      "settle_max_mhz": 2282,
+      "settle_n_samples": 42,
+      "settle_stability_horizon_ms": 74.072535
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": {
+     "clock_before_mhz": 1924,
+     "clock_after_mhz": 2004,
+     "clock_bracket_spread": 0.04073319755600815,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1964.0,
+     "window_ns": [
+      1442151699027186,
+      1442151721842020
+     ],
+     "window_ms": 22.814834,
+     "clock_bracket_lag_ns": [
+      197608,
+      696105
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1000.743439,
+      "settle_iterations": 7677,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2341,
+      "settle_exit_mhz": 1924,
+      "settle_min_mhz": 1922,
+      "settle_max_mhz": 2341,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.266458518518519
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": {
+     "clock_before_mhz": 1822,
+     "clock_after_mhz": 1852,
+     "clock_bracket_spread": 0.01633097441480675,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1837.0,
+     "window_ns": [
+      1442152415841377,
+      1442152486469901
+     ],
+     "window_ms": 70.628524,
+     "clock_bracket_lag_ns": [
+      187949,
+      466717
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 311.682686,
+      "settle_iterations": 309,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2303,
+      "settle_exit_mhz": 1822,
+      "settle_min_mhz": 1822,
+      "settle_max_mhz": 2303,
+      "settle_n_samples": 33,
+      "settle_stability_horizon_ms": 55.998191999999996
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": {
+     "clock_before_mhz": 2128,
+     "clock_after_mhz": 2160,
+     "clock_bracket_spread": 0.014925373134328358,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2144.0,
+     "window_ns": [
+      1442153497942802,
+      1442153530494004
+     ],
+     "window_ms": 32.551202,
+     "clock_bracket_lag_ns": [
+      191089,
+      500747
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 730.844568,
+      "settle_iterations": 2277,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2346,
+      "settle_exit_mhz": 2128,
+      "settle_min_mhz": 2117,
+      "settle_max_mhz": 2346,
+      "settle_n_samples": 72,
+      "settle_stability_horizon_ms": 30.970027272727275
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": {
+     "clock_before_mhz": 1921,
+     "clock_after_mhz": 2011,
+     "clock_bracket_spread": 0.04577822990844354,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1966.0,
+     "window_ns": [
+      1442154089297637,
+      1442154128099594
+     ],
+     "window_ms": 38.801957,
+     "clock_bracket_lag_ns": [
+      188088,
+      643195
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 225.337686,
+      "settle_iterations": 523,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 1502,
+      "settle_exit_mhz": 1921,
+      "settle_min_mhz": 1502,
+      "settle_max_mhz": 1921,
+      "settle_n_samples": 24,
+      "settle_stability_horizon_ms": 24.132825000000004
+     },
+     "clock_bracket_sampler_error": null
+    }
+   },
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 16,
+    "n_refused": 12,
+    "refusal_rate": 0.75,
+    "refused_by_reason": {
+     "bracket_spread_above_threshold": 12
+    },
+    "thresholds_in_force": [
+     0.0078
+    ],
+    "spread_median": 0.016758162380814793,
+    "spread_max": 0.04577822990844354
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v3_compile_max_autotune": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": 1.2685874700546265,
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": 0.12168099731206894,
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": 2.5417155027389526,
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": 0.09842050075531006,
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": 0.6755039989948273,
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": 0.4021824896335602,
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": 0.18646100163459778,
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": 0.4060019999742508,
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": 1.1076670289039612,
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": 0.6693439781665802,
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": 1.2522874474525452,
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": 1.245947003364563,
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": 0.12168100103735924,
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": 0.9314659833908081,
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": 0.3053614944219589,
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": 0.41470250487327576
+   },
+   "clock_bracket_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": {
+     "clock_before_mhz": 1739,
+     "clock_after_mhz": 1748,
+     "clock_bracket_spread": 0.005162030398623459,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 1743.5,
+     "window_ns": [
+      1442162101220394,
+      1442162191277197
+     ],
+     "window_ms": 90.056803,
+     "clock_bracket_lag_ns": [
+      194698,
+      835104
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 407.922284,
+      "settle_iterations": 305,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2287,
+      "settle_exit_mhz": 1739,
+      "settle_min_mhz": 1736,
+      "settle_max_mhz": 2288,
+      "settle_n_samples": 43,
+      "settle_stability_horizon_ms": 74.32711714285715
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": {
+     "clock_before_mhz": 1958,
+     "clock_after_mhz": 2042,
+     "clock_bracket_spread": 0.042,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2000.0,
+     "window_ns": [
+      1442163468712207,
+      1442163491731550
+     ],
+     "window_ms": 23.019343,
+     "clock_bracket_lag_ns": [
+      192148,
+      460546
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1002.632915,
+      "settle_iterations": 7743,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2351,
+      "settle_exit_mhz": 1958,
+      "settle_min_mhz": 1958,
+      "settle_max_mhz": 2351,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.309607560975609
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": {
+     "clock_before_mhz": 1744,
+     "clock_after_mhz": 1711,
+     "clock_bracket_spread": 0.019102749638205498,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1727.5,
+     "window_ns": [
+      1442164820946762,
+      1442164988330601
+     ],
+     "window_ms": 167.383839,
+     "clock_bracket_lag_ns": [
+      187958,
+      508416
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 714.731466,
+      "settle_iterations": 270,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2286,
+      "settle_exit_mhz": 1744,
+      "settle_min_mhz": 1736,
+      "settle_max_mhz": 2286,
+      "settle_n_samples": 76,
+      "settle_stability_horizon_ms": 150.968055
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": {
+     "clock_before_mhz": 2373,
+     "clock_after_mhz": 2379,
+     "clock_bracket_spread": 0.0025252525252525255,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2376.0,
+     "window_ns": [
+      1442166291441434,
+      1442166313292294
+     ],
+     "window_ms": 21.85086,
+     "clock_bracket_lag_ns": [
+      205279,
+      553086
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1002.340518,
+      "settle_iterations": 8935,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2365,
+      "settle_exit_mhz": 2373,
+      "settle_min_mhz": 2340,
+      "settle_max_mhz": 2384,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 6.2030925
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": {
+     "clock_before_mhz": 1860,
+     "clock_after_mhz": 1923,
+     "clock_bracket_spread": 0.03330689928628073,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1891.5,
+     "window_ns": [
+      1442166923416143,
+      1442166977823746
+     ],
+     "window_ms": 54.407603,
+     "clock_bracket_lag_ns": [
+      187668,
+      470607
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 261.440773,
+      "settle_iterations": 365,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2320,
+      "settle_exit_mhz": 1860,
+      "settle_min_mhz": 1860,
+      "settle_max_mhz": 2320,
+      "settle_n_samples": 28,
+      "settle_stability_horizon_ms": 40.32086142857143
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": {
+     "clock_before_mhz": 2063,
+     "clock_after_mhz": 2126,
+     "clock_bracket_spread": 0.030078777751253283,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2094.5,
+     "window_ns": [
+      1442167430714062,
+      1442167468684175
+     ],
+     "window_ms": 37.970113,
+     "clock_bracket_lag_ns": [
+      190538,
+      755385
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 142.303912,
+      "settle_iterations": 331,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2346,
+      "settle_exit_mhz": 2063,
+      "settle_min_mhz": 2063,
+      "settle_max_mhz": 2346,
+      "settle_n_samples": 16,
+      "settle_stability_horizon_ms": 23.887452500000002
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": {
+     "clock_before_mhz": 2335,
+     "clock_after_mhz": 2350,
+     "clock_bracket_spread": 0.0064034151547491995,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2342.5,
+     "window_ns": [
+      1442168753141154,
+      1442168779413293
+     ],
+     "window_ms": 26.272139,
+     "clock_bracket_lag_ns": [
+      203348,
+      534266
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1007.246362,
+      "settle_iterations": 5309,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2378,
+      "settle_exit_mhz": 2335,
+      "settle_min_mhz": 2318,
+      "settle_max_mhz": 2378,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 10.830745714285715
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": {
+     "clock_before_mhz": 2039,
+     "clock_after_mhz": 2106,
+     "clock_bracket_spread": 0.03232810615199035,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2072.5,
+     "window_ns": [
+      1442169271799280,
+      1442169310857125
+     ],
+     "window_ms": 39.057845,
+     "clock_bracket_lag_ns": [
+      191558,
+      670586
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 184.232766,
+      "settle_iterations": 427,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2367,
+      "settle_exit_mhz": 2039,
+      "settle_min_mhz": 2039,
+      "settle_max_mhz": 2367,
+      "settle_n_samples": 20,
+      "settle_stability_horizon_ms": 24.2673475
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": {
+     "clock_before_mhz": 1755,
+     "clock_after_mhz": 1779,
+     "clock_bracket_spread": 0.013582342954159592,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1767.0,
+     "window_ns": [
+      1442170106653420,
+      1442170187450940
+     ],
+     "window_ms": 80.79752,
+     "clock_bracket_lag_ns": [
+      188059,
+      586256
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 383.090965,
+      "settle_iterations": 325,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2294,
+      "settle_exit_mhz": 1755,
+      "settle_min_mhz": 1755,
+      "settle_max_mhz": 2296,
+      "settle_n_samples": 40,
+      "settle_stability_horizon_ms": 67.25797333333334
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": {
+     "clock_before_mhz": 1865,
+     "clock_after_mhz": 1925,
+     "clock_bracket_spread": 0.0316622691292876,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1895.0,
+     "window_ns": [
+      1442170784081617,
+      1442170838531490
+     ],
+     "window_ms": 54.449873,
+     "clock_bracket_lag_ns": [
+      198308,
+      1056083
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 244.912473,
+      "settle_iterations": 345,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2307,
+      "settle_exit_mhz": 1865,
+      "settle_min_mhz": 1865,
+      "settle_max_mhz": 2307,
+      "settle_n_samples": 26,
+      "settle_stability_horizon_ms": 40.022548
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": {
+     "clock_before_mhz": 1742,
+     "clock_after_mhz": 1754,
+     "clock_bracket_spread": 0.006864988558352402,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 1748.0,
+     "window_ns": [
+      1442171703131413,
+      1442171792800868
+     ],
+     "window_ms": 89.669455,
+     "clock_bracket_lag_ns": [
+      196269,
+      835624
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 424.538503,
+      "settle_iterations": 318,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2286,
+      "settle_exit_mhz": 1742,
+      "settle_min_mhz": 1731,
+      "settle_max_mhz": 2288,
+      "settle_n_samples": 46,
+      "settle_stability_horizon_ms": 73.7667675
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": {
+     "clock_before_mhz": 1780,
+     "clock_after_mhz": 1783,
+     "clock_bracket_spread": 0.0016839741790625876,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 1781.5,
+     "window_ns": [
+      1442172539313012,
+      1442172628472752
+     ],
+     "window_ms": 89.15974,
+     "clock_bracket_lag_ns": [
+      193678,
+      500326
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 304.29788,
+      "settle_iterations": 230,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2285,
+      "settle_exit_mhz": 1780,
+      "settle_min_mhz": 1779,
+      "settle_max_mhz": 2286,
+      "settle_n_samples": 32,
+      "settle_stability_horizon_ms": 74.24263499999999
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": {
+     "clock_before_mhz": 1932,
+     "clock_after_mhz": 2014,
+     "clock_bracket_spread": 0.04156107450582869,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1973.0,
+     "window_ns": [
+      1442173934234385,
+      1442173957553625
+     ],
+     "window_ms": 23.31924,
+     "clock_bracket_lag_ns": [
+      190238,
+      496637
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1001.740342,
+      "settle_iterations": 7664,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2368,
+      "settle_exit_mhz": 1932,
+      "settle_min_mhz": 1916,
+      "settle_max_mhz": 2368,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.251876585365854
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": {
+     "clock_before_mhz": 1825,
+     "clock_after_mhz": 1881,
+     "clock_bracket_spread": 0.030221262817053427,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1853.0,
+     "window_ns": [
+      1442174627870845,
+      1442174698409230
+     ],
+     "window_ms": 70.538385,
+     "clock_bracket_lag_ns": [
+      189609,
+      507407
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 271.775437,
+      "settle_iterations": 269,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2302,
+      "settle_exit_mhz": 1825,
+      "settle_min_mhz": 1825,
+      "settle_max_mhz": 2303,
+      "settle_n_samples": 29,
+      "settle_stability_horizon_ms": 56.662992
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": {
+     "clock_before_mhz": 2099,
+     "clock_after_mhz": 2146,
+     "clock_bracket_spread": 0.022143698468786808,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2122.5,
+     "window_ns": [
+      1442176041154554,
+      1442176074282473
+     ],
+     "window_ms": 33.127919,
+     "clock_bracket_lag_ns": [
+      197048,
+      485906
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 1013.114509,
+      "settle_iterations": 3160,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2363,
+      "settle_exit_mhz": 2099,
+      "settle_min_mhz": 2099,
+      "settle_max_mhz": 2363,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 32.13247454545455
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": {
+     "clock_before_mhz": 1910,
+     "clock_after_mhz": 2021,
+     "clock_bracket_spread": 0.05647417959806665,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1965.5,
+     "window_ns": [
+      1442176624033862,
+      1442176663589343
+     ],
+     "window_ms": 39.555481,
+     "clock_bracket_lag_ns": [
+      195449,
+      518047
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 206.054007,
+      "settle_iterations": 474,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 1498,
+      "settle_exit_mhz": 1910,
+      "settle_min_mhz": 1498,
+      "settle_max_mhz": 1910,
+      "settle_n_samples": 22,
+      "settle_stability_horizon_ms": 24.341697500000002
+     },
+     "clock_bracket_sampler_error": null
+    }
+   },
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 16,
+    "n_refused": 11,
+    "refusal_rate": 0.6875,
+    "refused_by_reason": {
+     "bracket_spread_above_threshold": 11
+    },
+    "thresholds_in_force": [
+     0.0078
+    ],
+    "spread_median": 0.030078777751253283,
+    "spread_max": 0.05647417959806665
+   },
+   "is_override": false,
+   "failures": []
+  },
+  "v4_contiguous": {
+   "ok": true,
+   "workloads": 16,
+   "passed": 16,
+   "all_passed": true,
+   "latency_ms_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": 1.2656880021095276,
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": 0.12398000061511993,
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": 2.5745564699172974,
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": 0.09914099797606468,
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": 0.6738645136356354,
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": 0.4168024957180023,
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": 0.18678100407123566,
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": 0.4121229946613312,
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": 1.1204875111579895,
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": 0.6606640219688416,
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": 1.2576879858970642,
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": 1.254588544368744,
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": 0.1221810020506382,
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": 0.9382859766483307,
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": 0.3115620017051697,
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": 0.4069029986858368
+   },
+   "clock_bracket_by_workload": {
+    "258bb593-e3d9-5846-87c5-8d9b0229da1b": {
+     "clock_before_mhz": 1739,
+     "clock_after_mhz": 1738,
+     "clock_bracket_spread": 0.0005752085130859936,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 1738.5,
+     "window_ns": [
+      1442182913566517,
+      1442183009889905
+     ],
+     "window_ms": 96.323388,
+     "clock_bracket_lag_ns": [
+      184988,
+      517116
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 335.290044,
+      "settle_iterations": 252,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2184,
+      "settle_exit_mhz": 1739,
+      "settle_min_mhz": 1738,
+      "settle_max_mhz": 2188,
+      "settle_n_samples": 36,
+      "settle_stability_horizon_ms": 75.71345142857143
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "e4abcf13-fb66-504d-a9a1-a0453da505ce": {
+     "clock_before_mhz": 1920,
+     "clock_after_mhz": 2001,
+     "clock_bracket_spread": 0.041315990818668706,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1960.5,
+     "window_ns": [
+      1442184144339218,
+      1442184167499139
+     ],
+     "window_ms": 23.159921,
+     "clock_bracket_lag_ns": [
+      195788,
+      606136
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1007.902397,
+      "settle_iterations": 7672,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2204,
+      "settle_exit_mhz": 1920,
+      "settle_min_mhz": 1916,
+      "settle_max_mhz": 2204,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.285403414634147
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "d1d64e14-7724-5e59-a655-8e8056ff5c2b": {
+     "clock_before_mhz": 1727,
+     "clock_after_mhz": 1729,
+     "clock_bracket_spread": 0.0011574074074074073,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 1728.0,
+     "window_ns": [
+      1442185112857303,
+      1442185303469092
+     ],
+     "window_ms": 190.611789,
+     "clock_bracket_lag_ns": [
+      179829,
+      776315
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 493.014033,
+      "settle_iterations": 186,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2282,
+      "settle_exit_mhz": 1727,
+      "settle_min_mhz": 1725,
+      "settle_max_mhz": 2282,
+      "settle_n_samples": 54,
+      "settle_stability_horizon_ms": 149.988855
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "adb76181-ffee-52f7-9fd7-517dd3b29a22": {
+     "clock_before_mhz": 2375,
+     "clock_after_mhz": 2380,
+     "clock_bracket_spread": 0.002103049421661409,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 2377.5,
+     "window_ns": [
+      1442186371469951,
+      1442186393039754
+     ],
+     "window_ms": 21.569803,
+     "clock_bracket_lag_ns": [
+      187029,
+      439506
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1003.523059,
+      "settle_iterations": 8958,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2034,
+      "settle_exit_mhz": 2375,
+      "settle_min_mhz": 2034,
+      "settle_max_mhz": 2382,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 6.170156907216494
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "4aa1734a-49d3-566a-a685-b971a2ea5f05": {
+     "clock_before_mhz": 1854,
+     "clock_after_mhz": 1927,
+     "clock_bracket_spread": 0.03861412324781804,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1890.5,
+     "window_ns": [
+      1442186816408145,
+      1442186870855398
+     ],
+     "window_ms": 54.447253,
+     "clock_bracket_lag_ns": [
+      185029,
+      764564
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 251.246657,
+      "settle_iterations": 351,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2317,
+      "settle_exit_mhz": 1854,
+      "settle_min_mhz": 1854,
+      "settle_max_mhz": 2317,
+      "settle_n_samples": 27,
+      "settle_stability_horizon_ms": 40.432122857142865
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "37cb25ac-2ad5-5d53-89e9-900f50c1273f": {
+     "clock_before_mhz": 2021,
+     "clock_after_mhz": 2064,
+     "clock_bracket_spread": 0.021052631578947368,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2042.5,
+     "window_ns": [
+      1442187137684751,
+      1442187183037940
+     ],
+     "window_ms": 45.353189,
+     "clock_bracket_lag_ns": [
+      183109,
+      473907
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 144.364016,
+      "settle_iterations": 339,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2218,
+      "settle_exit_mhz": 2021,
+      "settle_min_mhz": 2021,
+      "settle_max_mhz": 2218,
+      "settle_n_samples": 16,
+      "settle_stability_horizon_ms": 23.850099999999998
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "a0e7383c-0455-5eaf-a173-19b18dbbc152": {
+     "clock_before_mhz": 2287,
+     "clock_after_mhz": 2313,
+     "clock_bracket_spread": 0.011304347826086957,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2300.0,
+     "window_ns": [
+      1442188258632923,
+      1442188285234709
+     ],
+     "window_ms": 26.601786,
+     "clock_bracket_lag_ns": [
+      203698,
+      680145
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1009.020459,
+      "settle_iterations": 5288,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2057,
+      "settle_exit_mhz": 2287,
+      "settle_min_mhz": 2057,
+      "settle_max_mhz": 2351,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 10.945362692307693
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": {
+     "clock_before_mhz": 1940,
+     "clock_after_mhz": 2031,
+     "clock_bracket_spread": 0.04583228405943087,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1985.5,
+     "window_ns": [
+      1442188479044445,
+      1442188518044901
+     ],
+     "window_ms": 39.000456,
+     "clock_bracket_lag_ns": [
+      196948,
+      453557
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 31.373001,
+      "settle_iterations": 69,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 1947,
+      "settle_exit_mhz": 1940,
+      "settle_min_mhz": 1939,
+      "settle_max_mhz": 1947,
+      "settle_n_samples": 5,
+      "settle_stability_horizon_ms": 24.3484475
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": {
+     "clock_before_mhz": 1843,
+     "clock_after_mhz": 1895,
+     "clock_bracket_spread": 0.027822364901016586,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1869.0,
+     "window_ns": [
+      1442189068084758,
+      1442189148918489
+     ],
+     "window_ms": 80.833731,
+     "clock_bracket_lag_ns": [
+      203568,
+      517626
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 320.199244,
+      "settle_iterations": 263,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2248,
+      "settle_exit_mhz": 1843,
+      "settle_min_mhz": 1843,
+      "settle_max_mhz": 2248,
+      "settle_n_samples": 34,
+      "settle_stability_horizon_ms": 65.71458666666668
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "cbc16461-98d9-56e3-a338-d9e0c088635b": {
+     "clock_before_mhz": 1843,
+     "clock_after_mhz": 1921,
+     "clock_bracket_spread": 0.04144527098831031,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1882.0,
+     "window_ns": [
+      1442189535550248,
+      1442189589130677
+     ],
+     "window_ms": 53.580429,
+     "clock_bracket_lag_ns": [
+      194509,
+      479727
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 211.121559,
+      "settle_iterations": 286,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2215,
+      "settle_exit_mhz": 1843,
+      "settle_min_mhz": 1843,
+      "settle_max_mhz": 2215,
+      "settle_n_samples": 22,
+      "settle_stability_horizon_ms": 40.122668
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "08b22d16-bb19-54d3-92f2-c6790c631cff": {
+     "clock_before_mhz": 1740,
+     "clock_after_mhz": 1765,
+     "clock_bracket_spread": 0.014265335235378032,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1752.5,
+     "window_ns": [
+      1442190287565612,
+      1442190376985310
+     ],
+     "window_ms": 89.419698,
+     "clock_bracket_lag_ns": [
+      181059,
+      486146
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 442.084325,
+      "settle_iterations": 325,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2240,
+      "settle_exit_mhz": 1740,
+      "settle_min_mhz": 1727,
+      "settle_max_mhz": 2242,
+      "settle_n_samples": 47,
+      "settle_stability_horizon_ms": 73.736535
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "8aed45db-d2ce-5521-8bfa-5571ff74646d": {
+     "clock_before_mhz": 1752,
+     "clock_after_mhz": 1764,
+     "clock_bracket_spread": 0.006825938566552901,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": false,
+     "clock_bracket_refused_reason": null,
+     "clock_mhz": 1758.0,
+     "window_ns": [
+      1442190992856136,
+      1442191081983036
+     ],
+     "window_ms": 89.1269,
+     "clock_bracket_lag_ns": [
+      186558,
+      488947
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 382.294551,
+      "settle_iterations": 289,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2221,
+      "settle_exit_mhz": 1752,
+      "settle_min_mhz": 1749,
+      "settle_max_mhz": 2223,
+      "settle_n_samples": 40,
+      "settle_stability_horizon_ms": 73.4443425
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": {
+     "clock_before_mhz": 1926,
+     "clock_after_mhz": 2007,
+     "clock_bracket_spread": 0.041189931350114416,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1966.5,
+     "window_ns": [
+      1442192166217917,
+      1442192189134909
+     ],
+     "window_ms": 22.916992,
+     "clock_bracket_lag_ns": [
+      188869,
+      434127
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1002.373758,
+      "settle_iterations": 7684,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2108,
+      "settle_exit_mhz": 1926,
+      "settle_min_mhz": 1916,
+      "settle_max_mhz": 2108,
+      "settle_n_samples": 98,
+      "settle_stability_horizon_ms": 7.322851463414634
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "2da239e0-7465-562c-adb3-30f5b2484dc7": {
+     "clock_before_mhz": 1809,
+     "clock_after_mhz": 1848,
+     "clock_bracket_spread": 0.02132895816242822,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 1828.5,
+     "window_ns": [
+      1442192672693182,
+      1442192743281157
+     ],
+     "window_ms": 70.587975,
+     "clock_bracket_lag_ns": [
+      184999,
+      565326
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 290.895598,
+      "settle_iterations": 289,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2238,
+      "settle_exit_mhz": 1809,
+      "settle_min_mhz": 1809,
+      "settle_max_mhz": 2238,
+      "settle_n_samples": 31,
+      "settle_stability_horizon_ms": 56.32393199999999
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "322e0425-97f7-5e60-acbb-4ca3d0c6810e": {
+     "clock_before_mhz": 2124,
+     "clock_after_mhz": 2177,
+     "clock_bracket_spread": 0.024645431295047662,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2150.5,
+     "window_ns": [
+      1442193860034970,
+      1442193892151295
+     ],
+     "window_ms": 32.116325,
+     "clock_bracket_lag_ns": [
+      190049,
+      434037
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": false,
+      "settle_capped": "max_ms",
+      "settle_ms": 1002.457147,
+      "settle_iterations": 3185,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2197,
+      "settle_exit_mhz": 2124,
+      "settle_min_mhz": 2110,
+      "settle_max_mhz": 2197,
+      "settle_n_samples": 99,
+      "settle_stability_horizon_ms": 18.13654
+     },
+     "clock_bracket_sampler_error": null
+    },
+    "0d5dcd0c-493b-5353-b184-ff45201b8e37": {
+     "clock_before_mhz": 2035,
+     "clock_after_mhz": 2101,
+     "clock_bracket_spread": 0.031914893617021274,
+     "clock_bracket_threshold": 0.0078,
+     "clock_bracket_refused": true,
+     "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+     "clock_mhz": 2068.0,
+     "window_ns": [
+      1442194174037689,
+      1442194212651717
+     ],
+     "window_ms": 38.614028,
+     "clock_bracket_lag_ns": [
+      189779,
+      486527
+     ],
+     "clock_bracket_device": "cuda:0",
+     "clock_bracket_source": "amdsmi",
+     "settle": {
+      "settled": true,
+      "settle_capped": null,
+      "settle_ms": 163.04272,
+      "settle_iterations": 381,
+      "settle_band": 0.0078,
+      "settle_entry_mhz": 2293,
+      "settle_exit_mhz": 2035,
+      "settle_min_mhz": 2035,
+      "settle_max_mhz": 2293,
+      "settle_n_samples": 18,
+      "settle_stability_horizon_ms": 24.3316475
+     },
+     "clock_bracket_sampler_error": null
+    }
+   },
+   "reference_clock_bracket_by_workload": {},
+   "clock_bracket_summary": {
+    "n_bracketed": 16,
+    "n_refused": 12,
+    "refusal_rate": 0.75,
+    "refused_by_reason": {
+     "bracket_spread_above_threshold": 12
+    },
+    "thresholds_in_force": [
+     0.0078
+    ],
+    "spread_median": 0.024645431295047662,
+    "spread_max": 0.04583228405943087
+   },
+   "is_override": false,
+   "failures": []
+  }
+ },
+ "winner_by_workload": {
+  "adb76181-ffee-52f7-9fd7-517dd3b29a22": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 0.09842050075531006,
+   "clock_before_mhz": 2373,
+   "clock_after_mhz": 2379,
+   "clock_bracket_spread": 0.0025252525252525255,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 2376.0,
+   "window_ns": [
+    1442166291441434,
+    1442166313292294
+   ],
+   "window_ms": 21.85086,
+   "clock_bracket_lag_ns": [
+    205279,
+    553086
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": false,
+    "settle_capped": "max_ms",
+    "settle_ms": 1002.340518,
+    "settle_iterations": 8935,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2365,
+    "settle_exit_mhz": 2373,
+    "settle_min_mhz": 2340,
+    "settle_max_mhz": 2384,
+    "settle_n_samples": 98,
+    "settle_stability_horizon_ms": 6.2030925
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  },
+  "a0e7383c-0455-5eaf-a173-19b18dbbc152": {
+   "variant": "v1_eager",
+   "t_b_ms": 0.1859010010957718,
+   "clock_before_mhz": 2345,
+   "clock_after_mhz": 2358,
+   "clock_bracket_spread": 0.005528386136508611,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 2351.5,
+   "window_ns": [
+    1442128239628107,
+    1442128266205773
+   ],
+   "window_ms": 26.577666,
+   "clock_bracket_lag_ns": [
+    181249,
+    468737
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": false,
+    "settle_capped": "max_ms",
+    "settle_ms": 1005.821941,
+    "settle_iterations": 5301,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2208,
+    "settle_exit_mhz": 2345,
+    "settle_min_mhz": 2205,
+    "settle_max_mhz": 2354,
+    "settle_n_samples": 99,
+    "settle_stability_horizon_ms": 10.770216
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  },
+  "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": {
+   "variant": "v2_compile",
+   "t_b_ms": 1.1117064952850342,
+   "clock_before_mhz": 1771,
+   "clock_after_mhz": 1781,
+   "clock_bracket_spread": 0.00563063063063063,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 1776.0,
+   "window_ns": [
+    1442147906884813,
+    1442147987762703
+   ],
+   "window_ms": 80.87789,
+   "clock_bracket_lag_ns": [
+    184668,
+    699445
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": true,
+    "settle_capped": null,
+    "settle_ms": 393.228291,
+    "settle_iterations": 332,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2301,
+    "settle_exit_mhz": 1771,
+    "settle_min_mhz": 1770,
+    "settle_max_mhz": 2301,
+    "settle_n_samples": 41,
+    "settle_stability_horizon_ms": 65.73198666666667
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  },
+  "08b22d16-bb19-54d3-92f2-c6790c631cff": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 1.2522874474525452,
+   "clock_before_mhz": 1742,
+   "clock_after_mhz": 1754,
+   "clock_bracket_spread": 0.006864988558352402,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 1748.0,
+   "window_ns": [
+    1442171703131413,
+    1442171792800868
+   ],
+   "window_ms": 89.669455,
+   "clock_bracket_lag_ns": [
+    196269,
+    835624
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": true,
+    "settle_capped": null,
+    "settle_ms": 424.538503,
+    "settle_iterations": 318,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2286,
+    "settle_exit_mhz": 1742,
+    "settle_min_mhz": 1731,
+    "settle_max_mhz": 2288,
+    "settle_n_samples": 46,
+    "settle_stability_horizon_ms": 73.7667675
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  },
+  "258bb593-e3d9-5846-87c5-8d9b0229da1b": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 1.2656880021095276,
+   "clock_before_mhz": 1739,
+   "clock_after_mhz": 1738,
+   "clock_bracket_spread": 0.0005752085130859936,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 1738.5,
+   "window_ns": [
+    1442182913566517,
+    1442183009889905
+   ],
+   "window_ms": 96.323388,
+   "clock_bracket_lag_ns": [
+    184988,
+    517116
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": true,
+    "settle_capped": null,
+    "settle_ms": 335.290044,
+    "settle_iterations": 252,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2184,
+    "settle_exit_mhz": 1739,
+    "settle_min_mhz": 1738,
+    "settle_max_mhz": 2188,
+    "settle_n_samples": 36,
+    "settle_stability_horizon_ms": 75.71345142857143
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  },
+  "8aed45db-d2ce-5521-8bfa-5571ff74646d": {
+   "variant": "v3_compile_max_autotune",
+   "t_b_ms": 1.245947003364563,
+   "clock_before_mhz": 1780,
+   "clock_after_mhz": 1783,
+   "clock_bracket_spread": 0.0016839741790625876,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 1781.5,
+   "window_ns": [
+    1442172539313012,
+    1442172628472752
+   ],
+   "window_ms": 89.15974,
+   "clock_bracket_lag_ns": [
+    193678,
+    500326
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": true,
+    "settle_capped": null,
+    "settle_ms": 304.29788,
+    "settle_iterations": 230,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2285,
+    "settle_exit_mhz": 1780,
+    "settle_min_mhz": 1779,
+    "settle_max_mhz": 2286,
+    "settle_n_samples": 32,
+    "settle_stability_horizon_ms": 74.24263499999999
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  },
+  "d1d64e14-7724-5e59-a655-8e8056ff5c2b": {
+   "variant": "v4_contiguous",
+   "t_b_ms": 2.5745564699172974,
+   "clock_before_mhz": 1727,
+   "clock_after_mhz": 1729,
+   "clock_bracket_spread": 0.0011574074074074073,
+   "clock_bracket_threshold": 0.0078,
+   "clock_bracket_refused": false,
+   "clock_bracket_refused_reason": null,
+   "clock_mhz": 1728.0,
+   "window_ns": [
+    1442185112857303,
+    1442185303469092
+   ],
+   "window_ms": 190.611789,
+   "clock_bracket_lag_ns": [
+    179829,
+    776315
+   ],
+   "clock_bracket_device": "cuda:0",
+   "clock_bracket_source": "amdsmi",
+   "settle": {
+    "settled": true,
+    "settle_capped": null,
+    "settle_ms": 493.014033,
+    "settle_iterations": 186,
+    "settle_band": 0.0078,
+    "settle_entry_mhz": 2282,
+    "settle_exit_mhz": 1727,
+    "settle_min_mhz": 1725,
+    "settle_max_mhz": 2282,
+    "settle_n_samples": 54,
+    "settle_stability_horizon_ms": 149.988855
+   },
+   "clock_bracket_sampler_error": null,
+   "reference_clock_bracket": null
+  }
+ },
+ "clock_basis": "unlocked",
+ "clock_bracket_threshold": 0.0078,
+ "clock_bracket_summary": {
+  "n_bracketed": 64,
+  "n_refused": 48,
+  "refusal_rate": 0.75,
+  "refused_by_reason": {
+   "bracket_spread_above_threshold": 48
+  },
+  "thresholds_in_force": [
+   0.0078
+  ],
+  "spread_median": 0.023386342376052385,
+  "spread_max": 0.05647417959806665
+ },
+ "clock_bracket_refused_by_workload": {
+  "258bb593-e3d9-5846-87c5-8d9b0229da1b": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 1.2425875067710876,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03506787330316742
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 1.2620880007743835,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.013139103113396172
+   }
+  ],
+  "e4abcf13-fb66-504d-a9a1-a0453da505ce": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.12374100089073181,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04040404040404041
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.1221809983253479,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04154002026342452
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.12168099731206894,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.042
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.12398000061511993,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.041315990818668706
+   }
+  ],
+  "d1d64e14-7724-5e59-a655-8e8056ff5c2b": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 2.5312554836273193,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.013872832369942197
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 2.5326149463653564,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.016758162380814793
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 2.5417155027389526,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.019102749638205498
+   }
+  ],
+  "4aa1734a-49d3-566a-a685-b971a2ea5f05": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.676364004611969,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.036939313984168866
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.6764239966869354,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.030334728033472803
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.6755039989948273,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03330689928628073
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.6738645136356354,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03861412324781804
+   }
+  ],
+  "37cb25ac-2ad5-5d53-89e9-900f50c1273f": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.40820249915122986,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.030575103130308177
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.4032224863767624,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.025124437070395828
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.4021824896335602,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.030078777751253283
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.4168024957180023,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.021052631578947368
+   }
+  ],
+  "c05af2f5-f018-56e0-b33e-8d7368e2dcf6": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.4055425077676773,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.031167585710860705
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.4062020033597946,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03491755577109602
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.4060019999742508,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03232810615199035
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.4121229946613312,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04583228405943087
+   }
+  ],
+  "cbc16461-98d9-56e3-a338-d9e0c088635b": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.6612640023231506,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03677663601946998
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.6653240025043488,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.03759597564204395
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.6693439781665802,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.0316622691292876
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.6606640219688416,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04144527098831031
+   }
+  ],
+  "08b22d16-bb19-54d3-92f2-c6790c631cff": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 1.262108027935028,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.013659647125782584
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 1.2576879858970642,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.014265335235378032
+   }
+  ],
+  "8aed45db-d2ce-5521-8bfa-5571ff74646d": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 1.2516480088233948,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.012593016599885518
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 1.2439075112342834,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.01304224553444854
+   }
+  ],
+  "3bf5ef57-e5d5-5862-9778-2e02b5cbdb35": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.12180100008845329,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04108546791782906
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.12093999981880188,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04073319755600815
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.12168100103735924,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04156107450582869
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.1221810020506382,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.041189931350114416
+   }
+  ],
+  "2da239e0-7465-562c-adb3-30f5b2484dc7": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.9343854784965515,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.017765814266487216
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.9406055212020874,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.01633097441480675
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.9314659833908081,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.030221262817053427
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.9382859766483307,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.02132895816242822
+   }
+  ],
+  "322e0425-97f7-5e60-acbb-4ca3d0c6810e": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.30744150280952454,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.023386342376052385
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.306441992521286,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.014925373134328358
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.3053614944219589,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.022143698468786808
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.3115620017051697,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.024645431295047662
+   }
+  ],
+  "0d5dcd0c-493b-5353-b184-ff45201b8e37": [
+   {
+    "variant": "v1_eager",
+    "t_b_ms": 0.40712249279022217,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.041201290642839415
+   },
+   {
+    "variant": "v2_compile",
+    "t_b_ms": 0.4098224937915802,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.04577822990844354
+   },
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 0.41470250487327576,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.05647417959806665
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.4069029986858368,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.031914893617021274
+   }
+  ],
+  "2a8ea019-f27d-5f15-8dd0-e9f3581b7300": [
+   {
+    "variant": "v3_compile_max_autotune",
+    "t_b_ms": 1.1076670289039612,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.013582342954159592
+   },
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 1.1204875111579895,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.027822364901016586
+   }
+  ],
+  "a0e7383c-0455-5eaf-a173-19b18dbbc152": [
+   {
+    "variant": "v4_contiguous",
+    "t_b_ms": 0.18678100407123566,
+    "clock_bracket_refused_reason": "bracket_spread_above_threshold",
+    "clock_bracket_spread": 0.011304347826086957
+   }
+  ]
+ },
+ "n_workloads_with_a_refusal": 15,
+ "n_workloads_with_no_anchor_due_to_clock": 9,
+ "n_workloads": 16,
+ "n_workloads_with_tb": 7,
+ "complete": false,
+ "card_identity": {
+  "identified": true,
+  "hostname": "mia1-p02-g45",
+  "torch_index_in_child": 0,
+  "device_name": "AMD Instinct MI355X",
+  "pci_bus_id": 229,
+  "bdf": "0000:e5:00.0",
+  "uuid": "46ff75a3-0000-1000-80ab-da2211b0d27d",
+  "drm_card": "/sys/class/drm/card49",
+  "hip_visible_devices": "6"
+ },
+ "shard": {
+  "index": 6,
+  "count": 8,
+  "gpu": "6",
+  "_note": "Produced by one shard of a card-pinned partition: plan[index::count] over the sorted plan, a pure function of the problem name, so every replicate of a problem lands on the same card. COVERAGE IS A PROPERTY OF THE MERGED OUTPUT DIRECTORY, NOT OF ONE SHARD -- run scripts/check_coverage.py --artifacts <out> only after all `count` shards have finished."
+ }
+}

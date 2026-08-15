@@ -1,0 +1,154 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Vendor device layer.
+
+Everything in the harness that is genuinely vendor-specific is reached through
+this module, so the rest of the code can stay written against one API. The
+NVIDIA backend reproduces the previous behaviour exactly; the AMD backend
+implements the same contract for ROCm / CDNA.
+
+Both backends stay importable on either platform -- selecting a backend must
+never require the other vendor's libraries to be installed.
+"""
+
+from __future__ import annotations
+
+import os
+from functools import lru_cache
+from typing import Literal
+
+Vendor = Literal["nvidia", "amd"]
+
+
+@lru_cache(maxsize=1)
+def detect_vendor() -> Vendor:
+    """Return the vendor of the current torch build.
+
+    ``torch.version.hip`` is set on ROCm builds and ``None`` on CUDA builds.
+    This is the ROCm-recommended discriminator: a ROCm torch reports through
+    the ``torch.cuda`` API, so ``torch.cuda.is_available()`` cannot tell the
+    two apart.
+
+    Cached: this is consulted from Pydantic default factories, so it runs on
+    every ``CompileOptions`` construction, and the answer cannot change within
+    a process.
+
+    The attribute walk is deliberately defensive. A torch that is absent or
+    stubbed (as in ``test_build_ext``, which execs the build template against a
+    fake torch module) means "not a ROCm build", not a crash.
+    """
+    try:
+        import torch
+    except ImportError:
+        return "nvidia"
+
+    return "amd" if getattr(getattr(torch, "version", None), "hip", None) else "nvidia"
+
+
+def get_backend(vendor: Vendor | None = None):
+    """Return the backend module for *vendor* (default: the detected one)."""
+    vendor = vendor or detect_vendor()
+    if vendor == "amd":
+        from . import amd
+
+        return amd
+    from . import nvidia
+
+    return nvidia
+
+
+# -- Facade -----------------------------------------------------------------
+# Thin pass-throughs so call sites read as `device.llc_bytes(...)` rather than
+# repeating the backend lookup.
+
+
+def llc_bytes(device=None) -> int:
+    """Bytes of last-level cache that a benchmark must flush to run cold."""
+    return get_backend().llc_bytes(device)
+
+
+def flush_buffer_bytes(device=None) -> int:
+    """Size of the buffer used to evict the LLC before a timed iteration."""
+    return get_backend().flush_buffer_bytes(device)
+
+
+def reset_persisting_l2_cache(device=None) -> None:
+    """Reset persisting L2 lines, where the concept exists."""
+    return get_backend().reset_persisting_l2_cache(device)
+
+
+def arch_flags(hardware=None) -> list[str]:
+    """Compiler flags selecting the target architecture."""
+    return get_backend().arch_flags(hardware)
+
+
+def default_device_cflags() -> list[str]:
+    """Default device-compiler flags for this vendor."""
+    return get_backend().default_device_cflags()
+
+
+def default_ld_flags() -> list[str]:
+    """Default linker flags for this vendor."""
+    return get_backend().default_ld_flags()
+
+
+def current_clock_mhz(device=None) -> int | None:
+    """Current core clock in MHz, or None where the vendor backend cannot say.
+
+    Present on the facade because the clock bracket
+    (``sol_execbench.core.bench.clock_bracket``) is vendor-neutral code that must
+    not reach into a backend directly. The NVIDIA backend does not implement it
+    and is not expected to: it is the unlocked CDNA4 part that needs a clock per
+    measurement. Absent means None, which the bracket records as "no clock
+    evidence" and refuses -- it never substitutes a nominal value.
+    """
+    fn = getattr(get_backend(), "current_clock_mhz", None)
+    return fn(device) if fn is not None else None
+
+
+def default_timing_methodology() -> str:
+    """The timing methodology this vendor uses when none is requested.
+
+    AMD: ``cupti`` has no ROCm build, so ROCm ships on ``hip_events`` until the
+    rocprofiler-sdk source (task 04) lands. The two are NOT interchangeable --
+    event pairs include host launch overhead that activity tracing excludes, so
+    short kernels read slow. That is why the answer is recorded on every trace
+    rather than inferred later from the vendor: a trace captured before task 04
+    and one captured after are not comparable, and nothing else in the trace
+    would reveal it.
+    """
+    override = os.environ.get("SOLEXBENCH_METHODOLOGY")
+    if override:
+        # Explicit override, used by task 04's methodology comparison. Not a
+        # back door: whatever it selects is recorded on every trace, so a
+        # trace taken under an override is never mistaken for a default one.
+        return override
+    return "hip_events" if detect_vendor() == "amd" else "cupti"
+
+
+__all__ = [
+    "Vendor",
+    "detect_vendor",
+    "get_backend",
+    "llc_bytes",
+    "flush_buffer_bytes",
+    "reset_persisting_l2_cache",
+    "arch_flags",
+    "default_device_cflags",
+    "default_ld_flags",
+    "current_clock_mhz",
+    "default_timing_methodology",
+]

@@ -1,0 +1,865 @@
+{
+  "_provenance": {
+    "task": "10-scoring",
+    "utc": "2026-08-14T22:04:46.197323+00:00",
+    "git_sha": "9b7e84352dde9e6dc5ddae5097171fa614b2785f-dirty",
+    "host": "mia1-p02-g45",
+    "python": "3.12.3",
+    "torch": {
+      "available": true,
+      "version": "2.9.1+rocm7.2.0.git7e1940d4",
+      "hip": "7.2.26015-fc0010cf6a",
+      "cuda": null,
+      "device_count": 8,
+      "devices": [
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X"
+      ]
+    },
+    "rocm": {
+      "version": "7.2.0",
+      "driver": "6.16.6",
+      "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+    },
+    "f_lock_mhz": null,
+    "visible_devices": "2"
+  },
+  "problem": "FlashInfer-Bench__003_fused_add_rmsnorm_h7168",
+  "category": "FlashInfer-Bench",
+  "harness": "codex",
+  "model": null,
+  "gpu": 2,
+  "card_check": {
+    "ok": true,
+    "state": "matched",
+    "reason": "T_b and T_k on mia1-p02-g45 0000:65:00.0",
+    "anchor": {
+      "identified": true,
+      "hostname": "mia1-p02-g45",
+      "torch_index_in_child": 0,
+      "device_name": "AMD Instinct MI355X",
+      "pci_bus_id": 101,
+      "bdf": "0000:65:00.0",
+      "uuid": "85ff75a3-0000-1000-80c9-ff1a7dbe1956",
+      "drm_card": "/sys/class/drm/card17",
+      "hip_visible_devices": "2"
+    },
+    "actual": {
+      "identified": true,
+      "hostname": "mia1-p02-g45",
+      "torch_index_in_child": 0,
+      "device_name": "AMD Instinct MI355X",
+      "pci_bus_id": 101,
+      "bdf": "0000:65:00.0",
+      "uuid": "85ff75a3-0000-1000-80c9-ff1a7dbe1956",
+      "drm_card": "/sys/class/drm/card17",
+      "hip_visible_devices": "2"
+    }
+  },
+  "clock_basis": "unlocked",
+  "packet_manifest": "missing; problem key taken from the session directory name",
+  "agent": {
+    "wallclock_s": 1800.1117000579834,
+    "cost_usd": null,
+    "cost_source": "unavailable",
+    "input_tokens": null,
+    "output_tokens": null,
+    "reasoning_tokens": null,
+    "num_turns": null,
+    "verify_attempts": 4,
+    "timed_out": true,
+    "harness_error": "wallclock cap 1800s exceeded"
+  },
+  "records": [
+    {
+      "workload_index": 0,
+      "workload_uuid": "c4831914-583d-4dbf-a185-e246bf426098",
+      "status": "PASSED",
+      "correct": true,
+      "t_k_ms": 0.0063599999994039536,
+      "t_ref_ms": 0.03704000078141689,
+      "speedup_vs_reference": 5.823899494479278,
+      "t_sol_ms": 3.958333333333333e-05,
+      "t_sol_cycles": 95,
+      "t_b_ms": 0.0064199999906122684,
+      "sol_score": 0.5023620493900195,
+      "headroom_fraction": 0.8291798552019314,
+      "score_basis": "sol_score_v1",
+      "card_check_state": "matched",
+      "clock_bracket": {
+        "clock_before_mhz": 2405,
+        "clock_after_mhz": 2403,
+        "clock_bracket_spread": 0.0008319467554076539,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2404.0,
+        "window_ns": [
+          1445015218442489,
+          1445015230684512
+        ],
+        "window_ms": 12.242023,
+        "clock_bracket_lag_ns": [
+          202219,
+          614775
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": false,
+          "settle_capped": "max_iters",
+          "settle_ms": 252.54307,
+          "settle_iterations": 20500,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2396,
+          "settle_exit_mhz": 2405,
+          "settle_min_mhz": 2396,
+          "settle_max_mhz": 2405,
+          "settle_n_samples": 26,
+          "settle_stability_horizon_ms": 0.6762027640449438
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "reference_clock_bracket": {
+        "clock_before_mhz": 2404,
+        "clock_after_mhz": 2403,
+        "clock_bracket_spread": 0.00041605991262741833,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2403.5,
+        "window_ns": [
+          1445016240179257,
+          1445016248420363
+        ],
+        "window_ms": 8.241106,
+        "clock_bracket_lag_ns": [
+          191978,
+          668344
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": false,
+          "settle_capped": "max_ms",
+          "settle_ms": 1008.596232,
+          "settle_iterations": 18428,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2403,
+          "settle_exit_mhz": 2404,
+          "settle_min_mhz": 2403,
+          "settle_max_mhz": 2406,
+          "settle_n_samples": 97,
+          "settle_stability_horizon_ms": 2.904910829268293
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "clock_bracket_refused": false,
+      "clock_bracket_over_threshold": false,
+      "clock_bracket_refused_reason": null,
+      "max_absolute_error": 0.0078125,
+      "max_relative_error": 0.005988024175167084,
+      "allowed_atol": 0.007781300706456071,
+      "allowed_rtol": 0.0078125,
+      "has_nan": false,
+      "has_inf": false,
+      "methodology": "hip_events",
+      "failure_log": ""
+    },
+    {
+      "workload_index": 1,
+      "workload_uuid": "d8b7a476-6877-429c-821d-35c779c56087",
+      "status": "PASSED",
+      "correct": true,
+      "t_k_ms": 0.006279999855905771,
+      "t_ref_ms": 0.03220000118017197,
+      "speedup_vs_reference": 5.1273888406049535,
+      "t_sol_ms": 7.5e-06,
+      "t_sol_cycles": 18,
+      "t_b_ms": 0.007000000216066837,
+      "sol_score": 0.5271391012534685,
+      "headroom_fraction": 0.805156492165662,
+      "score_basis": "sol_score_v1",
+      "card_check_state": "matched",
+      "clock_bracket": {
+        "clock_before_mhz": 2405,
+        "clock_after_mhz": 2403,
+        "clock_bracket_spread": 0.0008319467554076539,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2404.0,
+        "window_ns": [
+          1445016534177011,
+          1445016540722989
+        ],
+        "window_ms": 6.545978,
+        "clock_bracket_lag_ns": [
+          189278,
+          464457
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": false,
+          "settle_capped": "max_iters",
+          "settle_ms": 233.56687,
+          "settle_iterations": 20494,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2405,
+          "settle_exit_mhz": 2405,
+          "settle_min_mhz": 2405,
+          "settle_max_mhz": 2406,
+          "settle_n_samples": 25,
+          "settle_stability_horizon_ms": 0.6441363987138263
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "reference_clock_bracket": {
+        "clock_before_mhz": 2405,
+        "clock_after_mhz": 2404,
+        "clock_bracket_spread": 0.0004158868787689748,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2404.5,
+        "window_ns": [
+          1445017542341199,
+          1445017550288746
+        ],
+        "window_ms": 7.947547,
+        "clock_bracket_lag_ns": [
+          192459,
+          799614
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": false,
+          "settle_capped": "max_ms",
+          "settle_ms": 1000.877535,
+          "settle_iterations": 19791,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2403,
+          "settle_exit_mhz": 2405,
+          "settle_min_mhz": 2403,
+          "settle_max_mhz": 2406,
+          "settle_n_samples": 98,
+          "settle_stability_horizon_ms": 2.884953173076923
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "clock_bracket_refused": false,
+      "clock_bracket_over_threshold": false,
+      "clock_bracket_refused_reason": null,
+      "max_absolute_error": 0.0,
+      "max_relative_error": 0.0,
+      "allowed_atol": 0.007902657918941798,
+      "allowed_rtol": 0.0078125,
+      "has_nan": false,
+      "has_inf": false,
+      "methodology": "hip_events",
+      "failure_log": ""
+    },
+    {
+      "workload_index": 2,
+      "workload_uuid": "042aaf83-e452-482a-844f-0267918beaf2",
+      "status": "PASSED",
+      "correct": true,
+      "t_k_ms": 0.006320000160485506,
+      "t_ref_ms": 0.04193999990820885,
+      "speedup_vs_reference": 6.636075766331467,
+      "t_sol_ms": 0.00017416666666666665,
+      "t_sol_cycles": 418,
+      "t_b_ms": 0.006700000027194619,
+      "sol_score": 0.5149940758022202,
+      "headroom_fraction": 0.8528502123188598,
+      "score_basis": "sol_score_v1",
+      "card_check_state": "matched",
+      "clock_bracket": {
+        "clock_before_mhz": 2406,
+        "clock_after_mhz": 2403,
+        "clock_bracket_spread": 0.0012476606363069245,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2404.5,
+        "window_ns": [
+          1445017845669560,
+          1445017852046179
+        ],
+        "window_ms": 6.376619,
+        "clock_bracket_lag_ns": [
+          185269,
+          447467
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": false,
+          "settle_capped": "max_iters",
+          "settle_ms": 234.268465,
+          "settle_iterations": 20568,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2406,
+          "settle_exit_mhz": 2406,
+          "settle_min_mhz": 2406,
+          "settle_max_mhz": 2406,
+          "settle_n_samples": 25,
+          "settle_stability_horizon_ms": 0.6439984068891281
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "reference_clock_bracket": {
+        "clock_before_mhz": 2401,
+        "clock_after_mhz": 2400,
+        "clock_bracket_spread": 0.00041657987919183504,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2400.5,
+        "window_ns": [
+          1445018857058294,
+          1445018865899844
+        ],
+        "window_ms": 8.84155,
+        "clock_bracket_lag_ns": [
+          256628,
+          845074
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": false,
+          "settle_capped": "max_ms",
+          "settle_ms": 1004.242821,
+          "settle_iterations": 18802,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2403,
+          "settle_exit_mhz": 2401,
+          "settle_min_mhz": 2401,
+          "settle_max_mhz": 2404,
+          "settle_n_samples": 97,
+          "settle_stability_horizon_ms": 3.2593861956521737
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "clock_bracket_refused": false,
+      "clock_bracket_over_threshold": false,
+      "clock_bracket_refused_reason": null,
+      "max_absolute_error": 0.015625,
+      "max_relative_error": 0.006493506487458944,
+      "allowed_atol": 0.007777140832294812,
+      "allowed_rtol": 0.0078125,
+      "has_nan": false,
+      "has_inf": false,
+      "methodology": "hip_events",
+      "failure_log": ""
+    },
+    {
+      "workload_index": 3,
+      "workload_uuid": "37a25eac-6754-4c33-b5ca-37775bd5acc9",
+      "status": "PASSED",
+      "correct": true,
+      "t_k_ms": 0.006320000160485506,
+      "t_ref_ms": 0.039900001138448715,
+      "speedup_vs_reference": 6.31329115905965,
+      "t_sol_ms": 9.875e-05,
+      "t_sol_cycles": 237,
+      "t_b_ms": 0.006479999981820583,
+      "sol_score": 0.5063479396757936,
+      "headroom_fraction": 0.8436920955362716,
+      "score_basis": "sol_score_v1",
+      "card_check_state": "matched",
+      "clock_bracket": {
+        "clock_before_mhz": 2405,
+        "clock_after_mhz": 2404,
+        "clock_bracket_spread": 0.0004158868787689748,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2404.5,
+        "window_ns": [
+          1445019163225903,
+          1445019170123139
+        ],
+        "window_ms": 6.897236,
+        "clock_bracket_lag_ns": [
+          203539,
+          657314
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": false,
+          "settle_capped": "max_iters",
+          "settle_ms": 238.888708,
+          "settle_iterations": 20079,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2404,
+          "settle_exit_mhz": 2405,
+          "settle_min_mhz": 2404,
+          "settle_max_mhz": 2405,
+          "settle_n_samples": 25,
+          "settle_stability_horizon_ms": 0.6571844419889503
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "reference_clock_bracket": {
+        "clock_before_mhz": 2403,
+        "clock_after_mhz": 2402,
+        "clock_bracket_spread": 0.0004162330905306972,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2402.5,
+        "window_ns": [
+          1445020181351036,
+          1445020189655091
+        ],
+        "window_ms": 8.304055,
+        "clock_bracket_lag_ns": [
+          186028,
+          648085
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": false,
+          "settle_capped": "max_ms",
+          "settle_ms": 1010.318745,
+          "settle_iterations": 19150,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2404,
+          "settle_exit_mhz": 2403,
+          "settle_min_mhz": 2403,
+          "settle_max_mhz": 2405,
+          "settle_n_samples": 98,
+          "settle_stability_horizon_ms": 2.8803147115384617
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "clock_bracket_refused": false,
+      "clock_bracket_over_threshold": false,
+      "clock_bracket_refused_reason": null,
+      "max_absolute_error": 0.0078125,
+      "max_relative_error": 0.006535947788506746,
+      "allowed_atol": 0.007778781773874861,
+      "allowed_rtol": 0.0078125,
+      "has_nan": false,
+      "has_inf": false,
+      "methodology": "hip_events",
+      "failure_log": ""
+    },
+    {
+      "workload_index": 4,
+      "workload_uuid": "38786469-9a12-4525-b284-865d5a37f856",
+      "status": "PASSED",
+      "correct": true,
+      "t_k_ms": 0.009720000438392162,
+      "t_ref_ms": 0.07725999876856804,
+      "speedup_vs_reference": 7.9485591855948545,
+      "t_sol_ms": 0.0028995833333333334,
+      "t_sol_cycles": 6959,
+      "t_b_ms": 0.012199999764561653,
+      "sol_score": 0.5769190786750308,
+      "headroom_fraction": 0.9082789268303756,
+      "score_basis": "sol_score_v1",
+      "card_check_state": "matched",
+      "clock_bracket": {
+        "clock_before_mhz": 2381,
+        "clock_after_mhz": 2381,
+        "clock_bracket_spread": 0.0,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2381.0,
+        "window_ns": [
+          1445020480829369,
+          1445020487796374
+        ],
+        "window_ms": 6.967005,
+        "clock_bracket_lag_ns": [
+          187769,
+          457146
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": false,
+          "settle_capped": "max_iters",
+          "settle_ms": 233.990698,
+          "settle_iterations": 20560,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2404,
+          "settle_exit_mhz": 2381,
+          "settle_min_mhz": 2381,
+          "settle_max_mhz": 2404,
+          "settle_n_samples": 25,
+          "settle_stability_horizon_ms": 0.6433575483870968
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "reference_clock_bracket": {
+        "clock_before_mhz": 2396,
+        "clock_after_mhz": 2396,
+        "clock_bracket_spread": 0.0,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2396.0,
+        "window_ns": [
+          1445021493743555,
+          1445021504495160
+        ],
+        "window_ms": 10.751605,
+        "clock_bracket_lag_ns": [
+          191608,
+          909933
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": false,
+          "settle_capped": "max_ms",
+          "settle_ms": 1005.236987,
+          "settle_iterations": 13984,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2381,
+          "settle_exit_mhz": 2396,
+          "settle_min_mhz": 2381,
+          "settle_max_mhz": 2398,
+          "settle_n_samples": 97,
+          "settle_stability_horizon_ms": 4.048399054054054
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "clock_bracket_refused": false,
+      "clock_bracket_over_threshold": false,
+      "clock_bracket_refused_reason": null,
+      "max_absolute_error": 0.03125,
+      "max_relative_error": 0.007751937955617905,
+      "allowed_atol": 0.007844218797994386,
+      "allowed_rtol": 0.0078125,
+      "has_nan": false,
+      "has_inf": false,
+      "methodology": "hip_events",
+      "failure_log": ""
+    },
+    {
+      "workload_index": 5,
+      "workload_uuid": "d9c27791-1f27-4feb-adb6-aa8a8c20556f",
+      "status": "PASSED",
+      "correct": true,
+      "t_k_ms": 0.09998049959540367,
+      "t_ref_ms": 1.0668060183525085,
+      "speedup_vs_reference": 10.670140904172397,
+      "t_sol_ms": 0.0780675,
+      "t_sol_cycles": 187362,
+      "t_b_ms": 0.13766100257635117,
+      "sol_score": 0.7311502884858506,
+      "headroom_fraction": 0.9778374168815468,
+      "score_basis": "sol_score_v1",
+      "card_check_state": "matched",
+      "clock_bracket": {
+        "clock_before_mhz": 2357,
+        "clock_after_mhz": 2365,
+        "clock_bracket_spread": 0.0033883947479881405,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2361.0,
+        "window_ns": [
+          1445022670476334,
+          1445022691876295
+        ],
+        "window_ms": 21.399961,
+        "clock_bracket_lag_ns": [
+          180039,
+          482437
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": false,
+          "settle_capped": "max_ms",
+          "settle_ms": 1005.429727,
+          "settle_iterations": 10040,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2391,
+          "settle_exit_mhz": 2357,
+          "settle_min_mhz": 2347,
+          "settle_max_mhz": 2391,
+          "settle_n_samples": 98,
+          "settle_stability_horizon_ms": 5.6969262857142855
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "reference_clock_bracket": {
+        "clock_before_mhz": 2379,
+        "clock_after_mhz": 2385,
+        "clock_bracket_spread": 0.0025188916876574307,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2382.0,
+        "window_ns": [
+          1445022763481742,
+          1445022841528318
+        ],
+        "window_ms": 78.046576,
+        "clock_bracket_lag_ns": [
+          186238,
+          878143
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": true,
+          "settle_capped": null,
+          "settle_ms": 70.870343,
+          "settle_iterations": 63,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2365,
+          "settle_exit_mhz": 2379,
+          "settle_min_mhz": 2365,
+          "settle_max_mhz": 2379,
+          "settle_n_samples": 9,
+          "settle_stability_horizon_ms": 62.729839999999996
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "clock_bracket_refused": false,
+      "clock_bracket_over_threshold": false,
+      "clock_bracket_refused_reason": null,
+      "max_absolute_error": 0.03125,
+      "max_relative_error": 0.007751937955617905,
+      "allowed_atol": 0.007882730700656095,
+      "allowed_rtol": 0.0078125,
+      "has_nan": false,
+      "has_inf": false,
+      "methodology": "hip_events",
+      "failure_log": ""
+    },
+    {
+      "workload_index": 6,
+      "workload_uuid": "ac1479c4-cfb0-4f86-a92d-47e7ad8e21cb",
+      "status": "PASSED",
+      "correct": true,
+      "t_k_ms": 0.08340050280094147,
+      "t_ref_ms": 0.90174600481987,
+      "speedup_vs_reference": 10.812237031377833,
+      "t_sol_ms": 0.06424041666666666,
+      "t_sol_cycles": 154177,
+      "t_b_ms": 0.12118100002408028,
+      "sol_score": 0.7482271015188975,
+      "headroom_fraction": 0.9771224378615491,
+      "score_basis": "sol_score_v1",
+      "card_check_state": "matched",
+      "clock_bracket": {
+        "clock_before_mhz": 2382,
+        "clock_after_mhz": 2384,
+        "clock_bracket_spread": 0.000839278220730172,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2383.0,
+        "window_ns": [
+          1445023948894275,
+          1445023967870836
+        ],
+        "window_ms": 18.976561,
+        "clock_bracket_lag_ns": [
+          178399,
+          559945
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": false,
+          "settle_capped": "max_ms",
+          "settle_ms": 1004.219628,
+          "settle_iterations": 11991,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2386,
+          "settle_exit_mhz": 2382,
+          "settle_min_mhz": 2359,
+          "settle_max_mhz": 2386,
+          "settle_n_samples": 98,
+          "settle_stability_horizon_ms": 4.76307456
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "reference_clock_bracket": {
+        "clock_before_mhz": 2389,
+        "clock_after_mhz": 2391,
+        "clock_bracket_spread": 0.0008368200836820083,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2390.0,
+        "window_ns": [
+          1445024030631502,
+          1445024097381747
+        ],
+        "window_ms": 66.750245,
+        "clock_bracket_lag_ns": [
+          181619,
+          662775
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": true,
+          "settle_capped": null,
+          "settle_ms": 61.945622,
+          "settle_iterations": 66,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2384,
+          "settle_exit_mhz": 2389,
+          "settle_min_mhz": 2384,
+          "settle_max_mhz": 2389,
+          "settle_n_samples": 8,
+          "settle_stability_horizon_ms": 52.82184
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "clock_bracket_refused": false,
+      "clock_bracket_over_threshold": false,
+      "clock_bracket_refused_reason": null,
+      "max_absolute_error": 0.03125,
+      "max_relative_error": 0.0078125,
+      "allowed_atol": 0.007840352441078004,
+      "allowed_rtol": 0.0078125,
+      "has_nan": false,
+      "has_inf": false,
+      "methodology": "hip_events",
+      "failure_log": ""
+    },
+    {
+      "workload_index": 7,
+      "workload_uuid": "f0fa41df-088a-4c01-935d-1e4813d0a955",
+      "status": "PASSED",
+      "correct": true,
+      "t_k_ms": 0.006340499967336655,
+      "t_ref_ms": 0.04303999990224838,
+      "speedup_vs_reference": 6.788108212912342,
+      "t_sol_ms": 0.00034625,
+      "t_sol_cycles": 831,
+      "t_b_ms": 0.006560000125318766,
+      "sol_score": 0.5089900129552819,
+      "headroom_fraction": 0.8595988878685735,
+      "score_basis": "sol_score_v1",
+      "card_check_state": "matched",
+      "clock_bracket": {
+        "clock_before_mhz": 2400,
+        "clock_after_mhz": 2398,
+        "clock_bracket_spread": 0.0008336807002917883,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2399.0,
+        "window_ns": [
+          1445024413013104,
+          1445024419863750
+        ],
+        "window_ms": 6.850646,
+        "clock_bracket_lag_ns": [
+          220729,
+          622325
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": false,
+          "settle_capped": "max_iters",
+          "settle_ms": 250.555138,
+          "settle_iterations": 20857,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2398,
+          "settle_exit_mhz": 2400,
+          "settle_min_mhz": 2398,
+          "settle_max_mhz": 2400,
+          "settle_n_samples": 26,
+          "settle_stability_horizon_ms": 0.6660761411245866
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "reference_clock_bracket": {
+        "clock_before_mhz": 2400,
+        "clock_after_mhz": 2399,
+        "clock_bracket_spread": 0.00041675349031048136,
+        "clock_bracket_threshold": 0.0078,
+        "clock_bracket_refused": false,
+        "clock_bracket_refused_reason": null,
+        "clock_mhz": 2399.5,
+        "window_ns": [
+          1445025423671264,
+          1445025432453455
+        ],
+        "window_ms": 8.782191,
+        "clock_bracket_lag_ns": [
+          188609,
+          717724
+        ],
+        "clock_bracket_device": "cuda:0",
+        "clock_bracket_source": "amdsmi",
+        "settle": {
+          "settled": false,
+          "settle_capped": "max_ms",
+          "settle_ms": 1002.93641,
+          "settle_iterations": 17068,
+          "settle_band": 0.0078,
+          "settle_entry_mhz": 2398,
+          "settle_exit_mhz": 2400,
+          "settle_min_mhz": 2398,
+          "settle_max_mhz": 2400,
+          "settle_n_samples": 95,
+          "settle_stability_horizon_ms": 3.1774598936170215
+        },
+        "clock_bracket_sampler_error": null
+      },
+      "clock_bracket_refused": false,
+      "clock_bracket_over_threshold": false,
+      "clock_bracket_refused_reason": null,
+      "max_absolute_error": 0.015625,
+      "max_relative_error": 0.004999999888241291,
+      "allowed_atol": 0.007785391406193136,
+      "allowed_rtol": 0.0078125,
+      "has_nan": false,
+      "has_inf": false,
+      "methodology": "hip_events",
+      "failure_log": ""
+    }
+  ],
+  "spec_source": {
+    "definition": "/work/data/SOL-ExecBench/benchmark/FlashInfer-Bench/003_fused_add_rmsnorm_h7168/definition.json",
+    "workloads": "artifacts/05-MI355X/workloads/FlashInfer-Bench/003_fused_add_rmsnorm_h7168/workload.jsonl"
+  },
+  "packet_spec_divergence": [
+    "definition.json unreadable: FileNotFoundError: [Errno 2] No such file or directory: '/work/artifacts/10/runs/full-01/codex/FlashInfer-Bench__003_fused_add_rmsnorm_h7168/packet/definition.json'"
+  ],
+  "spec_tampered": true,
+  "languages": [
+    "triton"
+  ],
+  "n_sources": 1,
+  "source_bytes": 13370,
+  "static_screen": [],
+  "reference_copy": {
+    "kind": "distinct",
+    "similarity": 0.017058152793614594,
+    "detail": "closest source similarity 0.017"
+  },
+  "eval_wallclock_s": 12.63154649734497,
+  "outcome": "evaluated",
+  "workloads": 8,
+  "passed": 8,
+  "all_passed": true
+}

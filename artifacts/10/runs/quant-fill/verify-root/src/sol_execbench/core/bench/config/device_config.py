@@ -1,0 +1,189 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Device-specific configuration for SOL ExecBench benchmark execution."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass(frozen=True)
+class ClockPreset:
+    """GPU and DRAM clock frequencies for stable benchmarking.
+
+    ``dram_clk_mhz`` is Optional because Instinct parts do not expose an
+    independent memory-clock lock (no equivalent of ``nvidia-smi -lmc``). None
+    means "this vendor cannot lock DRAM"; the AMD path verifies HBM is stable
+    at max under load and records it instead.
+    """
+
+    gpu_clk_mhz: int
+    """The clock to REQUEST. On NVIDIA this is also what you get."""
+
+    dram_clk_mhz: Optional[int]
+
+    # AMD: what the part actually HOLDS when the request above is applied.
+    #
+    # On NVIDIA, `nvidia-smi -lgc 1500` pins the clock at 1500 and the two
+    # numbers are the same, so upstream never needed to distinguish them. On
+    # MI350X they are not the same and not close: `rocm-smi
+    # --setperfdeterminism 1600` yields a rock-steady 1303 MHz under sustained
+    # load -- about 81% of the request -- while drawing 885 W of a 1000 W cap,
+    # so it is the determinism mode setting the operating point, not power.
+    #
+    # Both numbers are load-bearing and neither substitutes for the other:
+    #   gpu_clk_mhz          is what `lock_clocks` must pass to rocm-smi.
+    #   achieved_gpu_clk_mhz is F_LOCK -- the frequency every T_SOL and T_b is
+    #                        expressed at. Using the requested value here
+    #                        would overstate the clock by ~23% and make every
+    #                        analytic bound wrong in the direction that looks
+    #                        entirely plausible.
+    #
+    # None means "not measured on this part". Whether that is harmless depends
+    # on `requested_is_achieved` below.
+    achieved_gpu_clk_mhz: Optional[int] = None
+
+    # True on parts where asking for a clock gets you that clock, which is the
+    # NVIDIA case and the reason the default is True.
+    #
+    # It is FALSE on MI355X, and that is a measurement, not a caution: PR #2's
+    # per-card sweep put 15 of 16 measurements at 0.795-0.864x of the setpoint
+    # while the card drew 734-999 W of a 1400 W cap. Setting it False makes
+    # `f_lock_mhz` refuse rather than hand back the request.
+    requested_is_achieved: bool = True
+
+    @property
+    def f_lock_mhz(self) -> Optional[int]:
+        """The frequency measurements are actually taken at, or None if unknown.
+
+        **None is the honest answer and it is load-bearing.** This used to read
+        ``achieved_gpu_clk_mhz or gpu_clk_mhz``, which on a part where the two
+        differ returns the number that was ASKED FOR and labels it the number
+        that was ACHIEVED. That is prime directive 1 -- inventing a measurement
+        -- performed by a fallback operator, and it is silent by construction:
+        every artifact gets stamped, every guard compares the stamp against the
+        same table it came from, and the only automated cross-check
+        (``T_SOL <= T_b``) gets EASIER rather than harder, because a bound
+        divided by a clock that is too high and a T_b measured on silicon that
+        is too slow both move the same way.
+
+        Returning None instead makes `build_manifest.py` refuse to build at all
+        (its F18 guard, build_manifest.py:244) until someone supplies a real
+        measurement through ``SOLEXBENCH_F_LOCK_MHZ`` or by measuring the part.
+        A refusal is the correct output for "nobody has measured this yet".
+        """
+        if self.achieved_gpu_clk_mhz is not None:
+            return self.achieved_gpu_clk_mhz
+        return self.gpu_clk_mhz if self.requested_is_achieved else None
+
+
+CLOCK_LOCK_PRESETS: dict[str, ClockPreset] = {
+    "NVIDIA B200": ClockPreset(gpu_clk_mhz=1500, dram_clk_mhz=3996),
+    "NVIDIA H100": ClockPreset(gpu_clk_mhz=1410, dram_clk_mhz=1593),
+    "NVIDIA A100": ClockPreset(gpu_clk_mhz=1065, dram_clk_mhz=1215),
+    # AMD. MEASURED on mia1-p02-g10, not derived from any NVIDIA ratio and not
+    # taken from a spec sheet:
+    #
+    #   sustained floors under saturating BF16 GEMM (p5 of the final 5 min of
+    #   a 15 min run) were 1725 / 1734 / 1757 MHz on GPUs 0 / 1 / 2, and
+    #   1728 MHz on GPU 0 with all seven siblings loaded. 1650 is the round
+    #   number >=50 MHz below the lowest of those, so the cap sits under the
+    #   floor even on the worst GPU in the worst node condition.
+    #
+    #   Verified at 1648 MHz median under sustained load; timing CV 0.0015.
+    #   See tasks/01 and STATE.md. Raising this later invalidates every
+    #   measurement taken at 1650.
+    #
+    # For scale: the B200 ratio (1500/1970 ~ 76%) would imply ~1830 MHz here,
+    # which is ABOVE the measured floor and would throttle continuously. The
+    # MI355X derate is milder at 1650/2400 ~ 69%.
+    #
+    #   RETRACTED as an F_LOCK, 2026-08-12, and the entry is kept rather than
+    #   deleted so the retraction is visible where the number was. The 1648
+    #   above is real but it is ONE card on one node: PR #2 swept all eight,
+    #   correctly addressed through the PCI translation, and found 15 of 16
+    #   measurements at 0.795-0.864x of the setpoint drawing 734-999 W of a
+    #   1400 W cap -- the cards do not raise their power state, and the clock
+    #   follows. The single measurement that reached its setpoint drew 1272 W.
+    #   Node-wide spread goes 3.0-3.4% unlocked to 21.0-21.3% locked, three
+    #   runs over five days across a hard reboot.
+    #
+    #   So 1650 is a REQUEST on this part and nothing here has measured what it
+    #   achieves. `requested_is_achieved=False` makes that state explicit and
+    #   makes `f_lock_mhz` return None, which makes the manifest refuse to
+    #   build. Stamping 1650 while the silicon holds ~1330 would make every
+    #   bound ~24% too tight in exactly the direction no gate can catch.
+    #
+    #   MI355X is to be measured UNLOCKED (docs/TODO-MI355X.md). Under that
+    #   plan this preset is not used for scoring at all; it stays because
+    #   `lock_clocks` still needs a request if anyone deliberately locks, and
+    #   because deleting it would leave the next person to rediscover 1650.
+    "AMD Instinct MI355X": ClockPreset(
+        gpu_clk_mhz=1650, dram_clk_mhz=None, requested_is_achieved=False
+    ),
+    #
+    # MI350X. MEASURED on gbt350-odcdh1-a08-1 (tasks/01, 2026-08-03). Same
+    # CDNA4 die and the same gfx950 target as the MI355X above; a different
+    # part, and emphatically NOT the same clock. Copying 1650 down from the
+    # line above would have been the same class of error as copying a B200
+    # constant into an AMD artifact.
+    #
+    # How different: MI350X is the air-cooled 1000 W part (MI355X is
+    # liquid-cooled at 1400 W) with a 2200 MHz ceiling (MI355X: 2400). Its
+    # sustained UNLOCKED floors under saturating BF16 GEMM were 1390 / 1367 /
+    # 1335 MHz on GPUs 0 / 1 / 2 -- versus 1725-1757 on MI355X.
+    #
+    # The request/achieved split is the part of this that does not transfer at
+    # all. `--setperfdeterminism 1600` holds 1303 MHz on GPU 0 (min 1296 over
+    # 20 samples) at 885 W, i.e. ~110 W below the cap, so the lock binds and
+    # not the power limit -- which is what makes it reproducible. Requesting
+    # more stops helping: at 1900 and at 2200 the part pins to the 1000 W cap
+    # and lands on the same ~1400 MHz, at the mercy of ambient temperature.
+    #
+    # 1600 was chosen over 1700 (which gives 1380 MHz) for exactly that
+    # margin: 1700 sits at 947 W on two of three GPUs sampled, and a setting
+    # that is one warm afternoon away from becoming power-bound is not a lock.
+    #
+    # Per-GPU achieved at this setting, all eight measured:
+    #   1303 1295 1264 1307 1279 1296 1285 1242  (median MHz, spread 65)
+    # The spread is why authoritative timing is pinned to one GPU and why every
+    # timing artifact records which GPU produced it.
+    "AMD Instinct MI350X": ClockPreset(
+        gpu_clk_mhz=1600, dram_clk_mhz=None, achieved_gpu_clk_mhz=1300
+    ),
+}
+
+
+def get_clock_preset(device_name: str) -> Optional[ClockPreset]:
+    """Get the clock preset for a given GPU device name.
+
+    Returns None if the device is not in the preset table.
+
+    Parameters
+    ----------
+    device_name : str
+        The GPU device name string (e.g., from torch.cuda.get_device_name()).
+
+    Returns
+    -------
+    Optional[ClockPreset]
+        Clock preset with GPU and DRAM frequencies, or None if not in presets.
+    """
+    for key, preset in CLOCK_LOCK_PRESETS.items():
+        if key in device_name:
+            return preset
+    return None

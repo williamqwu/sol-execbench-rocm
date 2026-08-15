@@ -1,6 +1,6 @@
 # Task 03 — T_SOL cross-checks
 
-<!-- {"task": "03-cross-checks", "utc": "2026-08-14T21:58:51.278489+00:00", "git_sha": "34c16902a68fea9ff373b0cdbbfcd25a2dbf9036-dirty", "host": "mia1-p02-g46", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X"]}, "rocm": {"version": "7.2.0", "driver": "6.16.6", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"}, "f_lock_mhz": null, "visible_devices": null} -->
+<!-- {"task": "03-cross-checks", "utc": "2026-08-15T00:17:02.696142+00:00", "git_sha": "a5e5bcbd214288e7dd1165a310ee7fb9d447d921-dirty", "host": "mia1-p02-g46", "python": "3.12.3", "torch": {"available": true, "version": "2.9.1+rocm7.2.0.git7e1940d4", "hip": "7.2.26015-fc0010cf6a", "cuda": null, "device_count": 8, "devices": ["AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X", "AMD Instinct MI355X"]}, "rocm": {"version": "7.2.0", "driver": "6.16.6", "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"}, "f_lock_mhz": null, "visible_devices": null} -->
 
 Upstream's B200 SOL times are not used as a comparison anywhere in this document. The shipped dataset carries no per-workload SOL figures, so there is nothing to compare against that was not invented here — and an invented comparison would be worse than none. The three checks below are internal to this platform and are stronger for it.
 
@@ -126,33 +126,33 @@ MISMATCHes: **0**
 
 ## D — T_SOL <= best measured time
 
-2374/2521 workloads satisfy T_SOL <= T_b — **147 VIOLATIONS**, each one a config error
+2546/2694 workloads satisfy T_SOL <= T_b — **148 VIOLATIONS**, each one a config error
 
 | problem | workload | T_SOL ms | T_b ms | variant |
 |---|---|---|---|---|
-| L1__006_hyena_depthwise_conv1d_split_gate | `ec71ab53` | 0.01542 | 0.0136605 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `b9d99d9d` | 0.246 | 0.0521805 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `71d9a820` | 0.2496 | 0.081501 | v2_compile |
-| L1__006_hyena_depthwise_conv1d_split_gate | `62d61aa9` | 0.03078 | 0.01652 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `9cb591a3` | 0.49176 | 0.09368 | v2_compile |
-| L1__006_hyena_depthwise_conv1d_split_gate | `efc0661b` | 0.24768 | 0.0635005 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `8ce027b6` | 0.49344 | 0.101121 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `63c2e8ad` | 0.0615 | 0.02324 | v2_compile |
-| L1__006_hyena_depthwise_conv1d_split_gate | `384d57b8` | 0.49248 | 0.09228 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `66b15fa6` | 0.0177 | 0.01392 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `d698ad85` | 0.1248 | 0.0476605 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `da31d8e3` | 0.12336 | 0.03352 | v3_compile_max_autotune |
-| L1__006_hyena_depthwise_conv1d_split_gate | `950dc0ec` | 0.12384 | 0.03832 | v2_compile |
-| L1__006_hyena_depthwise_conv1d_split_gate | `7de2c122` | 0.06192 | 0.02576 | v3_compile_max_autotune |
-| L1__029_mamba_conv1d_with_gating | `71b7f4bc` | 0.182044 | 0.174321 | v4_contiguous |
-| L1__029_mamba_conv1d_with_gating | `b2e443d9` | 3.07769 | 1.11579 | v2_compile |
-| L1__029_mamba_conv1d_with_gating | `4a61237f` | 2.91271 | 1.22703 | v1_eager |
-| L1__029_mamba_conv1d_with_gating | `5aafa38b` | 11.6508 | 4.14903 | v3_compile_max_autotune |
-| L1__029_mamba_conv1d_with_gating | `63f6f33c` | 11.6508 | 4.40377 | v3_compile_max_autotune |
-| L1__029_mamba_conv1d_with_gating | `1b0a2e46` | 11.6508 | 4.99871 | v4_contiguous |
-| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `81f42cda` | 0.49152 | 0.417122 | v1_eager |
-| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `2879d7a9` | 0.20256 | 0.19856 | v2_compile |
-| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `8e261dd1` | 0.43104 | 0.386822 | v2_compile |
-| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `51fef589` | 0.35808 | 0.309381 | v2_compile |
-| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `2f570f4d` | 0.18432 | 0.169221 | v1_eager |
+| L1__006_hyena_depthwise_conv1d_split_gate | `ec71ab53` | 0.01542 | 0.0132 | v2_compile |
+| L1__006_hyena_depthwise_conv1d_split_gate | `b9d99d9d` | 0.246 | 0.05304 | v3_compile_max_autotune |
+| L1__006_hyena_depthwise_conv1d_split_gate | `71d9a820` | 0.2496 | 0.08162 | v3_compile_max_autotune |
+| L1__006_hyena_depthwise_conv1d_split_gate | `62d61aa9` | 0.03078 | 0.01688 | v2_compile |
+| L1__006_hyena_depthwise_conv1d_split_gate | `9cb591a3` | 0.49176 | 0.093221 | v2_compile |
+| L1__006_hyena_depthwise_conv1d_split_gate | `efc0661b` | 0.24768 | 0.0634605 | v3_compile_max_autotune |
+| L1__006_hyena_depthwise_conv1d_split_gate | `8ce027b6` | 0.49344 | 0.0992805 | v3_compile_max_autotune |
+| L1__006_hyena_depthwise_conv1d_split_gate | `63c2e8ad` | 0.0615 | 0.0233605 | v2_compile |
+| L1__006_hyena_depthwise_conv1d_split_gate | `384d57b8` | 0.49248 | 0.091441 | v3_compile_max_autotune |
+| L1__006_hyena_depthwise_conv1d_split_gate | `66b15fa6` | 0.0177 | 0.01552 | v3_compile_max_autotune |
+| L1__006_hyena_depthwise_conv1d_split_gate | `d698ad85` | 0.1248 | 0.0474805 | v3_compile_max_autotune |
+| L1__006_hyena_depthwise_conv1d_split_gate | `da31d8e3` | 0.12336 | 0.03368 | v2_compile |
+| L1__006_hyena_depthwise_conv1d_split_gate | `950dc0ec` | 0.12384 | 0.03812 | v3_compile_max_autotune |
+| L1__006_hyena_depthwise_conv1d_split_gate | `7de2c122` | 0.06192 | 0.02566 | v2_compile |
+| L1__029_mamba_conv1d_with_gating | `71b7f4bc` | 0.182044 | 0.168441 | v1_eager |
+| L1__029_mamba_conv1d_with_gating | `b2e443d9` | 3.07769 | 1.39301 | v4_contiguous |
+| L1__029_mamba_conv1d_with_gating | `4a61237f` | 2.91271 | 1.23225 | v4_contiguous |
+| L1__029_mamba_conv1d_with_gating | `5aafa38b` | 11.6508 | 4.15497 | v3_compile_max_autotune |
+| L1__029_mamba_conv1d_with_gating | `1b0a2e46` | 11.6508 | 3.85063 | v3_compile_max_autotune |
+| L1__029_mamba_conv1d_with_gating | `63f6f33c` | 11.6508 | 4.44283 | v3_compile_max_autotune |
+| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `81f42cda` | 0.49152 | 0.417123 | v4_contiguous |
+| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `2879d7a9` | 0.20256 | 0.201601 | v2_compile |
+| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `8e261dd1` | 0.43104 | 0.389263 | v2_compile |
+| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `51fef589` | 0.35808 | 0.321462 | v4_contiguous |
+| L1__035_flux_ada_layer_norm_zero_modulation_extraction | `2f570f4d` | 0.18432 | 0.164361 | v2_compile |
 
