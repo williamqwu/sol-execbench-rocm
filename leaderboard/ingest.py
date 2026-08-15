@@ -1502,12 +1502,31 @@ def main() -> int:
                     help=f"config listing the extra agent-run roots. Read by "
                          f"default from {SOURCES}; a missing file is fine, a "
                          f"malformed one is an error.")
+    ap.add_argument("--manifest", type=Path, default=MANIFEST,
+                    help=f"scoring manifest to build the board from. Defaults "
+                         f"to {MANIFEST.name} in artifacts/09/. The output "
+                         f"database is named from the manifest's OWN part, so "
+                         f"pointing this at artifacts/09-MI355X/manifest-v2.json "
+                         f"produces solbench-MI355X.db without --part. Every "
+                         f"scored.json ingested must have been scored against "
+                         f"this same manifest; the ingest cannot detect a file "
+                         f"scored against an older roofline.")
     ap.add_argument("--allow-drop", action="store_true",
                     help="permit the rebuild to publish a board with fewer "
                          "submissions than the one it replaces. Required to "
                          "retire a run on purpose; without it, a rebuild that "
                          "would lose a submission refuses.")
     a = ap.parse_args()
+
+    # DESIGN-v2.md §6 named this as the reason `--part MI355X` could not produce
+    # an MI355X board: the manifest was a module constant, and --part asserts
+    # rather than sets (correctly -- letting it relabel would fill
+    # solbench-MI355X.db with MI350X timings, every number plausible and nothing
+    # detectably wrong). The amendment deferred the flag until an MI355X
+    # manifest existed, because an untested branch that writes databases is
+    # worse than a documented gap. artifacts/09-MI355X/manifest-v2.json now
+    # exists, so the precondition is met and the gap closes.
+    globals()["MANIFEST"] = a.manifest
 
     # Precedence: an explicit --agent-runs replaces the config (it is the
     # narrower, more deliberate statement), the environment adds to whichever
