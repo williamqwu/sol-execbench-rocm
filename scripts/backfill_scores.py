@@ -22,6 +22,35 @@ strengthened score is visibly a strengthened score rather than a silently
 different number.
 
 
+TWO PROVENANCE BLOCKS, BECAUSE THERE ARE TWO EVENTS
+---------------------------------------------------
+A backfilled score file is the product of two runs, and prime directive 5 is
+owed an answer for each: the **measurement** (which host, which cards, which
+ROCm, which F_LOCK produced ``T_k``) and the **rebase** (which manifest, which
+anchor tree, which git SHA recomputed ``S``). One key cannot hold both.
+
+So the original ``_provenance`` is left exactly where the scorer wrote it and a
+second block, ``_backfill_provenance``, is added beside it. Purely additive:
+every existing reader of ``_provenance`` -- ``_assert_comparable`` below,
+``verify_artifacts``'s part and clock resolution, ``leaderboard/ingest.py``'s
+``created_utc``/``provenance_json``/``run_part`` -- goes on reading the
+measurement's block and sees the same value it saw before.
+
+This file used to write ``json.dumps({**stamp('10-backfill'), **doc})``. ``doc``
+already carries the measurement's ``_provenance`` and is spread SECOND, so the
+freshly computed stamp was overwritten by the old one and discarded --
+silently, on every file, since the line was written. 417 score files were
+rebased against manifest v4 on 2026-08-15 and every one of them attested to a
+run from the previous day, with only ``backfilled_from_manifest`` to hint
+otherwise. That is worse than an unstamped artifact, because an unstamped one
+announces itself. ``summary.json`` was worse again: its write path never called
+``stamp()`` at all.
+
+Letting the fresh stamp win instead would have been the one-line fix and is the
+wrong one: it would erase the host and cards ``T_k`` was measured on, which is
+the provenance that cannot be recovered by re-running anything.
+
+
 THE CARD THE ANCHOR CAME OFF IS PART OF WHETHER THE RAISE IS LEGAL
 -------------------------------------------------------------------
 Recomputing arithmetic is cheap, but it is only *correct* while the ``T_b`` being
@@ -63,10 +92,12 @@ from solexbench_agents.scoring import (  # noqa: E402
 )
 
 from score_solutions import (  # noqa: E402
+    _interval_score,
     anchor_card,
     card_verdict,
     load_manifest_bounds,
     workload_bound,
+    workload_record,
 )
 from verify_artifacts import (  # noqa: E402
     DEFAULT_PART,
@@ -74,6 +105,52 @@ from verify_artifacts import (  # noqa: E402
     ArtifactTree,
     artifact_part,
 )
+
+
+#: Where the rebase records itself. Named once, so the writer here and any
+#: reader that wants to know when a score was last recomputed spell it the same
+#: way, and so it is greppable next to ``_provenance``.
+BACKFILL_PROVENANCE_KEY = "_backfill_provenance"
+
+
+def backfill_provenance(*, manifest: Path, manifest_version: str | None,
+                        part: str | None, tb_trees: list[Path],
+                        run_id: str) -> dict:
+    """The block that says who rebased these scores, and against what.
+
+    Computed ONCE per invocation rather than per file: it is one event, so
+    every file it touches should carry the same timestamp, and ``stamp()``
+    enumerates torch devices on each call -- 417 of those is a minute of
+    nothing.
+
+    ``part`` is *declared*, with ``allow_cross_part``, because the backfill is
+    arithmetic: it re-derives ``S`` from a manifest and an anchor tree and never
+    touches a GPU, so the part is a property of the artifacts being rebased and
+    not of the host doing the rebasing. Refusing to run an MI355X backfill on an
+    MI350X node would be refusing a legitimate operation, and stamping it with
+    the host's part would be a false statement that outranks its own evidence
+    (see ``provenance.stamp``). ``part_detected`` records the host regardless.
+    """
+    return stamp(
+        "10-backfill",
+        {
+            "run_id": run_id,
+            "manifest": str(manifest),
+            "manifest_version": manifest_version,
+            "tb_artifacts": [str(t) for t in tb_trees],
+            "rebase_only": True,
+            "note": (
+                "This artifact has two provenance blocks. `_provenance` is the "
+                "MEASUREMENT: the host, cards, ROCm and clock that produced "
+                "`t_k_ms`, which no rebase may overwrite. This block is the "
+                "REBASE: which manifest and anchor tree recomputed the bounds "
+                "and `sol_score` from those unchanged timings. No timing was "
+                "re-measured."
+            ),
+        },
+        part=part,
+        allow_cross_part=True,
+    )["_provenance"]
 
 
 def backfill_record(record: dict, problem_key: str, t_sol: dict,
@@ -90,6 +167,7 @@ def backfill_record(record: dict, problem_key: str, t_sol: dict,
     """
     uuid = record.get("workload_uuid")
     new_sol = workload_bound(t_sol, problem_key, uuid, "t_sol_ms")
+    new_cycles = workload_bound(t_sol, problem_key, uuid, "t_sol_cycles")
     new_b = workload_bound(t_b, problem_key, uuid, "t_b_ms")
 
     refused = None
@@ -101,6 +179,47 @@ def backfill_record(record: dict, problem_key: str, t_sol: dict,
     t_k = record.get("t_k_ms")
     t_ref = record.get("t_ref_ms")
     correct = bool(record.get("correct"))
+
+    # The bound this T_k is judged against is T_SOL over T_K'S OWN clock window,
+    # not the reference-clock column the manifest carries. `score_solutions.py`
+    # has done this since the unlocked basis landed; this script did not, and
+    # took `t_sol_ms` straight out of the manifest. On MI355X manifest-v4 that
+    # column differs from the published bound by more than 1% on 1622 of 3717
+    # scoreable workloads and by more than 30% on 1084 -- the 2.4/1.8 ratio of
+    # D63 -- in BOTH directions, so it is not a conservative simplification.
+    #
+    # `_interval_score` is imported from the scorer rather than reimplemented:
+    # two scorers that can disagree about the same bound is the failure mode this
+    # whole file exists downstream of, and a divergence here would show up as a
+    # score that changes when a run is backfilled rather than re-scored.
+    #
+    # `{}` comes back when no interval can be formed -- the locked basis, a
+    # record with no bracket, a bound predating the term split -- and then the
+    # reference-clock column is what there is, exactly as before. Every MI350X
+    # record takes that path: `manifest-v1` and `-v1.2` carry
+    # `t_sol_ms_published` on 0 of their 3717 scoreable workloads.
+    #
+    # NOT SO ON MI355X, AND THIS IS AN OPEN GAP. 137 of the 2185 records under
+    # `artifacts/10/scores` carry no usable clock bracket, so they take the
+    # fallback -- and there the manifest DOES publish a bound. The gate
+    # disagrees with this line about them: `verify_artifacts._bound_for` ends
+    # `return (w.get("t_sol_ms_published") or w["t_sol_ms"]), False`, so check D
+    # judges those 137 against the published bound while the score stored beside
+    # them is against the legacy reference-clock column, which on manifest-v4
+    # differs from it on 3685 of 3717 workloads.
+    #
+    # Not closed here, deliberately. Closing it changes which bound a PUBLISHED
+    # score is computed against, which is a methodology change and not an
+    # auditor's edit (CLAUDE.md prime directive 7), and it cannot be done in
+    # this file alone: `load_manifest_bounds` carries only `RECLOCK_FIELDS` into
+    # the bounds map, and `t_sol_ms_published` / `t_sol_cycles_published` are not
+    # in it. The one-line remedy is to add them there -- `scripts/build_manifest.py`
+    # and `scripts/score_solutions.py`, whose owners decide the shape.
+    interval = _interval_score(workload_record(t_sol, problem_key, uuid),
+                               record.get("clock_bracket"), t_k, new_b)
+    if interval:
+        new_sol = interval["t_sol_ms_published"]
+        new_cycles = interval["t_sol_cycles_published"]
 
     basis = resolve_basis(correct=correct, t_k_ms=t_k, t_ref_ms=t_ref,
                           t_sol_ms=new_sol, t_b_ms=new_b)
@@ -122,7 +241,12 @@ def backfill_record(record: dict, problem_key: str, t_sol: dict,
 
     record.update(
         t_sol_ms=new_sol,
-        t_sol_cycles=workload_bound(t_sol, problem_key, uuid, "t_sol_cycles"),
+        t_sol_cycles=new_cycles,
+        # The interval the published bound was taken from, so the record says
+        # which clock its own bound is at rather than needing the manifest and
+        # the bracket to be re-read together (D63).
+        **{k: v for k, v in interval.items() if not k.startswith("sol_score_at_")
+           or correct},
         t_b_ms=new_b,
         t_b_variant=workload_bound(t_b, problem_key, uuid, "t_b_variant"),
         sol_score=s,
@@ -209,6 +333,38 @@ def _same_card(anchor: dict, actual: dict) -> bool:
     return bool(ab and bb and ab == bb and ah and bh and ah == bh)
 
 
+def anchor_trees(explicit, manifest_doc: dict, tree) -> list[Path]:
+    """Which T_b tree(s) the card check interrogates.
+
+    **The default is the tree the manifest was built from.** The check exists to
+    prove that the T_b being pulled in came off the same card as the T_k already
+    on disk, so it has to interrogate the T_b that is actually IN the manifest,
+    not a same-named tree beside it. A problem is commonly anchored on several
+    cards across the three nodes, and the merge publishes one of them; checking
+    `artifacts/06-MI355X/authoritative` against a manifest built from
+    `authoritative-merged` therefore compares one measurement's card against a
+    *different measurement of the same problem*. On this run that is the
+    difference between 126 and 594 records keeping `sol_score_v1`, and neither
+    number is about the bounds.
+
+    Task 06's gate had the mirror image of this -- it audited a tree nobody
+    published and reported coverage against a manifest built from another -- which
+    is why `build_manifest.py` records `sources` at all. This is the first
+    consumer to use it.
+
+    Falls back to `artifacts/06[-<part>]/authoritative` for a manifest with no
+    `sources` block: both frozen MI350X manifests, whose behaviour is therefore
+    unchanged.
+    """
+    if explicit:
+        return list(explicit)
+    stated = (manifest_doc.get("sources") or {}).get("t_b")
+    if stated:
+        p = Path(stated)
+        return [p if p.is_absolute() else ROOT / p]
+    return [tree.dir("06") / "authoritative"]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -225,7 +381,9 @@ def main() -> int:
                          "nodes and each writes its own tree, so pass every "
                          "tree and the anchor is taken from whichever one holds "
                          "the card this record's T_k was measured on. "
-                         "default: artifacts/06[-<part>]/authoritative")
+                         "default: the tree the manifest itself was built from "
+                         "(`sources.t_b`), else artifacts/06[-<part>]/"
+                         "authoritative")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
@@ -245,7 +403,7 @@ def main() -> int:
     part = (args.part or manifest_doc.get("part") or artifact_part(manifest_doc)
             or DEFAULT_PART)
     tree = ArtifactTree(part)
-    tb_trees = args.tb_artifacts or [tree.dir("06") / "authoritative"]
+    tb_trees = anchor_trees(args.tb_artifacts, manifest_doc, tree)
     tb_artifacts = tb_trees[0]
 
     # The pre-4.4 single-card regime, recognised by what the manifest itself
@@ -262,6 +420,10 @@ def main() -> int:
 
     files = sorted(p for p in scores_dir.glob("*/*.json") if p.name != "summary.json")
     _assert_comparable(files, args.manifest)
+    prov = backfill_provenance(manifest=args.manifest,
+                               manifest_version=meta["manifest_version"],
+                               part=part, tb_trees=tb_trees,
+                               run_id=args.run_id)
     changed_files = 0
     changed_records = 0
     basis_counts: dict[str, int] = {}
@@ -319,9 +481,13 @@ def main() -> int:
             doc["backfilled_from_manifest"] = meta["manifest_version"]
             if check is not None:
                 doc["backfill_card_check"] = check
+            # Beside the measurement's block, never over it. See the module
+            # docstring: `{**stamp(...), **doc}` put the fresh stamp FIRST and
+            # `doc`'s own `_provenance` second, so the stamp was discarded by
+            # the merge on every file this script had ever written.
+            doc[BACKFILL_PROVENANCE_KEY] = prov
             if not args.dry_run:
-                path.write_text(json.dumps({**stamp("10-backfill"), **doc},
-                                           indent=2, default=str))
+                path.write_text(json.dumps(doc, indent=2, default=str))
 
     # The run summary carries the basis census, and `verify_artifacts --task 10`
     # reads it. Leaving it stale after a rebase would make the acceptance check
@@ -340,6 +506,13 @@ def main() -> int:
             "refused": len(card_refusals),
             "refusals": card_refusals,
         }
+        # The summary is rewritten here too -- its basis census, its violation
+        # count and its card enforcement block are all recomputed -- and until
+        # now this path called `stamp()` NOWHERE, so a summary rebased against a
+        # new manifest kept the original scoring run's timestamp and SHA with
+        # nothing at all to say it had moved. Same key as the per-problem files
+        # so one grep answers "when was this run last rebased".
+        summary[BACKFILL_PROVENANCE_KEY] = prov
         summary_path.write_text(json.dumps(summary, indent=2, default=str))
 
     print(f"{changed_files} of {len(files)} score files updated, "

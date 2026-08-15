@@ -62,7 +62,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from provenance import stamp  # noqa: E402
+from provenance import detected_part, stamp  # noqa: E402
 
 V11 = ROOT / "artifacts" / "09" / "manifest-v1.1.json"
 D37 = ROOT / "artifacts" / "11" / "d37"
@@ -244,11 +244,20 @@ def main() -> int:
 
     man["manifest_version"] = "v1.2"
     v11_prov = man.get("_provenance") or {}
-    prov = stamp("09-manifest-v1.2")
     # Carried forward for the same reason v1.1 carried it: this runs on the host
     # python, which has no torch, so `stamp()` cannot name the part -- and
-    # `ingest.py` refuses a manifest that cannot.
-    prov["part"] = v11_prov.get("part")
+    # `ingest.py` refuses a manifest that cannot. Declared, with v1.1's device
+    # names as the fallback, because v1.1 as shipped carries `part: null`; and
+    # `["_provenance"]` because `stamp()` returns the wrapper, which is why the
+    # shipped v1.2 lost `utc`, `git_sha`, `host`, `python` and `rocm` at the
+    # level every consumer reads. `artifacts/09/manifest-v1.2.json` is a frozen
+    # release artifact and is NOT regenerated here.
+    # `or []`: `detected_part(None)` asks the LOCAL cards, and this host is not
+    # evidence about a manifest it did not measure.
+    v11_part = (v11_prov.get("part")
+                or detected_part((v11_prov.get("torch") or {}).get("devices") or []))
+    prov = stamp("09-manifest-v1.2", part=v11_part,
+                 allow_cross_part=True)["_provenance"]
     prov["torch"] = v11_prov.get("torch")
     prov["f_lock_mhz"] = v11_prov.get("f_lock_mhz")
     man["_provenance"] = prov

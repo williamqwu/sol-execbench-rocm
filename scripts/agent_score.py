@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Score an agent run authoritatively, on an idle GPU 0.
 
-    python scripts/agent_score.py --run artifacts/10/<run-id>
+    python scripts/agent_score.py --run artifacts/10/<run-id> \
+        --manifest artifacts/09-MI355X/manifest-v3.json
 
 The agents optimized on GPUs 1-7 while seven other agents hammered the node.
 Nothing measured under those conditions is a scoring number (CLAUDE.md s4), so
@@ -30,7 +31,18 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "src"))
 
-from provenance import stamp  # noqa: E402
+from provenance import detected_part, stamp  # noqa: E402
+# The gate's resolver, imported rather than reimplemented. Two answers to "which
+# part is this artifact" is the defect this whole change is about; `artifact_part`
+# reads `_provenance.part` first and falls back to the torch device names, which
+# is how every artifact on disk is attributed today. It is stdlib-only, so it
+# imports on the host python this driver runs under.
+from verify_artifacts import artifact_part  # noqa: E402
+# The one definition of "which millisecond column is the bound" (D63). Imported
+# for the same reason `artifact_part` is: a second answer to the same question is
+# the defect. Stdlib-only on this path -- verified, since this driver runs on the
+# host python with no pydantic.
+from bound_headroom import published_bound_ms  # noqa: E402
 
 # Load `sol_score` from its file rather than importing the package. This runs
 # on the host python, which has no pydantic, and `import sol_execbench` pulls
@@ -45,27 +57,172 @@ _mod = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
 sol_score = _mod.sol_score
 
-MANIFEST = ROOT / "artifacts" / "09" / "manifest-v1.json"
 DATASET = ROOT / "data" / "SOL-ExecBench" / "benchmark"
 
 
-def bounds(manifest: Path = MANIFEST) -> tuple[dict, str]:
-    """{(problem, uuid) -> (T_SOL, T_b)} and the manifest version behind it.
+def bounds(manifest: Path) -> tuple[dict, str, dict]:
+    """{(problem, uuid) -> (T_SOL, T_b)}, the manifest version, and the basis census.
 
     The version is returned rather than looked up later because a score is only
     meaningful inside one manifest, and the two must be written together or a
     reader has a number with no way to tell which bounds produced it.
+
+    WHICH T_SOL (D63). This used to read `w["t_sol_ms"]` straight out of the
+    record. On a manifest built on the unlocked basis that column is a cycle
+    count divided by whichever reference clock the winning tier happened to use,
+    not the bound the manifest publishes: measured over
+    `artifacts/09-MI355X/manifest-v4.json` the two differ by more than 1% on
+    1622 of 3717 scoreable workloads and by more than 30% on 1084. This is the
+    submission path, so reading the wrong column here does not merely mis-report
+    a score, it computes one -- against a different bound from the one check D
+    gates on, `backfill_scores.py` rebases to, and the board serves.
+    `published_bound_ms` is the single place that choice is made; it degrades to
+    the legacy column (counted, never silently) for the two frozen MI350X
+    manifests, which carry `t_sol_ms_published` on 0 of 3717 workloads and were
+    measured at one F_LOCK.
+
+    The census travels with the scores for the same reason `ingest.py` writes
+    `meta.bound_basis`: a run scored against a legacy column and one scored
+    against the published bound are not comparable, and nothing else in the
+    artifact would say which happened.
     """
     m = json.loads(manifest.read_text())
     out = {}
+    basis_counts: dict[str, int] = {}
     for key, p in m["problems"].items():
         for uuid, w in p.get("workloads", {}).items():
-            if w.get("scoreable") and w.get("t_sol_ms") and w.get("t_b_ms"):
-                out[(key, uuid)] = (w["t_sol_ms"], w["t_b_ms"])
-    return out, m.get("manifest_version", "unknown")
+            if not w.get("scoreable") or not w.get("t_b_ms"):
+                continue
+            t_sol, basis = published_bound_ms(w)
+            if not t_sol:
+                continue
+            basis_counts[basis] = basis_counts.get(basis, 0) + 1
+            out[(key, uuid)] = (t_sol, w["t_b_ms"])
+    return (out, m.get("manifest_version", "unknown"),
+            dict(sorted(basis_counts.items())))
 
 
 SCRATCH = Path(os.environ.get("SOLEXBENCH_SCRATCH", "/var/tmp/solbench"))
+
+
+# -- which part are we scoring? ---------------------------------------------
+#
+# This script re-times kernels on a real card and scores those times against a
+# manifest. If the two are different parts, every score is wrong and nothing
+# says so: MI355X timings against MI350X bounds raise S on 1996 of the 2078
+# MI355X records on disk, mean 0.6377 -> 0.7214. The manifest used to default to
+# `artifacts/09/manifest-v1.json` -- MI350X's frozen release manifest -- so on
+# the MI355X node the default WAS the defect. There is no default now, and a
+# part that cannot be resolved is a refusal rather than a warning: the whole
+# point is that this failure is invisible in the output.
+
+def _repo_relative(p: Path) -> str:
+    """Repo-relative when it is in the repo, absolute otherwise.
+
+    `relative_to` raises, and raising here would discard the whole aggregation
+    after every re-time has been paid for. Now that `--manifest` is required a
+    caller can legitimately name one outside the tree.
+    """
+    try:
+        return str(Path(p).resolve().relative_to(ROOT))
+    except ValueError:
+        return str(Path(p).resolve())
+
+
+def _part_claims(doc, where: str) -> dict[str, str]:
+    """Every part *claim* in a document, keyed by where it was written.
+
+    Union, never substitution. Two conventions exist in the tree -- a top-level
+    `part` (13 artifacts, including `artifacts/03/t_sol.json`, the one part
+    check that is currently doing real work) and `_provenance.part` -- plus the
+    torch device names as evidence. Replacing one reader with the other kills a
+    live guard; reading all of them and refusing when they disagree is the
+    detector.
+    """
+    if not isinstance(doc, dict):
+        return {}
+    prov = doc.get("_provenance") or {}
+    claims: dict[str, str] = {}
+    if isinstance(doc.get("part"), str) and doc["part"]:
+        claims[f"{where} top-level part"] = doc["part"]
+    if isinstance(prov.get("part"), str) and prov["part"]:
+        claims[f"{where} _provenance.part"] = prov["part"]
+    # `or []` is load-bearing: `detected_part(None)` asks the LOCAL cards, and a
+    # document that names no device must yield no claim rather than this host's.
+    dev = detected_part((prov.get("torch") or {}).get("devices") or [])
+    if dev:
+        claims[f"{where} device name"] = dev
+    return claims
+
+
+def _agree(claims: dict[str, str], what: str) -> tuple[str | None, str | None]:
+    """`(part, error)`. One distinct claim is an answer; anything else is not."""
+    distinct = sorted(set(claims.values()))
+    if len(distinct) > 1:
+        detail = ", ".join(f"{k}={v}" for k, v in sorted(claims.items()))
+        return None, f"{what} names more than one part: {detail}"
+    if not distinct:
+        return None, f"{what} does not say which part it is for"
+    return distinct[0], None
+
+
+def _container_detected_part(gpu: int) -> str | None:
+    """The part of the card this run will measure on, asked inside the container.
+
+    The host python has no torch -- a design property of this driver, see the
+    module docstring -- so `detected_part()` here returns None on the very node
+    the timings come from. The measurement container has torch and can name the
+    card, the same way `_foreign_on_card` asks it which processes hold the card.
+    Degrades to None: a probe that could not run is not evidence, and the caller
+    refuses on None rather than guessing.
+    """
+    try:
+        proc = subprocess.run(
+            [str(ROOT / "env" / "solb"), "python", "/work/scripts/provenance.py",
+             "--detect-part"],
+            env={"PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(Path.home()),
+                 "HIP_VISIBLE_DEVICES": str(gpu)},
+            capture_output=True, text=True, timeout=300)
+    except Exception:                                         # noqa: BLE001
+        return None
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.strip() or None
+
+
+def node_claims(gpu: int, declared: str | None, retimed_dir: Path) -> dict[str, str]:
+    """Every claim about the part THIS RUN's timings are taken on.
+
+    Four sources, in the order they become available: the flag, this process,
+    the measurement container, and the run's own existing re-times. The last is
+    the only *measured* one and it is what `leaderboard/ingest.py:774 run_part()`
+    already uses; it also makes `--reuse-retimed` resolvable on a host with no
+    docker, which is how five of the seven runs on disk were scored.
+    """
+    claims: dict[str, str] = {}
+    if declared:
+        claims["--part"] = declared
+    here = detected_part()
+    if here:
+        claims["this process"] = here
+    else:
+        container = _container_detected_part(gpu)
+        if container:
+            claims["measurement container"] = container
+    prior: dict[str, str] = {}
+    for f in sorted(retimed_dir.glob("*.json")):
+        try:
+            part = artifact_part(json.loads(f.read_text()))
+        except Exception:                                     # noqa: BLE001
+            continue
+        if part:
+            prior[f"retimed/{f.name}"] = part
+    if len(set(prior.values())) > 1:
+        # Keep them all, so `_agree` reports the split rather than hiding it.
+        claims.update(prior)
+    elif prior:
+        claims["existing retimed/"] = next(iter(prior.values()))
+    return claims
 
 # `run.json.harness` -> what to call it on the board. A harness not listed here
 # is printed as it named itself rather than mapped to a default: an unknown
@@ -232,11 +389,19 @@ def main() -> int:
     ap.add_argument("--iterations", type=int, default=50)
     ap.add_argument("--warmup", type=int, default=10)
     ap.add_argument("--timeout", type=int, default=2400)
-    ap.add_argument("--manifest", type=Path, default=MANIFEST,
+    ap.add_argument("--manifest", type=Path, required=True,
                     help="the scoring manifest. Scores are only comparable "
                          "within one version; the version used is stamped into "
                          "scored.json so two runs cannot be compared across "
-                         "manifests without somebody noticing.")
+                         "manifests without somebody noticing. REQUIRED: this "
+                         "used to default to artifacts/09/manifest-v1.json, "
+                         "which is MI350X's, so running here without the flag "
+                         "scored MI355X timings against another part's bounds.")
+    ap.add_argument("--part", default=None,
+                    help="declare the part this node measures on, for when it "
+                         "cannot be detected (no torch here and no container). "
+                         "Checked against every piece of evidence there is; a "
+                         "declaration the cards contradict is a refusal.")
     ap.add_argument("--reuse-retimed", action="store_true",
                     help="re-derive scores from existing retimed/*.json "
                          "without touching the GPU")
@@ -262,9 +427,41 @@ def main() -> int:
     a = ap.parse_args()
 
     run = json.loads((a.run / "run.json").read_text())
-    b, manifest_version = bounds(a.manifest)
+    b, manifest_version, bound_basis = bounds(a.manifest)
     retimed_dir = a.run / "retimed"
     retimed_dir.mkdir(parents=True, exist_ok=True)
+
+    # Fail closed, and BEFORE the first re-time: a refusal after four hours on
+    # the card costs four hours, and every piece of evidence this needs is
+    # already on disk or one cheap probe away.
+    m_part, m_err = _agree(
+        _part_claims(json.loads(a.manifest.read_text()), "manifest"), "the manifest")
+    n_claims = node_claims(a.gpu, a.part, retimed_dir)
+    n_part, n_err = _agree(n_claims, "this node")
+    evidence = (", ".join(f"{k}={v}" for k, v in sorted(n_claims.items()))
+                or "none")
+    for err in (m_err, n_err):
+        if err:
+            print(f"REFUSING to score: {err}.\n"
+                  f"  manifest: {a.manifest}\n"
+                  f"  node evidence: {evidence}\n"
+                  f"  A score pairs a measured time with a bound; if the two "
+                  f"are different parts every score is wrong and nothing in the "
+                  f"output says so. Pass --part for the node, or score against "
+                  f"a manifest that names its own.", file=sys.stderr)
+            return 3
+    if m_part != n_part:
+        print(f"REFUSING to score: the manifest is {m_part} and this node is "
+              f"{n_part}.\n"
+              f"  manifest: {a.manifest}\n"
+              f"  node evidence: {evidence}\n"
+              f"  Scoring {n_part} timings against {m_part} bounds inflates S "
+              f"(measured: +0.08 mean over 2078 records) and no check "
+              f"downstream can tell.", file=sys.stderr)
+        return 3
+    part_source = ("declared" if "--part" in n_claims else "detected")
+    print(f"part {n_part} ({part_source}); manifest {a.manifest.name} "
+          f"({manifest_version})", flush=True)
 
     # The sandboxes live in /var/tmp and will be swept. A score whose kernel no
     # longer exists cannot be reproduced or disputed, so the source is copied
@@ -341,6 +538,20 @@ def main() -> int:
             print(f"[{key}] re-timing on GPU {a.gpu} ...", flush=True)
             ev = retime(key, kernel, existing, a.gpu,
                         a.iterations, a.warmup, a.timeout)
+        # The measurement's own account of the card it ran on, checked against
+        # the part resolved before the sweep started. This is the only evidence
+        # that can contradict a `--part` a human typed, and it arrives one
+        # re-time at a time; refusing here loses the aggregation, never a
+        # timing -- every re-time is already on disk and `--reuse-retimed`
+        # picks them all up again.
+        measured = artifact_part(ev) if isinstance(ev, dict) else None
+        if measured and measured != n_part:
+            print(f"REFUSING to score: [{key}] was measured on {measured} but "
+                  f"this run resolved to {n_part} against a {m_part} manifest. "
+                  f"The timings are kept in {retimed_dir}; re-run with the "
+                  f"matching manifest.", file=sys.stderr)
+            return 4
+        rec["measured_part"] = measured
         rec["ok"] = ev.get("ok")
         rec["error"] = ev.get("error")
         # Which harness produced this timing. A run can carry timings from two
@@ -435,14 +646,28 @@ def main() -> int:
     capped = sum(1 for p in (effort.get("per_problem") or []) if p.get("capped"))
 
     payload = {
-        **stamp("10-agent-scored"),
+        # Declared, not detected: this driver runs on the host python, which has
+        # no torch, so a detection here is None on the very node the timings
+        # came off. `n_part` was resolved from the flag, the container and the
+        # re-times themselves, and every one of those agreed.
+        **stamp("10-agent-scored", part=n_part),
+        "part": n_part,
+        "part_source": part_source,
+        "part_claims": n_claims,
         "run_id": run.get("run_id"),
         "model": run.get("model"),
         # Which bounds produced these scores. A score is only meaningful inside
         # one manifest version -- v1.1 corrected 1,048 of them -- so the number
         # and the version it was computed against travel together.
         "manifest_version": manifest_version,
-        "manifest_path": str(Path(a.manifest).resolve().relative_to(ROOT)),
+        "manifest_path": _repo_relative(a.manifest),
+        # Which millisecond column each of those bounds came out of
+        # (`bound_headroom.published_bound_ms`). {"published": N} is a run scored
+        # against the manifest's own published bound; any `legacy_*` count is a
+        # run scored against a column with no clock on it, which is not
+        # comparable with the first and is why this is written down rather than
+        # inferred.
+        "bound_basis": bound_basis,
         # Which problems were measured again in THIS invocation. When only some
         # were, the run carries timings from two harness versions and that is
         # worth being able to read off the artifact rather than reconstructing

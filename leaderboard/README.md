@@ -325,7 +325,11 @@ curl -X POST http://127.0.0.1:8088/api/v1/submit \
 
 curl http://127.0.0.1:8088/api/v1/jobs/1        # poll
 
-leaderboard/.venv/bin/python leaderboard/worker.py --drain   # score the queue
+# --manifest is required and must be THIS node's part. There is no default: the
+# worker used to pass none, and `agent_score.py` then defaulted to MI350X's
+# frozen release manifest while the worker held GPU 0 on an MI355X card.
+leaderboard/.venv/bin/python leaderboard/worker.py --drain \
+    --manifest artifacts/09-MI355X/manifest-v4.json          # score the queue
 ```
 
 A slug groups jobs into **one** leaderboard entry: submitting a second problem

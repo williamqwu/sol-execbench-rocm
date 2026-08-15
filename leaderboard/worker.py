@@ -143,14 +143,62 @@ def materialise(job: dict) -> Path:
     return run
 
 
-def score(run: Path, timeout: int) -> subprocess.CompletedProcess:
+#: Where each part's scoring manifest lives on this tree. For the error message
+#: only -- it is NOT a default; `resolve_manifest` says why.
+MANIFEST_BY_PART = {
+    "MI355X": "artifacts/09-MI355X/manifest-v4.json",
+    "MI350X": "artifacts/09/manifest-v1.2.json",
+}
+
+
+def resolve_manifest(explicit: str | None) -> Path:
+    """The manifest this worker scores against -- stated, never guessed.
+
+    `--manifest`, else `$SOLBENCH_MANIFEST`, else a refusal.
+
+    There is deliberately no default. This worker used to invoke
+    `agent_score.py` with no manifest at all, and that script defaulted to
+    `artifacts/09/manifest-v1.json` -- MI350X's frozen release manifest -- while
+    the worker held GPU 0 on an MI355X card. Every submission scored here was
+    compared against another part's bounds, worth about +0.08 on mean S, and
+    nothing said so.
+
+    A per-part default resolved from the visible cards would fix that particular
+    accident and leave the real decision -- WHICH VERSION of this part's manifest
+    the board publishes against -- to whichever filename happened to sort last.
+    Scores are comparable only within one manifest version, so that decision
+    belongs to the operator who also re-ingests the board.
+    """
+    chosen = explicit or os.environ.get("SOLBENCH_MANIFEST")
+    if not chosen:
+        raise SystemExit(
+            "worker.py must be told which manifest to score against.\n"
+            "  Pass --manifest, or set SOLBENCH_MANIFEST. On this tree:\n"
+            + "".join(f"    {part}:  {path}\n"
+                      for part, path in sorted(MANIFEST_BY_PART.items()))
+            + "  It must be THIS node's part. agent_score.py cross-checks the\n"
+              "  manifest's part against the node's and refuses, so a wrong\n"
+              "  answer here fails loudly rather than publishing.")
+    p = Path(chosen)
+    if not p.is_absolute():
+        p = ROOT / p
+    if not p.exists():
+        raise SystemExit(f"--manifest {p} does not exist")
+    return p
+
+
+def score(run: Path, timeout: int, manifest: Path) -> subprocess.CompletedProcess:
     """Hand off to the repo's own scorer, on GPU 0.
 
     `--reuse-retimed` so adding a second problem to a slug does not re-time the
     first: the timing is the expensive part and it has not changed.
+
+    `--manifest` is passed explicitly and is required by `agent_score.py`; see
+    `resolve_manifest`.
     """
     cmd = [sys.executable, str(ROOT / "scripts" / "agent_score.py"),
-           "--run", str(run), "--gpu", "0", "--reuse-retimed"]
+           "--run", str(run), "--gpu", "0", "--reuse-retimed",
+           "--manifest", str(manifest)]
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
                           cwd=str(ROOT))
 
@@ -324,14 +372,14 @@ def _current_submissions() -> set[str] | None:
         return None
 
 
-def process(job: dict, timeout: int) -> dict:
+def process(job: dict, timeout: int, manifest: Path) -> dict:
     try:
         run = materialise(job)
     except Exception as exc:
         return {"state": "failed", "error": f"{type(exc).__name__}: {exc}"}
 
     try:
-        proc = score(run, timeout)
+        proc = score(run, timeout, manifest)
     except subprocess.TimeoutExpired:
         # Not "the kernel is wrong". The measurement did not happen, and
         # recording it as a zero score would put an invented number on the
@@ -363,10 +411,18 @@ def main() -> int:
     ap.add_argument("--poll", type=float, default=5.0)
     ap.add_argument("--timeout", type=int, default=3600,
                     help="per job, covering the whole re-time")
+    ap.add_argument("--manifest", default=None,
+                    help="the scoring manifest, this node's part. Required "
+                         "(or $SOLBENCH_MANIFEST); see resolve_manifest().")
     a = ap.parse_args()
 
+    # Resolved BEFORE the lock: refusing after taking GPU 0 would leave a lock
+    # file behind for a worker that never ran a job.
+    manifest = resolve_manifest(a.manifest)
+
     fd = acquire_lock()
-    print(f"worker up, GPU 0, lock {LOCK}", flush=True)
+    print(f"worker up, GPU 0, lock {LOCK}, manifest {manifest.name}",
+          flush=True)
     try:
         while True:
             with queue_db() as conn:
@@ -381,7 +437,7 @@ def main() -> int:
             print(f"[job {job['id']}] {job['slug']} / {job['problem_key']} "
                   f"from {job['token_name']}", flush=True)
             t0 = time.time()
-            out = process(job, a.timeout)
+            out = process(job, a.timeout, manifest)
             with queue_db() as conn:
                 conn.execute(
                     """UPDATE job SET state=?, error=?, finished_utc=?,

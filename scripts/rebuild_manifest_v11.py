@@ -54,7 +54,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from provenance import stamp  # noqa: E402
+from provenance import detected_part, stamp  # noqa: E402
 from sol_cross_checks import DTYPE_BYTES, resolved_axes  # noqa: E402
 
 V1 = ROOT / "artifacts" / "09" / "manifest-v1.json"
@@ -309,14 +309,34 @@ def main() -> int:
 
     man["manifest_version"] = "v1.1"
     v1_prov = man.get("_provenance") or {}
-    prov = stamp("09-manifest-v1.1")
     # The part is carried over from v1, not re-detected. This script is pure
     # arithmetic over v1's own numbers and runs on the host python, which has
     # no torch -- so `stamp()` finds no devices and the part would silently go
     # missing from a manifest that describes exactly the same silicon v1 does.
     # `ingest.py` refuses a manifest that cannot name its part, which is how
     # the omission surfaced rather than shipping.
-    prov["part"] = v1_prov.get("part")
+    #
+    # Carried as a DECLARATION, and from v1's device names when v1 has no
+    # explicit field -- which it does not. `prov["part"] = v1_prov.get("part")`
+    # therefore wrote None, and that is half of why the shipped v1.1 and v1.2
+    # read `part: null`. `allow_cross_part` because the host is not evidence
+    # about a manifest nothing was measured for: re-deriving MI350X's numbers on
+    # any node is legitimate, and the flag records it as cross-derived instead
+    # of raising.
+    # `or []` because `detected_part(None)` asks the LOCAL cards: if v1 named no
+    # device this would stamp THIS host's part onto another part's manifest,
+    # which is the wrong-stamp hazard the declaration exists to avoid.
+    v1_part = (v1_prov.get("part")
+               or detected_part((v1_prov.get("torch") or {}).get("devices") or []))
+    # `["_provenance"]` is the other half. `stamp()` returns the WRAPPER
+    # `{"_provenance": {...}}`; assigning the carried fields onto the wrapper and
+    # then wrapping it again produced `_provenance._provenance`, so at the level
+    # every consumer reads, `artifacts/09/manifest-v1.1.json` and `v1.2.json`
+    # have no `utc`, no `git_sha`, no `host` and no `python`. Those two files are
+    # frozen release artifacts and are NOT regenerated here; this is so the next
+    # run of this script stamps correctly.
+    prov = stamp("09-manifest-v1.1", part=v1_part,
+                 allow_cross_part=True)["_provenance"]
     prov["torch"] = v1_prov.get("torch")
     prov["rocm"] = v1_prov.get("rocm")
     prov["f_lock_mhz"] = v1_prov.get("f_lock_mhz")

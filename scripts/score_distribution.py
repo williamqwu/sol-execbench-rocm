@@ -43,6 +43,13 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from provenance import write_artifact  # noqa: E402
 
+# The published bound, not the legacy reference-clock column. Imported rather
+# than re-derived here: this script and `bound_headroom.py` both describe the
+# same manifest, and two descriptions that disagree about which millisecond
+# column a T_SOL lives in is D63 (they differ on 3685 of 3717 MI355X v4
+# workloads, 0.7481x - 1.3370x). One definition, one place to correct it.
+from bound_headroom import published_bound_ms  # noqa: E402
+
 REFERENCE_VARIANT = "v1_eager"
 
 
@@ -82,6 +89,7 @@ def main() -> int:
     head_y: list[float] = []
     by_variant: dict[str, list[float]] = {}
     per_workload: dict[tuple, list[tuple[float, float]]] = {}
+    bases: dict[str, int] = {}
     n_pairs = n_unscoreable = 0
 
     for f in sorted(glob.glob(f"{a.authoritative}/*.json")):
@@ -100,7 +108,9 @@ def main() -> int:
                 continue
             for u, t_k in (r.get("latency_ms_by_workload") or {}).items():
                 w = entry.get(u) or {}
-                t_sol, t_b = w.get("t_sol_ms"), w.get("t_b_ms")
+                t_sol, basis = published_bound_ms(w)
+                t_b = w.get("t_b_ms")
+                bases[basis] = bases.get(basis, 0) + 1
                 if t_sol is None or t_b is None:
                     n_unscoreable += 1
                     continue
@@ -173,6 +183,11 @@ def main() -> int:
         },
         "workload_variant_pairs": n_pairs,
         "pairs_not_scoreable": n_unscoreable,
+        # Which T_SOL column each pair was scored against. `legacy_unstamped`
+        # on every MI350X pair, because manifest-v1 and -v1.2 are frozen and
+        # carry neither `t_sol_ms_published` nor `f_ref_mhz`; anything else
+        # means this distribution is against the published bound.
+        "bound_basis": dict(sorted(bases.items())),
     }
     write_artifact(Path(a.out), "09-score-distribution", payload)
 

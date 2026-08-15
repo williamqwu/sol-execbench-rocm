@@ -55,6 +55,17 @@ CREATE TABLE workload (
     problem_key        TEXT NOT NULL REFERENCES problem(key),
     uuid               TEXT NOT NULL,
     axes_json          TEXT,
+    -- THE PUBLISHED BOUND, not the manifest's raw `t_sol_ms` column (D63).
+    -- `ingest.py` fills both of these through `bound_headroom.published_bound_ms`:
+    -- `t_sol_ms_published` / `t_sol_cycles_published` where the manifest has them
+    -- (every MI355X record on the unlocked basis, re-derived at the minimum of the
+    -- measurement's own clock bracket), and the legacy `t_sol_ms` column only where
+    -- it does not -- both frozen MI350X manifests, which predate the field and were
+    -- measured at one F_LOCK, so the column is unambiguous there in fact.
+    -- The two differ on 3685 of 3717 MI355X workloads (0.748x .. 1.337x), so which
+    -- column a row is on is not a detail: `meta.bound_basis` counts the rows per
+    -- basis for exactly that reason, and a board whose census is not
+    -- {"published": N} is serving legacy columns.
     t_sol_cycles       INTEGER,
     t_sol_ms           REAL,
     t_sol_source       TEXT,   -- solar_fused | declared_traffic | max_of_both | ...
@@ -70,7 +81,11 @@ CREATE TABLE workload (
     scoreable          INTEGER NOT NULL DEFAULT 0,
     -- How much roofline content the score on this workload actually carries.
     -- Derived at ingest from T_b / T_SOL, not measured: narrow | ok | loose |
-    -- vacuous. The board enforces one invariant on a bound -- nothing may beat
+    -- vacuous. T_SOL here is the published bound above, so these agree with the
+    -- manifest's own `bound_quality` / `bound_headroom` record for record --
+    -- verified equal on 3717 of 3717 MI355X scoreable workloads rather than
+    -- assumed, since the bands are defined twice (ingest.BOUND_QUALITY and
+    -- build_manifest.BOUND_QUALITY_BANDS) and two definitions can drift. The board enforces one invariant on a bound -- nothing may beat
     -- it -- which catches a T_SOL too LARGE and is blind to one too small. A
     -- weak lower bound breaks no rule, so nothing reported it; 22.3% of
     -- workloads sit above 100x headroom, where S collapses toward

@@ -2,9 +2,11 @@
 
 **Scope: MI350X only** (`gbt350-odcdh1-a08-1`, F_LOCK 1300 MHz). This is the
 single list of owed work for the part the board serves. For the other part see
-**`docs/TODO-MI355X.md`**, a bring-up runbook for a node where *nothing* has been
-measured; conflating the two is the trap its own §2 and §4 warn about, and PR #2's
-MI355X clock finding is the exact opposite of MI350X's (see N6).
+**`docs/TODO-MI355X.md`**, which since 2026-08-15 is a runbook *and* that part's
+own owed-work list — it is measured, at manifest v4, and its numbers are not
+these. Conflating the two is the trap its own §2 and §4 warn about, and PR #2's
+MI355X clock finding is the exact opposite of MI350X's (see N6). The one item
+that crosses both parts is **B2b**.
 
 Everything here is a known gap, deliberately left rather than forgotten. Nothing
 in this repo silently pretends to be finished.
@@ -35,6 +37,13 @@ sanctioned task-07 contingency; `artifacts/deferred.json` states
 workloads, all ten task gates pass except task 03's `check D`, which reads the
 frozen v1 manifest by design (N2). The board serves
 `artifacts/09/manifest-v1.2.json`.
+
+Re-run 2026-08-15: **03 → 14 checks, 1 failed** (`144 of 7840 measured workloads
+are faster than T_SOL, worst 0.27x, across 15 problems`; 25 of 7840 across 5
+problems against `manifest-v1.2.json`), **06 → 11 checks, 0 failed**, **09 → 9
+checks, 0 failed**. Those three are the standing regression check for any change
+that touches shared code. The older "31 of 519, worst 0.29x" figure in `STATE.md`
+was taken over a smaller score population and is superseded, not contradicted.
 
 The one caveat that outranks everything else in this file: **the divisor of every
 score — `T_b`, the anchor — is not known to reproduce.** 626 of the 3717
@@ -250,6 +259,58 @@ runs on `device="meta"`). And note what re-clocking cannot reach: the same count
 gives `bottleneck` = memory 1163 / compute 1835 / absent 741, and a memory term
 is invariant in milliseconds — re-pricing at an observed clock moves the
 compute-bound half only.
+
+### B2b. What MI355X fixed on 2026-08-15 that MI350X still carries
+
+**Statement.** Three bound defects were corrected in shared code and shipped in
+`artifacts/09-MI355X/manifest-v4.json`. **The MI350X release artifacts were
+deliberately not regenerated** — that is a version cut, not an auditor's edit —
+so MI350X still publishes the pre-correction numbers. The code is fixed for both
+parts; only the artifacts differ. Verified this session: `git status
+artifacts/03 artifacts/09` is empty and both MI350X manifests are untouched.
+
+**(a) The causal-mask stream over-count — D64.** The declared-traffic tier
+charges a full read of `q` on `FlashInfer-Bench__014` and `__015`, where the
+reference's own empty-window skip leaves **1–25 query rows live out of
+10,447–16,384**. The corrected price is ~1.96x lower. On MI355X this deleted 4 of
+5 check-D falsifications. **MI350X exposure: the same 2 problems, 68 workloads**
+— `check A-published`'s floor and the published bound on those rows are both
+computed from the over-count today. This is the same class as D18 one step
+further out: a masked **stream**, not a gathered **allocation**.
+
+*Blocked on:* a v1.3 version cut. Do not regenerate `artifacts/03/` or
+`artifacts/09/` outside one.
+
+*Caution that travels with it:* on these workloads `required_matched_ratio =
+0.99` against 0.010–0.158% live rows, so **lowering the bound makes a degenerate
+`(0, -inf)`-fill kernel score better**. Fix the correctness gate in the same cut
+or the bound correction is a net loss. Raised three times; unaddressed.
+
+**(b) The gathered SOLAR memory term — D66.** MI350X v1.1 *already* ships this
+rule (`rebuild_manifest_v11.py`), so nothing is owed on the artifact. What is
+owed is the *record*: the mechanism this repository attributed it to was wrong.
+SOLAR is gather-aware — measured, `table[idx]` prices 8 rows — and the over-count
+on `FlashInfer-Bench__018` is the reference's own full-tensor `.to(float32)`
+executed **before** the index. The durable fix is a slice pushdown in SOLAR's
+`graph_analyzer`; it is **recommended, not enacted**, and it would apply to both
+parts. Note the size of the trade: `__018` under v1.2 is 97.5x looser than the
+best kernel ever written for it, so the correction moved a detectable error to an
+undetectable one on purpose.
+
+**(c) The direction rule everything in this file was reasoned with — D69.**
+`dS/dT_SOL = (T_b − T_k)/(T_b + T_k − 2·T_SOL)²`. A bound moving **down deflates**
+`S` for any kernel faster than `T_b`, which is 74.5% of the measured MI355X
+corpus, and inflates it only for one slower. Several items in this file and in
+`docs/findings.md` were written under the unqualified "too small ⇒ inflated"
+form. **The ranking of this file does not change** — the too-small direction is
+still the dangerous one, because nothing can detect it — but any sentence that
+justifies an item by "and it inflates every score" is wrong and should be
+re-derived before it is quoted at a maintainer.
+
+**Acceptance for (a).** A v1.3 MI350X manifest in which
+`FlashInfer-Bench__014/__015` publish at the live-row price, `check D` is re-run
+and reported, and `artifacts/deferred.json` plus every count that states 220/3717
+is re-checked against it. Nothing may be regenerated piecemeal.
 
 ### B3. What passes — three tolerance defects, fixed in code, zero artifacts moved
 

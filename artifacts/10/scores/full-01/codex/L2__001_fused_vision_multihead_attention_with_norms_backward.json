@@ -85,9 +85,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 1.0518233333333333,
+      "t_sol_ms": 0.7888675,
       "t_sol_cycles": 1893282,
-      "t_b_ms": 1.7783100008964539,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -105,7 +105,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 1,
@@ -115,9 +118,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 0.5259116666666667,
+      "t_sol_ms": 0.39443375,
       "t_sol_cycles": 946641,
-      "t_b_ms": 0.9980455040931702,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -135,7 +138,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 2,
@@ -145,9 +151,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 1.4725522222222223,
+      "t_sol_ms": 1.1044141666666667,
       "t_sol_cycles": 2650594,
-      "t_b_ms": 2.377674102783203,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -165,7 +171,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 3,
@@ -175,9 +184,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 0.3155472222222222,
+      "t_sol_ms": 0.23666041666666668,
       "t_sol_cycles": 567985,
-      "t_b_ms": 0.6787839829921722,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -195,7 +204,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 4,
@@ -205,9 +217,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 0.210365,
+      "t_sol_ms": 0.15777375,
       "t_sol_cycles": 378657,
-      "t_b_ms": 0.4997425079345703,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -225,7 +237,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 5,
@@ -235,9 +250,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 3.3658333333333332,
+      "t_sol_ms": 2.524375,
       "t_sol_cycles": 6058500,
-      "t_b_ms": 5.263931035995483,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -255,7 +270,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 6,
@@ -265,9 +283,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 4.943567777777778,
+      "t_sol_ms": 3.7076758333333335,
       "t_sol_cycles": 8898422,
-      "t_b_ms": 7.743144989013672,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -285,7 +303,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v4_contiguous",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 7,
@@ -295,9 +316,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 2.9451044444444445,
+      "t_sol_ms": 2.2088283333333334,
       "t_sol_cycles": 5301188,
-      "t_b_ms": 4.598706483840942,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -315,7 +336,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 8,
@@ -325,9 +349,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 2.419192777777778,
+      "t_sol_ms": 1.8143945833333333,
       "t_sol_cycles": 4354547,
-      "t_b_ms": 3.786802053451538,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -345,7 +369,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 9,
@@ -355,9 +382,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 4.312474444444445,
+      "t_sol_ms": 3.2343558333333333,
       "t_sol_cycles": 7762454,
-      "t_b_ms": 6.700699090957642,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -375,7 +402,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 10,
@@ -385,9 +415,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 0.10518277777777778,
+      "t_sol_ms": 0.07888708333333333,
       "t_sol_cycles": 189329,
-      "t_b_ms": 0.3567419946193695,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -405,7 +435,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 11,
@@ -415,9 +448,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 1.2621877777777777,
+      "t_sol_ms": 0.9466408333333334,
       "t_sol_cycles": 2271938,
-      "t_b_ms": 2.0453120470046997,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -435,7 +468,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 12,
@@ -445,9 +481,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 0.7362761111111111,
+      "t_sol_ms": 0.5522070833333333,
       "t_sol_cycles": 1325297,
-      "t_b_ms": 1.294927954673767,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -465,7 +501,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 13,
@@ -475,9 +514,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 5.890208333333334,
+      "t_sol_ms": 4.41765625,
       "t_sol_cycles": 10602375,
-      "t_b_ms": 9.019952297210693,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -495,7 +534,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 14,
@@ -505,9 +547,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 3.891745,
+      "t_sol_ms": 2.91880875,
       "t_sol_cycles": 7005141,
-      "t_b_ms": 5.951214790344238,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -525,7 +567,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     },
     {
       "workload_index": 15,
@@ -535,9 +580,9 @@
       "t_k_ms": null,
       "t_ref_ms": null,
       "speedup_vs_reference": null,
-      "t_sol_ms": 5.574661666666667,
+      "t_sol_ms": 4.18099625,
       "t_sol_cycles": 10034391,
-      "t_b_ms": 8.513829708099365,
+      "t_b_ms": null,
       "sol_score": null,
       "headroom_fraction": null,
       "score_basis": "correctness_only",
@@ -555,7 +600,10 @@
       "has_inf": null,
       "methodology": "hip_events",
       "failure_log": "e \"/var/tmp/solbench/solb_run_12l8nhxr/kernel.py\", line 253, in run\n    _layer_norm_prepare_kernel[(triton.cdiv(n_rows, 4),)](\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 419, in <lambda>\n    return lambda *args, **kwargs: self.run(grid=grid, warmup=False, *args, **kwargs)\n                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 733, in run\n    kernel = self._do_compile(key, signature, device, constexprs, options, attrs, warmup)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/runtime/jit.py\", line 861, in _do_compile\n    kernel = self.compile(src, target=target, options=options.__dict__)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 300, in compile\n    module = src.make_ir(target, options, codegen_fns, module_map, context)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/venv/lib/python3.12/site-packages/triton/compiler/compiler.py\", line 80, in make_ir\n    return ast_to_ttir(self.fn, self, context=context, options=options, codegen_fns=codegen_fns,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntriton.compiler.errors.CompilationError: at 27:12:\n):\n    rows = tl.program_id(0) * ROWS + tl.arange(0, ROWS)\n    columns = tl.arange(0, EMBED)\n    row_mask = rows < N_ROWS\n    offsets = rows[:, None] * EMBED + columns[None, :]\n    mask = row_mask[:, None]\n\n    xv = tl.load(x + offsets, mask=mask)\n    mean = tl.load(x_mean + rows, mask=row_mask)[:, None]\n    var = tl.load(x_var + rows, mask=row_mask)\n    stdev_rows = tl.extra.libdevice.sqrt(var + norm_eps)\n    stdev = stdev_rows[:, None]\n            ^\nTypeError(\"'NoneType' object is not subscriptable\")\n",
-      "score_refused": "solution window carries no clock samples at all: absent"
+      "score_refused": "solution window carries no clock samples at all: absent",
+      "t_b_variant": "v1_eager",
+      "score_basis_history": [],
+      "t_b_refused": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor."
     }
   ],
   "spec_source": {
@@ -581,5 +629,75 @@
   "outcome": "evaluated",
   "workloads": 16,
   "passed": 0,
-  "all_passed": false
+  "all_passed": false,
+  "backfilled_from_manifest": "v4",
+  "backfill_card_check": {
+    "ok": false,
+    "state": "mismatch",
+    "reason": "this problem's T_b was measured on mia1-p02-g05 0000:85:00.0 (uuid 14ff75a3-0000-1000-80f2-4cdcdf544245) but this process is on mia1-p02-g45 0000:f5:00.0 (uuid 8aff75a3-0000-1000-8077-f43c45b2cba8); differing on ['hostname', 'bdf', 'uuid']. STATE.md 4.4 re-times T_b and T_k on ONE card -- scoring across two divides timings taken at two different clocks (36.8% workload-dependent spread on this part) and the result is indistinguishable from a real speedup. Re-run this shard on the card that holds the anchor.",
+    "anchor": {
+      "identified": true,
+      "hostname": "mia1-p02-g05",
+      "torch_index_in_child": 0,
+      "device_name": "AMD Instinct MI355X",
+      "pci_bus_id": 133,
+      "bdf": "0000:85:00.0",
+      "uuid": "14ff75a3-0000-1000-80f2-4cdcdf544245",
+      "drm_card": "/sys/class/drm/card41",
+      "hip_visible_devices": "5"
+    },
+    "actual": {
+      "identified": true,
+      "hostname": "mia1-p02-g45",
+      "torch_index_in_child": 0,
+      "device_name": "AMD Instinct MI355X",
+      "pci_bus_id": 245,
+      "bdf": "0000:f5:00.0",
+      "uuid": "8aff75a3-0000-1000-8077-f43c45b2cba8",
+      "drm_card": "/sys/class/drm/card33",
+      "hip_visible_devices": "4"
+    }
+  },
+  "_backfill_provenance": {
+    "task": "10-backfill",
+    "utc": "2026-08-15T10:20:42.552166+00:00",
+    "git_sha": "7e751eccb8e45a0d0efbcb8c0db8f6eac57a837e-dirty",
+    "host": "mia1-p02-g46",
+    "python": "3.12.3",
+    "torch": {
+      "available": true,
+      "version": "2.9.1+rocm7.2.0.git7e1940d4",
+      "hip": "7.2.26015-fc0010cf6a",
+      "cuda": null,
+      "device_count": 8,
+      "devices": [
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X",
+        "AMD Instinct MI355X"
+      ]
+    },
+    "rocm": {
+      "version": "7.2.0",
+      "driver": "6.16.6",
+      "amd_smi": "AMDSMI Tool: 26.2.1+fc0010cf6a | AMDSMI Library version: 26.2.1 | ROCm version: 7.2.0 | amdgpu version: 6.16.6 | hsmp version: N/A"
+    },
+    "f_lock_mhz": null,
+    "visible_devices": null,
+    "part": "MI355X",
+    "part_source": "declared",
+    "part_detected": "MI355X",
+    "run_id": "full-01",
+    "manifest": "artifacts/09-MI355X/manifest-v4.json",
+    "manifest_version": "v4",
+    "tb_artifacts": [
+      "/work/artifacts/06-MI355X/authoritative-merged"
+    ],
+    "rebase_only": true,
+    "note": "This artifact has two provenance blocks. `_provenance` is the MEASUREMENT: the host, cards, ROCm and clock that produced `t_k_ms`, which no rebase may overwrite. This block is the REBASE: which manifest and anchor tree recomputed the bounds and `sol_score` from those unchanged timings. No timing was re-measured."
+  }
 }

@@ -178,9 +178,15 @@ def test_the_four_reclocking_terms_reach_the_manifest_record():
                                   {KEY: _sol_doc()["problems"][KEY]["workloads"]},
                                   {}, {})
     rec = merged[KEY][UUID]
-    for f in bm.RECLOCK_FIELDS:
+    for f in bm.RECLOCK_TERM_FIELDS:
         assert rec.get(f) is not None, f
     assert t_sol_cycles_at(rec, F_REF) == 1000
+    # The clock provenance travels in the same list but is allowed to be null:
+    # a tier that never stated its reference clock is a fact about the tier, and
+    # `t_sol_at.bound_ms` is the thing that refuses on it. What must not happen is
+    # the field going missing, because then nothing can refuse.
+    for f in bm.CLOCK_PROVENANCE_FIELDS:
+        assert f in rec, f
 
 
 def test_max_of_both_reproduces_both_tiers_at_another_clock():
@@ -323,8 +329,10 @@ def test_the_unlocked_basis_builds_where_the_locked_one_refuses(tmp_path):
     assert w["clock_bracket_spread"] == pytest.approx(6 / 1803)
     assert w["window_ns"] == [1_000, 13_000_000]
     # ...and the terms that make the bracket usable.
-    for f in bm.RECLOCK_FIELDS:
+    for f in bm.RECLOCK_TERM_FIELDS:
         assert w[f] is not None, f
+    for f in bm.CLOCK_PROVENANCE_FIELDS:
+        assert f in w, f
     assert t_sol_cycles_at(w, w["clock_mhz"]) == 1000
 
     # The refusal rate is a first-class field on the manifest too.

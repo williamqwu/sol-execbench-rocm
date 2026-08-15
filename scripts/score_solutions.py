@@ -75,7 +75,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "scripts" / "runners"))
 sys.path.insert(0, str(ROOT / "src"))
 
-from provenance import stamp  # noqa: E402
+from provenance import detected_part, stamp  # noqa: E402
 from solexbench_agents.gpu_pool import AUTHORITATIVE_GPU  # noqa: E402
 from solexbench_agents.scoring import (  # noqa: E402
     ScoreBasis,
@@ -877,13 +877,15 @@ def main() -> int:
         config = json.loads(cfg_path.read_text())
 
     prov = stamp("10-scoring")["_provenance"]
-    # `provenance.stamp()` in this tree does NOT emit a `part` key, so the
-    # existing `prov.get("part")` was always None and every part check that
-    # depended on it -- including `load_bounds`' -- was dead code. Resolved the
-    # way `verify_artifacts` resolves it instead: from the torch device names
-    # already in the provenance block. No extra hardware call, and it fails
-    # closed (None => "unattributable", never "MI350X").
-    detected = artifact_part({"_provenance": prov})
+    # The node's part, asked for DIRECTLY rather than read back out of the stamp
+    # this process just wrote. `stamp()` does now emit `part`, so
+    # `artifact_part({"_provenance": prov})` would return the same value today --
+    # but only because nothing declares a part to that call. The moment one did,
+    # `args.part != detected` would be comparing the declaration against itself
+    # and this guard would die the same death it already died once, when it read
+    # a `prov["part"]` that was never emitted and was therefore always None.
+    # A detection is the only thing that can contradict a declaration.
+    detected = detected_part()
     if args.part and detected and args.part != detected:
         sys.exit(
             f"--part {args.part} but this node reports {detected}. Scoring the "
@@ -1169,8 +1171,14 @@ def main() -> int:
             [r for res in results for r in res.get("records", [])], "score_basis"
         ),
     }
+    # The part is DECLARED on the summary, not left to be recovered from device
+    # names by every reader. `part` here is `--part` or the detection above, and
+    # the two were already reconciled; a summary that states it is the only
+    # in-file evidence a task-10 tree carries about which card it belongs to
+    # (today the only trace is a hostname inside `card_check.reason`).
     (out_dir / "summary.json").write_text(
-        json.dumps({**stamp("10-scoring"), **summary}, indent=2, default=str)
+        json.dumps({**stamp("10-scoring", part=part), **summary},
+                   indent=2, default=str)
     )
     print(f"\nwrote {out_dir}/summary.json")
     print(json.dumps(summary["outcomes"], indent=2))
