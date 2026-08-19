@@ -449,6 +449,7 @@ def score_one(session_dir: Path, problem_dir: Path, workloads_root: Path | None,
     from _common import evaluate, summarize  # noqa: E402
 
     from sol_execbench.core import BenchmarkConfig, Definition, Workload  # noqa: E402
+    from sol_execbench.core.bench.dsl_check import check_dsl_constraint  # noqa: E402
     from sol_execbench.core.bench.reward_hack import static_source_screen  # noqa: E402
 
     from agent_verify import load_solution  # noqa: E402
@@ -585,6 +586,31 @@ def score_one(session_dir: Path, problem_dir: Path, workloads_root: Path | None,
     copy = reference_copy_verdict(solution.sources, definition.reference)
     result["reference_copy"] = {"kind": copy.kind, "similarity": copy.similarity,
                                 "detail": copy.detail}
+
+    # AMD (amdpilotv2#19): which kernel language this submission can be SEEN to
+    # be written in, beside what it declared.
+    #
+    # There is deliberately NO `outcome = "rejected_dsl"` branch below, and
+    # adding one is a separate change with its own review. The rule that gates
+    # it: run `scripts/dsl_census.py` over the archived sweeps, read the rows,
+    # and only then decide. A gate at a 2% false-positive rate scores four
+    # correct kernels zero out of a 220-problem sweep, and a zero is
+    # indistinguishable downstream from a kernel that did not work. Recording
+    # the label costs nothing and is reversible; the zero is neither.
+    #
+    # What is passed as `declared` here is the submission's OWN `spec.languages`,
+    # not a per-run DSL constraint -- this script does not see the run's axis.
+    # Most of those values (`pytorch`, `hip_cpp`, ...) are outside the four DSL
+    # rules, so `dsl.agrees` is usually null here and that is correct: the rules
+    # cannot pass or fail a language they have none for. Read `dsl.per_declared`
+    # for the per-value answer and `dsl.unruled` for what was not checked.
+    try:
+        result["dsl"] = check_dsl_constraint(
+            solution.sources, [x.value for x in solution.spec.languages])
+    except Exception as exc:  # noqa: BLE001
+        # Unknown, and said so. Never an empty label set, which would read as
+        # "we looked and found nothing".
+        result["dsl"] = {"error": f"{type(exc).__name__}: {exc}"}
 
     if findings:
         # Zero regardless of what it measures. A submission that trips the screen
