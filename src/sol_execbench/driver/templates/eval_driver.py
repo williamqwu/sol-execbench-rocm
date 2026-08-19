@@ -327,6 +327,36 @@ _CPP_LANGUAGES = {
     SupportedLanguages.HIPBLASLT,
     SupportedLanguages.MIOPEN,
 }
+# AMD: the Python-hosted half, named rather than left implicit. `flydsl` is
+# imported and launched from `.py` like `cute_dsl`, and `assembly` on its own
+# is an ISA blob assembled and loaded at run time from `.py` (the schema holds
+# it to that entry point); inline asm inside a compiled source arrives here
+# declaring that source's language too, which is what puts it in the set above.
+_PYTHON_HOSTED_LANGUAGES = {
+    SupportedLanguages.PYTORCH,
+    SupportedLanguages.TRITON,
+    SupportedLanguages.CUTE_DSL,
+    SupportedLanguages.CUTILE,
+    SupportedLanguages.CUDNN_FRONTEND,
+    SupportedLanguages.AITER,
+    SupportedLanguages.FLYDSL,
+    SupportedLanguages.ASSEMBLY,
+}
+# The `else` below is a branch, not a default. Without this check a language
+# this driver has no rule for is imported as Python, and whatever that produces
+# is reported as the submission's own result.
+_unclassified_langs = [
+    lang
+    for lang in _solution.spec.languages
+    if lang not in _CPP_LANGUAGES and lang not in _PYTHON_HOSTED_LANGUAGES
+]
+if _unclassified_langs:
+    raise RuntimeError(
+        "eval_driver has no rule for language(s) "
+        f"{[lang.value for lang in _unclassified_langs]}: they are in neither "
+        "_CPP_LANGUAGES nor _PYTHON_HOSTED_LANGUAGES. Refusing to guess a "
+        "branch rather than run them as Python and report the result."
+    )
 if any(lang in _CPP_LANGUAGES for lang in _solution.spec.languages):
     _so_path = STAGING_DIR / "benchmark_kernel.so"
     if not _so_path.exists():
