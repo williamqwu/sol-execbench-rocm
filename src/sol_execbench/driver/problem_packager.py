@@ -36,6 +36,7 @@ from ..core import (
     Trace,
     Workload,
 )
+from ..core.bench.dsl_check import dsl_labels
 from ..core.bench.reward_hack import check_static_source_screen
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -51,6 +52,25 @@ _CPP_LANGUAGES = {
     SupportedLanguages.CK_TILE,
     SupportedLanguages.HIPBLASLT,
     SupportedLanguages.MIOPEN,
+}
+
+# AMD: the Python-hosted half, named so that `_is_cpp` returning False is a
+# decision about a known language and not the absence of one. `flydsl` is
+# imported and launched from `.py` like `cute_dsl`; `assembly` on its own is an
+# ISA blob assembled and loaded from `.py` (the schema holds it to that entry
+# point), while inline asm inside a compiled source declares that source's
+# language too and so lands in the set above. Kept in step with the same pair
+# of sets in `templates/eval_driver.py`, which the driver reads on the GPU
+# side -- the duplication is deliberate, that template runs standalone.
+_PYTHON_HOSTED_LANGUAGES = {
+    SupportedLanguages.PYTORCH,
+    SupportedLanguages.TRITON,
+    SupportedLanguages.CUTE_DSL,
+    SupportedLanguages.CUTILE,
+    SupportedLanguages.CUDNN_FRONTEND,
+    SupportedLanguages.AITER,
+    SupportedLanguages.FLYDSL,
+    SupportedLanguages.ASSEMBLY,
 }
 
 _BLACKWELL_HARDWARE = {SupportedHardware.B200}
@@ -159,6 +179,21 @@ class ProblemPackager:
         # point (CLI, sweeps, submission intake) with one call.
         check_static_source_screen(solution.sources)
 
+        # AMD (amdpilotv2#19): the DSL rules, immediately beside the screen
+        # above so the two readings of "what this submission is" happen at one
+        # chokepoint, on one object, before anything is written or compiled.
+        #
+        # RECORDING ONLY, and this is not a phase to be tidied away later:
+        # `dsl_labels` cannot raise and nothing may reject a submission on it
+        # until the census over the archived sweeps
+        # (`scripts/dsl_census.py`) has been read by a human. The line above
+        # rejects; this one describes. Wrapped anyway, because a *packager* that
+        # dies inside a new descriptive read would turn a label into an outage.
+        try:
+            self.dsl_check = dsl_labels(solution.sources)
+        except Exception as exc:                              # noqa: BLE001
+            self.dsl_check = {"error": f"{type(exc).__name__}: {exc}"}
+
         # Write problem files to staging directory up front.
         (self.output_dir / "definition.json").write_text(definition.model_dump_json())
         (self.output_dir / "workload.jsonl").write_text(
@@ -168,6 +203,13 @@ class ProblemPackager:
         (self.output_dir / "config.json").write_text(
             json.dumps(dataclasses.asdict(config))
         )
+        # Beside solution.json rather than inside it: the DSL label is an
+        # observation ABOUT the submission made by this repository, not a field
+        # the submission declared, and putting it in the same document would
+        # make those two indistinguishable to every later reader.
+        (self.output_dir / "dsl_check.json").write_text(
+            json.dumps(self.dsl_check, indent=1)
+        )
         self._write_sources()
 
     def __del__(self):
@@ -176,6 +218,22 @@ class ProblemPackager:
 
     @property
     def _is_cpp(self) -> bool:
+        # AMD: refuse a language neither set knows before answering. False here
+        # means "no compile step", and a language that fell through to it would
+        # be staged, skipped past the compiler and run as Python -- a failure
+        # that surfaces much later as a missing module on a submission that was
+        # never built.
+        unclassified = [
+            lang
+            for lang in self.solution.spec.languages
+            if lang not in _CPP_LANGUAGES and lang not in _PYTHON_HOSTED_LANGUAGES
+        ]
+        if unclassified:
+            raise ValueError(
+                f"ProblemPackager has no rule for language(s) "
+                f"{[lang.value for lang in unclassified]}: they are in neither "
+                f"_CPP_LANGUAGES nor _PYTHON_HOSTED_LANGUAGES."
+            )
         return any(lang in _CPP_LANGUAGES for lang in self.solution.spec.languages)
 
     def _inject_gencode_flags(self, sol_dict: dict) -> dict:

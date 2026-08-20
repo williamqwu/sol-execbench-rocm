@@ -54,6 +54,8 @@ LANGUAGE_MENU = """\
 | `hipblaslt` | AMD hipBLASLt | GEMM with epilogue fusion |
 | `miopen` | AMD MIOpen | convolutions |
 | `aiter` | AMD AI Tensor Engine for ROCm | prebuilt fused kernels |
+| `flydsl` | FlyDSL kernel DSL (`flydsl==0.2.4` is installed) | Python-hosted: `@flyc.kernel` device body plus a `@flyc.jit` launcher |
+| `assembly` | hand-written `gfx950` ISA | not a host language -- pair it with the language of the file the asm lives in |
 """
 
 TASK_TEMPLATE = """\
@@ -122,6 +124,14 @@ the most exotic one that fits -- use whatever actually gets the speed.
 
 C++ and Python languages cannot be mixed in one solution. For `hip_cpp`, source
 files use `.hip` or `.cpp`; `--offload-arch=gfx950` is injected for you.
+
+`assembly` is the one exception to that rule, because it says how the kernel
+body was written rather than which language hosts it: declare it *alongside*
+the language of the file the asm actually lives in --
+`["assembly", "hip_cpp"]` for inline `asm volatile` in a compiled source, or
+`["assembly", "pytorch"]` for an ISA blob you assemble and load at run time
+from `kernel.py`. Declared on its own it is held to a `.py` entry point, since
+there is no build path here that assembles a standalone `.s`/`.S` file.
 
 ## Verifying
 

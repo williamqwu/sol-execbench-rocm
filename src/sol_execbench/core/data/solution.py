@@ -68,6 +68,23 @@ class SupportedLanguages(str, Enum):
     """AMD MIOpen (analogue of ``cudnn``)."""
     AITER = "aiter"
     """AMD AI Tensor Engine for ROCm kernel library."""
+    # AMD: the last two values of the DSL axis the fleet drives this benchmark
+    # on (`core/bench/dsl_check.py::DSLS` -- triton, aiter, flydsl, assembly).
+    # The first two were already members; without these two an ablation arm
+    # sends `--language flydsl` and every evaluation in that arm dies in
+    # schema validation, which reads downstream as "the model cannot write
+    # FlyDSL" rather than as a flag this enum never accepted.
+    FLYDSL = "flydsl"
+    """FlyDSL kernel programming language. Python-hosted, like ``cute_dsl``."""
+    ASSEMBLY = "assembly"
+    """Hand-written GPU ISA (gfx950 on this port).
+
+    Unlike every other member this one names how the kernel body was *written*
+    rather than which host language carries it, so it is the one value that may
+    accompany either category -- inline asm inside a ``hip_cpp`` source, or an
+    ISA blob assembled and loaded at run time from a ``.py`` entry point. See
+    ``BuildSpec._validate_languages`` for what it is held to on its own.
+    """
 
 
 class SupportedHardware(str, Enum):
@@ -214,6 +231,9 @@ class BuildSpec(BaseModelWithDocstrings):
             SupportedLanguages.CUDNN_FRONTEND,
             # AMD: AITER is imported from Python like torch or triton.
             SupportedLanguages.AITER,
+            # AMD: FlyDSL is a Python-hosted kernel DSL -- it is imported,
+            # decorated and launched from `.py`, exactly as `cute_dsl` is.
+            SupportedLanguages.FLYDSL,
         ]
         cpp_languages = [
             SupportedLanguages.CUTLASS,
@@ -228,6 +248,20 @@ class BuildSpec(BaseModelWithDocstrings):
             SupportedLanguages.HIPBLASLT,
             SupportedLanguages.MIOPEN,
         ]
+        # AMD: `assembly` describes the kernel body, not the host that carries
+        # it, so it is the one member that belongs to neither side and is
+        # excluded from the mixing rule rather than assigned to one. Both
+        # combinations it forms are real: `["assembly", "hip_cpp"]` is inline
+        # GCN asm in a compiled source, and `["assembly", "pytorch"]` is an ISA
+        # blob assembled and loaded from Python with torch for the glue.
+        #
+        # It is listed rather than left to fall out of "in neither list"
+        # because falling out of both lists is exactly what disables the suffix
+        # check below, and a value that quietly skips validation is worse than
+        # one that is rejected.
+        host_neutral_languages = [
+            SupportedLanguages.ASSEMBLY,
+        ]
 
         included_python_langs = [
             language for language in self.languages if language in python_languages
@@ -235,6 +269,26 @@ class BuildSpec(BaseModelWithDocstrings):
         included_cpp_langs = [
             language for language in self.languages if language in cpp_languages
         ]
+        included_neutral_langs = [
+            language for language in self.languages if language in host_neutral_languages
+        ]
+        # Every member must be classified. A value added to SupportedLanguages
+        # and to nothing else would otherwise be accepted here with no category
+        # and no entry-point rule, which is how a language ends up "supported"
+        # while no code path knows what to do with it.
+        unclassified = [
+            language
+            for language in self.languages
+            if language
+            not in (*python_languages, *cpp_languages, *host_neutral_languages)
+        ]
+        if unclassified:
+            raise ValueError(
+                f"No language category is defined for "
+                f"{[language.value for language in unclassified]}. Add it to the "
+                f"Python, C++ or host-neutral list in "
+                f"BuildSpec._validate_languages before it can be used."
+            )
         if len(included_cpp_langs) and len(included_python_langs):
             raise ValueError(
                 f"C++ and Python cannot be mixed, but got {included_cpp_langs} and {included_python_langs}"
@@ -266,6 +320,26 @@ class BuildSpec(BaseModelWithDocstrings):
                 f"Python languages require a .py entry point file, "
                 f"but got '{entry_file}' (suffix '{suffix}')"
             )
+        # AMD: `assembly` declared on its own names no host, so neither branch
+        # above fires and there would be no rule at all. It is held to the
+        # Python-hosted form, which is the only one this repository can
+        # actually run: `driver/templates/build_ext.py` collects
+        # `.cu .hip .cpp .cc .cxx .c` and no assembler source, so a standalone
+        # `.s`/`.S` has nowhere to be assembled. Inline asm inside a compiled
+        # source is reached by declaring that source's language alongside, and
+        # the message says so rather than leaving the author to guess.
+        if included_neutral_langs and not (included_python_langs or included_cpp_langs):
+            if suffix != ".py":
+                raise ValueError(
+                    f"'{SupportedLanguages.ASSEMBLY.value}' on its own requires a "
+                    f".py entry point that assembles and loads the ISA at run "
+                    f"time, but got '{entry_file}' (suffix '{suffix}'). There is "
+                    f"no standalone assembler build path in this repository; "
+                    f"hand-written asm inside a compiled source must declare that "
+                    f"source's language too, e.g. "
+                    f"['{SupportedLanguages.ASSEMBLY.value}', "
+                    f"'{SupportedLanguages.HIP_CPP.value}']."
+                )
         return self
 
 
