@@ -3,7 +3,7 @@
 """Re-time a run across all eight cards at once, one problem per card.
 
     python scripts/retime_parallel.py --run artifacts/10/gpt56-180 \
-        --gpus 0,1,2,3,4,5,6,7 [--only-missing]
+        --part MI355X --gpus 0,1,2,3,4,5,6,7 [--only-missing]
 
 **This is a departure from the discipline and it needs its evidence attached.**
 `CLAUDE.md` §4 says GPU 0 is for authoritative timing and nothing else, and
@@ -41,6 +41,8 @@ import threading
 import time
 from pathlib import Path
 
+from tolerance_roots import TOLERANCE_ROOTS, container_tolerance_root
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRATCH = Path(os.environ.get("SOLEXBENCH_SCRATCH", "/var/tmp/solbench"))
 
@@ -69,7 +71,8 @@ def foreign_on(gpu: int) -> list[str]:
 
 
 def measure(key: str, kernel: str, out: Path, gpu: int, iterations: int,
-            warmup: int, timeout: int, n_cards: int) -> bool:
+            warmup: int, timeout: int, n_cards: int,
+            tolerance_root: str) -> bool:
     cat, name = key.split("__", 1)
     staged = SCRATCH / "retime-par" / f"{key}.json"
     staged.parent.mkdir(parents=True, exist_ok=True)
@@ -84,7 +87,7 @@ def measure(key: str, kernel: str, out: Path, gpu: int, iterations: int,
            "--timeout", str(max(60, timeout - 120)), "--quiet"]
     env = {"PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(Path.home()),
            "HIP_VISIBLE_DEVICES": str(gpu),
-           "SOLEXBENCH_WORKLOADS_ROOT": "/work/artifacts/05/workloads"}
+           "SOLEXBENCH_WORKLOADS_ROOT": tolerance_root}
     try:
         proc = subprocess.run(cmd, env=env, capture_output=True, text=True,
                               timeout=timeout)
@@ -98,10 +101,12 @@ def measure(key: str, kernel: str, out: Path, gpu: int, iterations: int,
             "stderr_tail": (err or "")[-3000:],
             "per_workload": [], "workloads": 0, "passed": 0,
             "retimed_gpu": gpu, "concurrent_cards": n_cards,
-            "authoritative_card_exclusive": not foreign}, indent=1))
+            "authoritative_card_exclusive": not foreign,
+            "tolerance_root": tolerance_root}, indent=1))
         return False
 
     payload = json.loads(staged.read_text())
+    payload["tolerance_root"] = tolerance_root
     payload["retimed_gpu"] = gpu
     # Recorded because it is a property of HOW this number was taken, and a
     # reader comparing it with a serially-measured one deserves to know without
@@ -122,10 +127,14 @@ def main() -> int:
     ap.add_argument("--iterations", type=int, default=50)
     ap.add_argument("--warmup", type=int, default=10)
     ap.add_argument("--timeout", type=int, default=2400)
+    ap.add_argument("--part", required=True, choices=sorted(TOLERANCE_ROOTS),
+                    help="GPU part being measured; selects that part's "
+                         "correctness-tolerance tree")
     ap.add_argument("--only-missing", action="store_true",
                     help="skip problems that already have a retimed artifact")
     ap.add_argument("--only", action="append", default=[])
     a = ap.parse_args()
+    tolerance_root = container_tolerance_root(a.part)
 
     run = json.loads((a.run / "run.json").read_text())
     gpus = [int(g) for g in a.gpus.split(",") if g.strip() != ""]
@@ -138,8 +147,17 @@ def main() -> int:
     for key, sess in sorted(run["sessions"].items()):
         if a.only and key not in set(a.only):
             continue
-        if a.only_missing and (retimed / f"{key}.json").exists():
-            continue
+        existing = retimed / f"{key}.json"
+        if a.only_missing and existing.exists():
+            try:
+                recorded_root = json.loads(existing.read_text()).get(
+                    "tolerance_root")
+            except (OSError, json.JSONDecodeError, AttributeError):
+                recorded_root = None
+            if recorded_root == tolerance_root:
+                continue
+            say(f"RE-TIME {key}: existing artifact has tolerance_root="
+                f"{recorded_root!r}, expected {tolerance_root!r}")
         # The path handed to the container must be one the container has.
         # SOLEXBENCH_SCRATCH is bind-mounted at the SAME absolute path inside
         # and out, which is why the sandbox path works verbatim; the repo is at
@@ -174,7 +192,8 @@ def main() -> int:
                 return
             t0 = time.time()
             ok = measure(key, kernel, retimed / f"{key}.json", gpu,
-                         a.iterations, a.warmup, a.timeout, len(gpus))
+                         a.iterations, a.warmup, a.timeout, len(gpus),
+                         tolerance_root)
             with lock:
                 counts["done"] += 1
                 if not ok:
@@ -193,7 +212,7 @@ def main() -> int:
     say(f"done: {counts['done']} measured, {counts['failed']} produced nothing")
     say("now score it, single-threaded: "
         f"python3 scripts/agent_score.py --run {a.run.relative_to(ROOT)} "
-        "--reuse-retimed --manifest artifacts/09/manifest-v1.2.json")
+        f"--part {a.part} --reuse-retimed --manifest MANIFEST-FOR-{a.part}")
     return 0
 
 

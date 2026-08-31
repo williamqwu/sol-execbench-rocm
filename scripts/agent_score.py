@@ -43,6 +43,7 @@ from verify_artifacts import artifact_part  # noqa: E402
 # the defect. Stdlib-only on this path -- verified, since this driver runs on the
 # host python with no pydantic.
 from bound_headroom import published_bound_ms  # noqa: E402
+from tolerance_roots import container_tolerance_root  # noqa: E402
 
 # Load `sol_score` from its file rather than importing the package. This runs
 # on the host python, which has no pydantic, and `import sol_execbench` pulls
@@ -300,7 +301,8 @@ def _await_exclusive_card(gpu: int, max_wait: float = CARD_WAIT_S) -> tuple[list
 
 
 def retime(problem_key: str, kernel: Path, out: Path, gpu: int,
-           iterations: int, warmup: int, timeout: int) -> dict:
+           iterations: int, warmup: int, timeout: int,
+           tolerance_root: str) -> dict:
     """One kernel, through env/solb, pinned to `gpu`. Returns the eval payload.
 
     `--out` must name a path the *container* can write. Only two trees are
@@ -355,7 +357,7 @@ def retime(problem_key: str, kernel: Path, out: Path, gpu: int,
         "PATH": "/usr/bin:/bin:/usr/local/bin",
         "HOME": str(Path.home()),
         "HIP_VISIBLE_DEVICES": str(gpu),
-        "SOLEXBENCH_WORKLOADS_ROOT": "/work/artifacts/05/workloads",
+        "SOLEXBENCH_WORKLOADS_ROOT": tolerance_root,
     }
     try:
         proc = subprocess.run(cmd, env=env, capture_output=True, text=True,
@@ -366,6 +368,10 @@ def retime(problem_key: str, kernel: Path, out: Path, gpu: int,
 
     if staged.exists():
         payload = json.loads(staged.read_text())
+        # Correctness tolerances are calibrated per part.  Keep the selected
+        # tree on the measurement itself so reuse cannot silently preserve an
+        # old verdict made against another part's gate.
+        payload["tolerance_root"] = tolerance_root
         payload["authoritative_card_exclusive"] = not foreign
         payload["authoritative_card_waited_s"] = waited
         if foreign:
@@ -378,7 +384,8 @@ def retime(problem_key: str, kernel: Path, out: Path, gpu: int,
     return {"ok": False,
             "error": f"runner produced no artifact (rc={rc})",
             "stderr_tail": (err or "")[-3000:],
-            "per_workload": [], "workloads": 0, "passed": 0}
+            "per_workload": [], "workloads": 0, "passed": 0,
+            "tolerance_root": tolerance_root}
 
 
 def main() -> int:
@@ -459,9 +466,14 @@ def main() -> int:
               f"(measured: +0.08 mean over 2078 records) and no check "
               f"downstream can tell.", file=sys.stderr)
         return 3
+    try:
+        tolerance_root = container_tolerance_root(n_part)
+    except ValueError as exc:
+        print(f"REFUSING to score: {exc}.", file=sys.stderr)
+        return 3
     part_source = ("declared" if "--part" in n_claims else "detected")
     print(f"part {n_part} ({part_source}); manifest {a.manifest.name} "
-          f"({manifest_version})", flush=True)
+          f"({manifest_version}); tolerances {tolerance_root}", flush=True)
 
     # The sandboxes live in /var/tmp and will be swept. A score whose kernel no
     # longer exists cannot be reproduced or disputed, so the source is copied
@@ -529,7 +541,8 @@ def main() -> int:
         forced = key in force_retime
         if forced:
             force_retime.discard(key)
-        if a.reuse_retimed and existing.exists() and not forced:
+        reused = a.reuse_retimed and existing.exists() and not forced
+        if reused:
             # Re-deriving scores from a completed re-time must not need the GPU
             # again: the timing is the expensive part and it does not change.
             ev = json.loads(existing.read_text())
@@ -537,7 +550,17 @@ def main() -> int:
         else:
             print(f"[{key}] re-timing on GPU {a.gpu} ...", flush=True)
             ev = retime(key, kernel, existing, a.gpu,
-                        a.iterations, a.warmup, a.timeout)
+                        a.iterations, a.warmup, a.timeout, tolerance_root)
+        measured_root = ev.get("tolerance_root") if isinstance(ev, dict) else None
+        if measured_root != tolerance_root:
+            action = "reuse" if reused else "score"
+            found = repr(measured_root) if measured_root is not None else "no stamp"
+            print(f"REFUSING to {action}: [{key}] tolerance_root is {found}, "
+                  f"but {n_part} requires {tolerance_root!r}. Re-time this "
+                  f"problem with the current scorer; an unstamped artifact "
+                  f"cannot prove which correctness gate produced its verdict.",
+                  file=sys.stderr)
+            return 5
         # The measurement's own account of the card it ran on, checked against
         # the part resolved before the sweep started. This is the only evidence
         # that can contradict a `--part` a human typed, and it arrives one
@@ -661,6 +684,10 @@ def main() -> int:
         # and the version it was computed against travel together.
         "manifest_version": manifest_version,
         "manifest_path": _repo_relative(a.manifest),
+        # The correctness gate paired with these timings and bounds.  This is
+        # independently checked on every re-time above because historical
+        # MI355X scores were accidentally evaluated through the MI350X tree.
+        "tolerance_root": tolerance_root,
         # Which millisecond column each of those bounds came out of
         # (`bound_headroom.published_bound_ms`). {"published": N} is a run scored
         # against the manifest's own published bound; any `legacy_*` count is a

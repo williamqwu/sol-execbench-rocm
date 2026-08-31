@@ -34,7 +34,8 @@ than a wrong one. The cost numbers in this document are all Claude-Opus-5.
 python scripts/agent_baseline.py --sample 8 --gpus 1,2,3,4,5,6,7 --budget-usd 8
 
 # 2. re-time every surviving kernel on an idle GPU 0, then score it
-python scripts/agent_score.py --run artifacts/10/<run-id>
+python scripts/agent_score.py --run artifacts/10/<run-id> \
+  --part <MI350X-or-MI355X> --manifest <manifest-for-that-part>
 
 # 3. what it cost, and what a full run would cost
 python scripts/agent_cost_report.py --run artifacts/10/<run-id>
@@ -45,6 +46,11 @@ Each problem gets a sandbox containing the reference implementation, a
 wired to the *real* harness against the *AMD-derived* tolerances. The agent
 edits `kernel.py` and runs `./evaluate` as often as it likes. Whatever is in
 `kernel.py` when the session ends is the submission.
+
+The scorer resolves the correctness-tolerance tree from that same part and
+records it in both `retimed/*.json` and `scored.json`. Existing re-times without
+that stamp, or with the other part's tree, are refused under `--reuse-retimed`:
+they must be measured again because the old pass/fail verdict is not auditable.
 
 The agent is a Claude Code session (`claude -p`) driven through the AMD LLM
 gateway's Anthropic-native endpoint.
