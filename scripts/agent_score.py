@@ -554,7 +554,10 @@ def main() -> int:
             print(f"[{key}] re-timing on GPU {a.gpu} ...", flush=True)
             ev = retime(key, kernel, existing, a.gpu,
                         a.iterations, a.warmup, a.timeout, tolerance_root)
-        measured = artifact_part(ev) if isinstance(ev, dict) else None
+        try:
+            measured = artifact_part(ev) if isinstance(ev, dict) else None
+        except (AttributeError, TypeError):
+            measured = None
         measured_root = recorded_tolerance_root(ev, measured)
         if measured_root != tolerance_root:
             action = "reuse" if reused else "score"

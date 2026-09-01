@@ -208,6 +208,7 @@ def test_parallel_only_missing_reuses_an_unstamped_legacy_mi350x_retime(
 @pytest.mark.parametrize("existing", [
     pytest.param(None, id="unverifiable-mi355x"),
     pytest.param([], id="non-object-json"),
+    pytest.param({"_provenance": "invalid"}, id="malformed-provenance"),
 ])
 def test_parallel_only_missing_retimes_an_unverifiable_artifact(
         tmp_path, monkeypatch, existing):
@@ -227,6 +228,25 @@ def test_parallel_only_missing_retimes_an_unverifiable_artifact(
 
     assert rp.main() == 0
     assert seen == ["L1__001"]
+
+
+def test_serial_reuse_refuses_malformed_legacy_provenance(
+        tmp_path, monkeypatch, capsys):
+    run = _run_with_one_retime(tmp_path)
+    artifact = run / "retimed" / "L1__001.json"
+    payload = json.loads(artifact.read_text())
+    payload["_provenance"] = "invalid"
+    artifact.write_text(json.dumps(payload))
+    monkeypatch.setattr(ags, "detected_part",
+                        lambda devices=None: None if devices is None else "MI355X")
+    monkeypatch.setattr(ags, "_container_detected_part", lambda gpu: None)
+    monkeypatch.setattr(sys, "argv", [
+        "agent_score.py", "--run", str(run), "--manifest",
+        str(_manifest(tmp_path)), "--part", "MI355X", "--reuse-retimed",
+    ])
+
+    assert ags.main() == 5
+    assert "REFUSING to reuse" in capsys.readouterr().err
 
 
 def test_scored_artifact_stamps_the_selected_tolerance_tree(tmp_path,

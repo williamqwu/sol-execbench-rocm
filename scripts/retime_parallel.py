@@ -160,7 +160,7 @@ def main() -> int:
                     prior,
                     artifact_part(prior) if isinstance(prior, dict) else None,
                 )
-            except (OSError, json.JSONDecodeError):
+            except (OSError, json.JSONDecodeError, AttributeError, TypeError):
                 recorded_root = None
             if recorded_root == tolerance_root:
                 continue
