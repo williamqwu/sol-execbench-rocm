@@ -20,7 +20,10 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import agent_score as ags  # noqa: E402
 import retime_parallel as rp  # noqa: E402
-from tolerance_roots import container_tolerance_root  # noqa: E402
+from tolerance_roots import (  # noqa: E402
+    container_tolerance_root,
+    recorded_tolerance_root,
+)
 
 
 @pytest.mark.parametrize("part,want", [
@@ -34,6 +37,15 @@ def test_part_selects_its_own_tolerance_tree(part, want):
 def test_an_unknown_part_has_no_guessed_tolerance_tree():
     with pytest.raises(ValueError, match="no tolerance tree"):
         container_tolerance_root("MI400X")
+
+
+def test_only_a_provenanced_legacy_mi350x_retime_has_an_inferable_tree():
+    legacy = {"_provenance": {"task": "10-agent-eval"}}
+
+    assert recorded_tolerance_root(legacy, "MI350X") == \
+        "/work/artifacts/05/workloads"
+    assert recorded_tolerance_root(legacy, "MI355X") is None
+    assert recorded_tolerance_root({}, "MI350X") is None
 
 
 def _runner_that_writes_the_requested_artifact(seen: dict):
@@ -94,7 +106,8 @@ def _manifest(tmp_path: Path, part: str = "MI355X") -> Path:
     return path
 
 
-def _run_with_one_retime(tmp_path: Path, tolerance_root=...) -> Path:
+def _run_with_one_retime(tmp_path: Path, tolerance_root=...,
+                         part: str = "MI355X") -> Path:
     run = tmp_path / "run"
     sandbox = tmp_path / "sandbox"
     (run / "retimed").mkdir(parents=True)
@@ -111,7 +124,7 @@ def _run_with_one_retime(tmp_path: Path, tolerance_root=...) -> Path:
         "workloads": 0,
         "passed": 0,
         "per_workload": [],
-        "_provenance": {"part": "MI355X"},
+        "_provenance": {"task": "10-agent-eval", "part": part},
     }
     if tolerance_root is not ...:
         artifact["tolerance_root"] = tolerance_root
@@ -157,6 +170,63 @@ def test_reuse_accepts_a_retime_from_the_same_tolerance_tree(
 
     assert ags.main() == 0
     assert json.loads((run / "scored.json").read_text())["tolerance_root"] == root
+
+
+def test_reuse_accepts_an_unstamped_legacy_mi350x_retime(
+        tmp_path, monkeypatch):
+    run = _run_with_one_retime(tmp_path, part="MI350X")
+    monkeypatch.setattr(ags, "detected_part",
+                        lambda devices=None: None if devices is None else "MI350X")
+    monkeypatch.setattr(ags, "_container_detected_part", lambda gpu: None)
+    monkeypatch.setattr(ags, "retime",
+                        lambda *args, **kwargs: pytest.fail("must reuse"))
+    monkeypatch.setattr(sys, "argv", [
+        "agent_score.py", "--run", str(run), "--manifest",
+        str(_manifest(tmp_path, "MI350X")), "--part", "MI350X",
+        "--reuse-retimed",
+    ])
+
+    assert ags.main() == 0
+    assert json.loads((run / "scored.json").read_text())["tolerance_root"] == \
+        "/work/artifacts/05/workloads"
+
+
+def test_parallel_only_missing_reuses_an_unstamped_legacy_mi350x_retime(
+        tmp_path, monkeypatch):
+    run = _run_with_one_retime(tmp_path, part="MI350X")
+    monkeypatch.setattr(rp, "ROOT", tmp_path)
+    monkeypatch.setattr(rp, "measure",
+                        lambda *args, **kwargs: pytest.fail("must skip"))
+    monkeypatch.setattr(sys, "argv", [
+        "retime_parallel.py", "--run", str(run), "--part", "MI350X",
+        "--gpus", "0", "--only-missing",
+    ])
+
+    assert rp.main() == 0
+
+
+@pytest.mark.parametrize("existing", [
+    pytest.param(None, id="unverifiable-mi355x"),
+    pytest.param([], id="non-object-json"),
+])
+def test_parallel_only_missing_retimes_an_unverifiable_artifact(
+        tmp_path, monkeypatch, existing):
+    run = _run_with_one_retime(tmp_path)
+    if existing is not None:
+        (run / "retimed" / "L1__001.json").write_text(json.dumps(existing))
+    seen = []
+    monkeypatch.setattr(rp, "ROOT", tmp_path)
+    monkeypatch.setattr(
+        rp, "measure",
+        lambda key, *args, **kwargs: seen.append(key) or True,
+    )
+    monkeypatch.setattr(sys, "argv", [
+        "retime_parallel.py", "--run", str(run), "--part", "MI355X",
+        "--gpus", "0", "--only-missing",
+    ])
+
+    assert rp.main() == 0
+    assert seen == ["L1__001"]
 
 
 def test_scored_artifact_stamps_the_selected_tolerance_tree(tmp_path,

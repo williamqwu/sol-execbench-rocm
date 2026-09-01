@@ -43,7 +43,10 @@ from verify_artifacts import artifact_part  # noqa: E402
 # the defect. Stdlib-only on this path -- verified, since this driver runs on the
 # host python with no pydantic.
 from bound_headroom import published_bound_ms  # noqa: E402
-from tolerance_roots import container_tolerance_root  # noqa: E402
+from tolerance_roots import (  # noqa: E402
+    container_tolerance_root,
+    recorded_tolerance_root,
+)
 
 # Load `sol_score` from its file rather than importing the package. This runs
 # on the host python, which has no pydantic, and `import sol_execbench` pulls
@@ -551,7 +554,8 @@ def main() -> int:
             print(f"[{key}] re-timing on GPU {a.gpu} ...", flush=True)
             ev = retime(key, kernel, existing, a.gpu,
                         a.iterations, a.warmup, a.timeout, tolerance_root)
-        measured_root = ev.get("tolerance_root") if isinstance(ev, dict) else None
+        measured = artifact_part(ev) if isinstance(ev, dict) else None
+        measured_root = recorded_tolerance_root(ev, measured)
         if measured_root != tolerance_root:
             action = "reuse" if reused else "score"
             found = repr(measured_root) if measured_root is not None else "no stamp"
@@ -567,7 +571,6 @@ def main() -> int:
         # re-time at a time; refusing here loses the aggregation, never a
         # timing -- every re-time is already on disk and `--reuse-retimed`
         # picks them all up again.
-        measured = artifact_part(ev) if isinstance(ev, dict) else None
         if measured and measured != n_part:
             print(f"REFUSING to score: [{key}] was measured on {measured} but "
                   f"this run resolved to {n_part} against a {m_part} manifest. "

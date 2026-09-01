@@ -41,7 +41,12 @@ import threading
 import time
 from pathlib import Path
 
-from tolerance_roots import TOLERANCE_ROOTS, container_tolerance_root
+from tolerance_roots import (
+    TOLERANCE_ROOTS,
+    container_tolerance_root,
+    recorded_tolerance_root,
+)
+from verify_artifacts import artifact_part
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRATCH = Path(os.environ.get("SOLEXBENCH_SCRATCH", "/var/tmp/solbench"))
@@ -150,9 +155,12 @@ def main() -> int:
         existing = retimed / f"{key}.json"
         if a.only_missing and existing.exists():
             try:
-                recorded_root = json.loads(existing.read_text()).get(
-                    "tolerance_root")
-            except (OSError, json.JSONDecodeError, AttributeError):
+                prior = json.loads(existing.read_text())
+                recorded_root = recorded_tolerance_root(
+                    prior,
+                    artifact_part(prior) if isinstance(prior, dict) else None,
+                )
+            except (OSError, json.JSONDecodeError):
                 recorded_root = None
             if recorded_root == tolerance_root:
                 continue

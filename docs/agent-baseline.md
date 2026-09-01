@@ -49,8 +49,11 @@ edits `kernel.py` and runs `./evaluate` as often as it likes. Whatever is in
 
 The scorer resolves the correctness-tolerance tree from that same part and
 records it in both `retimed/*.json` and `scored.json`. Existing re-times without
-that stamp, or with the other part's tree, are refused under `--reuse-retimed`:
-they must be measured again because the old pass/fail verdict is not auditable.
+that stamp are reusable only when they identify themselves as task 10 agent
+evaluations measured on MI350X: both old re-time paths hard-coded that exact
+tree, so those verdicts remain auditable.
+Unstamped MI355X re-times, or artifacts stamped with the other part's tree, are
+refused under `--reuse-retimed` and must be measured again.
 
 The agent is a Claude Code session (`claude -p`) driven through the AMD LLM
 gateway's Anthropic-native endpoint.
