@@ -41,9 +41,14 @@ Both re-derive on `device="meta"`; no measurement was repeated.
 
 What a consumer needs to know before using it:
 
-* **Correctness runs against `artifacts/05/workloads/`**, not the dataset's own
-  tolerances. Opt in with `SOLEXBENCH_WORKLOADS_ROOT`. Under upstream's B200
-  tolerances the same references fail 8 workloads of `L2/033`.
+* **Correctness runs against the calibrated tree for the measured part**, not
+  the dataset's own tolerances: `artifacts/05/workloads/` for MI350X and
+  `artifacts/05-MI355X/workloads/` for MI355X. `agent_score.py` and
+  `retime_parallel.py` resolve this from an explicit/verified part, stamp the
+  selection, and refuse unverifiable old re-times. Pre-stamp task-10 re-times
+  that identify their measured part as MI350X remain reusable because both old
+  paths hard-coded that tree; pre-stamp MI355X re-times do not. Under upstream's
+  B200 tolerances the same references fail 8 workloads of `L2/033`.
 * **`T_SOL` comes from one of two derivations and every workload says which** —
   SOLAR's roofline over the traced graph, or the traffic the definition declares
   over DRAM bandwidth; the manifest takes the max of the two that survive being

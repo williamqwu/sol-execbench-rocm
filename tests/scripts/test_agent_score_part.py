@@ -210,7 +210,8 @@ def test_a_fresh_re_time_from_the_wrong_card_stops_the_run(
     _node(monkeypatch, detected=None, container=None)
     monkeypatch.setattr(ags, "retime", lambda *a, **k: {
         "ok": True, "workloads": 0, "passed": 0, "per_workload": [],
-        "_provenance": _prov("MI355X")})
+        "_provenance": _prov("MI355X"),
+        "tolerance_root": "/work/artifacts/05/workloads"})
     rc = _main(monkeypatch, run, _manifest(tmp_path, "MI350X"), "--part", "MI350X")
     assert rc == 4
     assert "measured on MI355X" in capsys.readouterr().err
