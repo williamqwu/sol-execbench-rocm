@@ -25,7 +25,7 @@ def test_a_database_with_no_recorded_signature_is_unknown(app_mod):
     assert "unknown" in got["error"]
 
 
-def test_missing_build_inputs_are_unknown_not_fresh(app_mod, monkeypatch):
+def test_partially_missing_build_inputs_are_unknown_not_stale(app_mod, monkeypatch):
     recorded = {
         "n_files": 3,
         "total_bytes": 100,
@@ -36,15 +36,15 @@ def test_missing_build_inputs_are_unknown_not_fresh(app_mod, monkeypatch):
         app_mod.inputs,
         "signature",
         lambda *a, **k: {
-            "n_files": 0,
-            "total_bytes": 0,
+            "n_files": 2,
+            "total_bytes": 90,
             "max_mtime": 0.0,
             "newest_file": None,
         },
     )
     got = app_mod.freshness(_meta(recorded))
     assert got["stale"] is None
-    assert "not present" in got["reasons"][0]
+    assert "1 build input file(s) are unavailable" in got["reasons"][0]
 
 
 def test_a_real_input_change_is_stale(app_mod, monkeypatch):
@@ -69,3 +69,39 @@ def test_unknown_freshness_is_rendered(client, board):
     page = client.get("/").text
     assert "Artifact freshness is unknown" in page
     assert "cannot prove" in page
+
+
+def test_an_external_build_path_is_unknown_and_never_echoed(app_mod):
+    meta = _meta({
+        "n_files": 1, "total_bytes": 1, "max_mtime": 1,
+        "newest_file": "<external>/run.json",
+    })
+    meta["input_paths_portable"] = "0"
+    meta["input_extra_roots"] = '["/home/operator/private"]'
+    got = app_mod.freshness(meta)
+    assert got["stale"] is None
+    assert got.get("rebuild_command") is None
+    assert "/home/operator" not in json.dumps(got)
+
+
+def test_retime_part_provenance_changes_the_input_signature(
+        tmp_path, monkeypatch, app_mod):
+    runs = tmp_path / "runs"
+    retimed = runs / "run-a" / "retimed"
+    retimed.mkdir(parents=True)
+    (runs / "run-a" / "scored.json").write_text("{}")
+    part = retimed / "problem.json"
+    part.write_text('{"part":"MI350X"}')
+    monkeypatch.setattr(app_mod.inputs, "AGENT_RUNS", runs)
+    monkeypatch.setattr(app_mod.inputs, "CANDIDATES", tmp_path / "no-candidates")
+    monkeypatch.setattr(app_mod.inputs, "AUTHORITATIVE", tmp_path / "no-authoritative")
+    monkeypatch.setattr(app_mod.inputs, "DEFERRED", tmp_path / "no-deferred")
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text("{}")
+
+    before = app_mod.inputs.signature(manifest_path=manifest)
+    part.write_text('{"part":"MI355X","changed":true}')
+    after = app_mod.inputs.signature(manifest_path=manifest)
+    assert before["n_files"] == after["n_files"] == 3
+    assert before["total_bytes"] != after["total_bytes"]
+    assert "<external>" in after["newest_file"]

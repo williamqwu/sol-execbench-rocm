@@ -43,6 +43,7 @@ def test_the_openapi_schema_is_still_generated(client):
     paths = schema.json()["paths"]
     assert "/api/v1/leaderboard" in paths
     assert "/api/v1/provisional" in paths
+    assert "/api/v1/provisional/jobs/{job_id}/kernel" in paths
     assert "/api/v1/problems/{key}" in paths
 
 

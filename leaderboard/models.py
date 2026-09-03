@@ -157,6 +157,8 @@ class ProvisionalJob(BaseModel):
     kernel_sha256: str | None = None
     kernel_bytes: int | None = None
     selected: int
+    source_url: str | None = None
+    submission_url: str
     url: str
 
 
@@ -321,6 +323,7 @@ class SubmissionDetail(BaseModel):
         [], description="Every trial of this submission's setup, this one "
                         "included. Empty when the run is not part of a group.")
     provisional_jobs: list[ProvisionalJob] = []
+    provisional_sources: int = 0
 
 
 # ----------------------------------------------------------------- run detail
@@ -490,11 +493,10 @@ class RunDetail(BaseModel):
                         "part of a group.")
     window: RunWindow | None = None
     part: str | None = Field(
-        None, description="For a scored run, the part measured by its own "
-                          "re-time provenance. For an explicitly provisional "
-                          "row, the part named by the KDA job snapshot. None "
-                          "where its artifacts named none -- never filled from "
-                          "the database's part, which is a fact about bounds.")
+        None, description="The part this run was measured on, from its own "
+                          "re-time provenance. None where its artifacts named "
+                          "none -- deliberately not filled in from the "
+                          "database's part, which is a fact about the bounds.")
     kernel: RunKernel | None = None
     variants: list[VariantSource] = []
     reference: str | None = None

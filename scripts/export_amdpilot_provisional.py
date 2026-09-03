@@ -41,12 +41,10 @@ def fetch_json(url: str) -> dict:
         return json.load(response)
 
 
-def list_jobs(database_url: str, fetch: JsonFetch = fetch_json) -> tuple[list[dict], str]:
-    """Read one stable newest-first window, paging until the store says done."""
+def _scan_jobs(base: str, fetch: JsonFetch) -> list[dict]:
     rows: list[dict] = []
     offset = 0
     expected_total = None
-    base = database_url.rstrip("/")
     while expected_total is None or offset < expected_total:
         query = urllib.parse.urlencode(
             {"limit": PAGE, "offset": offset, "order": "desc", "order_by": "created"}
@@ -67,19 +65,71 @@ def list_jobs(database_url: str, fetch: JsonFetch = fetch_json) -> tuple[list[di
         rows.extend(batch)
         offset += len(batch)
         if not batch:
+            if offset < expected_total:
+                raise RuntimeError(
+                    f"job page at offset {offset} was empty before total "
+                    f"{expected_total}; refusing an incomplete snapshot"
+                )
             break
-    final = fetch(f"{base}/v1/jobs?limit=1&offset=0&order=desc&order_by=created")
-    if final.get("total") != expected_total:
+    if len(rows) != expected_total:
+        raise RuntimeError(f"read {len(rows)} jobs but database advertised {expected_total}")
+    ids = [row.get("job_id") for row in rows]
+    if any(not value for value in ids) or len(set(ids)) != len(ids):
+        raise RuntimeError("job pages contain a missing or duplicate job_id")
+    return rows
+
+
+def _terminal_fingerprint(rows: list[dict]) -> str:
+    stable = [
+        {
+            key: row.get(key)
+            for key in (
+                "job_id", "task_id", "task_name", "state", "image",
+                "created_at", "last_update_at", "payload", "detail",
+            )
+        }
+        for row in rows
+        if row.get("state") == "succeeded" and _is_kda_sol(row)
+    ]
+    return hashlib.sha256(
+        json.dumps(stable, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def list_jobs(database_url: str, fetch: JsonFetch = fetch_json) -> tuple[list[dict], str]:
+    """Accept a paginated snapshot only after a second identical observation."""
+    base = database_url.rstrip("/")
+    first = _scan_jobs(base, fetch)
+    second = _scan_jobs(base, fetch)
+    if (
+        {row["job_id"] for row in first} != {row["job_id"] for row in second}
+        or _terminal_fingerprint(first) != _terminal_fingerprint(second)
+    ):
         raise RuntimeError(
-            "job count changed during export; retry to produce one stable snapshot"
+            "job inventory changed during export; retry to produce one stable snapshot"
         )
     status = fetch(f"{base}/status")
     version = str(status.get("version") or "")
-    return rows, version
+    return second, version
 
 
 def artifact_loader(overlay_url: str, fetch: JsonFetch = fetch_json) -> ArtifactLoad:
     """Return the latest kernel's held bytes, or None when no bytes were kept."""
+
+    def rank(row: dict) -> tuple[float, int, str]:
+        raw_time = row.get("created_at")
+        try:
+            created = float(raw_time)
+        except (TypeError, ValueError):
+            try:
+                created = datetime.fromisoformat(str(raw_time)).timestamp()
+            except (TypeError, ValueError):
+                created = float("-inf")
+        try:
+            sequence = int(row.get("seq"))
+        except (TypeError, ValueError):
+            sequence = -1
+        return created, sequence, str(row.get("artifact_id") or "")
 
     def load(job_id: str, origin_path: str | None) -> dict | None:
         root = overlay_url.rstrip("/")
@@ -92,18 +142,13 @@ def artifact_loader(overlay_url: str, fetch: JsonFetch = fetch_json) -> Artifact
             and row.get("held") == "held"
             and row.get("artifact_id")
         ]
-        match = next(
-            (
-                row
-                for row in candidates
-                if row.get("origin_path") == origin_path
-            ),
-            None,
-        )
-        if match is None and candidates:
-            match = max(candidates, key=lambda row: str(row.get("origin_path") or ""))
-        if match is None:
+        exact = [
+            row for row in candidates if row.get("origin_path") == origin_path
+        ]
+        pool = exact or candidates
+        if not pool:
             return None
+        match = max(pool, key=rank)
         artifact_id = urllib.parse.quote(str(match["artifact_id"]), safe="")
         content = fetch(
             f"{root}/api/db/jobs/{job_id}/artifacts/{artifact_id}/content"
@@ -180,9 +225,11 @@ def build_snapshot(
             continue
 
         job_id = str(job.get("job_id") or "")
-        if not job_id or job_id in seen_ids:
-            excluded["missing_or_duplicate_job_id"] += 1
+        if not job_id:
+            excluded["missing_job_id"] += 1
             continue
+        if job_id in seen_ids:
+            raise RuntimeError(f"duplicate job_id in snapshot input: {job_id}")
         seen_ids.add(job_id)
 
         payload = job.get("payload") or {}
@@ -204,9 +251,17 @@ def build_snapshot(
             excluded["non_benchmark"] += 1
             continue
 
-        model = payload.get("model_under_test") or payload.get("model_requested")
         problem_key = benchmark.get("problem_key")
         detail = job.get("detail") or {}
+        actual_models = {
+            value.strip()
+            for value in (payload.get("model_under_test"), detail.get("model"))
+            if isinstance(value, str) and value.strip()
+        }
+        if len(actual_models) > 1:
+            excluded["model_mismatch"] += 1
+            continue
+        model = next(iter(actual_models), None)
         latest = ((detail.get("submission") or {}).get("latest") or {})
         submission_name = latest.get("name")
         files = latest.get("files") or []
@@ -346,11 +401,17 @@ def write_atomic(path: Path, payload: dict) -> None:
     rendered = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
     fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
+        os.fchmod(fd, 0o644)
         with os.fdopen(fd, "wb") as handle:
             handle.write(rendered)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(tmp_name, path)
+        directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
     finally:
         Path(tmp_name).unlink(missing_ok=True)
 

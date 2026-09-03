@@ -18,10 +18,11 @@ Replaces a git-SHA comparison, which was wrong in both directions:
   when it was first ingested. Nothing in git changed, so a SHA check would have
   reported the board fresh while an entire agent run had appeared.
 
-The signature is stat-only -- count, total bytes, newest mtime -- so it costs
-microseconds over ~460 files and can run on every request. It is not a content
-hash: a file rewritten with identical content still bumps mtime and will ask
-for a rebuild. That direction is the safe one.
+The signature is stat-only -- count, total bytes, newest mtime. It includes the
+re-time provenance that decides which part owns each scored run; omitting that
+input can leave a run on the wrong board while reporting the database fresh.
+It is not a content hash: a file rewritten with identical content still bumps
+mtime and will ask for a rebuild. That direction is the safe one.
 """
 
 from __future__ import annotations
@@ -66,12 +67,19 @@ def input_paths(
     for d in (CANDIDATES, AUTHORITATIVE):
         if d.exists():
             paths += sorted(d.glob("*.json"))
+    scored_files: set[Path] = set()
     for root in agent_roots(extra_roots):
         if not root.exists():
             continue
-        paths += sorted(root.glob("*/scored.json"))
+        scored_files.update(root.glob("*/scored.json"))
         if (root / "scored.json").exists():
-            paths.append(root / "scored.json")
+            scored_files.add(root / "scored.json")
+    for scored in sorted(scored_files):
+        paths.append(scored)
+        # `ingest.run_part()` reads these before deciding whether the run
+        # belongs in this database. They are therefore part of the database
+        # input even when the scored run itself is ultimately foreign.
+        paths += sorted((scored.parent / "retimed").glob("*.json"))
     return paths
 
 
@@ -101,9 +109,11 @@ def signature(
         "n_files": len(paths),
         "total_bytes": total,
         "max_mtime": round(newest, 3),
-        "newest_file": (str(newest_path.relative_to(ROOT))
-                        if newest_path and _under(newest_path, ROOT)
-                        else (str(newest_path) if newest_path else None)),
+        "newest_file": (
+            str(newest_path.relative_to(ROOT))
+            if newest_path and _under(newest_path, ROOT)
+            else f"<external>/{newest_path.name}" if newest_path else None
+        ),
     }
 
 

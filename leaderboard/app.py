@@ -40,11 +40,12 @@ import hashlib
 import json
 import math
 import os
+import shlex
 import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 import inputs
 import submit
@@ -887,6 +888,30 @@ def no_data_for_part(request: Request, exc: NoDataForPart) -> Response:
          "todo_path": todo_runbook(exc.part), "nav": None})
 
 
+def resolve_repo_locator(value: str | None) -> Path | None:
+    """Resolve only public, relocatable paths recorded under this checkout."""
+    if not value:
+        return None
+    candidate = Path(value)
+    if candidate.is_absolute():
+        return None
+    resolved = (ROOT / candidate).resolve()
+    try:
+        resolved.relative_to(ROOT.resolve())
+    except ValueError:
+        return None
+    return resolved
+
+
+def public_repo_locator(path: Path | None) -> str | None:
+    if path is None:
+        return None
+    try:
+        return str(path.resolve().relative_to(ROOT.resolve()))
+    except (OSError, ValueError):
+        return None
+
+
 def freshness(m: dict, path: Path | None = None) -> dict:
     """Is the database still a faithful view of the artifacts it was built from?
 
@@ -905,16 +930,34 @@ def freshness(m: dict, path: Path | None = None) -> dict:
     out["built_from_git_sha"] = m.get("repo_git_sha")   # provenance, not a check
     try:
         recorded = json.loads(m.get("input_signature") or "{}")
-        extra = [Path(p) for p in json.loads(m.get("input_extra_roots") or "[]")]
-        manifest = Path(m.get("input_manifest_path") or inputs.MANIFEST)
+        manifest_locator = (
+            m.get("input_manifest_path")
+            or public_repo_locator(inputs.MANIFEST)
+        )
         provisional_raw = m.get("input_provisional_path")
-        provisional = Path(provisional_raw) if provisional_raw else None
-        if not manifest.is_absolute():
-            manifest = ROOT / manifest
-        if provisional is not None and not provisional.is_absolute():
-            provisional = ROOT / provisional
+        extra_locators = json.loads(m.get("input_extra_roots") or "[]")
+        portable = m.get("input_paths_portable") != "0"
+        manifest = resolve_repo_locator(manifest_locator)
+        provisional = (
+            resolve_repo_locator(provisional_raw) if provisional_raw else None
+        )
+        extra = [resolve_repo_locator(value) for value in extra_locators]
+        if (
+            not portable
+            or manifest is None
+            or (provisional_raw and provisional is None)
+            or any(value is None for value in extra)
+        ):
+            out["reasons"] = [
+                "one or more build inputs have no relocatable public path"
+            ]
+            out["error"] = (
+                "freshness is unknown: this database was built with an input "
+                "outside the repository"
+            )
+            return out
         current = inputs.signature(
-            extra,
+            [value for value in extra if value is not None],
             manifest_path=manifest,
             provisional_path=provisional,
         )
@@ -922,13 +965,16 @@ def freshness(m: dict, path: Path | None = None) -> dict:
         if not recorded:
             out["reasons"] = ["the database recorded no input signature"]
             out["error"] = "freshness is unknown for a database built without a signature"
-        elif recorded.get("n_files", 0) and current["n_files"] == 0:
+        elif current["n_files"] < recorded.get("n_files", 0):
             out["reasons"] = [
-                "the build inputs are not present in this serving environment"
+                (
+                    f"{recorded.get('n_files', 0) - current['n_files']} build "
+                    "input file(s) are unavailable in this serving environment"
+                )
             ]
             out["error"] = (
                 "freshness is unknown: the database can be served, but its "
-                "manifest and result artifacts cannot be re-read here"
+                "complete build input set cannot be re-read here"
             )
         else:
             out["reasons"] = inputs.compare(recorded, current)
@@ -944,11 +990,20 @@ def freshness(m: dict, path: Path | None = None) -> dict:
         # different database and leave the stale banner up with nothing to
         # show for it. `--db` is emitted only where the two differ, so the
         # ordinary case keeps the short command.
-        cmd = f"python leaderboard/ingest.py --manifest {manifest}"
+        cmd = (
+            "python leaderboard/ingest.py --manifest "
+            + shlex.quote(str(manifest_locator))
+        )
         if path is not None and path != DB_DIR / f"solbench-{m.get('part')}.db":
-            cmd += f" --db {path}"
+            db_locator = public_repo_locator(path)
+            if db_locator is None:
+                out["rebuild_command"] = None
+                return out
+            cmd += " --db " + shlex.quote(db_locator)
         out["rebuild_command"] = cmd + (
-            " --agent-runs " + " ".join(str(p) for p in extra) if extra else "")
+            " --agent-runs " + " ".join(shlex.quote(value)
+                                         for value in extra_locators)
+            if extra_locators else "")
     except Exception as exc:                             # never 500 a page over this
         out["reasons"] = []
         out["error"] = f"{type(exc).__name__}: {exc}"
@@ -1252,7 +1307,9 @@ def provisional_rows(conn, category: str | None = None) -> list[dict]:
     for row in got:
         row["evidence_tier"] = "provisional"
         row["ranked"] = False
-        row["url"] = f"/submissions/{row['slug']}"
+        row["url"] = _with_query(
+            f"/submissions/{row['slug']}", conn_part(conn), {}
+        )
     return got
 
 
@@ -1261,19 +1318,42 @@ def provisional_jobs(conn, submission_id: int, slug: str) -> list[dict]:
         conn,
         """SELECT job_id,task_id,task_name,problem_key,model,created_utc,
                   finished_utc,submission_n,validation_note,kernel_sha256,
-                  kernel_bytes,evidence,selected
+                  kernel_bytes,evidence,selected,
+                  CASE WHEN kernel_source IS NULL THEN 0 ELSE 1 END AS has_source
              FROM provisional_job
             WHERE submission_id=?
             ORDER BY problem_key,created_utc,job_id""",
         (submission_id,),
     )
+    part = conn_part(conn)
     for row in got:
-        row["url"] = (
-            f"/submissions/{slug}/problems/{row['problem_key']}"
-            if row["selected"]
-            else f"/submissions/{slug}"
+        row["submission_url"] = _with_query(
+            f"/submissions/{slug}", part, {}
         )
+        row["source_url"] = (
+            _with_query(
+                "/api/v1/provisional/jobs/"
+                + quote(row["job_id"], safe="")
+                + "/kernel",
+                part,
+                {},
+            )
+            if row.pop("has_source")
+            else None
+        )
+        row["url"] = row["source_url"] or row["submission_url"]
     return got
+
+
+def provisional_kernel_source(conn, job_id: str) -> str:
+    if not table_exists(conn, "provisional_job"):
+        raise HTTPException(404, f"no such provisional job: {job_id}")
+    row = conn.execute(
+        "SELECT kernel_source FROM provisional_job WHERE job_id=?", (job_id,)
+    ).fetchone()
+    if row is None or row["kernel_source"] is None:
+        raise HTTPException(404, f"no retained kernel for provisional job: {job_id}")
+    return row["kernel_source"]
 
 
 def problem_rows(conn, category: str | None = None) -> list[dict]:
@@ -1512,7 +1592,9 @@ def submission_detail(conn, slug: str) -> dict:
         else []
     )
     return {"submission": s, "problems": per_problem, "unmeasured": unmeasured,
-            "trials": trials(conn, s), "provisional_jobs": provisional}
+            "trials": trials(conn, s), "provisional_jobs": provisional,
+            "provisional_sources": sum(
+                job["source_url"] is not None for job in provisional)}
 
 
 def run_detail(conn, slug: str, key: str) -> dict:
@@ -1533,6 +1615,11 @@ def run_detail(conn, slug: str, key: str) -> dict:
     s = conn.execute("SELECT * FROM submission WHERE slug=?", (slug,)).fetchone()
     if s is None:
         raise HTTPException(404, f"no such submission: {slug}")
+    if s["kind"] == "provisional":
+        raise HTTPException(
+            404,
+            "provisional jobs have source evidence but no authoritative run detail",
+        )
     p = conn.execute("SELECT * FROM problem WHERE key=?", (key,)).fetchone()
     if p is None:
         raise HTTPException(404, f"no such problem: {key}")
@@ -1865,6 +1952,14 @@ def v1_provisional(request: Request, category: str | None = None,
         return provisional_rows(conn, category)
 
 
+@V1.get("/provisional/jobs/{job_id}/kernel",
+        response_class=PlainTextResponse)
+def v1_provisional_kernel(request: Request, job_id: str,
+                          part: str | None = None):
+    with db(resolve_part(request, part)) as conn:
+        return provisional_kernel_source(conn, job_id)
+
+
 @V1.get("/problems", response_model=list[ProblemSummary])
 def v1_problems(request: Request, category: str | None = None,
                 part: str | None = None):
@@ -1955,6 +2050,14 @@ def api_provisional(request: Request, category: str | None = None,
     with db(resolve_part(request, part)) as conn:
         check_category(conn, category)
         return provisional_rows(conn, category)
+
+
+@app.get("/api/provisional/jobs/{job_id}/kernel",
+         response_class=PlainTextResponse)
+def api_provisional_kernel(request: Request, job_id: str,
+                           part: str | None = None):
+    with db(resolve_part(request, part)) as conn:
+        return provisional_kernel_source(conn, job_id)
 
 
 @app.get("/api/problems")

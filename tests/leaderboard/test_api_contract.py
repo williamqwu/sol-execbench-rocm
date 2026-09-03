@@ -63,6 +63,7 @@ def test_every_v1_get_route_is_reached_by_this_test(client):
     templated = {p for p in v1_get_paths(client) if "{" in p}
     assert templated == {
         "/api/v1/problems/{key}",
+        "/api/v1/provisional/jobs/{job_id}/kernel",
         "/api/v1/submissions/{slug}",
         "/api/v1/submissions/{slug}/problems/{key}",
         "/api/v1/submissions/{slug}/problems/{key}/kernel",
@@ -104,6 +105,8 @@ def test_a_missing_kernel_or_transcript_is_404_not_500(client):
                       "L1__001_alpha/kernel").status_code == 404
     assert client.get("/api/v1/submissions/agent-trial-a/problems/"
                       "L1__001_alpha/transcript").status_code == 404
+    assert client.get(
+        "/api/v1/provisional/jobs/no-such-job/kernel").status_code == 404
 
 
 def test_unknown_slug_and_key_are_404_not_500(client):

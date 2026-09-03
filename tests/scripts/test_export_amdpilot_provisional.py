@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import stat
 import sys
 from pathlib import Path
 
@@ -55,6 +56,7 @@ def _job(
             "origin": origin,
             "run_purpose": purpose,
             "model_under_test": model,
+            "model_requested": model,
             "benchmark": {
                 "problem_key": problem,
                 "manifest_version": manifest,
@@ -62,7 +64,7 @@ def _job(
             },
             "hardware": {"part": part},
         },
-        "detail": {"harness": "kda", "submission": submission},
+        "detail": {"harness": "kda", "model": model, "submission": submission},
     }
 
 
@@ -91,7 +93,6 @@ def test_only_attributable_production_kda_jobs_are_exported():
         _job("j-no-model", model=None),
         _job("j-no-latest", latest=False),
         _job("j-no-source"),
-        _job("j-good"),  # duplicate arrival from an overlapping page
     ]
     got = export.build_snapshot(
         jobs,
@@ -112,7 +113,6 @@ def test_only_attributable_production_kda_jobs_are_exported():
     assert got["counts"]["jobs_exported"] == 3
     assert got["counts"]["excluded"] == {
         "manifest_mismatch": 1,
-        "missing_or_duplicate_job_id": 1,
         "model_unattributed": 1,
         "non_benchmark": 1,
         "non_production": 1,
@@ -164,26 +164,95 @@ def test_all_jobs_are_kept_while_model_problem_counts_are_distinct():
     assert got["counts"]["problems_by_model"] == {"A": 2, "B": 1}
 
 
+def test_requested_model_is_not_used_as_execution_identity():
+    requested_only = _job("j-requested", model=None)
+    requested_only["payload"]["model_requested"] = "GLM-5.2-local"
+    mismatch = _job("j-mismatch")
+    mismatch["detail"]["model"] = "another-model"
+    got = export.build_snapshot(
+        [requested_only, mismatch],
+        _kernel,
+        part="MI355X",
+        manifest_version="v4",
+        database_version="test",
+        generated_at="now",
+    )
+    assert got["jobs"] == []
+    assert got["counts"]["excluded"] == {
+        "model_mismatch": 1,
+        "model_unattributed": 1,
+    }
+
+
+def test_duplicate_job_ids_abort_instead_of_becoming_an_exclusion():
+    with pytest.raises(RuntimeError, match="duplicate job_id"):
+        export.build_snapshot(
+            [_job("j-duplicate"), _job("j-duplicate")],
+            _kernel,
+            part="MI355X",
+            manifest_version="v4",
+            database_version="test",
+            generated_at="now",
+        )
+
+
 def test_write_atomic_round_trips(tmp_path):
     target = tmp_path / "nested" / "provisional.json"
     payload = {"schema": export.SCHEMA, "jobs": [{"job_id": "j-1"}]}
     export.write_atomic(target, payload)
     assert json.loads(target.read_text()) == payload
+    assert stat.S_IMODE(target.stat().st_mode) == 0o644
     assert not list(target.parent.glob(f".{target.name}.*"))
+    target.chmod(0o640)
+    export.write_atomic(target, payload)
+    assert stat.S_IMODE(target.stat().st_mode) == 0o644
 
 
-def test_job_paging_refuses_a_moving_store():
-    calls = 0
+def test_job_paging_refuses_an_empty_page_before_total():
+    def incomplete(url: str) -> dict:
+        if "offset=0" in url:
+            return {"jobs": [_job("j-1")], "total": 2}
+        return {"jobs": [], "total": 2}
+
+    with pytest.raises(RuntimeError, match="incomplete snapshot"):
+        export.list_jobs("http://database", incomplete)
+
+
+def test_job_paging_refuses_same_count_inventory_replacement():
+    scans = 0
 
     def moving(url: str) -> dict:
-        nonlocal calls
+        nonlocal scans
         if url.endswith("/status"):
             return {"version": "test"}
-        calls += 1
-        return {
-            "jobs": [_job("j-1")] if calls == 1 else [],
-            "total": 1 if calls == 1 else 2,
-        }
+        scans += 1
+        return {"jobs": [_job(f"j-{scans}")], "total": 1}
 
-    with pytest.raises(RuntimeError, match="job count changed"):
+    with pytest.raises(RuntimeError, match="inventory changed"):
         export.list_jobs("http://database", moving)
+
+
+def test_artifact_loader_selects_the_latest_upload_for_one_path():
+    origin = "submissions/0001/kernel.py"
+    sources = {"old": "# old\n", "new": "# new\n"}
+
+    def fetch(url: str) -> dict:
+        if url.endswith("/artifacts"):
+            return {"data": {"artifacts": [
+                {
+                    "origin_family": "kernel.py", "origin_path": origin,
+                    "held": "held", "artifact_id": "old", "created_at": 1,
+                    "seq": 1, "sha256": hashlib.sha256(sources["old"].encode()).hexdigest(),
+                },
+                {
+                    "origin_family": "kernel.py", "origin_path": origin,
+                    "held": "held", "artifact_id": "new", "created_at": 2,
+                    "seq": 2, "sha256": hashlib.sha256(sources["new"].encode()).hexdigest(),
+                },
+            ]}}
+        artifact = "new" if "/new/content" in url else "old"
+        return {"data": {"text": sources[artifact]}}
+
+    got = export.artifact_loader("http://overlay", fetch)("j-1", origin)
+    assert got["artifact_id"] == "new"
+    assert got["source"] == "# new\n"

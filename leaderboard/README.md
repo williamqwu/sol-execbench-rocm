@@ -265,8 +265,10 @@ validation notes remain text; the exporter never parses `9.2x`, `30/30` or any
 other note fragment into a score. Jobs without public result evidence are
 counted in the snapshot's exclusions rather than represented as measured
 zeros. Where several jobs target one model/problem, all job records remain in
-`provisional_job` and the newest retained source is selected for the existing
-kernel pane.
+`provisional_job`; each retained source is served by
+`/api/v1/provisional/jobs/<job_id>/kernel`, outside the authoritative
+`RunDetail` and `run_kernel` score path. The newest source is only marked as the
+model/problem representative.
 
 ## Two rankings, both shown
 

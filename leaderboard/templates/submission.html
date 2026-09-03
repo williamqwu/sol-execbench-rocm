@@ -48,7 +48,7 @@
 <div class="cards">
   {% if submission.kind == 'provisional' %}
   <div class="card"><div class="num">{{ provisional_jobs|length }}</div><div class="lbl">successful KDA jobs retained</div></div>
-  <div class="card"><div class="num">{{ unmeasured|length }}</div><div class="lbl">distinct selected kernels</div></div>
+  <div class="card"><div class="num">{{ provisional_sources }}</div><div class="lbl">retained kernel sources</div></div>
   <div class="card"><div class="num sm-num">unranked</div><div class="lbl">evidence tier</div></div>
   {% else %}
   <div class="card"><div class="num">{{ problems|length }}</div><div class="lbl">problems with results</div></div>
@@ -62,8 +62,8 @@
 {% if provisional_jobs %}
 <h2>Retained KDA job evidence</h2>
 <p class="sub hint">Validation notes are preserved as claims, not parsed into
-  scores. “source” opens the newest retained kernel for that model/problem;
-  every duplicate job remains listed below.</p>
+  scores. Each “source” link serves that job's retained kernel directly from
+  the provisional evidence table; every duplicate job remains listed below.</p>
 <div class="scroll">
 <table class="grid sortable">
   <thead><tr><th>job</th><th>problem</th><th class="r">submission</th>
@@ -75,7 +75,8 @@
       <td><span class="mono">{{ j.problem_key }}</span></td>
       <td class="r">{{ j.submission_n or missing }}</td>
       <td class="sm">{{ j.validation_note or 'No validation note was recorded.' }}</td>
-      <td class="sm mono">{% if j.selected %}<a href="{{ part_url(j.url) }}">source</a>
+      <td class="sm mono">{% if j.source_url %}<a href="{{ j.source_url }}">source</a>
+          {% if j.selected %}<span class="sub">representative</span>{% endif %}
           {% elif j.kernel_sha256 %}{{ j.kernel_sha256[:12] }}
           {% else %}<span class="q-zero">not retained</span>{% endif %}</td>
     </tr>
@@ -130,19 +131,12 @@
    aggregate above and from the board. Without this section the run looks like
    it never opened the problem, which is the opposite of what happened. #}
 <div class="banner warn">
-  {% if submission.kind == 'provisional' %}
-  <b>{{ unmeasured|length }} selected kernel source{{ 's' if unmeasured|length != 1 else '' }}
-  {{ 'are' if unmeasured|length != 1 else 'is' }} retained without authoritative timings.</b>
-  This is intentional for a provisional import: the local job note is evidence
-  that work happened, not a score the board may rank.
-  {% else %}
   <b>{{ unmeasured|length }} kernel{{ 's' if unmeasured|length != 1 else '' }}
   {{ 'were' if unmeasured|length != 1 else 'was' }} submitted for
   {{ 'problems' if unmeasured|length != 1 else 'a problem' }} that produced no
   measurement.</b> The attempt was real; the authoritative re-time did not
   complete. These contribute zero to the benchmark score, exactly like a
   problem that was never attempted &mdash; but they are not the same thing.
-  {% endif %}
 </div>
 <div class="scroll">
 <table class="grid">

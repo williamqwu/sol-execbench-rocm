@@ -344,6 +344,16 @@ def headroom_bands(manifest: dict) -> dict:
     return {"total": total, "bands": counts, "bound_basis": dict(sorted(bases.items()))}
 
 
+def repo_input_locator(path: Path | None) -> str | None:
+    """A relocatable, public locator; never expose a build host's root."""
+    if path is None:
+        return None
+    try:
+        return str(path.resolve().relative_to(ROOT.resolve()))
+    except (OSError, ValueError):
+        return None
+
+
 def ingest_meta(
     conn,
     manifest: dict,
@@ -355,6 +365,14 @@ def ingest_meta(
 ) -> None:
     prov = manifest.get("_provenance", {})
     device = ((prov.get("torch") or {}).get("devices") or [None])[0]
+    manifest_locator = repo_input_locator(manifest_path)
+    provisional_locator = repo_input_locator(provisional_path)
+    extra_locators = [repo_input_locator(path) for path in (extra_roots or [])]
+    paths_portable = (
+        manifest_locator is not None
+        and (provisional_path is None or provisional_locator is not None)
+        and all(path is not None for path in extra_locators)
+    )
     rows = {
         "manifest_version": manifest.get("manifest_version"),
         "methodology": manifest.get("methodology"),
@@ -404,11 +422,15 @@ def ingest_meta(
                 provisional_path=provisional_path,
             )
         ),
-        "input_extra_roots": json.dumps([str(p) for p in (extra_roots or [])]),
-        "input_manifest_path": str(manifest_path),
-        "input_provisional_path": (
-            str(provisional_path) if provisional_path is not None else None
+        "input_extra_roots": json.dumps(
+            [path for path in extra_locators if path is not None]
         ),
+        "input_external_root_count": sum(
+            path is None for path in extra_locators
+        ),
+        "input_paths_portable": 1 if paths_portable else 0,
+        "input_manifest_path": manifest_locator,
+        "input_provisional_path": provisional_locator,
     }
     conn.executemany("INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)",
                      [(k, None if v is None else str(v)) for k, v in rows.items()])
@@ -800,6 +822,20 @@ def add_submission(conn, **kw) -> int:
 
 
 PROVISIONAL_SCHEMA = "amdpilot-provisional/1"
+PROVISIONAL_DOCUMENT_KEYS = {
+    "schema", "part", "manifest_version", "generated_at", "source", "policy",
+    "counts", "jobs",
+}
+PROVISIONAL_SOURCE_KEYS = {
+    "system", "component", "version", "selection",
+}
+PROVISIONAL_POLICY_KEYS = {
+    "evidence_tier", "ranked", "score_source", "note",
+}
+PROVISIONAL_COUNT_KEYS = {
+    "jobs_read", "kda_jobs_seen", "jobs_exported", "models", "evidence",
+    "excluded", "jobs_by_model", "problems_by_model",
+}
 PROVISIONAL_JOB_KEYS = {
     "job_id", "task_id", "task_name", "problem_key", "model", "created_utc",
     "finished_utc", "study", "arm", "evidence", "submission", "kernel",
@@ -858,6 +894,7 @@ def ingest_provisional(
     if path is None:
         return 0
     doc = json.loads(path.read_text())
+    _require_keys(doc, PROVISIONAL_DOCUMENT_KEYS, str(path))
     if doc.get("part") != part:
         raise SystemExit(f"{path}: part {doc.get('part')!r}, board is {part!r}")
     if doc.get("manifest_version") != manifest.get("manifest_version"):
@@ -865,7 +902,37 @@ def ingest_provisional(
             f"{path}: manifest {doc.get('manifest_version')!r}, board is "
             f"{manifest.get('manifest_version')!r}"
         )
+    source_meta = doc.get("source") or {}
     policy = doc.get("policy") or {}
+    counts_meta = doc.get("counts") or {}
+    if not all(isinstance(value, dict)
+               for value in (source_meta, policy, counts_meta)):
+        raise SystemExit(f"{path}: source, policy and counts must be objects")
+    _require_keys(source_meta, PROVISIONAL_SOURCE_KEYS, f"{path}: source")
+    _require_keys(policy, PROVISIONAL_POLICY_KEYS, f"{path}: policy")
+    _require_keys(counts_meta, PROVISIONAL_COUNT_KEYS, f"{path}: counts")
+    if (
+        source_meta.get("system") != "amdpilot-v2"
+        or source_meta.get("component") != "database"
+    ):
+        raise SystemExit(f"{path}: source is not the AMDPilot v2 database")
+    for key in ("jobs_read", "kda_jobs_seen", "jobs_exported", "models"):
+        if not isinstance(counts_meta.get(key), int) or counts_meta[key] < 0:
+            raise SystemExit(f"{path}: counts.{key} must be a non-negative integer")
+    for key in ("evidence", "excluded", "jobs_by_model", "problems_by_model"):
+        values = counts_meta.get(key)
+        if (
+            not isinstance(values, dict)
+            or not all(
+                isinstance(name, str)
+                and isinstance(value, int)
+                and value >= 0
+                for name, value in values.items()
+            )
+        ):
+            raise SystemExit(
+                f"{path}: counts.{key} must map names to non-negative integers"
+            )
     if (
         policy.get("evidence_tier") != "provisional"
         or policy.get("ranked") is not False
@@ -1014,8 +1081,14 @@ def ingest_provisional(
                 {
                     "schema": doc.get("schema"),
                     "snapshot_generated_at": doc.get("generated_at"),
-                    "source": doc.get("source"),
-                    "policy": policy,
+                    "source": {
+                        key: source_meta.get(key)
+                        for key in sorted(PROVISIONAL_SOURCE_KEYS)
+                    },
+                    "policy": {
+                        key: policy.get(key)
+                        for key in sorted(PROVISIONAL_POLICY_KEYS)
+                    },
                     "model": model,
                 },
                 sort_keys=True,
@@ -1044,15 +1117,18 @@ def ingest_provisional(
                 """INSERT INTO provisional_job
                    (job_id,submission_id,task_id,task_name,problem_key,model,
                     created_utc,finished_utc,submission_n,submission_name,
-                    validation_note,evidence,kernel_sha256,kernel_bytes,artifact_id,
-                    study,arm,provenance_json,selected)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    validation_note,evidence,kernel_source,kernel_lines,
+                    kernel_sha256,kernel_bytes,artifact_id,study,arm,
+                    provenance_json,selected)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     row["job_id"], sub_id, row.get("task_id"), row["task_name"],
                     row["problem_key"], model, row.get("created_utc"),
                     row.get("finished_utc"), submission.get("n"),
                     submission.get("name"), submission.get("validation_note"),
                     row["evidence"],
+                    kernel.get("source"),
+                    (len(kernel["source"].splitlines()) if kernel else None),
                     kernel.get("sha256"), kernel.get("bytes"),
                     kernel.get("artifact_id"),
                     row.get("study"), row.get("arm"),
@@ -1060,19 +1136,6 @@ def ingest_provisional(
                     1 if is_selected else 0,
                 ),
             )
-            if is_selected:
-                source = kernel["source"]
-                conn.execute(
-                    """INSERT INTO run_kernel
-                       (submission_id,problem_key,source,n_lines,sha256,
-                        retime_ok,retime_error)
-                       VALUES (?,?,?,?,?,NULL,?)""",
-                    (
-                        sub_id, row["problem_key"], source,
-                        len(source.splitlines()), kernel["sha256"],
-                        "Provisional local validation only; no authoritative re-time.",
-                    ),
-                )
 
     conn.executemany(
         "INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)",
@@ -1083,19 +1146,19 @@ def ingest_provisional(
             ("provisional_schema", doc.get("schema")),
             (
                 "provisional_jobs_read",
-                str((doc.get("counts") or {}).get("jobs_read") or ""),
+                str(counts_meta.get("jobs_read") or ""),
             ),
             (
                 "provisional_excluded",
                 json.dumps(
-                    (doc.get("counts") or {}).get("excluded") or {},
+                    counts_meta.get("excluded") or {},
                     sort_keys=True,
                 ),
             ),
             (
                 "provisional_evidence",
                 json.dumps(
-                    (doc.get("counts") or {}).get("evidence") or {},
+                    counts_meta.get("evidence") or {},
                     sort_keys=True,
                 ),
             ),

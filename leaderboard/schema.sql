@@ -204,14 +204,18 @@ CREATE TABLE provisional_job (
     validation_note   TEXT,
     evidence          TEXT NOT NULL CHECK (evidence IN (
         'kernel_and_validation_note', 'kernel_source', 'validation_note_only')),
+    -- Kept here rather than projected into run_kernel: that table feeds the
+    -- authoritative RunDetail score path, while this source has no re-time.
+    kernel_source     TEXT,
+    kernel_lines      INTEGER,
     kernel_sha256     TEXT,
     kernel_bytes      INTEGER,
     artifact_id       TEXT,
     study             TEXT,
     arm               TEXT,
     provenance_json   TEXT,
-    -- One deterministic representative per model/problem: the newest
-    -- successful job with retained source. Every job remains in this table.
+    -- One deterministic representative per model/problem for the model page.
+    -- Every job remains in this table.
     selected          INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX idx_provisional_submission

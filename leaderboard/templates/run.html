@@ -26,11 +26,10 @@
   {% if submission.provider %}<span class="provider">{{ submission.provider }}</span>{% endif %}
   <span class="sub">&middot; {{ problem.category }}</span>
   {# `run_part`, not `part`: the page context's `part` is the dataset being
-     viewed, which is what part_url() builds links from. Ranked runs get this
-     from re-time provenance; provisional rows get it from the KDA job
-     snapshot. Neither is substituted from the database. #}
-  {% if run_part %}<span class="tag"
-    title="{% if submission.kind == 'provisional' %}The part named by this KDA job snapshot; this is not an authoritative re-time.{% else %}The part this run was measured on, from its own re-time provenance.{% endif %}">{{ run_part }}</span>{% endif %}
+     viewed, which is what part_url() builds links from. This is the part this
+     run was MEASURED on, from its own re-time provenance -- null where its
+     artifacts recorded none, and not substituted from the database. #}
+  {% if run_part %}<span class="tag" title="The part this run was measured on, from its own re-time provenance.">{{ run_part }}</span>{% endif %}
 </p>
 
 {% if run_part and meta.part and run_part != meta.part %}
