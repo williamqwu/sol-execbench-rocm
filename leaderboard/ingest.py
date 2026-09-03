@@ -9,16 +9,16 @@ score from MI350X and one from MI355X are not comparable, and keeping them in
 separate files means no query can mix them by accident. `--db` still names an
 explicit path for a scratch build or the legacy `leaderboard/solbench.db`.
 
-The database is disposable. Everything in it comes from
-`artifacts/09/manifest-v1.json`, the dataset definitions, the task 06 variant
-sweep, any agent runs under `artifacts/10/`, and any further run roots listed in
+The database is disposable. Everything in it comes from the selected part's
+manifest, the dataset definitions, same-part measured runs, and optional
+provisional evidence under `artifacts/10/`, plus further run roots listed in
 `leaderboard/sources.json` (read by default -- see `sources.json.example`).
 Rerun this after any artifact changes; never edit the database by hand.
 
 Two things it will refuse to do, both loudly:
 
-* ingest a run measured on a part other than the manifest's, because scoring an
-  MI355X latency against MI350X bounds is wrong in a way no reader can see; and
+* ingest a run that cannot name its measured part; attributable foreign-part
+  runs are partitioned into their sibling database instead of being mixed; and
 * publish a board that has lost a submission the previous one had, unless
   `--allow-drop` says the retirement is deliberate.
 
@@ -97,6 +97,7 @@ DEFERRED = ROOT / "artifacts" / "deferred.json"
 CANDIDATES = ROOT / "artifacts" / "06" / "candidates"
 AUTHORITATIVE = ROOT / "artifacts" / "06" / "authoritative"
 AGENT_RUNS = ROOT / "artifacts" / "10"
+PROVISIONAL = AGENT_RUNS / "amdpilot-v2-provisional" / "provisional.json"
 # Machine-local config, read BY DEFAULT, listing the agent-run roots that do not
 # live in the repo. It is the fix for a defect that has now been introduced four
 # times (STATE.md D24): every caller that shelled out to a bare `ingest.py` --
@@ -132,6 +133,10 @@ PROVIDERS = {
     "gpt-5.4": "OpenAI",
     "GLM-5.2": "OSS",
     "GLM-5.2-FP8": "OSS",
+    "GLM-5.2-local": "OSS",
+    "GLM-5.2-g45": "OSS",
+    "GLM-5.3-local": "OSS",
+    "GLM-5.3-flash-local": "OSS",
     "Kimi-K2.7-Code": "OSS",
     "Claude-Opus-5": "Anthropic",
     "Claude-Sonnet-4.6": "Anthropic",
@@ -339,8 +344,15 @@ def headroom_bands(manifest: dict) -> dict:
     return {"total": total, "bands": counts, "bound_basis": dict(sorted(bases.items()))}
 
 
-def ingest_meta(conn, manifest: dict, part: str,
-                extra_roots: list[Path] | None = None) -> None:
+def ingest_meta(
+    conn,
+    manifest: dict,
+    part: str,
+    extra_roots: list[Path] | None = None,
+    *,
+    manifest_path: Path = MANIFEST,
+    provisional_path: Path | None = None,
+) -> None:
     prov = manifest.get("_provenance", {})
     device = ((prov.get("torch") or {}).get("devices") or [None])[0]
     rows = {
@@ -385,8 +397,18 @@ def ingest_meta(conn, manifest: dict, part: str,
         # The extra roots go in too: without them `app.py` would enumerate a
         # different input set than the build did and report a phantom "files
         # removed" on every request.
-        "input_signature": json.dumps(inputs.signature(extra_roots)),
+        "input_signature": json.dumps(
+            inputs.signature(
+                extra_roots,
+                manifest_path=manifest_path,
+                provisional_path=provisional_path,
+            )
+        ),
         "input_extra_roots": json.dumps([str(p) for p in (extra_roots or [])]),
+        "input_manifest_path": str(manifest_path),
+        "input_provisional_path": (
+            str(provisional_path) if provisional_path is not None else None
+        ),
     }
     conn.executemany("INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)",
                      [(k, None if v is None else str(v)) for k, v in rows.items()])
@@ -777,6 +799,311 @@ def add_submission(conn, **kw) -> int:
     return cur.lastrowid
 
 
+PROVISIONAL_SCHEMA = "amdpilot-provisional/1"
+PROVISIONAL_JOB_KEYS = {
+    "job_id", "task_id", "task_name", "problem_key", "model", "created_utc",
+    "finished_utc", "study", "arm", "evidence", "submission", "kernel",
+    "provenance",
+}
+PROVISIONAL_SUBMISSION_KEYS = {
+    "n", "name", "utc", "validation_note",
+}
+PROVISIONAL_KERNEL_KEYS = {
+    "source", "sha256", "bytes", "artifact_id", "origin_path",
+}
+PROVISIONAL_PROVENANCE_KEYS = {
+    "workflow", "origin", "run_purpose", "manifest_version",
+    "manifest_measured_on", "dsl_brief_sha256", "image",
+}
+
+
+def provisional_path_for(part: str, path: Path = PROVISIONAL) -> Path | None:
+    """The one provisional snapshot for *part*, or None for another board."""
+    if not path.exists():
+        return None
+    try:
+        doc = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"{path}: cannot read provisional snapshot ({exc})") from None
+    if doc.get("part") != part:
+        return None
+    if doc.get("schema") != PROVISIONAL_SCHEMA:
+        raise SystemExit(
+            f"{path}: schema {doc.get('schema')!r}, want {PROVISIONAL_SCHEMA!r}"
+        )
+    return path
+
+
+def _provisional_slug(model: str) -> str:
+    word = "".join(ch.lower() if ch.isalnum() else "-" for ch in model)
+    return "provisional-amdpilot-v2-" + "-".join(filter(None, word.split("-")))
+
+
+def _require_keys(row: dict, allowed: set[str], where: str) -> None:
+    extra = sorted(set(row) - allowed)
+    if extra:
+        raise SystemExit(
+            f"{where}: unpublished keys {extra}. The provisional export is an "
+            "allowlist; do not carry a whole job record into the public board."
+        )
+
+
+def ingest_provisional(
+    conn,
+    manifest: dict,
+    part: str,
+    path: Path | None,
+) -> int:
+    """Ingest local-validation evidence into an explicitly unranked table."""
+    if path is None:
+        return 0
+    doc = json.loads(path.read_text())
+    if doc.get("part") != part:
+        raise SystemExit(f"{path}: part {doc.get('part')!r}, board is {part!r}")
+    if doc.get("manifest_version") != manifest.get("manifest_version"):
+        raise SystemExit(
+            f"{path}: manifest {doc.get('manifest_version')!r}, board is "
+            f"{manifest.get('manifest_version')!r}"
+        )
+    policy = doc.get("policy") or {}
+    if (
+        policy.get("evidence_tier") != "provisional"
+        or policy.get("ranked") is not False
+        or policy.get("score_source") is not None
+    ):
+        raise SystemExit(
+            f"{path}: evidence must state tier=provisional, ranked=false and "
+            "score_source=null"
+        )
+    jobs = doc.get("jobs")
+    if not isinstance(jobs, list):
+        raise SystemExit(f"{path}: jobs must be a list")
+
+    known = {row[0] for row in conn.execute("SELECT key FROM problem")}
+    seen_jobs: set[str] = set()
+    checked: list[dict] = []
+    for n, row in enumerate(jobs, 1):
+        if not isinstance(row, dict):
+            raise SystemExit(f"{path}: jobs[{n}] is not an object")
+        _require_keys(row, PROVISIONAL_JOB_KEYS, f"{path}: jobs[{n}]")
+        submission = row.get("submission") or {}
+        kernel_raw = row.get("kernel")
+        kernel = kernel_raw or {}
+        provenance = row.get("provenance") or {}
+        if not isinstance(submission, dict) or not isinstance(provenance, dict):
+            raise SystemExit(f"{path}: jobs[{n}] nested records must be objects")
+        if kernel_raw is not None and not isinstance(kernel_raw, dict):
+            raise SystemExit(f"{path}: jobs[{n}].kernel must be an object or null")
+        _require_keys(
+            submission, PROVISIONAL_SUBMISSION_KEYS, f"{path}: jobs[{n}].submission"
+        )
+        _require_keys(kernel, PROVISIONAL_KERNEL_KEYS, f"{path}: jobs[{n}].kernel")
+        _require_keys(
+            provenance, PROVISIONAL_PROVENANCE_KEYS, f"{path}: jobs[{n}].provenance"
+        )
+
+        job_id = row.get("job_id")
+        model = row.get("model")
+        problem = row.get("problem_key")
+        source = kernel.get("source")
+        digest = kernel.get("sha256")
+        if not all(isinstance(v, str) and v for v in (job_id, model, problem)):
+            raise SystemExit(f"{path}: jobs[{n}] lacks an attributed job")
+        if job_id in seen_jobs:
+            raise SystemExit(f"{path}: duplicate job_id {job_id!r}")
+        if problem not in known:
+            raise SystemExit(
+                f"{path}: {job_id} names {problem!r}, absent from this manifest"
+            )
+        if row.get("task_name") != f"solbench/{problem}":
+            raise SystemExit(f"{path}: {job_id} task name disagrees with its problem")
+        if kernel_raw is not None:
+            if not isinstance(source, str) or not source:
+                raise SystemExit(f"{path}: {job_id} kernel source is empty")
+            actual = hashlib.sha256(source.encode()).hexdigest()
+            if digest != actual:
+                raise SystemExit(
+                    f"{path}: {job_id} kernel digest {digest!r}, "
+                    f"computed {actual!r}"
+                )
+            if kernel.get("bytes") != len(source.encode()):
+                raise SystemExit(f"{path}: {job_id} kernel byte count disagrees")
+            if not kernel.get("artifact_id"):
+                raise SystemExit(f"{path}: {job_id} kernel has no artifact identity")
+        if row.get("evidence") not in {
+            "kernel_and_validation_note", "kernel_source", "validation_note_only"
+        }:
+            raise SystemExit(f"{path}: {job_id} has an unknown evidence tier")
+        note = submission.get("validation_note")
+        if kernel_raw is None and (
+            row.get("evidence") != "validation_note_only"
+            or not isinstance(note, str)
+            or not note
+        ):
+            raise SystemExit(
+                f"{path}: {job_id} has neither retained source nor validation note"
+            )
+        if kernel_raw is not None and row.get("evidence") == "validation_note_only":
+            raise SystemExit(f"{path}: {job_id} understates its retained source")
+        if (
+            provenance.get("workflow") != "kda"
+            or provenance.get("origin") != "production"
+            or provenance.get("run_purpose") != "benchmark"
+        ):
+            raise SystemExit(f"{path}: {job_id} is not production KDA benchmark evidence")
+        if provenance.get("manifest_version") != doc.get("manifest_version"):
+            raise SystemExit(f"{path}: {job_id} manifest provenance disagrees")
+        if provenance.get("manifest_measured_on") != part:
+            raise SystemExit(f"{path}: {job_id} part provenance disagrees")
+        seen_jobs.add(job_id)
+        checked.append(row)
+
+    # Every job remains evidence. Exactly one source per model/problem is also
+    # projected into run_kernel so the existing source pane can render it.
+    selected: dict[tuple[str, str], tuple[str, str]] = {}
+    for row in checked:
+        if row.get("kernel") is None:
+            continue
+        key = (row["model"], row["problem_key"])
+        candidate = (
+            (row.get("submission") or {}).get("utc")
+            or row.get("finished_utc")
+            or row.get("created_utc")
+            or "",
+            row["job_id"],
+        )
+        if candidate > selected.get(key, ("", "")):
+            selected[key] = candidate
+
+    by_model: dict[str, list[dict]] = {}
+    for row in checked:
+        by_model.setdefault(row["model"], []).append(row)
+    slugs: dict[str, str] = {}
+    for model, model_jobs in sorted(by_model.items()):
+        latest = max(
+            (
+                (row.get("submission") or {}).get("utc")
+                or row.get("finished_utc")
+                or row.get("created_utc")
+                or ""
+            )
+            for row in model_jobs
+        )
+        slug = _provisional_slug(model)
+        if slug in slugs and slugs[slug] != model:
+            raise SystemExit(
+                f"{path}: models {slugs[slug]!r} and {model!r} collapse to "
+                f"the same public slug {slug!r}"
+            )
+        slugs[slug] = model
+        sub_id = add_submission(
+            conn,
+            slug=slug,
+            name=f"AMDPilot v2 · {model}",
+            kind="provisional",
+            author="AMDPilot v2 KDA internal workflow",
+            model=model,
+            provider=PROVIDERS.get(model),
+            created_utc=latest or doc.get("generated_at"),
+            notes=(
+                "Existing KDA job outputs on MI355X. Validation notes are "
+                "preserved as text; no value was produced by the authoritative "
+                "SOL scorer."
+            ),
+            provenance_json=json.dumps(
+                {
+                    "schema": doc.get("schema"),
+                    "snapshot_generated_at": doc.get("generated_at"),
+                    "source": doc.get("source"),
+                    "policy": policy,
+                    "model": model,
+                },
+                sort_keys=True,
+            ),
+            board_visible=0,
+            exclusion_reason=(
+                "Provisional and unranked: these kernels were validated inside "
+                "their KDA jobs and were not authoritatively re-timed against "
+                "the MI355X manifest."
+            ),
+            part=part,
+            depth_note=(
+                "No authoritative result, score, cost rollup or public "
+                "transcript is attached. The retained kernel source and the "
+                "job-authored validation note are the complete public evidence."
+            ),
+        )
+        for row in model_jobs:
+            submission = row["submission"]
+            kernel = row.get("kernel") or {}
+            is_selected = (
+                selected.get((model, row["problem_key"]), ("", ""))[1]
+                == row["job_id"]
+            )
+            conn.execute(
+                """INSERT INTO provisional_job
+                   (job_id,submission_id,task_id,task_name,problem_key,model,
+                    created_utc,finished_utc,submission_n,submission_name,
+                    validation_note,evidence,kernel_sha256,kernel_bytes,artifact_id,
+                    study,arm,provenance_json,selected)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    row["job_id"], sub_id, row.get("task_id"), row["task_name"],
+                    row["problem_key"], model, row.get("created_utc"),
+                    row.get("finished_utc"), submission.get("n"),
+                    submission.get("name"), submission.get("validation_note"),
+                    row["evidence"],
+                    kernel.get("sha256"), kernel.get("bytes"),
+                    kernel.get("artifact_id"),
+                    row.get("study"), row.get("arm"),
+                    json.dumps(row.get("provenance") or {}, sort_keys=True),
+                    1 if is_selected else 0,
+                ),
+            )
+            if is_selected:
+                source = kernel["source"]
+                conn.execute(
+                    """INSERT INTO run_kernel
+                       (submission_id,problem_key,source,n_lines,sha256,
+                        retime_ok,retime_error)
+                       VALUES (?,?,?,?,?,NULL,?)""",
+                    (
+                        sub_id, row["problem_key"], source,
+                        len(source.splitlines()), kernel["sha256"],
+                        "Provisional local validation only; no authoritative re-time.",
+                    ),
+                )
+
+    conn.executemany(
+        "INSERT OR REPLACE INTO meta(key,value) VALUES (?,?)",
+        [
+            ("provisional_generated_at", doc.get("generated_at")),
+            ("provisional_jobs", str(len(checked))),
+            ("provisional_models", str(len(by_model))),
+            ("provisional_schema", doc.get("schema")),
+            (
+                "provisional_jobs_read",
+                str((doc.get("counts") or {}).get("jobs_read") or ""),
+            ),
+            (
+                "provisional_excluded",
+                json.dumps(
+                    (doc.get("counts") or {}).get("excluded") or {},
+                    sort_keys=True,
+                ),
+            ),
+            (
+                "provisional_evidence",
+                json.dumps(
+                    (doc.get("counts") or {}).get("evidence") or {},
+                    sort_keys=True,
+                ),
+            ),
+        ],
+    )
+    return len(checked)
+
+
 def assign_trial_numbers(conn) -> None:
     """`trial_n`: 1-based within the group, in `created_utc` order.
 
@@ -1060,8 +1387,9 @@ def ingest_agent_runs(conn, part: str, extra_roots: list[Path] | None = None) ->
     globbing only `artifacts/10` silently omits it from the board rather than
     reporting that it was skipped.
 
-    `part` is the manifest's part, and every run read here must match it; see
-    `check_run_part`.
+    `part` is the manifest's part. Runs that state another measured part belong
+    to that part's sibling database and are skipped with their identity named;
+    a run that states no part still fails closed in `check_run_part`.
     """
     roots = [AGENT_RUNS, *(extra_roots or [])]
     scored_files = []
@@ -1090,13 +1418,33 @@ def ingest_agent_runs(conn, part: str, extra_roots: list[Path] | None = None) ->
     for scored in scored_files:
         doc = json.loads(scored.read_text())
         run_id = doc.get("run_id", scored.parent.name)
-        note_bound_violations(doc)
-        # Validation runs are scored the same way and kept as artifacts, but a
-        # one-problem smoke test on the board is noise, not information.
+        measured = run_part(scored.parent)
+        # A validation artifact is explicitly out of every board. It need not
+        # carry re-time provenance merely to be ignored; if it does name a
+        # foreign part, keep even its exclusion metadata out of this database.
         if doc.get("leaderboard") is False:
+            if measured is not None and measured != part:
+                print(
+                    f"  agent {run_id}: validation run measured on {measured}, "
+                    f"skipped from the {part} database"
+                )
+                continue
             excluded[run_id] = doc.get("excluded_reason") or "validation run"
             print(f"  agent {run_id}: excluded from board ({excluded[run_id]})")
             continue
+        if measured is not None and measured != part:
+            print(
+                f"  agent {run_id}: measured on {measured}, skipped from "
+                f"the {part} database"
+            )
+            continue
+        # Before exclusions and bound findings: those are facts about one
+        # part's board too, and a foreign run must not move this database's
+        # methodology metadata merely because both live under artifacts/10.
+        measured_part = check_run_part(
+            scored.parent, run_id, measured, part
+        )
+        note_bound_violations(doc)
         hidden = run_id in BOARD_EXCLUSIONS
         if hidden:
             excluded[run_id] = BOARD_EXCLUSIONS[run_id]
@@ -1111,11 +1459,6 @@ def ingest_agent_runs(conn, part: str, extra_roots: list[Path] | None = None) ->
                 continue
             print(f"  agent {run_id}: off the board (board_visible=0), "
                   f"ingested in full; reason recorded in meta")
-        # Before anything is written for this run, not after: a part mismatch
-        # invalidates every row the run would produce, so there is no partial
-        # ingest worth keeping.
-        measured_part = check_run_part(
-            scored.parent, run_id, run_part(scored.parent), part)
         group_slug, group_name = TRIAL_GROUPS.get(run_id, (None, None))
         trial_label, constraint_json = run_constraint(
             scored.parent, (run_json(scored.parent) or {}).get("sessions"))
@@ -1665,14 +2008,36 @@ def build(a, manifest: dict, part: str, extra: list[Path],
     conn = connect(tmp)
     conn.executescript((Path(__file__).parent / "schema.sql").read_text())
 
-    ingest_meta(conn, manifest, part, extra)
+    provisional_path = provisional_path_for(part)
+    ingest_meta(
+        conn,
+        manifest,
+        part,
+        extra,
+        manifest_path=Path(a.manifest),
+        provisional_path=provisional_path,
+    )
     ingest_problems(conn, manifest)
+    n_provisional = ingest_provisional(
+        conn, manifest, part, provisional_path
+    )
+    if n_provisional:
+        print(f"provisional AMDPilot v2 jobs: {n_provisional}")
     n_vs = ingest_variant_sources(
         conn, {r["key"]: r["reference"]
                for r in conn.execute("SELECT key,reference FROM problem")})
     print(f"variant sources: {n_vs} regenerated from problem references")
     print("variants:")
-    excluded = ingest_variants(conn, manifest, part)
+    # The task-06 variant measurements under artifacts/06 predate a part
+    # stamp and were taken on MI350X. Their source transforms remain useful
+    # above, but their timings cannot seed an MI355X database.
+    excluded = (
+        ingest_variants(conn, manifest, part)
+        if part == "MI350X"
+        else {}
+    )
+    if part != "MI350X":
+        print(f"  skipped: task-06 variant timings are not measured on {part}")
     print("agent runs:")
     excluded.update(ingest_agent_runs(conn, part, extra))
     assign_trial_numbers(conn)
@@ -1692,7 +2057,7 @@ def build(a, manifest: dict, part: str, extra: list[Path],
     counts = {t: conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
               for t in ("problem", "workload", "submission", "result",
                         "run_kernel", "run_effort", "trajectory_eval", "transcript",
-                        "run_window")}
+                        "run_window", "provisional_job")}
     built_slugs = {r[0] for r in conn.execute("SELECT slug FROM submission")}
 
     # Fold the WAL back into the single file before swapping. `os.replace` moves

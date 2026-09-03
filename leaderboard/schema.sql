@@ -3,10 +3,10 @@
 -- SOL-ExecBench-ROCm leaderboard.
 --
 -- The database is a VIEW of the artifacts, never a source of truth. Every row
--- here is derived from artifacts/09/manifest-v1.json and the per-problem
--- sweep artifacts, and `ingest.py` rebuilds it from scratch. If the database
--- and the artifacts disagree, the artifacts are right and the database is
--- stale -- so it carries the manifest's git SHA in `meta` and the UI shows it.
+-- here is derived from the selected part's manifest, scored runs and optional
+-- provisional snapshot, and `ingest.py` rebuilds it from scratch. If the
+-- database and the artifacts disagree, the artifacts are right and the
+-- database is stale -- so their paths and signature live in `meta`.
 
 PRAGMA journal_mode = WAL;
 
@@ -15,6 +15,7 @@ DROP TABLE IF EXISTS transcript;
 DROP TABLE IF EXISTS trajectory_eval;
 DROP TABLE IF EXISTS run_effort;
 DROP TABLE IF EXISTS run_kernel;
+DROP TABLE IF EXISTS provisional_job;
 DROP TABLE IF EXISTS variant_source;
 DROP TABLE IF EXISTS result;
 DROP TABLE IF EXISTS submission;
@@ -164,8 +165,9 @@ CREATE TABLE submission (
     -- are different decisions; only the first one was made.
     board_visible   INTEGER NOT NULL DEFAULT 1,
     exclusion_reason TEXT,     -- why, in full, when board_visible=0
-    -- The part this run was MEASURED on, from its own re-time provenance --
-    -- not from the manifest, and not from the database it lands in. A score
+    -- The part this run was MEASURED on, from its own re-time provenance;
+    -- provisional rows use the KDA job's explicit part and carry no score.
+    -- Never inferred from the database it lands in. A scored result
     -- from MI350X and one from MI355X are not comparable (different power cap
     -- -> different F_LOCK -> different T_SOL and T_b), so a row that cannot
     -- name its part is a row nothing may rank. `ingest.py` therefore never
@@ -182,6 +184,40 @@ CREATE TABLE submission (
     -- of bug where the page shows real code belonging to someone else.
     variant         TEXT
 );
+
+-- Existing AMDPilot v2 KDA work, visible beside the leaderboard and never in
+-- its ranking. These jobs were validated by their own in-job evaluators, not
+-- authoritatively re-timed against this database's bounds. Keeping them in a
+-- separate table makes that distinction structural: no query over `result`
+-- can accidentally turn a validation note into a score.
+CREATE TABLE provisional_job (
+    job_id           TEXT PRIMARY KEY,
+    submission_id    INTEGER NOT NULL REFERENCES submission(id),
+    task_id           TEXT,
+    task_name         TEXT NOT NULL,
+    problem_key       TEXT NOT NULL REFERENCES problem(key),
+    model             TEXT NOT NULL,
+    created_utc       TEXT,
+    finished_utc      TEXT,
+    submission_n      INTEGER,
+    submission_name   TEXT,
+    validation_note   TEXT,
+    evidence          TEXT NOT NULL CHECK (evidence IN (
+        'kernel_and_validation_note', 'kernel_source', 'validation_note_only')),
+    kernel_sha256     TEXT,
+    kernel_bytes      INTEGER,
+    artifact_id       TEXT,
+    study             TEXT,
+    arm               TEXT,
+    provenance_json   TEXT,
+    -- One deterministic representative per model/problem: the newest
+    -- successful job with retained source. Every job remains in this table.
+    selected          INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_provisional_submission
+    ON provisional_job(submission_id);
+CREATE INDEX idx_provisional_problem
+    ON provisional_job(problem_key);
 
 CREATE TABLE result (
     submission_id  INTEGER NOT NULL REFERENCES submission(id),

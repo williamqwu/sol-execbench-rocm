@@ -9,14 +9,16 @@ produces a plausible number on every row and a rank nobody can tell is wrong. A
 reviewer demonstrated it by relabelling glm-run1 -- it sat at #5, unmarked.
 
 Two independent guards, tested separately because either alone is one bug away
-from silence: `ingest.py` refuses to write the row, and `app.py` refuses to
-rank it and reports the disagreement on `/healthz`.
+from silence: `ingest.py` partitions runs into the database for their measured
+part and refuses an unattributed run, while `app.py` refuses to rank a foreign
+row and reports the disagreement on `/healthz`.
 """
 
 from __future__ import annotations
 
 import json
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -133,6 +135,23 @@ def test_check_run_part_refuses_a_mismatch_and_an_unknown(tmp_path):
     with pytest.raises(SystemExit) as unknown:
         ingest.check_run_part(d, "r4", None, "MI350X")
     assert "does not say which part" in str(unknown.value)
+
+
+def test_agent_ingest_skips_a_run_that_belongs_to_the_other_part(
+        tmp_path, monkeypatch, capsys):
+    import ingest
+    run = write_run(tmp_path, "foreign", ["AMD Instinct MI355X"])
+    (run / "scored.json").write_text(json.dumps(
+        {"run_id": "foreign", "leaderboard": False, "results": []}))
+    monkeypatch.setattr(ingest, "AGENT_RUNS", tmp_path)
+    conn = sqlite3.connect(tmp_path / "board.db")
+    conn.executescript(
+        (Path(ingest.__file__).parent / "schema.sql").read_text())
+
+    assert ingest.ingest_agent_runs(conn, "MI350X") == {}
+    assert conn.execute("SELECT COUNT(*) FROM submission").fetchone()[0] == 0
+    assert "measured on MI355X, skipped from the MI350X database" in \
+        capsys.readouterr().out
 
 
 def test_every_submission_in_the_fixture_board_names_its_part(board):

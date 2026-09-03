@@ -30,13 +30,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# The board publishes v1.1. v1 is frozen and unchanged, and every score
-# published against it stays valid against it -- but v1.1 corrected 1,048
-# bounds (STATE.md D35 and D18) and a board mixing the two would be comparing
-# submissions scored against different rooflines, which is the one thing this
-# file's own part-per-database rule exists to prevent. `meta.manifest_version`
-# carries which, and /methodology renders it.
-MANIFEST = ROOT / "artifacts" / "09" / "manifest-v1.1.json"
+# The MI350X default. Ingest passes the manifest it actually opened; app.py
+# reads that same path back from database metadata. Keeping a default here is
+# only for old callers, never a claim that every part uses this manifest.
+MANIFEST = ROOT / "artifacts" / "09" / "manifest-v1.2.json"
 DEFERRED = ROOT / "artifacts" / "deferred.json"
 CANDIDATES = ROOT / "artifacts" / "06" / "candidates"
 AUTHORITATIVE = ROOT / "artifacts" / "06" / "authoritative"
@@ -48,7 +45,12 @@ def agent_roots(extra: list[Path] | None = None) -> list[Path]:
     return [AGENT_RUNS, *(Path(p) for p in (extra or []))]
 
 
-def input_paths(extra_roots: list[Path] | None = None) -> list[Path]:
+def input_paths(
+    extra_roots: list[Path] | None = None,
+    *,
+    manifest_path: Path | None = None,
+    provisional_path: Path | None = None,
+) -> list[Path]:
     """Every file `ingest.py` reads, in a stable order.
 
     The dataset definitions are excluded on purpose: 235 `definition.json`
@@ -56,7 +58,9 @@ def input_paths(extra_roots: list[Path] | None = None) -> list[Path]:
     and walking them on every page request is not worth the stat calls.
     """
     paths: list[Path] = []
-    for f in (MANIFEST, DEFERRED):
+    for f in (manifest_path or MANIFEST, DEFERRED, provisional_path):
+        if f is None:
+            continue
         if f.exists():
             paths.append(f)
     for d in (CANDIDATES, AUTHORITATIVE):
@@ -71,8 +75,17 @@ def input_paths(extra_roots: list[Path] | None = None) -> list[Path]:
     return paths
 
 
-def signature(extra_roots: list[Path] | None = None) -> dict:
-    paths = input_paths(extra_roots)
+def signature(
+    extra_roots: list[Path] | None = None,
+    *,
+    manifest_path: Path | None = None,
+    provisional_path: Path | None = None,
+) -> dict:
+    paths = input_paths(
+        extra_roots,
+        manifest_path=manifest_path,
+        provisional_path=provisional_path,
+    )
     total = 0
     newest = 0.0
     newest_path = None
@@ -105,7 +118,7 @@ def _under(p: Path, base: Path) -> bool:
 def compare(recorded: dict, current: dict) -> list[str]:
     """Human-readable reasons the database no longer matches its inputs."""
     if not recorded:
-        return []
+        return ["the database recorded no input signature"]
     reasons = []
     if current["n_files"] != recorded.get("n_files"):
         d = current["n_files"] - recorded.get("n_files", 0)

@@ -43,6 +43,7 @@ SCHEMA = LB / "schema.sql"
 if str(LB) not in sys.path:
     sys.path.insert(0, str(LB))
 from ingest import bound_quality as _ingest_bound_quality  # noqa: E402
+import inputs as _inputs  # noqa: E402
 
 
 # --------------------------------------------------------------------------
@@ -200,10 +201,12 @@ META = {
     "bound_sources": json.dumps({"solar_fused": 6}),
     "excluded_submissions": json.dumps({}),
     "problems_with_invalid_bound": json.dumps([]),
-    # An empty recorded signature makes `inputs.compare` return no reasons, so
-    # the fixture board never renders a staleness banner about the real repo's
-    # artifacts -- which have nothing to do with it.
-    "input_signature": json.dumps({}),
+    # A complete measurement of no fixture-side inputs. Empty `{}` means an
+    # old database recorded no signature at all, which is unknown rather than
+    # fresh; this fixture deliberately states the zero it measured.
+    "input_signature": json.dumps(
+        {"n_files": 0, "total_bytes": 0, "max_mtime": 0.0,
+         "newest_file": None}),
     "input_extra_roots": json.dumps([]),
     # NVIDIA's published B200 figures are an optional overlay: the board
     # renders the columns only where `b200_matched` is non-zero, so the
@@ -230,6 +233,8 @@ def build_fixture_db(path: Path, part: str = "MI350X") -> Path:
     conn = sqlite3.connect(path)
     conn.executescript(SCHEMA.read_text())
     meta = {**META, "part": part, "device": f"AMD Instinct {part}"}
+    meta["input_signature"] = json.dumps(_inputs.signature([]))
+    meta["input_manifest_path"] = str(_inputs.MANIFEST)
     conn.executemany("INSERT INTO meta (key,value) VALUES (?,?)", meta.items())
     for p in PROBLEMS:
         conn.execute(

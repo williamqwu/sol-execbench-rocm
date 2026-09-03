@@ -61,16 +61,19 @@
     {% if parts %}
     <div class="partswitch" role="group"
          aria-label="Measurement part — selects which dataset is shown"
-         title="Every T_SOL, T_b and F_LOCK on this board was measured on the selected part. Scores from another part are not comparable, so this switches datasets rather than filtering one.">
+         title="Each bound and result belongs to the selected part. Scores from another part are not comparable, so this switches datasets rather than filtering one; provisional counts remain unranked.">
       {% for p in parts %}
       <a class="part-opt{% if p.active %} on{% endif %}{% if not p.available %} empty{% endif %}"
          href="{{ p.url }}"{% if p.active %} aria-current="true"{% endif %}>
         <span class="p-name">{{ p.name }}</span>
-        <span class="p-n">{% if p.n_results is not none %}{{ p.n_results|n }} results{% else %}not measured{% endif %}</span>
+        <span class="p-n">{% if p.n_results %}{{ p.n_results|n }} results
+          {% elif p.n_provisional %}{{ p.n_provisional|n }} provisional
+          {% elif p.n_results is not none %}0 results
+          {% else %}not measured{% endif %}</span>
       </a>
       {% endfor %}
     </div>
-    {% elif meta.part %}<span class="part-pill" title="Every T_SOL, T_b and F_LOCK on this board was measured on this part. Scores from another part are not comparable.">{{ meta.part }}</span>{% endif %}
+    {% elif meta.part %}<span class="part-pill" title="Each bound and result belongs to this part. Scores from another part are not comparable.">{{ meta.part }}</span>{% endif %}
     {# Every internal link carries the active part. The cookie makes the
        choice sticky, but a link that drops `?part=` is still a link that can
        land the reader on the other dataset -- and the URL is the shareable,
@@ -116,6 +119,15 @@
     <b>The artifacts have changed since this view was built.</b>
     {{ meta.freshness.reasons | join('; ') }}.
     Rebuild: <code>{{ meta.freshness.rebuild_command }}</code>
+  </div>
+</div>
+{% elif meta.freshness and meta.freshness.stale is none %}
+<div class="wrap">
+  <div class="banner warn stale">
+    <b>Artifact freshness is unknown.</b>
+    {{ meta.freshness.error or (meta.freshness.reasons | join('; ')) }}.
+    The database remains readable, but this serving environment cannot prove
+    that it matches the current build inputs.
   </div>
 </div>
 {% endif %}

@@ -71,11 +71,12 @@ def test_every_v1_get_route_is_reached_by_this_test(client):
     }
     assert set(v1_get_paths(client)) - templated == {
         "/api/v1/parts", "/api/v1/stats", "/api/v1/leaderboard",
-        "/api/v1/problems", "/api/v1/jobs"}
+        "/api/v1/provisional", "/api/v1/problems", "/api/v1/jobs"}
 
 
 def test_the_unparameterised_routes_validate(client):
     for url in ("/api/v1/parts", "/api/v1/stats", "/api/v1/leaderboard",
+                "/api/v1/provisional",
                 "/api/v1/problems", "/healthz",
                 "/api/v1/leaderboard?category=L1", "/api/v1/problems?category=L2"):
         r = client.get(url)
@@ -153,6 +154,7 @@ def test_the_legacy_alias_is_a_superset_of_v1(client):
     every v1 field must still be present and equal, or the two have drifted
     into two contracts and only one of them is documented."""
     for bare, v1 in (("/api/leaderboard", "/api/v1/leaderboard"),
+                     ("/api/provisional", "/api/v1/provisional"),
                      ("/api/problems", "/api/v1/problems")):
         raw = client.get(bare).json()
         typed = client.get(v1).json()

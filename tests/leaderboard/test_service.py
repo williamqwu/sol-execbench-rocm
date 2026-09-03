@@ -201,7 +201,8 @@ def test_v1_responses_validate_on_the_real_data(real_client, real_conn):
     Every submission and every problem it touched, not one sampled pair: the
     field that broke last time was NULL on 661 endpoints and fine on the rest."""
     key = real_conn.execute("SELECT key FROM problem LIMIT 1").fetchone()["key"]
-    for url in ("/api/v1/stats", "/api/v1/leaderboard", "/api/v1/problems",
+    for url in ("/api/v1/stats", "/api/v1/leaderboard",
+                "/api/v1/provisional", "/api/v1/problems",
                 f"/api/v1/problems/{key}", "/healthz"):
         assert real_client.get(url).status_code == 200, url
     for s in real_conn.execute("SELECT id, slug FROM submission"):

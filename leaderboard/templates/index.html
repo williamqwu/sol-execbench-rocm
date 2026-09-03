@@ -203,6 +203,54 @@
 </table>
 </div>
 
+{% if provisional %}
+<h2>AMDPilot v2 provisional results</h2>
+<div class="banner warn">
+  <b>Visible here, excluded from both rankings.</b>
+  These rows summarize existing MI355X KDA jobs and retained kernel sources.
+  Their validation notes were written by the jobs' local evaluators; no value
+  below is an authoritative SOL score. This snapshot retains
+  {{ meta.provisional_jobs or provisional|sum(attribute='jobs') }} public
+  job evidence records across {{ meta.provisional_models or provisional|length }}
+  model rows.
+  {% set exclusions = meta.provisional_excluded|from_json %}
+  {% if exclusions %}Selection accounting:
+    {% for reason, count in exclusions|dictsort %}{{ count }} {{ reason.replace('_', ' ') }}{% if not loop.last %}; {% endif %}{% endfor %}.
+  {% endif %}
+</div>
+<div class="scroll">
+<table class="grid sortable provisional-board">
+  <thead>
+    <tr>
+      <th class="r" title="Provisional rows have no rank.">#</th>
+      <th>submission</th>
+      <th>kind</th>
+      <th class="r" title="No authoritative re-time was performed.">score</th>
+      <th class="r">successful jobs</th>
+      <th class="r">distinct problems</th>
+      <th class="r">selected kernels</th>
+      <th>latest evidence</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for s in provisional %}
+    <tr class="kind-provisional">
+      <td class="r q-zero" data-sort="">{{ missing }}</td>
+      <td data-sort="{{ s.name|lower }}"><a href="{{ part_url(s.url) }}">{{ s.name }}</a></td>
+      <td><span class="tag tag-provisional">provisional</span></td>
+      <td class="r q-zero" data-sort="">{{ missing }}</td>
+      <td class="r" data-sort="{{ s.jobs }}">{{ s.jobs }}</td>
+      <td class="r" data-sort="{{ s.problems }}">{{ s.problems }}</td>
+      <td class="r" data-sort="{{ s.kernels }}">{{ s.kernels }}</td>
+      <td class="sm">{% if s.latest_utc %}<time class="localtime"
+          datetime="{{ s.latest_utc }}">{{ s.latest_utc[:16]|replace('T',' ') }} UTC</time>{% else %}not recorded{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
 <p class="note">
   <b>Neither scope makes two rows with different coverage comparable.</b>
   Under <i>what it ran</i> the denominators are different sets of problems, and
@@ -222,20 +270,20 @@
 </p>
 
 <p class="note">
+  {% if meta.f_lock_mhz %}
   <b>Every number here is {{ meta.part or 'this part' }}, at F<sub>LOCK</sub>
   {{ meta.f_lock_mhz }} MHz.</b> T<sub>SOL</sub> in milliseconds, T<sub>b</sub> and
   F<sub>LOCK</sub> all differ between parts, so a score measured on one cannot be
   ranked against a score measured on another &mdash; the scorer refuses that
-  comparison rather than rescaling it. The other part this port targets,
-  <b>MI355X</b>, is in the switch above with nothing behind it: nothing has been
-  measured there, so it has no F<sub>LOCK</sub>, and without F<sub>LOCK</sub> no
-  T<sub>SOL</sub> in milliseconds, no T<sub>b</sub> and no S. Selecting it lands
-  on that empty state rather than on a table.
-  {# No clock is quoted for MI355X. This paragraph used to carry "F_LOCK 1640",
-     which was never measured on any part: the preset for that device requests
-     1650 and declares no `achieved_gpu_clk_mhz`, and `--setperfdeterminism X`
-     does not give you X. STATE.md records that same 1640 being stamped on 143
-     artifacts while the hardware ran at ~1860 MHz. #}
+  comparison rather than rescaling it.
+  {% else %}
+  <b>This {{ meta.part or 'part' }} manifest publishes no single
+  F<sub>LOCK</sub>.</b> Its unlocked measurements carry their own frequency
+  brackets; substituting one clock here would describe no measurement.
+  {% endif %}
+  A provisional row carries no score or rank and therefore cannot bridge the
+  part boundary; it remains local-validation evidence until an authoritative
+  re-time exists.
 </p>
 
 {% endblock %}

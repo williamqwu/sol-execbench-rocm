@@ -26,7 +26,10 @@ from pydantic import BaseModel, Field
 
 
 class Freshness(BaseModel):
-    stale: bool
+    stale: bool | None = Field(
+        description="True when inputs changed, false when they were compared "
+                    "and match, None when the serving process cannot read the "
+                    "inputs and therefore cannot tell.")
     reasons: list[str] = []
     db_built_utc: str | None = None
     built_from_git_sha: str | None = None
@@ -138,6 +141,36 @@ class LeaderboardRow(BaseModel):
                     "This is the board's default order, and it is NOT "
                     "comparable across rows with different coverage.")
     n_flagged: int
+
+
+class ProvisionalJob(BaseModel):
+    job_id: str
+    task_id: str | None = None
+    task_name: str
+    problem_key: str
+    model: str
+    created_utc: str | None = None
+    finished_utc: str | None = None
+    submission_n: int | None = None
+    validation_note: str | None = None
+    evidence: str
+    kernel_sha256: str | None = None
+    kernel_bytes: int | None = None
+    selected: int
+    url: str
+
+
+class ProvisionalRow(BaseModel):
+    slug: str
+    name: str
+    model: str
+    jobs: int
+    problems: int
+    kernels: int
+    latest_utc: str | None = None
+    evidence_tier: str = "provisional"
+    ranked: bool = False
+    url: str
 
 
 class ProblemSummary(BaseModel):
@@ -287,6 +320,7 @@ class SubmissionDetail(BaseModel):
     trials: list[Trial] = Field(
         [], description="Every trial of this submission's setup, this one "
                         "included. Empty when the run is not part of a group.")
+    provisional_jobs: list[ProvisionalJob] = []
 
 
 # ----------------------------------------------------------------- run detail
@@ -456,10 +490,11 @@ class RunDetail(BaseModel):
                         "part of a group.")
     window: RunWindow | None = None
     part: str | None = Field(
-        None, description="The part this RUN was measured on, from its own "
-                          "re-time provenance. None where its artifacts named "
-                          "none -- deliberately not filled in from the "
-                          "database's part, which is a fact about the bounds.")
+        None, description="For a scored run, the part measured by its own "
+                          "re-time provenance. For an explicitly provisional "
+                          "row, the part named by the KDA job snapshot. None "
+                          "where its artifacts named none -- never filled from "
+                          "the database's part, which is a fact about bounds.")
     kernel: RunKernel | None = None
     variants: list[VariantSource] = []
     reference: str | None = None
@@ -486,6 +521,9 @@ class PartInfo(BaseModel):
         None, description="Measured workload results on this part. None -- not "
                           "0 -- where there is no database: 'not measured' and "
                           "'measured nothing' are different statements.")
+    n_provisional: int | None = Field(
+        None, description="Unranked KDA evidence records. None where there is "
+                          "no database; never included in n_results.")
     active: bool = False
     url: str = Field(
         description="This same page on that part: path and query preserved, "

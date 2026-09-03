@@ -58,7 +58,8 @@ from jinja2 import pass_context
 from markupsafe import Markup, escape
 
 from models import (Health, LeaderboardRow, PartInfo, ProblemDetail,
-                    ProblemSummary, RunDetail, Stats, SubmissionDetail)
+                    ProblemSummary, ProvisionalRow, RunDetail, Stats,
+                    SubmissionDetail)
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -625,6 +626,7 @@ def known_parts() -> list[str]:
 
 _meta_cache: dict[tuple[str, int], str | None] = {}
 _count_cache: dict[tuple[str, int], int] = {}
+_provisional_count_cache: dict[tuple[str, int], int] = {}
 _mismatch_cache: dict[tuple[str, int], list[dict]] = {}
 
 
@@ -669,6 +671,15 @@ def db_n_results(path: Path) -> int | None:
     """Measured workload results in a database — the switch's "count" figure."""
     return _cached(_count_cache, path, lambda c: (
         c.execute("SELECT COUNT(*) FROM result").fetchone()[0]))
+
+
+def db_n_provisional(path: Path) -> int:
+    """Unranked jobs in a database, including zero and old schemas."""
+    def count(conn):
+        if not table_exists(conn, "provisional_job"):
+            return 0
+        return conn.execute("SELECT COUNT(*) FROM provisional_job").fetchone()[0]
+    return _cached(_provisional_count_cache, path, count)
 
 
 def part_databases() -> dict[str, Path]:
@@ -758,6 +769,7 @@ def part_infos(request: Request | None, active: str | None = None) -> list[dict]
             "name": name,
             "available": path is not None,
             "n_results": db_n_results(path) if path else None,
+            "n_provisional": db_n_provisional(path) if path else None,
             "active": name == active,
             "url": switch_url(request, name),
         })
@@ -888,16 +900,39 @@ def freshness(m: dict, path: Path | None = None) -> dict:
     untracked `glm-run1` agent run appeared. Both failures came from asking
     git a question about data git does not track. See `inputs.py`.
     """
-    out: dict = {"stale": False, "reasons": []}
+    out: dict = {"stale": None, "reasons": []}
     out["db_built_utc"] = m.get("db_built_utc")
     out["built_from_git_sha"] = m.get("repo_git_sha")   # provenance, not a check
     try:
         recorded = json.loads(m.get("input_signature") or "{}")
         extra = [Path(p) for p in json.loads(m.get("input_extra_roots") or "[]")]
-        current = inputs.signature(extra)
+        manifest = Path(m.get("input_manifest_path") or inputs.MANIFEST)
+        provisional_raw = m.get("input_provisional_path")
+        provisional = Path(provisional_raw) if provisional_raw else None
+        if not manifest.is_absolute():
+            manifest = ROOT / manifest
+        if provisional is not None and not provisional.is_absolute():
+            provisional = ROOT / provisional
+        current = inputs.signature(
+            extra,
+            manifest_path=manifest,
+            provisional_path=provisional,
+        )
         out["inputs"] = {"recorded": recorded, "current": current}
-        out["reasons"] = inputs.compare(recorded, current)
-        out["stale"] = bool(out["reasons"])
+        if not recorded:
+            out["reasons"] = ["the database recorded no input signature"]
+            out["error"] = "freshness is unknown for a database built without a signature"
+        elif recorded.get("n_files", 0) and current["n_files"] == 0:
+            out["reasons"] = [
+                "the build inputs are not present in this serving environment"
+            ]
+            out["error"] = (
+                "freshness is unknown: the database can be served, but its "
+                "manifest and result artifacts cannot be re-read here"
+            )
+        else:
+            out["reasons"] = inputs.compare(recorded, current)
+            out["stale"] = bool(out["reasons"])
         # The command must carry the roots this build actually used. A bare
         # `ingest.py` re-reads only artifacts/10, so following the banner
         # literally would silently drop every run kept outside the repo --
@@ -909,7 +944,7 @@ def freshness(m: dict, path: Path | None = None) -> dict:
         # different database and leave the stale banner up with nothing to
         # show for it. `--db` is emitted only where the two differ, so the
         # ordinary case keeps the short command.
-        cmd = "python leaderboard/ingest.py"
+        cmd = f"python leaderboard/ingest.py --manifest {manifest}"
         if path is not None and path != DB_DIR / f"solbench-{m.get('part')}.db":
             cmd += f" --db {path}"
         out["rebuild_command"] = cmd + (
@@ -922,6 +957,12 @@ def freshness(m: dict, path: Path | None = None) -> dict:
 
 def rows(conn, sql: str, args=()) -> list[dict]:
     return [dict(r) for r in conn.execute(sql, args)]
+
+
+def table_exists(conn, name: str) -> bool:
+    return conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)
+    ).fetchone() is not None
 
 
 # --------------------------------------------------------------------------
@@ -1188,6 +1229,53 @@ def leaderboard_rows(conn, category: str | None = None) -> list[dict]:
     return out
 
 
+def provisional_rows(conn, category: str | None = None) -> list[dict]:
+    """Visible evidence rows that are structurally absent from the ranking."""
+    if not table_exists(conn, "provisional_job"):
+        return []
+    category_where = "AND p.problem_key LIKE ?" if category else ""
+    args = (f"{category}__%",) if category else ()
+    got = rows(
+        conn,
+        f"""SELECT s.slug, s.name, s.model,
+                   COUNT(*) AS jobs,
+                   COUNT(DISTINCT p.problem_key) AS problems,
+                   SUM(p.selected) AS kernels,
+                   MAX(COALESCE(p.finished_utc,p.created_utc)) AS latest_utc
+              FROM submission s
+              JOIN provisional_job p ON p.submission_id=s.id
+             WHERE s.kind='provisional' {category_where}
+             GROUP BY s.id
+             ORDER BY LOWER(s.model)""",
+        args,
+    )
+    for row in got:
+        row["evidence_tier"] = "provisional"
+        row["ranked"] = False
+        row["url"] = f"/submissions/{row['slug']}"
+    return got
+
+
+def provisional_jobs(conn, submission_id: int, slug: str) -> list[dict]:
+    got = rows(
+        conn,
+        """SELECT job_id,task_id,task_name,problem_key,model,created_utc,
+                  finished_utc,submission_n,validation_note,kernel_sha256,
+                  kernel_bytes,evidence,selected
+             FROM provisional_job
+            WHERE submission_id=?
+            ORDER BY problem_key,created_utc,job_id""",
+        (submission_id,),
+    )
+    for row in got:
+        row["url"] = (
+            f"/submissions/{slug}/problems/{row['problem_key']}"
+            if row["selected"]
+            else f"/submissions/{slug}"
+        )
+    return got
+
+
 def problem_rows(conn, category: str | None = None) -> list[dict]:
     # Headline numbers, so `board_visible = 0` is excluded from both. These are
     # the figures a reader ranks problems by; an off-board run may be read but
@@ -1418,8 +1506,13 @@ def submission_detail(conn, slug: str) -> dict:
                               AND r.problem_key = k.problem_key)
          ORDER BY k.problem_key""", (s["id"],))
 
+    provisional = (
+        provisional_jobs(conn, s["id"], s["slug"])
+        if s["kind"] == "provisional"
+        else []
+    )
     return {"submission": s, "problems": per_problem, "unmeasured": unmeasured,
-            "trials": trials(conn, s)}
+            "trials": trials(conn, s), "provisional_jobs": provisional}
 
 
 def run_detail(conn, slug: str, key: str) -> dict:
@@ -1763,6 +1856,15 @@ def v1_leaderboard(request: Request, category: str | None = None,
         return sorted(leaderboard_rows(conn, category), key=lambda r: r["rank"])
 
 
+@V1.get("/provisional", response_model=list[ProvisionalRow])
+def v1_provisional(request: Request, category: str | None = None,
+                   part: str | None = None):
+    """Unranked local-validation evidence, separate from leaderboard scores."""
+    with db(resolve_part(request, part)) as conn:
+        check_category(conn, category)
+        return provisional_rows(conn, category)
+
+
 @V1.get("/problems", response_model=list[ProblemSummary])
 def v1_problems(request: Request, category: str | None = None,
                 part: str | None = None):
@@ -1845,6 +1947,14 @@ def api_leaderboard(request: Request, category: str | None = None,
     with db(resolve_part(request, part)) as conn:
         check_category(conn, category)
         return sorted(leaderboard_rows(conn, category), key=lambda r: r["rank"])
+
+
+@app.get("/api/provisional")
+def api_provisional(request: Request, category: str | None = None,
+                    part: str | None = None):
+    with db(resolve_part(request, part)) as conn:
+        check_category(conn, category)
+        return provisional_rows(conn, category)
 
 
 @app.get("/api/problems")
@@ -1958,6 +2068,7 @@ def index(request: Request, category: str | None = None, part: str | None = None
     with db(active) as conn:
         check_category(conn, category)
         board = leaderboard_rows(conn, category)
+        provisional = provisional_rows(conn, category)
         # What the rows are divided by, in the scope the chips have selected.
         # Passed to the template so every label on the page quotes the same
         # denominator the table used -- see `scoreable_totals()`.
@@ -1967,7 +2078,8 @@ def index(request: Request, category: str | None = None, part: str | None = None
                                     SUM(CASE WHEN deferred=1 THEN 1 ELSE 0 END) AS deferred
                                FROM problem GROUP BY category ORDER BY category""")
     return page(request, "index.html", active, board=board, categories=cats,
-                category=category, scope=scope, nav="board",
+                category=category, scope=scope, provisional=provisional,
+                nav="board",
                 part_mismatch=mismatch)
 
 

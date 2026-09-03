@@ -153,8 +153,8 @@ therefore a different T_SOL and T_b. So the part is not a filter over one
 dataset — it selects the dataset, and the split is enforced by the filesystem
 so that no query can mix two parts by accident:
 
-    leaderboard/db/solbench-MI350X.db     <- the measured board
-    leaderboard/db/solbench-MI355X.db     <- does not exist, and must not be faked
+    leaderboard/db/solbench-MI350X.db     <- authoritative scored board
+    leaderboard/db/solbench-MI355X.db     <- MI355X manifest + unranked evidence
 
 `ingest.py` names the file after the part the **manifest** says it was measured
 on. `--part` *asserts* that value and errors if it disagrees; it cannot relabel
@@ -165,7 +165,10 @@ Which part a request is about resolves in this order: `?part=` → the `part`
 cookie → `SOLBENCH_PART` → the only part with a database → `MI350X`. An unknown
 name is a 400. A part the port targets that has no database is a first-class
 page saying nothing has been measured on it — not a 404, not an empty table —
-and `/api/v1` answers 503 there. `run.sh` prints the same fact at startup:
+and `/api/v1` answers 503 there. A database containing provisional KDA evidence
+is available, but `/api/v1/leaderboard` remains empty until authoritative
+MI355X re-times exist; `/api/v1/provisional` exposes the separate evidence
+contract. `run.sh` prints the missing-database state at startup:
 
 ```
 serving MI355X, which has no database -- the board will show its empty state.
@@ -179,7 +182,10 @@ still read if a leftover is there, but nothing writes it any more.
 ## Rebuilding
 
 ```bash
-leaderboard/.venv/bin/python leaderboard/ingest.py     # -> db/solbench-<PART>.db
+leaderboard/.venv/bin/python leaderboard/ingest.py \
+    --manifest artifacts/09/manifest-v1.2.json --part MI350X
+leaderboard/.venv/bin/python leaderboard/ingest.py \
+    --manifest artifacts/09-MI355X/manifest-v4.json --part MI355X
 ```
 
 `ingest.py` builds a **new** database beside the old one and `os.replace()`s it
@@ -228,6 +234,9 @@ config exists, `worker.py` no longer passes `--agent-runs` at all.
 * `artifacts/10/*/trajectory/<problem>/eval-*.json` — every harness eval, with its kernel snapshot
 * `artifacts/10/*/cost-report.json` — per-problem cost, turns, tokens
 * `artifacts/10/*/transcripts/*.jsonl` — indexed by path only; see below
+* `artifacts/10/amdpilot-v2-provisional/provisional.json` — existing MI355X KDA
+  jobs with retained source and job-authored validation notes; these populate
+  `provisional_job`, never `result`
 * `reference/tb-candidates/variants.py` — applied to each problem's reference to
   regenerate the T_b formulations, so the run page can show what a kernel had to beat
 
@@ -239,6 +248,25 @@ The database is never a source of truth. If it disagrees with the artifacts,
 it is stale — rerun the ingest. Scores are computed by importing the repo's own
 `sol_execbench.sol_score`, not by reimplementing the formula, so the board
 cannot drift from the harness that produced the numbers.
+
+### Refreshing the AMDPilot v2 provisional snapshot
+
+The exporter reads existing jobs only. It does not create, retry or re-time a
+job:
+
+```bash
+python scripts/export_amdpilot_provisional.py
+leaderboard/.venv/bin/python leaderboard/ingest.py \
+    --manifest artifacts/09-MI355X/manifest-v4.json --part MI355X
+```
+
+Only terminal production KDA jobs for manifest v4 are eligible. Free-form
+validation notes remain text; the exporter never parses `9.2x`, `30/30` or any
+other note fragment into a score. Jobs without public result evidence are
+counted in the snapshot's exclusions rather than represented as measured
+zeros. Where several jobs target one model/problem, all job records remain in
+`provisional_job` and the newest retained source is selected for the existing
+kernel pane.
 
 ## Two rankings, both shown
 
@@ -254,13 +282,13 @@ skipping the hard problems.
 
 ## Things the board is careful about
 
-* **One part per board.** Every score on the built board is `MI350X` at F_LOCK
-  1300 MHz, and the header says so. T_SOL in milliseconds, T_b and F_LOCK all
+* **One part per board.** Every ranked score currently published is `MI350X` at
+  F_LOCK 1300 MHz, and the header says so. T_SOL in milliseconds, T_b and F_LOCK all
   differ by part, so a score from another part cannot be ranked against these —
   `scripts/score_solutions.py` refuses that comparison rather than rescaling it.
-  The part switch selects a whole database (above); it never joins two. MI355X
-  is in the switch and has **no** database, because nothing has been measured on
-  it — the port needs no work there, every number does. See `docs/TODO-MI355X.md`.
+  The part switch selects a whole database (above); it never joins two. The
+  MI355X database contains its own v4 manifest and provisional KDA evidence,
+  but no row from that evidence enters `result` or either ranking.
 * **Reference variants are labelled as such.** The four PyTorch formulations are
   what T_b is *derived from* — the winner of each workload scores exactly 0.5
   there by construction. They calibrate the scale rather than compete on it.
@@ -277,10 +305,12 @@ skipping the hard problems.
 * **Flagged submissions stay visible.** A workload the anti-reward-hack checks
   rejected scores zero and is still displayed as flagged.
 * **Staleness is reported, not assumed away.** The database is a view over the
-  artifacts and goes stale the moment they move — silently, since every page
-  still renders. `ingest.py` stamps the repo SHA and build time; `app.py`
-  compares them against the working tree and puts a banner in the header when
-  they diverge. `/healthz` returns the same check as JSON.
+  manifest and result artifacts and goes stale the moment they move — silently,
+  since every page still renders. `ingest.py` records the exact manifest path
+  and a stat signature; `app.py` recomputes it and puts a banner in the header
+  when it diverges. A deploy image that does not carry those build inputs
+  reports freshness as `unknown`, never as `fresh`. `/healthz` returns the same
+  three-state check as JSON.
 
 ## Themes
 

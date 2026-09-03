@@ -10,11 +10,12 @@ chassis (air-cooled 1000 W at 2.2 GHz vs liquid-cooled 1400 W at 2.4 GHz), so
 they share the build path and the architectural constants and share nothing
 that was measured. Every measured quantity is keyed by part.
 
-**Status:** fully measured on 8× MI350X — every number below came off this
-hardware. MI355X has a placeholder clock lock and no measurements; see
-[MI355X](#running-on-mi355x). See [`STATE.md`](STATE.md) for the live ledger
-and [`docs/methodology.md`](docs/methodology.md) for how each number was
-derived.
+**Status:** fully measured on 8× MI350X. MI355X has its own measured v4
+manifest (220 scoreable problems, 3,717 workloads) and no authoritative scored
+submission yet. The leaderboard therefore shows existing AMDPilot v2 KDA work
+there as explicitly provisional, unranked evidence. See
+[MI355X](#running-on-mi355x), [`STATE.md`](STATE.md) and
+[`docs/methodology.md`](docs/methodology.md).
 
 ## The one thing to get right before comparing anything
 
@@ -265,20 +266,18 @@ every `T_b` in the manifest is re-timed on GPU 0 alone.
 
 ## Running on MI355X
 
-Nothing here needs porting for MI355X — it is the same die — but everything
-measured needs re-measuring. In order:
+Nothing needs porting for MI355X — it is the same die — but measurements do not
+transfer. `artifacts/09-MI355X/manifest-v4.json` now carries MI355X's own
+tolerances, T_b and published bounds for all 220 scoreable problems. It was
+measured unlocked and brackets each measurement with its observed frequency,
+so it deliberately publishes no invented single F_LOCK.
 
-1. `tasks/01` — **re-measure F_LOCK.** `CLOCK_LOCK_PRESETS` carries an MI355X
-   entry at 1650 MHz from an earlier session on a different node; it is kept
-   and labelled, not trusted. On MI350X `rocm-smi --setperfdeterminism X`
-   yields roughly `0.83·X`, and whether that holds on the 1400 W part was never
-   asked.
-2. Regenerate the arch config at the new F_LOCK
-   (`gen_arch_yaml.py --part MI355X`). **T_SOL in cycles does not change** —
-   it is clock-invariant by construction — so the millisecond column is one
-   scalar division, not a re-run.
-3. Re-run tasks 05 and 06. Tolerances and `T_b` are measurements and do not
-   transfer.
+What remains is submission-side authority: re-time a kernel on an exclusive
+MI355X card through the repository scorer before assigning any SOL score.
+`artifacts/10/amdpilot-v2-provisional/provisional.json` collects prior
+production KDA jobs without doing that re-time. The board displays their
+retained sources and job-authored validation notes in a separate unranked
+section; none enters `result` or `/api/v1/leaderboard`.
 
 `src/solexbench_rocm/parts.py` separates ARCHITECTURAL (shared by both parts),
 PART (never shared) and MEASURED (never shared, never guessed) so that this

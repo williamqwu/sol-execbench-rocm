@@ -42,11 +42,13 @@ def test_the_openapi_schema_is_still_generated(client):
     assert schema.status_code == 200
     paths = schema.json()["paths"]
     assert "/api/v1/leaderboard" in paths
+    assert "/api/v1/provisional" in paths
     assert "/api/v1/problems/{key}" in paths
 
 
 def test_every_v1_route_still_answers(client):
     for url in ("/api/v1/parts", "/api/v1/stats", "/api/v1/leaderboard",
+                "/api/v1/provisional",
                 "/api/v1/problems", "/api/v1/problems/L1__001_alpha",
                 "/api/v1/submissions/agent-alpha", "/healthz"):
         assert client.get(url).status_code == 200, url
