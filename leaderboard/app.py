@@ -1020,6 +1020,15 @@ def table_exists(conn, name: str) -> bool:
     ).fetchone() is not None
 
 
+def table_columns(conn, name: str) -> set[str]:
+    if not table_exists(conn, name):
+        return set()
+    return {
+        row["name"]
+        for row in conn.execute("SELECT name FROM pragma_table_info(?)", (name,))
+    }
+
+
 # --------------------------------------------------------------------------
 # queries
 # --------------------------------------------------------------------------
@@ -1314,12 +1323,18 @@ def provisional_rows(conn, category: str | None = None) -> list[dict]:
 
 
 def provisional_jobs(conn, submission_id: int, slug: str) -> list[dict]:
+    has_source_column = "kernel_source" in table_columns(conn, "provisional_job")
+    source_expr = (
+        "CASE WHEN kernel_source IS NULL THEN 0 ELSE 1 END"
+        if has_source_column
+        else "0"
+    )
     got = rows(
         conn,
-        """SELECT job_id,task_id,task_name,problem_key,model,created_utc,
-                  finished_utc,submission_n,validation_note,kernel_sha256,
-                  kernel_bytes,evidence,selected,
-                  CASE WHEN kernel_source IS NULL THEN 0 ELSE 1 END AS has_source
+        f"""SELECT job_id,task_id,task_name,problem_key,model,created_utc,
+                   finished_utc,submission_n,validation_note,kernel_sha256,
+                   kernel_bytes,evidence,selected,
+                   {source_expr} AS has_source
              FROM provisional_job
             WHERE submission_id=?
             ORDER BY problem_key,created_utc,job_id""",
@@ -1346,7 +1361,7 @@ def provisional_jobs(conn, submission_id: int, slug: str) -> list[dict]:
 
 
 def provisional_kernel_source(conn, job_id: str) -> str:
-    if not table_exists(conn, "provisional_job"):
+    if "kernel_source" not in table_columns(conn, "provisional_job"):
         raise HTTPException(404, f"no such provisional job: {job_id}")
     row = conn.execute(
         "SELECT kernel_source FROM provisional_job WHERE job_id=?", (job_id,)
@@ -1576,15 +1591,15 @@ def submission_detail(conn, slug: str) -> dict:
     # Kernels that produced no results at all. Without this they are absent
     # from the submission page entirely -- the agent wrote a kernel, the
     # re-time failed, and the run looks like it never touched the problem.
-    unmeasured = rows(conn, """
-        SELECT k.problem_key AS key, p.category, p.name, p.n_scoreable,
-               k.n_lines, k.retime_error
-          FROM run_kernel k JOIN problem p ON p.key = k.problem_key
-         WHERE k.submission_id = ?
-           AND NOT EXISTS (SELECT 1 FROM result r
-                            WHERE r.submission_id = k.submission_id
-                              AND r.problem_key = k.problem_key)
-         ORDER BY k.problem_key""", (s["id"],))
+    unmeasured = [] if s["kind"] == "provisional" else rows(conn, """
+            SELECT k.problem_key AS key, p.category, p.name, p.n_scoreable,
+                   k.n_lines, k.retime_error
+              FROM run_kernel k JOIN problem p ON p.key = k.problem_key
+             WHERE k.submission_id = ?
+               AND NOT EXISTS (SELECT 1 FROM result r
+                                WHERE r.submission_id = k.submission_id
+                                  AND r.problem_key = k.problem_key)
+             ORDER BY k.problem_key""", (s["id"],))
 
     provisional = (
         provisional_jobs(conn, s["id"], s["slug"])

@@ -142,6 +142,26 @@ def test_code_rollout_can_still_read_a_pre_provisional_database(client, board):
     assert client.get("/").status_code == 200
 
 
+def test_previous_provisional_schema_degrades_without_a_500(client, board):
+    add_provisional(board)
+    board.write("ALTER TABLE provisional_job DROP COLUMN kernel_source")
+    board.write("ALTER TABLE provisional_job DROP COLUMN kernel_lines")
+
+    listing = client.get("/api/v1/provisional")
+    detail = client.get(f"/api/v1/submissions/{SLUG}")
+    source = client.get("/api/v1/provisional/jobs/j-new/kernel")
+    assert listing.status_code == detail.status_code == 200
+    assert detail.json()["provisional_sources"] == 0
+    assert all(job["source_url"] is None
+               for job in detail.json()["provisional_jobs"])
+    assert source.status_code == 404
+    assert client.get("/").status_code == 200
+    page = client.get(f"/submissions/{SLUG}")
+    assert page.status_code == 200
+    assert "contribute zero" not in page.text
+    assert "Submitted, but never measured" not in page.text
+
+
 def test_part_switch_names_provisional_evidence_instead_of_zero_results(
         client, board):
     board.add("MI355X")
